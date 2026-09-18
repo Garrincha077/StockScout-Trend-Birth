@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StockScout Trend Birth — Daily Review Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><strong>Trend Birth Review Lab</strong><span id="runMeta">Učitavanje…</span></div>
+    <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
+  </header>
+  <nav id="filters" class="filters" aria-label="Filter kandidata">
+    <button data-filter="all" class="active">All</button>
+    <button data-filter="bottom-fishing">Bottom</button>
+    <button data-filter="next">Next</button>
+    <button data-filter="ryan-original">Ryan</button>
+    <button data-filter="kell-3x-rvol">Kell 3x RVOL</button>
+    <button data-filter="action">Action</button>
+  </nav>
+  <main>
+    <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <section id="grid" class="grid" aria-live="polite"></section>
+  </main>
+  <dialog id="detail">
+    <button id="closeDetail" class="close" aria-label="Zatvori">×</button>
+    <div id="detailBody"></div>
+  </dialog>
+  <script src="app.js" defer></script>
+</body>
+</html>
