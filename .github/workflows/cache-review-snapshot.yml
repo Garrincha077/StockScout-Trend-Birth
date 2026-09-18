@@ -1,0 +1,38 @@
+name: Cache Trend Birth Review Snapshot
+
+on:
+  push:
+    branches:
+      - "feature/unified-review-grid-lab"
+    paths:
+      - "scripts/build_review_snapshot.py"
+      - ".github/workflows/cache-review-snapshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build current read-only snapshot
+        run: python scripts/build_review_snapshot.py --analysis lab/data/analysis.example.json --output lab/data/latest.json
+      - name: Commit snapshot only to Trend Birth lab branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/data/latest.json
+          if git diff --cached --quiet; then
+            echo "Snapshot unchanged"
+            exit 0
+          fi
+          git commit -m "chore(lab): refresh review snapshot [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}
