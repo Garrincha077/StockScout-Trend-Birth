@@ -43,6 +43,30 @@ class BuilderTests(unittest.TestCase):
         row["avg_volume_20d"] = 499_999
         self.assertFalse(builder.is_kell_gap_up(row))
 
+    def test_kell_gap_exact_chart_verification(self):
+        rows = []
+        for index in range(20):
+            rows.append({
+                "time": f"2026-08-{index + 1:02d}",
+                "open": 24.0,
+                "high": 24.5,
+                "low": 23.8,
+                "close": 24.0,
+                "volume": 600_000,
+            })
+        rows.append({
+            "time": "2026-09-18",
+            "open": 25.0,
+            "high": 26.0,
+            "low": 24.9,
+            "close": 25.7,
+            "volume": 1_200_000,
+        })
+        metrics = builder.kell_gap_from_bars(rows)
+        self.assertGreater(metrics["gapPct"], 3.0)
+        self.assertGreater(metrics["gapHeldPct"], 100.0)
+        self.assertTrue(builder.is_kell_gap_from_bars(rows))
+
     def test_kell_gap_requires_price_above_20(self):
         row = {
             "ticker": "AAA",
