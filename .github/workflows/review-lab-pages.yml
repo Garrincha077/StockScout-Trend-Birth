@@ -2,6 +2,12 @@ name: Trend Birth Review Lab Pages
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "lab/**"
+      - "scripts/build_review_snapshot.py"
+      - "tests/test_build_review_snapshot.py"
+      - ".github/workflows/review-lab-pages.yml"
   push:
     branches:
       - "feature/unified-review-grid-lab"
