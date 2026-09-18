@@ -5,12 +5,14 @@ on:
     paths:
       - "scripts/build_review_snapshot.py"
       - ".github/workflows/cache-review-snapshot.yml"
+      - "lab/refresh-trigger.txt"
   push:
     branches:
       - "feature/unified-review-grid-lab"
     paths:
       - "scripts/build_review_snapshot.py"
       - ".github/workflows/cache-review-snapshot.yml"
+      - "lab/refresh-trigger.txt"
   workflow_dispatch:
 
 permissions:
