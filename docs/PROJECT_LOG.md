@@ -116,3 +116,16 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Keep PR #1 draft. Use the isolated Vercel preview for functional UX review, then establish a stable public URL (either disable preview auth in Vercel or manually enable GitHub Pages once for the Trend Birth repo). Only after that should a later, separately approved change append the review link to production Telegram messages.
+
+
+### 2026-09-18 — Oliver Kell Gap-Up added to Review Lab
+
+- Added a separate `kell-gap` source/filter; it is not merged into the existing strict 3x RVOL Kell source.
+- Canonical eligibility follows Kell's published Gappers screen: price > $20, 20-day average volume > 500k shares, and opening gap > 3%.
+- Implementation is exact-bar based: the lab first makes a cheap read-only probe from the full public Unified Bottom universe, then loads OHLCV only for the top probe set and verifies today's open vs prior close plus actual 20D average volume.
+- Daily best-of ranking is a second layer, separate from eligibility, using gap hold, close location, RVOL, and 50D/30W context.
+- Latest verified Unified session produced 32 exact eligible gap names; the current top five were `TEM`, `SMCI`, `UMAC`, `COIN`, and `TWST`.
+- GridView now includes `Kell Gap-Up`; ticker cards show gap %, detail shows gap % / held %, Avg Vol 20D, and a gap-specific preferred-trade state.
+- Multi-hit continues to work across Bottom / Next / Ryan / Kell 3x / Kell Gap.
+- Validation: Python unit tests pass, live snapshot build passes, chart coverage is 82/82 for the expanded daily board, and `node --check lab/app.js` passes on the built artifact.
+- Production impact: none; all work remains on `feature/unified-review-grid-lab` in StockScout-Trend-Birth.
