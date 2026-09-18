@@ -129,3 +129,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Multi-hit continues to work across Bottom / Next / Ryan / Kell 3x / Kell Gap.
 - Validation: Python unit tests pass, live snapshot build passes, chart coverage is 82/82 for the expanded daily board, and `node --check lab/app.js` passes on the built artifact.
 - Production impact: none; all work remains on `feature/unified-review-grid-lab` in StockScout-Trend-Birth.
+
+
+### 2026-09-18 — Nightly refresh and immutable archive verified
+
+- Added a branch-local refresh trigger at `lab/refresh-trigger.txt`.
+- Added immutable session archives under `lab/data/history/<sessionDate>.json`; `lab/data/latest.json` remains the moving latest pointer.
+- GridView supports `?date=YYYY-MM-DD` and will load the immutable historical snapshot for that session.
+- A manual smoke trigger on `feature/unified-review-grid-lab` completed successfully: unit tests passed, live Unified ingest passed, archive step passed, and the cache workflow correctly skipped the write because no newer activated Unified session was available.
+- A ChatGPT scheduled task named `Trend Birth Refresh` is enabled for weekdays at 23:30 Europe/Zagreb. It only touches the Trend Birth lab feature branch trigger and verifies the resulting snapshot/archive; it must not modify Unified, Trend Birth main, Telegram, Supabase, or broker state.
+- Remaining infrastructure item: stable public hosting. GitHub Pages cannot be first-enabled by the connected GitHub App, and the Vercel deployment connector currently errors on the deploy action even though the existing isolated Vercel project/read APIs work. The application/data pipeline itself is green.
