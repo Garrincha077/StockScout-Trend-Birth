@@ -63,6 +63,7 @@ jobs:
           candidate = Path("/tmp/review-latest.json")
           latest = Path("lab/data/latest.json")
           history_dir = Path("lab/data/history")
+          telegram_marker = Path("lab/data/telegram-last-sent.txt")
 
           data = json.loads(candidate.read_text(encoding="utf-8"))
           source = data.get("source") or {}
@@ -87,37 +88,111 @@ jobs:
               except Exception:
                   old_date = ""
 
+          marker_date = telegram_marker.read_text(encoding="utf-8").strip() if telegram_marker.exists() else ""
+          if marker_date:
+              dt.date.fromisoformat(marker_date)
+
           if old_date and session_date < old_date:
               print(f"Upstream session {session_date} is older than current latest {old_date}; refusing rollback.")
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-                  fh.write("changed=false\n")
-                  fh.write(f"session_date={session_date}\n")
-              raise SystemExit(0)
-
-          candidate_bytes = candidate.read_bytes()
-          current_bytes = latest.read_bytes() if latest.exists() else b""
-          archive = history_dir / f"{session_date}.json"
-          archive_bytes = archive.read_bytes() if archive.exists() else b""
-
-          changed = candidate_bytes != current_bytes or candidate_bytes != archive_bytes
-          if changed:
-              history_dir.mkdir(parents=True, exist_ok=True)
-              shutil.copyfile(candidate, latest)
-              shutil.copyfile(candidate, archive)
-              print(f"Published session {session_date}: {candidate_count} candidates, {chart_count} charts.")
+              changed = False
+              notify_needed = False
           else:
-              print(f"Session {session_date} already published; no changes.")
+              candidate_bytes = candidate.read_bytes()
+              current_bytes = latest.read_bytes() if latest.exists() else b""
+              archive = history_dir / f"{session_date}.json"
+              archive_bytes = archive.read_bytes() if archive.exists() else b""
+
+              changed = candidate_bytes != current_bytes or candidate_bytes != archive_bytes
+              if changed:
+                  history_dir.mkdir(parents=True, exist_ok=True)
+                  shutil.copyfile(candidate, latest)
+                  shutil.copyfile(candidate, archive)
+                  print(f"Published session {session_date}: {candidate_count} candidates, {chart_count} charts.")
+              else:
+                  print(f"Session {session_date} already published; no snapshot changes.")
+
+              notify_needed = not marker_date or session_date > marker_date
+              print(f"Telegram marker={marker_date or 'none'}; notify_needed={notify_needed}")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"changed={'true' if changed else 'false'}\n")
               fh.write(f"session_date={session_date}\n")
+              fh.write(f"notify_needed={'true' if notify_needed else 'false'}\n")
           PY
 
-      - name: Commit refreshed LAB snapshot
-        if: steps.publish.outputs.changed == 'true'
+      - name: Send one Telegram GridView summary for the new session
+        id: telegram
+        if: steps.publish.outputs.notify_needed == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SESSION_DATE: ${{ steps.publish.outputs.session_date }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+          session_date = os.environ["SESSION_DATE"].strip()
+
+          sent = False
+          if not token or not chat_id:
+              print("Telegram credentials are not available in StockScout-Trend-Birth; delivery deferred.")
+          else:
+              data = json.loads(Path("lab/data/latest.json").read_text(encoding="utf-8"))
+              candidates = data.get("candidates") or []
+              kell = int((data.get("kell") or {}).get("qualifiedCount") or 0)
+              gap = int((data.get("kellGap") or {}).get("qualifiedCount") or 0)
+              multi = sum(1 for item in candidates if len(set(item.get("sources") or [])) > 1)
+              total = int(data.get("candidateCount") or len(candidates))
+              link = "https://stockscout-trend-birth-review-lab.vercel.app"
+              message = (
+                  f"📊 Trend Birth GridView — {session_date}\n"
+                  f"Kandidati: {total}\n"
+                  f"Kell 3x RVOL: {kell} · Gap-Up: {gap} · Multi-hit: {multi}\n"
+                  f"{link}"
+              )
+              payload = urllib.parse.urlencode({
+                  "chat_id": chat_id,
+                  "text": message,
+                  "disable_web_page_preview": "true",
+              }).encode("utf-8")
+              request = urllib.request.Request(
+                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  data=payload,
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = json.loads(response.read().decode("utf-8"))
+                  sent = bool(body.get("ok"))
+              except Exception:
+                  sent = False
+
+              if sent:
+                  Path("lab/data/telegram-last-sent.txt").write_text(session_date + "\n", encoding="utf-8")
+                  print(f"Telegram GridView summary delivered for {session_date}.")
+              else:
+                  print("Telegram delivery failed; marker was not advanced and a later refresh will retry.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"sent={'true' if sent else 'false'}\n")
+          PY
+
+      - name: Commit refreshed LAB data and Telegram marker
+        if: steps.publish.outputs.changed == 'true' || steps.telegram.outputs.sent == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/history/
-          git commit -m "chore(lab): refresh review snapshot ${{ steps.publish.outputs.session_date }}"
+          git add lab/data/latest.json lab/data/history/ lab/data/telegram-last-sent.txt
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(lab): refresh review data ${{ steps.publish.outputs.session_date }}"
           git push origin HEAD:feature/unified-review-grid-lab
