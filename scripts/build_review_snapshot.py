@@ -115,6 +115,47 @@ def _kell_rank(row: dict, signals: list[str]) -> tuple[int, float, float, float]
     return len(signals), daily_rvol, rs, dollar_volume
 
 
+def kell_gap_metrics(row: dict) -> dict:
+    """Derive Kell's canonical gap screen from latest enriched EOD row."""
+    price = _number(row, "price", "close")
+    open_price = _number(row, "open")
+    ret_1d = _number(row, "ret_1d_pct", "ret1dPct")
+    avg_volume_20d = _number(row, "avg_volume_20d", "avgVolume20d")
+    if price is None or open_price is None or ret_1d is None or ret_1d <= -99.0:
+        return {"gapPct": None, "prevClose": None, "gapHeldPct": None, "avgVolume20d": avg_volume_20d}
+    prev_close = price / (1.0 + ret_1d / 100.0)
+    if prev_close <= 0:
+        return {"gapPct": None, "prevClose": None, "gapHeldPct": None, "avgVolume20d": avg_volume_20d}
+    gap_pct = (open_price / prev_close - 1.0) * 100.0
+    gap_size = open_price - prev_close
+    gap_held = ((price - prev_close) / gap_size * 100.0) if gap_size > 0 else None
+    return {
+        "gapPct": gap_pct,
+        "prevClose": prev_close,
+        "gapHeldPct": gap_held,
+        "avgVolume20d": avg_volume_20d,
+        "open": open_price,
+    }
+
+
+def is_kell_gap_up(row: dict, min_gap_pct: float = 3.0) -> bool:
+    """Oliver Kell Gappers screen: price > $20, Avg Vol 20d > 500k, gap > 3%."""
+    metrics = kell_gap_metrics(row)
+    price = _number(row, "price", "close") or 0.0
+    avg_volume_20d = metrics.get("avgVolume20d") or 0.0
+    gap_pct = metrics.get("gapPct")
+    return bool(price > 20.0 and avg_volume_20d > 500_000 and gap_pct is not None and gap_pct > min_gap_pct)
+
+
+def _kell_gap_rank(row: dict) -> tuple[float, float, float, float]:
+    metrics = kell_gap_metrics(row)
+    gap_pct = float(metrics.get("gapPct") or 0.0)
+    gap_held = float(metrics.get("gapHeldPct") or 0.0)
+    rvol = _number(row, "rvol_today", "rvolToday") or 0.0
+    rs = _number(row, "rs_rating", "rsRating") or 0.0
+    return gap_held, rvol, gap_pct, rs
+
+
 def _bottom_priority(row: dict) -> tuple[float, float, float]:
     score = max(
         value or 0.0
@@ -449,7 +490,7 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
     return metrics
 
 
-def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int) -> dict:
+def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int, kell_gap_limit: int = 5) -> dict:
     base_url = base_url.rstrip("/") + "/"
     unified = _get_json(urljoin(base_url, "data/manifest.json"))
     session_date = str(unified.get("sessionDate") or "")
@@ -457,6 +498,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     merged: dict[str, dict] = {}
     mode_payloads: dict[str, tuple[str, dict, dict]] = {}
     kell_pool: dict[str, tuple[list[str], dict]] = {}
+    kell_gap_pool: dict[str, dict] = {}
     mode_universe_counts: dict[str, int] = {}
 
     for mode in MODES:
@@ -480,6 +522,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
                     previous = kell_pool.get(ticker)
                     if previous is None or _kell_rank(row, signals) > _kell_rank(previous[1], previous[0]):
                         kell_pool[ticker] = (signals, row)
+                if ticker and is_kell_gap_up(row):
+                    previous_gap = kell_gap_pool.get(ticker)
+                    if previous_gap is None or _kell_gap_rank(row) > _kell_gap_rank(previous_gap):
+                        kell_gap_pool[ticker] = row
 
         rows = select_mode_rows(mode, full_rows)
         for rank, row in enumerate(rows, 1):
@@ -518,6 +564,32 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "signals": signals,
             "rvolToday": _number(row, "rvol_today", "rvolToday"),
             "avgDollarVolume50d": _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d"),
+            "rsRating": _number(row, "rs_rating", "rsRating"),
+        }
+
+    # Canonical Oliver Kell Gappers screen. Preselect a wider pool so final
+    # "best of day" ranking can use chart quality without loading charts for the full universe.
+    gap_prefilter = sorted(kell_gap_pool.items(), key=lambda pair: _kell_gap_rank(pair[1]), reverse=True)[:max(kell_gap_limit * 4, 20)]
+    for rank, (ticker, row) in enumerate(gap_prefilter, 1):
+        item = merged.setdefault(
+            ticker,
+            {"ticker": ticker, "sources": [], "sourceRanks": {}, "chartModes": [], "raw": {}},
+        )
+        if "kell-gap" not in item["sources"]:
+            item["sources"].append("kell-gap")
+        if "bottom-fishing" not in item["chartModes"]:
+            item["chartModes"].append("bottom-fishing")
+        item["sourceRanks"]["kell-gap"] = rank
+        item["raw"] = {**item["raw"], **row}
+        gap = kell_gap_metrics(row)
+        item["kellGap"] = {
+            "rank": rank,
+            "gapPct": gap.get("gapPct"),
+            "gapHeldPct": gap.get("gapHeldPct"),
+            "open": gap.get("open"),
+            "prevClose": gap.get("prevClose"),
+            "avgVolume20d": gap.get("avgVolume20d"),
+            "rvolToday": _number(row, "rvol_today", "rvolToday"),
             "rsRating": _number(row, "rs_rating", "rsRating"),
         }
 
@@ -587,6 +659,35 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         if not item["sources"]:
             merged.pop(ticker)
 
+    gap_items = [item for item in merged.values() if "kell-gap" in item["sources"]]
+    def gap_quality_rank(item: dict):
+        metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
+        gap = item.get("kellGap") or {}
+        slope50 = 1 if metrics.get("slope50") == "upward" else 0
+        slope30 = 1 if metrics.get("slope30w") in {"upward", "flat"} else 0
+        close_location = float(metrics.get("closeLocationPct") or 0.0)
+        held = float(gap.get("gapHeldPct") or 0.0)
+        rvol = float(gap.get("rvolToday") or 0.0)
+        gap_pct = float(gap.get("gapPct") or 0.0)
+        return slope50 + slope30, min(held, 200.0), close_location, rvol, gap_pct
+
+    gap_items.sort(key=gap_quality_rank, reverse=True)
+    selected_gap = {item["ticker"] for item in gap_items[:kell_gap_limit]}
+    gap_rank_map = {item["ticker"]: rank for rank, item in enumerate(gap_items[:kell_gap_limit], 1)}
+    for ticker in list(merged):
+        item = merged[ticker]
+        if "kell-gap" not in item["sources"]:
+            continue
+        if ticker in selected_gap:
+            item["sourceRanks"]["kell-gap"] = gap_rank_map[ticker]
+            item["kellGap"]["rank"] = gap_rank_map[ticker]
+            continue
+        item["sources"] = [source for source in item["sources"] if source != "kell-gap"]
+        item["sourceRanks"].pop("kell-gap", None)
+        item.pop("kellGap", None)
+        if not item["sources"]:
+            merged.pop(ticker)
+
     analysis_by_ticker = analysis if isinstance(analysis, dict) else {}
     candidates = []
     for ticker, item in merged.items():
@@ -619,6 +720,15 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "eligiblePublicPool": len(kell_pool),
             "method": "Strict liquid positive-day 3x+ RVOL leaders, ranked with Unified Kell saved-screen confluence",
         },
+        "kellGap": {
+            "minGapPct": 3.0,
+            "minPrice": 20.0,
+            "minAvgVolume20d": 500000,
+            "limit": kell_gap_limit,
+            "qualifiedCount": len(selected_gap),
+            "eligiblePublicPool": len(kell_gap_pool),
+            "method": "Canonical Oliver Kell Gappers screen, then quality-ranked for the daily best-of board",
+        },
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),
         "candidates": candidates,
@@ -632,11 +742,12 @@ def main() -> int:
     parser.add_argument("--output", default="lab/data/latest.json")
     parser.add_argument("--kell-min-rvol", type=float, default=3.0)
     parser.add_argument("--kell-limit", type=int, default=5)
+    parser.add_argument("--kell-gap-limit", type=int, default=5)
     args = parser.parse_args()
     analysis = {}
     if args.analysis and Path(args.analysis).exists():
         analysis = json.loads(Path(args.analysis).read_text(encoding="utf-8"))
-    snapshot = build_snapshot(args.base_url, analysis, args.kell_min_rvol, args.kell_limit)
+    snapshot = build_snapshot(args.base_url, analysis, args.kell_min_rvol, args.kell_limit, args.kell_gap_limit)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
