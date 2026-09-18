@@ -120,9 +120,23 @@ jobs:
               fh.write(f"notify_needed={'true' if notify_needed else 'false'}\n")
           PY
 
+      - name: Verify Telegram delivery credentials
+        id: telegram_config
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Telegram credentials are available."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Telegram credentials are not available in StockScout-Trend-Birth."
+          fi
+
       - name: Send one Telegram GridView summary for the new session
         id: telegram
-        if: steps.publish.outputs.notify_needed == 'true'
+        if: steps.publish.outputs.notify_needed == 'true' && steps.telegram_config.outputs.available == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
