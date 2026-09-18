@@ -51,6 +51,73 @@ def relative_volume(row: dict) -> float | None:
     return max(finite) if finite else None
 
 
+def _truthy(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def kell_signals(row: dict, min_rvol: float = 3.0) -> list[str]:
+    """Mirror the public Unified Oliver Kell saved screens plus a liquid daily RVOL event."""
+    signals: list[str] = []
+    rs = _number(row, "rs_rating", "rsRating") or 0.0
+    primary = str(row.get("primary_setup") or row.get("primarySetup") or "")
+    ema_phase = str(row.get("ema_stack_phase") or row.get("emaStackPhase") or "")
+    long_base_phase = str(row.get("long_base_phase") or row.get("longBasePhase") or "")
+    rwb_phase = str(row.get("rwb_squeeze_phase") or row.get("rwbSqueezePhase") or "")
+    distance_high = _number(row, "distance_to_52w_high_pct", "distanceTo52wHighPct")
+    weekly_rvol = _number(row, "weekly_breakout_rvol", "weeklyBreakoutRvol") or 0.0
+    daily_rvol = _number(row, "rvol_today", "rvolToday") or 0.0
+    adv50 = _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d") or 0.0
+    price = _number(row, "price", "close") or 0.0
+    ret_1d = _number(row, "ret_1d_pct", "ret1dPct") or 0.0
+    ret_6m = _number(row, "ret_6m_pct", "ret6mPct") or 0.0
+
+    if rs >= 85 and (
+        primary == "ema_cross"
+        or ema_phase in {"early_ignition", "stack_thrust", "follow_through"}
+        or long_base_phase == "launching"
+        or rwb_phase in {"thrusting", "confirmed"}
+    ):
+        signals.append("Reclaim / Launch")
+
+    if (
+        rs >= 85
+        and distance_high is not None
+        and distance_high >= -5
+        and _truthy(row.get("rs_line_at_52w_high") or row.get("rsLineAt52wHigh"))
+    ):
+        signals.append("52W Highs")
+
+    if rs >= 80 and (
+        weekly_rvol >= 2
+        or _truthy(row.get("daily_rvol_headsup") or row.get("dailyRvolHeadsup"))
+        or _truthy(row.get("pocket_pivot") or row.get("pocketPivot"))
+    ):
+        signals.append("Bull Snort")
+
+    if ret_6m >= 100 and rs >= 90:
+        signals.append("Doublers")
+
+    # User-requested daily power-move overlay. Liquidity and price sanity prevent
+    # extreme RVOL prints in tiny/illiquid names from dominating the daily board.
+    if daily_rvol >= min_rvol and adv50 >= 20_000_000 and price >= 5 and ret_1d > 0:
+        signals.append(f"Daily {min_rvol:g}x RVOL")
+
+    return signals
+
+
+def _kell_rank(row: dict, signals: list[str]) -> tuple[int, int, float, float, float]:
+    daily_rvol = _number(row, "rvol_today", "rvolToday") or 0.0
+    rs = _number(row, "rs_rating", "rsRating") or 0.0
+    dollar_volume = _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d") or 0.0
+    fresh = sum(
+        label.startswith("Daily ") or label in {"Reclaim / Launch", "Bull Snort"}
+        for label in signals
+    )
+    return fresh, len(signals), daily_rvol, rs, dollar_volume
+
+
 def _bottom_priority(row: dict) -> tuple[float, float, float]:
     score = max(
         value or 0.0
@@ -306,7 +373,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     run_id = str(unified.get("runId") or "")
     merged: dict[str, dict] = {}
     mode_payloads: dict[str, tuple[str, dict, dict]] = {}
-    kell_raw: dict[str, tuple[float, str, dict]] = {}
+    kell_pool: dict[str, tuple[list[str], dict]] = {}
     mode_universe_counts: dict[str, int] = {}
 
     for mode in MODES:
@@ -317,15 +384,16 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         mode_payloads[mode] = (mode_root, manifest, core)
         mode_universe_counts[mode] = len(full_rows)
 
-        # Kell overlay scans the full public mode pool, not only the 25 names already
-        # selected for the daily review. It remains a transparent RVOL hypothesis.
-        for row in full_rows:
-            ticker = _ticker(row)
-            rv = relative_volume(row)
-            if ticker and rv is not None and rv >= kell_min_rvol:
-                previous = kell_raw.get(ticker)
-                if previous is None or rv > previous[0]:
-                    kell_raw[ticker] = (rv, mode, row)
+        # The Bottom public screener carries the full transparent evidence fields
+        # used by Unified's existing Kell saved screens. Scan that broad pool once.
+        if mode == "bottom-fishing":
+            for row in full_rows:
+                ticker = _ticker(row)
+                signals = kell_signals(row, kell_min_rvol)
+                if ticker and signals:
+                    previous = kell_pool.get(ticker)
+                    if previous is None or _kell_rank(row, signals) > _kell_rank(previous[1], previous[0]):
+                        kell_pool[ticker] = (signals, row)
 
         rows = select_mode_rows(mode, full_rows)
         for rank, row in enumerate(rows, 1):
@@ -341,25 +409,28 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             item["sourceRanks"][mode] = rank
             item["raw"] = {**item["raw"], **row}
 
-    for rank, (ticker, (rv, origin_mode, row)) in enumerate(
-        sorted(kell_raw.items(), key=lambda pair: pair[1][0], reverse=True)[:kell_limit],
-        1,
-    ):
+    kell_sorted = sorted(
+        kell_pool.items(),
+        key=lambda pair: _kell_rank(pair[1][1], pair[1][0]),
+        reverse=True,
+    )[:kell_limit]
+    for rank, (ticker, (signals, row)) in enumerate(kell_sorted, 1):
         item = merged.setdefault(
             ticker,
             {"ticker": ticker, "sources": [], "sourceRanks": {}, "chartModes": [], "raw": {}},
         )
-        if "kell-3x-rvol" not in item["sources"]:
-            item["sources"].append("kell-3x-rvol")
-        if origin_mode not in item["chartModes"]:
-            item["chartModes"].append(origin_mode)
-        item["sourceRanks"]["kell-3x-rvol"] = rank
+        if "kell-daily" not in item["sources"]:
+            item["sources"].append("kell-daily")
+        if "bottom-fishing" not in item["chartModes"]:
+            item["chartModes"].append("bottom-fishing")
+        item["sourceRanks"]["kell-daily"] = rank
         item["raw"] = {**item["raw"], **row}
         item["kell"] = {
-            "rvol": rv,
-            "rule": f"RVOL >= {kell_min_rvol:.1f}x",
             "rank": rank,
-            "originMode": origin_mode,
+            "signals": signals,
+            "rvolToday": _number(row, "rvol_today", "rvolToday"),
+            "avgDollarVolume50d": _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d"),
+            "rsRating": _number(row, "rs_rating", "rsRating"),
         }
 
     pending = set(merged)
@@ -411,8 +482,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         "kell": {
             "minRelativeVolume": kell_min_rvol,
             "limit": kell_limit,
-            "eligiblePublicPool": len(kell_raw),
-            "method": "strongest published scalar RVOL evidence across full public mode pools",
+            "eligiblePublicPool": len(kell_pool),
+            "method": "Unified Kell saved-screen rules + liquid daily RVOL overlay on full Bottom public pool",
         },
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),
