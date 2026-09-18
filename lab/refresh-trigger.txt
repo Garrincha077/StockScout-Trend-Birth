@@ -1,1 +1,1 @@
-manual-smoke 2026-09-18T23:04:00+02:00
+vercel-production-bootstrap 2026-09-18 23:22 Europe/Zagreb
