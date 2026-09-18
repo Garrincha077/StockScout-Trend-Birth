@@ -107,15 +107,12 @@ def kell_signals(row: dict, min_rvol: float = 3.0) -> list[str]:
     return signals
 
 
-def _kell_rank(row: dict, signals: list[str]) -> tuple[int, int, float, float, float]:
+def _kell_rank(row: dict, signals: list[str]) -> tuple[int, float, float, float]:
+    """Rank only qualifying daily power moves; saved-screen confluence breaks ties."""
     daily_rvol = _number(row, "rvol_today", "rvolToday") or 0.0
     rs = _number(row, "rs_rating", "rsRating") or 0.0
     dollar_volume = _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d") or 0.0
-    fresh = sum(
-        label.startswith("Daily ") or label in {"Reclaim / Launch", "Bull Snort"}
-        for label in signals
-    )
-    return fresh, len(signals), daily_rvol, rs, dollar_volume
+    return len(signals), daily_rvol, rs, dollar_volume
 
 
 def _bottom_priority(row: dict) -> tuple[float, float, float]:
@@ -289,6 +286,49 @@ def _rsi14(closes: list[float]) -> float | None:
     return 100.0 - 100.0 / (1.0 + rs)
 
 
+def _ema(values: list[float], window: int) -> list[float | None]:
+    if not values:
+        return []
+    alpha = 2.0 / (window + 1.0)
+    current = values[0]
+    out: list[float | None] = []
+    for index, value in enumerate(values):
+        current = value if index == 0 else value * alpha + current * (1.0 - alpha)
+        out.append(current if index + 1 >= window else None)
+    return out
+
+
+def _pivot_structure(bars: list[dict], side: int = 2) -> dict:
+    if len(bars) < side * 2 + 3:
+        return {"higherHigh": None, "higherLow": None, "swingState": "insufficient"}
+    highs: list[tuple[int, float]] = []
+    lows: list[tuple[int, float]] = []
+    for index in range(side, len(bars) - side):
+        high = bars[index]["high"]
+        low = bars[index]["low"]
+        if all(high > bars[j]["high"] for j in range(index - side, index + side + 1) if j != index):
+            highs.append((index, high))
+        if all(low < bars[j]["low"] for j in range(index - side, index + side + 1) if j != index):
+            lows.append((index, low))
+    higher_high = len(highs) >= 2 and highs[-1][1] > highs[-2][1]
+    higher_low = len(lows) >= 2 and lows[-1][1] > lows[-2][1]
+    if higher_high and higher_low:
+        swing = "HH+HL"
+    elif higher_high:
+        swing = "HH / no HL"
+    elif higher_low:
+        swing = "HL / no HH"
+    else:
+        swing = "no HH/HL"
+    return {
+        "higherHigh": higher_high if len(highs) >= 2 else None,
+        "higherLow": higher_low if len(lows) >= 2 else None,
+        "swingState": swing,
+        "lastSwingHigh": highs[-1][1] if highs else None,
+        "lastSwingLow": lows[-1][1] if lows else None,
+    }
+
+
 def _sma(values: list[float], window: int) -> list[float | None]:
     out: list[float | None] = []
     total = 0.0
@@ -342,18 +382,54 @@ def _chart_metrics(rows: list) -> dict:
         if baseline > 0:
             rvol = volumes[-1] / baseline
     weekly = _weekly_closes(bars)
+    ema10 = _ema(closes, 10)
+    ema20 = _ema(closes, 20)
+    last_ema10 = next((value for value in reversed(ema10) if value is not None), None)
+    last_ema20 = next((value for value in reversed(ema20) if value is not None), None)
+    ema_gap = None
+    if last_ema10 is not None and last_ema20 not in (None, 0):
+        ema_gap = (last_ema10 / last_ema20 - 1.0) * 100.0
+
+    def range_pct(window: int) -> float | None:
+        sample = bars[-window:]
+        if len(sample) < window:
+            return None
+        low = min(bar["low"] for bar in sample)
+        high = max(bar["high"] for bar in sample)
+        return (high / low - 1.0) * 100.0 if low > 0 else None
+
+    range20 = range_pct(20)
+    range40 = range_pct(40)
+    base_like = (
+        range20 is not None and range40 is not None
+        and range20 <= 18.0 and range40 <= 30.0
+    )
+    last = bars[-1]
+    close_location = (
+        (last["close"] - last["low"]) / (last["high"] - last["low"])
+        if last["high"] > last["low"] else 0.5
+    )
+    swing = _pivot_structure(bars)
     return {
         "price": closes[-1],
         "rvol": rvol,
         "rsi14": _rsi14(closes),
+        "ema10": last_ema10,
+        "ema20": last_ema20,
+        "emaGapPct": ema_gap,
         "slope50": _slope_state(_sma(closes, 50), 20),
         "slope30w": _slope_state(_sma(weekly, 30), 8),
+        "range20Pct": range20,
+        "range40Pct": range40,
+        "baseLike": base_like,
+        "closeLocationPct": close_location * 100.0,
+        **swing,
     }
 
 
 def _summary(row: dict, chart_rows: list | None = None) -> dict:
     chart = _chart_metrics(chart_rows or [])
-    return {
+    metrics = {
         "price": _number(row, "price", "close") or chart.get("price"),
         "score": _number(row, "score", "focusScore", "focus_score", "opportunityScore", "originalBuyScore"),
         "rs": _number(row, "rsRating", "rs_rating", "rs"),
@@ -364,6 +440,13 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
         "setup": row.get("primarySetup") or row.get("primary_setup") or row.get("setup") or row.get("stageName"),
         "actionability": row.get("actionability") or row.get("tradeStatus") or row.get("trade_status"),
     }
+    for name in (
+        "ema10", "ema20", "emaGapPct", "range20Pct", "range40Pct", "baseLike",
+        "closeLocationPct", "higherHigh", "higherLow", "swingState",
+        "lastSwingHigh", "lastSwingLow",
+    ):
+        metrics[name] = chart.get(name)
+    return metrics
 
 
 def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int) -> dict:
@@ -390,7 +473,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             for row in full_rows:
                 ticker = _ticker(row)
                 signals = kell_signals(row, kell_min_rvol)
-                if ticker and signals:
+                daily_power = any(label.startswith("Daily ") and label.endswith("x RVOL") for label in signals)
+                # Kell Daily Leaders is intentionally strict: do not back-fill the board
+                # with ordinary saved-screen names when fewer than N true 3x+ RVOL moves exist.
+                if ticker and daily_power:
                     previous = kell_pool.get(ticker)
                     if previous is None or _kell_rank(row, signals) > _kell_rank(previous[1], previous[0]):
                         kell_pool[ticker] = (signals, row)
