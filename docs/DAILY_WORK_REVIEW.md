@@ -54,6 +54,7 @@ Allowed `status` values for the lab UI:
    - long Stage 1 / bottoming: spring, failed breakdown, reclaim, new HL;
    - trend transition: pullback to 10/20 EMA or prior HL;
    - Kell first thrust: first controlled pullback / tight pause, not automatic chase;
+   - Kell gap-up: do not chase the opening gap; distinguish a held gap from a fade, then prefer tightness, first pullback/reclaim, or next-day continuation with a clear gap-day invalidation;
    - mature/extended move: wait or avoid.
 3. Explicitly distinguish current/intact HH+HL from an older historical HH/HL sequence.
 4. Treat 3x+ RVOL as attention evidence, not a buy signal.
