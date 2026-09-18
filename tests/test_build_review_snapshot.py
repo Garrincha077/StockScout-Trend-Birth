@@ -29,6 +29,30 @@ class BuilderTests(unittest.TestCase):
         selected = builder.select_mode_rows("bottom-fishing", rows)
         self.assertEqual(selected[0]["ticker"], "BBB")
 
+    def test_kell_gap_screen_matches_canonical_thresholds(self):
+        row = {
+            "ticker": "AAA",
+            "close": 25.0,
+            "open": 24.5,
+            "ret_1d_pct": 1.0,
+            "avg_volume_20d": 600_000,
+        }
+        metrics = builder.kell_gap_metrics(row)
+        self.assertGreater(metrics["gapPct"], 3.0)
+        self.assertTrue(builder.is_kell_gap_up(row))
+        row["avg_volume_20d"] = 499_999
+        self.assertFalse(builder.is_kell_gap_up(row))
+
+    def test_kell_gap_requires_price_above_20(self):
+        row = {
+            "ticker": "AAA",
+            "close": 19.8,
+            "open": 19.6,
+            "ret_1d_pct": 1.0,
+            "avg_volume_20d": 900_000,
+        }
+        self.assertFalse(builder.is_kell_gap_up(row))
+
     def test_kell_daily_power_requires_3x_liquid_positive_day(self):
         row = {
             "ticker": "AAA",
