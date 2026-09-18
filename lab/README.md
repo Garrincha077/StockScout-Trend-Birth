@@ -17,13 +17,13 @@ The snapshot builder mirrors the active Unified modes:
 - Bottom Fishing
 - Next
 - Ryan Original
-- Kell daily leaders: top 5 names from the full public Bottom pool matching Unified's existing Oliver Kell saved-screen rules (Reclaim/Launch, 52W Highs, Bull Snort, Doublers) plus a liquid daily `RVOL >= 3.0x` overlay (`ADV50 >= $20M`, price >= $5, positive day)
+- Kell daily leaders: up to 5 names from the full public Bottom pool that **must** pass a liquid positive-day `RVOL >= 3.0x` gate (`ADV50 >= $20M`, price >= $5); Unified Oliver Kell saved-screen confluence (Reclaim/Launch, 52W Highs, Bull Snort, Doublers) is preserved and used to rank the qualifying power moves
 
 A ticker can have multiple source badges, for example `Bottom + Kell`. Kell match reasons are preserved in the ticker detail.
 
 ## Review UI
 
-`index.html` renders one responsive GridView of all selected names. Tapping/clicking a chart opens that ticker's detail view.
+`index.html` renders one responsive GridView of all selected names. Tapping/clicking a chart opens that ticker's detail view with EMA10/20 proximity, 50D/30W slope, RSI14, base-width proxy, current HH/HL swing structure, close location and a deterministic trade-state review. A Work-written analysis object can override/extend the review with QoQ fundamentals and ticker-specific commentary.
 
 The browser never needs cross-origin access to Unified chart shards. `scripts/build_review_snapshot.py` copies only selected candidates and their required public chart rows into `data/latest.json` during the build.
 
