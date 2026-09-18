@@ -695,7 +695,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["sources"] = [source for source in item["sources"] if source != "kell-daily"]
         item["sourceRanks"].pop("kell-daily", None)
         item.pop("kell", None)
-        if not item["sources"]:
+        if not item["sources"] and ticker not in gap_probe_tickers:
             merged.pop(ticker)
 
     exact_gap_items = []
