@@ -29,6 +29,38 @@ class BuilderTests(unittest.TestCase):
         selected = builder.select_mode_rows("bottom-fishing", rows)
         self.assertEqual(selected[0]["ticker"], "BBB")
 
+    def test_kell_daily_power_requires_3x_liquid_positive_day(self):
+        row = {
+            "ticker": "AAA",
+            "rvolToday": 3.2,
+            "avgDollarVolume50d": 25_000_000,
+            "price": 12,
+            "ret1dPct": 4.0,
+            "rsRating": 90,
+        }
+        self.assertIn("Daily 3x RVOL", builder.kell_signals(row, 3.0))
+        row["rvolToday"] = 2.9
+        self.assertNotIn("Daily 3x RVOL", builder.kell_signals(row, 3.0))
+
+    def test_chart_metrics_expose_turning_structure(self):
+        rows = []
+        price = 10.0
+        for index in range(90):
+            price += 0.03
+            rows.append({
+                "time": f"2026-01-{(index % 28) + 1:02d}",
+                "open": price - 0.05,
+                "high": price + 0.12,
+                "low": price - 0.12,
+                "close": price,
+                "volume": 1_000_000 + index * 1000,
+            })
+        metrics = builder._chart_metrics(rows)
+        self.assertIn("emaGapPct", metrics)
+        self.assertIn("slope50", metrics)
+        self.assertIn("swingState", metrics)
+        self.assertIn("baseLike", metrics)
+
 
 if __name__ == "__main__":
     unittest.main()
