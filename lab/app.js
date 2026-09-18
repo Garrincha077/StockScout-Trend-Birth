@@ -147,7 +147,21 @@ $('#filters').addEventListener('click',e=>{
   const b=e.target.closest('button[data-filter]');if(!b)return;
   state.filter=b.dataset.filter;document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));render();
 });
-fetch('data/latest.json',{cache:'no-store'})
-  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+const snapshotUrls=[
+  'data/latest.json',
+  'https://raw.githubusercontent.com/Garrincha077/StockScout-Trend-Birth/feature/unified-review-grid-lab/lab/data/latest.json'
+];
+async function loadSnapshot(){
+  let lastError=null;
+  for(const url of snapshotUrls){
+    try{
+      const response=await fetch(url,{cache:'no-store'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      return await response.json();
+    }catch(error){lastError=error}
+  }
+  throw lastError||new Error('Snapshot nije dostupan');
+}
+loadSnapshot()
   .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · read-only';render()})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});
