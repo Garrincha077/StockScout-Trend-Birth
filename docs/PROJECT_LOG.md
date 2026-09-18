@@ -75,3 +75,23 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 **Next logical step**
 - Run the branch PR validation workflow against the live activated Unified public assets.
 - If the artifact is correct, add a **Trend Birth-only preview publication path** so the user can open one mobile link to the GridView. Do not add production Telegram integration or modify Unified until the preview is stable and explicitly approved.
+
+
+### 2026-09-18 — Lab live-data validation refinement
+
+- Live isolated-branch GitHub Actions build succeeded against the activated Unified public scan for session `2026-09-17` / run `2026-09-17-eod-35287538852-1`.
+- Fixed chart ingestion to support both public chart contracts:
+  - Bottom's gzip chart-manifest/shard format;
+  - Next/Ryan immutable JSON chart directories using `core.chartShards`.
+- Verified chart coverage after the fix: **79/79** selected candidates in the broad RVOL test, and **78/78** after Kell-quality filtering.
+- Refined the Kell overlay to reuse the transparent rules already exposed by Unified's Bottom screener:
+  - Oliver Kell — Reclaim / Launch;
+  - Oliver Kell — 52W Highs;
+  - Oliver Kell — Bull Snort;
+  - Oliver Kell — Doublers;
+  - plus a user-requested liquid daily power-move overlay: `rvol_today >= 3`, `avg_dollar_volume_50d >= $20M`, price >= $5 and positive 1D return.
+- The Kell scan now evaluates the full public Bottom pool (2,019 rows in the validated run), rather than only the normal top-25 review names.
+- The raw RVOL-only trial surfaced extreme low-quality spikes (e.g. >100x RVOL), validating the need for liquidity/price sanity filters before ranking.
+- Validated Kell daily-leader example from the live run: ACVA, SDGR, TWST, HELP, PUBM. Their matched Kell reasons are preserved in the detail payload; these are validation examples, not trade recommendations.
+- The UI now labels this source simply as `Kell` and shows the matched Kell signals inside the ticker detail.
+- Latest validation workflow remained read-only and green; no production Unified file, workflow, secret, Telegram path or deployment was changed.
