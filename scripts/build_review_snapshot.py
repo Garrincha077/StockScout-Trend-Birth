@@ -568,8 +568,9 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         "kell": {
             "minRelativeVolume": kell_min_rvol,
             "limit": kell_limit,
+            "qualifiedCount": len(kell_sorted),
             "eligiblePublicPool": len(kell_pool),
-            "method": "Unified Kell saved-screen rules + liquid daily RVOL overlay on full Bottom public pool",
+            "method": "Strict liquid positive-day 3x+ RVOL leaders, ranked with Unified Kell saved-screen confluence",
         },
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),
