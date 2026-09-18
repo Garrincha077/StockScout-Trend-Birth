@@ -15,7 +15,7 @@ MODES = ("bottom-fishing", "next", "ryan-original")
 
 
 def _get_bytes(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "StockScout-Trend-Birth-Lab/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "StockScout-Trend-Birth-Lab/0.2"})
     with urllib.request.urlopen(request, timeout=45) as response:
         return response.read()
 
@@ -87,8 +87,7 @@ def _asset_json(mode_root: str, manifest: dict, name: str):
     return _get_json(urljoin(mode_root, str(asset["path"])))
 
 
-def _rows_for_mode(mode_root: str, mode: str, manifest: dict) -> list[dict]:
-    core = _asset_json(mode_root, manifest, "core") or {}
+def _rows_for_mode(mode_root: str, mode: str, manifest: dict, core: dict) -> list[dict]:
     core_rows = [row for row in core.get("universe") or [] if isinstance(row, dict)]
     if mode != "bottom-fishing":
         return core_rows
@@ -123,26 +122,50 @@ def _chart_rows(payload, ticker: str):
     return []
 
 
-def load_charts(mode_root: str, manifest: dict, tickers: set[str]) -> dict[str, list]:
+def load_charts(mode_root: str, manifest: dict, core: dict, tickers: set[str]) -> dict[str, list]:
+    """Load either Bottom's gzip chart-manifest contract or Next/Ryan legacy chart directories."""
     asset = (manifest.get("assets") or {}).get("charts")
-    if not isinstance(asset, dict) or not asset.get("path"):
+    if not isinstance(asset, dict) or not asset.get("path") or not tickers:
         return {}
-    try:
-        chart_manifest = _get_json(urljoin(mode_root, str(asset["path"])))
-    except Exception:
-        return {}
-    storage = str(chart_manifest.get("storageBaseUrl") or "").rstrip("/") + "/shards/"
-    by_ticker = chart_manifest.get("shardsByTicker") or {}
+    asset_path = str(asset["path"])
+    out: dict[str, list] = {}
+
+    # Bottom Fishing publishes a chart manifest which points to gzip shards.
+    if asset_path.endswith(".json"):
+        try:
+            chart_manifest = _get_json(urljoin(mode_root, asset_path))
+        except Exception:
+            return {}
+        storage = str(chart_manifest.get("storageBaseUrl") or "").rstrip("/") + "/shards/"
+        by_ticker = chart_manifest.get("shardsByTicker") or {}
+        needed: dict[str, list[str]] = {}
+        for ticker in tickers:
+            shard = by_ticker.get(ticker)
+            if shard:
+                needed.setdefault(str(shard), []).append(ticker)
+        for shard, shard_tickers in needed.items():
+            filename = shard if shard.endswith(".json.gz") else f"{shard}.json.gz"
+            try:
+                payload = json.loads(gzip.decompress(_get_bytes(urljoin(storage, filename))).decode("utf-8"))
+            except Exception:
+                continue
+            for ticker in shard_tickers:
+                rows = _chart_rows(payload, ticker)
+                if rows:
+                    out[ticker] = rows[-1265:]
+        return out
+
+    # Next and Ryan publish immutable JSON chart shards inside the active run.
+    by_ticker = core.get("chartShards") or {}
     needed: dict[str, list[str]] = {}
     for ticker in tickers:
         shard = by_ticker.get(ticker)
         if shard:
             needed.setdefault(str(shard), []).append(ticker)
-    out: dict[str, list] = {}
     for shard, shard_tickers in needed.items():
-        filename = shard if shard.endswith(".json.gz") else f"{shard}.json.gz"
+        shard_path = f"{asset_path.rstrip('/')}/{shard}"
         try:
-            payload = json.loads(gzip.decompress(_get_bytes(urljoin(storage, filename))).decode("utf-8"))
+            payload = _get_json(urljoin(mode_root, shard_path))
         except Exception:
             continue
         for ticker in shard_tickers:
@@ -152,15 +175,125 @@ def load_charts(mode_root: str, manifest: dict, tickers: set[str]) -> dict[str, 
     return out
 
 
-def _summary(row: dict) -> dict:
+def _normalized_bars(rows: list) -> list[dict]:
+    bars: list[dict] = []
+    for row in rows or []:
+        if isinstance(row, list) and len(row) >= 6:
+            source = {"time": row[0], "open": row[1], "high": row[2], "low": row[3], "close": row[4], "volume": row[5]}
+        elif isinstance(row, dict):
+            source = row
+        else:
+            continue
+        try:
+            bar = {
+                "time": str(source.get("time") or source.get("date") or ""),
+                "open": float(source["open"]),
+                "high": float(source["high"]),
+                "low": float(source["low"]),
+                "close": float(source["close"]),
+                "volume": float(source.get("volume") or 0.0),
+            }
+        except (KeyError, TypeError, ValueError):
+            continue
+        if all(math.isfinite(bar[key]) for key in ("open", "high", "low", "close", "volume")):
+            bars.append(bar)
+    return bars
+
+
+def _rsi14(closes: list[float]) -> float | None:
+    period = 14
+    if len(closes) < period + 1:
+        return None
+    gains = []
+    losses = []
+    for index in range(1, period + 1):
+        change = closes[index] - closes[index - 1]
+        gains.append(max(change, 0.0))
+        losses.append(max(-change, 0.0))
+    avg_gain = sum(gains) / period
+    avg_loss = sum(losses) / period
+    for index in range(period + 1, len(closes)):
+        change = closes[index] - closes[index - 1]
+        avg_gain = (avg_gain * (period - 1) + max(change, 0.0)) / period
+        avg_loss = (avg_loss * (period - 1) + max(-change, 0.0)) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100.0 - 100.0 / (1.0 + rs)
+
+
+def _sma(values: list[float], window: int) -> list[float | None]:
+    out: list[float | None] = []
+    total = 0.0
+    for index, value in enumerate(values):
+        total += value
+        if index >= window:
+            total -= values[index - window]
+        out.append(total / window if index + 1 >= window else None)
+    return out
+
+
+def _weekly_closes(bars: list[dict]) -> list[float]:
+    weeks: list[tuple[str, float]] = []
+    for bar in bars:
+        stamp = str(bar["time"])[:10]
+        try:
+            year, month, day = (int(part) for part in stamp.split("-"))
+            import datetime as _dt
+            date = _dt.date(year, month, day)
+        except Exception:
+            continue
+        monday = (date - _dt.timedelta(days=date.weekday())).isoformat()
+        if weeks and weeks[-1][0] == monday:
+            weeks[-1] = (monday, bar["close"])
+        else:
+            weeks.append((monday, bar["close"]))
+    return [close for _, close in weeks]
+
+
+def _slope_state(series: list[float | None], lookback: int) -> str | None:
+    values = [value for value in series if value is not None]
+    if len(values) <= lookback or values[-lookback - 1] == 0:
+        return None
+    change = values[-1] / values[-lookback - 1] - 1.0
+    if change > 0.002:
+        return "upward"
+    if change < -0.002:
+        return "downward"
+    return "flat"
+
+
+def _chart_metrics(rows: list) -> dict:
+    bars = _normalized_bars(rows)
+    if not bars:
+        return {}
+    closes = [bar["close"] for bar in bars]
+    volumes = [bar["volume"] for bar in bars]
+    rvol = None
+    if len(volumes) >= 21:
+        baseline = sum(volumes[-21:-1]) / 20.0
+        if baseline > 0:
+            rvol = volumes[-1] / baseline
+    weekly = _weekly_closes(bars)
     return {
-        "price": _number(row, "price", "close"),
+        "price": closes[-1],
+        "rvol": rvol,
+        "rsi14": _rsi14(closes),
+        "slope50": _slope_state(_sma(closes, 50), 20),
+        "slope30w": _slope_state(_sma(weekly, 30), 8),
+    }
+
+
+def _summary(row: dict, chart_rows: list | None = None) -> dict:
+    chart = _chart_metrics(chart_rows or [])
+    return {
+        "price": _number(row, "price", "close") or chart.get("price"),
         "score": _number(row, "score", "focusScore", "focus_score", "opportunityScore", "originalBuyScore"),
         "rs": _number(row, "rsRating", "rs_rating", "rs"),
-        "rvol": relative_volume(row),
-        "rsi14": _number(row, "rsi14", "rsi_14", "dailyRsi14"),
-        "slope50": row.get("sma50SlopeState") or row.get("launch50dSlopeState") or row.get("launch_50d_slope_state"),
-        "slope30w": row.get("launch30wSlopeState") or row.get("launch_30w_slope_state"),
+        "rvol": relative_volume(row) or chart.get("rvol"),
+        "rsi14": _number(row, "rsi14", "rsi_14", "dailyRsi14") or chart.get("rsi14"),
+        "slope50": row.get("sma50SlopeState") or row.get("launch50dSlopeState") or row.get("launch_50d_slope_state") or chart.get("slope50"),
+        "slope30w": row.get("launch30wSlopeState") or row.get("launch_30w_slope_state") or chart.get("slope30w"),
         "setup": row.get("primarySetup") or row.get("primary_setup") or row.get("setup") or row.get("stageName"),
         "actionability": row.get("actionability") or row.get("tradeStatus") or row.get("trade_status"),
     }
@@ -172,39 +305,81 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     session_date = str(unified.get("sessionDate") or "")
     run_id = str(unified.get("runId") or "")
     merged: dict[str, dict] = {}
-    mode_manifests: dict[str, tuple[str, dict]] = {}
+    mode_payloads: dict[str, tuple[str, dict, dict]] = {}
+    kell_raw: dict[str, tuple[float, str, dict]] = {}
+    mode_universe_counts: dict[str, int] = {}
 
     for mode in MODES:
         mode_root = urljoin(base_url, f"data/modes/{mode}/")
         manifest = _get_json(urljoin(mode_root, "manifest.json"))
-        mode_manifests[mode] = (mode_root, manifest)
-        rows = select_mode_rows(mode, _rows_for_mode(mode_root, mode, manifest))
+        core = _asset_json(mode_root, manifest, "core") or {}
+        full_rows = _rows_for_mode(mode_root, mode, manifest, core)
+        mode_payloads[mode] = (mode_root, manifest, core)
+        mode_universe_counts[mode] = len(full_rows)
+
+        # Kell overlay scans the full public mode pool, not only the 25 names already
+        # selected for the daily review. It remains a transparent RVOL hypothesis.
+        for row in full_rows:
+            ticker = _ticker(row)
+            rv = relative_volume(row)
+            if ticker and rv is not None and rv >= kell_min_rvol:
+                previous = kell_raw.get(ticker)
+                if previous is None or rv > previous[0]:
+                    kell_raw[ticker] = (rv, mode, row)
+
+        rows = select_mode_rows(mode, full_rows)
         for rank, row in enumerate(rows, 1):
             ticker = _ticker(row)
-            item = merged.setdefault(ticker, {"ticker": ticker, "sources": [], "sourceRanks": {}, "raw": {}})
+            item = merged.setdefault(
+                ticker,
+                {"ticker": ticker, "sources": [], "sourceRanks": {}, "chartModes": [], "raw": {}},
+            )
             if mode not in item["sources"]:
                 item["sources"].append(mode)
+            if mode not in item["chartModes"]:
+                item["chartModes"].append(mode)
             item["sourceRanks"][mode] = rank
             item["raw"] = {**item["raw"], **row}
 
-    kell_pool = []
-    for ticker, item in merged.items():
-        rv = relative_volume(item["raw"])
-        if rv is not None and rv >= kell_min_rvol:
-            kell_pool.append((rv, ticker))
-    for rank, (rv, ticker) in enumerate(sorted(kell_pool, reverse=True)[:kell_limit], 1):
-        item = merged[ticker]
+    for rank, (ticker, (rv, origin_mode, row)) in enumerate(
+        sorted(kell_raw.items(), key=lambda pair: pair[1][0], reverse=True)[:kell_limit],
+        1,
+    ):
+        item = merged.setdefault(
+            ticker,
+            {"ticker": ticker, "sources": [], "sourceRanks": {}, "chartModes": [], "raw": {}},
+        )
         if "kell-3x-rvol" not in item["sources"]:
             item["sources"].append("kell-3x-rvol")
+        if origin_mode not in item["chartModes"]:
+            item["chartModes"].append(origin_mode)
         item["sourceRanks"]["kell-3x-rvol"] = rank
-        item["kell"] = {"rvol": rv, "rule": f"RVOL >= {kell_min_rvol:.1f}x", "rank": rank}
+        item["raw"] = {**item["raw"], **row}
+        item["kell"] = {
+            "rvol": rv,
+            "rule": f"RVOL >= {kell_min_rvol:.1f}x",
+            "rank": rank,
+            "originMode": origin_mode,
+        }
 
     pending = set(merged)
     charts: dict[str, list] = {}
     for mode in MODES:
-        mode_root, manifest = mode_manifests[mode]
-        mode_tickers = {ticker for ticker in pending if mode in merged[ticker]["sources"]}
-        loaded = load_charts(mode_root, manifest, mode_tickers)
+        mode_root, manifest, core = mode_payloads[mode]
+        mode_tickers = {ticker for ticker in pending if mode in merged[ticker]["chartModes"]}
+        loaded = load_charts(mode_root, manifest, core, mode_tickers)
+        charts.update(loaded)
+        pending -= set(loaded)
+
+    # Ryan and Next intentionally share adjusted OHLCV. If one mode did not carry
+    # a shard for a selected name, try Next's chart map before declaring it absent.
+    if pending and "next" in mode_payloads:
+        mode_root, manifest, core = mode_payloads["next"]
+        adjusted_pending = {
+            ticker for ticker in pending
+            if any(mode in merged[ticker]["chartModes"] for mode in ("next", "ryan-original"))
+        }
+        loaded = load_charts(mode_root, manifest, core, adjusted_pending)
         charts.update(loaded)
         pending -= set(loaded)
 
@@ -212,12 +387,14 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     candidates = []
     for ticker, item in merged.items():
         raw = item.pop("raw")
-        item["metrics"] = _summary(raw)
-        item["chartBars"] = charts.get(ticker, [])
+        item.pop("chartModes", None)
+        rows = charts.get(ticker, [])
+        item["metrics"] = _summary(raw, rows)
+        item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         candidates.append(item)
     candidates.sort(key=lambda item: (
-        0 if item.get("analysis", {}).get("status") == "ACTION" else 1,
+        0 if str(item.get("analysis", {}).get("status") or "").upper() == "ACTION" else 1,
         min(item["sourceRanks"].values()),
         item["ticker"],
     ))
@@ -229,9 +406,16 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "runId": run_id,
             "sessionDate": session_date,
             "readOnly": True,
+            "modeUniverseCounts": mode_universe_counts,
         },
-        "kell": {"minRelativeVolume": kell_min_rvol, "limit": kell_limit},
+        "kell": {
+            "minRelativeVolume": kell_min_rvol,
+            "limit": kell_limit,
+            "eligiblePublicPool": len(kell_raw),
+            "method": "strongest published scalar RVOL evidence across full public mode pools",
+        },
         "candidateCount": len(candidates),
+        "chartCount": sum(bool(item["chartBars"]) for item in candidates),
         "candidates": candidates,
     }
 
@@ -254,7 +438,9 @@ def main() -> int:
     print(json.dumps({
         "status": "ok",
         "candidates": snapshot["candidateCount"],
+        "charts": snapshot["chartCount"],
         "sessionDate": snapshot["source"]["sessionDate"],
+        "kellEligible": snapshot["kell"]["eligiblePublicPool"],
     }))
     return 0
 
