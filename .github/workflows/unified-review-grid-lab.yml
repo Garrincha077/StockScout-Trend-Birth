@@ -2,6 +2,14 @@ name: Unified Review Grid Lab
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "feature/unified-review-grid-lab"
+    paths:
+      - "lab/**"
+      - "scripts/build_review_snapshot.py"
+      - "tests/test_build_review_snapshot.py"
+      - ".github/workflows/unified-review-grid-lab.yml"
   pull_request:
     paths:
       - "lab/**"
