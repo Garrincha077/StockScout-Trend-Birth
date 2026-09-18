@@ -8,7 +8,15 @@ on:
     paths:
       - ".github/workflows/refresh-trend-birth-review-lab.yml"
   schedule:
-    - cron: "40 23 * * 1-5"
+    # Unified EOD normally starts around 23:30 UTC, which is after midnight in Zagreb.
+    # Probe several times on the following local day because upstream duration varies widely.
+    - cron: "17 3 * * 2-6"
+      timezone: "Europe/Zagreb"
+    - cron: "17 7 * * 2-6"
+      timezone: "Europe/Zagreb"
+    - cron: "17 11 * * 2-6"
+      timezone: "Europe/Zagreb"
+    - cron: "17 17 * * 2-6"
       timezone: "Europe/Zagreb"
 
 permissions:
