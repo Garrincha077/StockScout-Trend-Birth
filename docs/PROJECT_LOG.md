@@ -95,3 +95,22 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Validated Kell daily-leader example from the live run: ACVA, SDGR, TWST, HELP, PUBM. Their matched Kell reasons are preserved in the detail payload; these are validation examples, not trade recommendations.
 - The UI now labels this source simply as `Kell` and shows the matched Kell signals inside the ticker detail.
 - Latest validation workflow remained read-only and green; no production Unified file, workflow, secret, Telegram path or deployment was changed.
+
+
+## 2026-09-18 — Isolated Unified Review Grid Lab
+
+- Branch: `feature/unified-review-grid-lab`.
+- Draft PR: #1 (`lab: isolated Unified review GridView`).
+- Safety decision: this repository is a read-only companion to `Garrincha077/StockScout-Unified`; no Unified writes, Telegram tokens, broker credentials, production Supabase keys, or production deployment permissions are used.
+- Added `scripts/build_review_snapshot.py` to ingest only activated public Unified assets and aggregate Bottom Fishing, Next, Ryan Original and a separate Kell Daily Leaders overlay.
+- Added responsive `lab/` GridView: all daily candidates appear in one chart grid; tap/click opens ticker detail. Current detail evidence includes EMA10/20 proximity, 50D and 30W slopes, RSI14, 20D/40D range-width proxy, current pivot HH/HL structure, close location, source badges and Kell confluence.
+- Kell decision: Daily Leaders must pass a strict positive-day liquid `RVOL >= 3.0x` gate (`ADV50 >= $20M`, price >= $5), then pass chart-quality checks before inclusion; ordinary Kell saved-screen names do not back-fill the board. Unified Kell-style confluence remains supporting evidence/ranking context.
+- AI/Work boundary: deterministic source and chart evidence lives in the snapshot; ticker-specific Work analysis is injected through a separate JSON contract and may add/override review state, preferred trade, QoQ fundamentals and risk notes.
+- Workflow: `.github/workflows/unified-review-grid-lab.yml` has `contents: read` only and builds/tests an isolated artifact. No Pages or Telegram production integration is enabled.
+- Validation: a live public-data integration run completed successfully against Unified session `2026-09-17`; it loaded charts for every selected candidate (79/79 after the latest metric expansion in the pre-quality-gate run). JavaScript syntax and snapshot invariants were also checked from the produced artifact. Latest strict Kell quality-gate build is being validated by the same workflow.
+- Key implementation commits in this iteration include `403308e` (turning metrics + strict 3x gate), `2b3301a` (richer Grid/detail review), `c40e0b0` (post-chart Kell quality gate), and `d7fa026` (expanded Work-analysis handoff contract).
+- Production behavior/ranking impact: **none**. `StockScout-Unified` and the Trend Birth `main` branch are unchanged.
+- Main caveat: Bottom Telegram's exact digest uses a private Unified `bottom.json` Actions handoff; the lab currently reconstructs Bottom from activated public assets, so Bottom selection is a transparent proxy rather than a byte-identical copy of the private Telegram digest.
+
+**Next logical step**
+- Finish the strict Kell integration run, inspect its produced candidates, then add a Trend Birth-only preview/deployment path. Keep the PR draft until the preview is verified. A later Work task can write the daily ticker-analysis JSON and, only after approval, the Trend Birth link can be appended to Telegram.
