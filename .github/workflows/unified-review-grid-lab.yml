@@ -1,0 +1,32 @@
+name: Unified Review Grid Lab
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "lab/**"
+      - "scripts/build_review_snapshot.py"
+      - "tests/test_build_review_snapshot.py"
+      - ".github/workflows/unified-review-grid-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest tests/test_build_review_snapshot.py -v
+      - name: Build read-only snapshot from activated Unified public data
+        run: python scripts/build_review_snapshot.py --analysis lab/data/analysis.example.json --output lab/data/latest.json
+      - name: Upload review lab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trend-birth-review-grid-lab
+          path: lab
+          retention-days: 7
