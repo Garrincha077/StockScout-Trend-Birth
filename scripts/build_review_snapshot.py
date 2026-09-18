@@ -147,6 +147,53 @@ def is_kell_gap_up(row: dict, min_gap_pct: float = 3.0) -> bool:
     return bool(price > 20.0 and avg_volume_20d > 500_000 and gap_pct is not None and gap_pct > min_gap_pct)
 
 
+def kell_gap_from_bars(rows: list) -> dict:
+    bars = _normalized_bars(rows)
+    if len(bars) < 21:
+        return {"gapPct": None, "prevClose": None, "gapHeldPct": None, "avgVolume20d": None}
+    last = bars[-1]
+    prev = bars[-2]
+    prev_close = prev["close"]
+    if prev_close <= 0:
+        return {"gapPct": None, "prevClose": None, "gapHeldPct": None, "avgVolume20d": None}
+    gap_pct = (last["open"] / prev_close - 1.0) * 100.0
+    avg_volume_20d = sum(bar["volume"] for bar in bars[-20:]) / 20.0
+    gap_size = last["open"] - prev_close
+    gap_held = ((last["close"] - prev_close) / gap_size * 100.0) if gap_size > 0 else None
+    return {
+        "gapPct": gap_pct,
+        "prevClose": prev_close,
+        "gapHeldPct": gap_held,
+        "avgVolume20d": avg_volume_20d,
+        "open": last["open"],
+        "close": last["close"],
+    }
+
+
+def is_kell_gap_from_bars(rows: list, min_gap_pct: float = 3.0) -> bool:
+    metrics = kell_gap_from_bars(rows)
+    price = metrics.get("close") or 0.0
+    avg_volume_20d = metrics.get("avgVolume20d") or 0.0
+    gap_pct = metrics.get("gapPct")
+    return bool(price > 20.0 and avg_volume_20d > 500_000 and gap_pct is not None and gap_pct > min_gap_pct)
+
+
+def _kell_gap_probe_rank(row: dict) -> tuple[float, float, float]:
+    """Cheap public-summary prefilter before exact OHLCV gap verification."""
+    ret_1d = _number(row, "ret_1d_pct", "ret1dPct") or -999.0
+    rvol = _number(row, "rvol_today", "rvolToday") or 0.0
+    rs = _number(row, "rs_rating", "rsRating") or 0.0
+    return ret_1d, rvol, rs
+
+
+def is_kell_gap_probe(row: dict) -> bool:
+    price = _number(row, "price", "close") or 0.0
+    adv50 = _number(row, "avg_dollar_volume_50d", "avgDollarVolume50d") or 0.0
+    ret_1d = _number(row, "ret_1d_pct", "ret1dPct")
+    est_avg_volume_50d = adv50 / price if price > 0 else 0.0
+    return bool(price > 20.0 and est_avg_volume_50d > 300_000 and ret_1d is not None and ret_1d > -1.0)
+
+
 def _kell_gap_rank(row: dict) -> tuple[float, float, float, float]:
     metrics = kell_gap_metrics(row)
     gap_pct = float(metrics.get("gapPct") or 0.0)
@@ -498,7 +545,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     merged: dict[str, dict] = {}
     mode_payloads: dict[str, tuple[str, dict, dict]] = {}
     kell_pool: dict[str, tuple[list[str], dict]] = {}
-    kell_gap_pool: dict[str, dict] = {}
+    kell_gap_probe_pool: dict[str, dict] = {}
     mode_universe_counts: dict[str, int] = {}
 
     for mode in MODES:
@@ -522,10 +569,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
                     previous = kell_pool.get(ticker)
                     if previous is None or _kell_rank(row, signals) > _kell_rank(previous[1], previous[0]):
                         kell_pool[ticker] = (signals, row)
-                if ticker and is_kell_gap_up(row):
-                    previous_gap = kell_gap_pool.get(ticker)
-                    if previous_gap is None or _kell_gap_rank(row) > _kell_gap_rank(previous_gap):
-                        kell_gap_pool[ticker] = row
+                if ticker and is_kell_gap_probe(row):
+                    previous_gap = kell_gap_probe_pool.get(ticker)
+                    if previous_gap is None or _kell_gap_probe_rank(row) > _kell_gap_probe_rank(previous_gap):
+                        kell_gap_probe_pool[ticker] = row
 
         rows = select_mode_rows(mode, full_rows)
         for rank, row in enumerate(rows, 1):
@@ -567,31 +614,23 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "rsRating": _number(row, "rs_rating", "rsRating"),
         }
 
-    # Canonical Oliver Kell Gappers screen. Preselect a wider pool so final
-    # "best of day" ranking can use chart quality without loading charts for the full universe.
-    gap_prefilter = sorted(kell_gap_pool.items(), key=lambda pair: _kell_gap_rank(pair[1]), reverse=True)[:max(kell_gap_limit * 4, 20)]
-    for rank, (ticker, row) in enumerate(gap_prefilter, 1):
+    # Cheap prefilter from the full public Bottom pool, followed by exact
+    # OHLCV gap verification after chart loading. Probe names are hidden unless
+    # they pass Kell's canonical gap screen.
+    gap_probe = sorted(
+        kell_gap_probe_pool.items(),
+        key=lambda pair: _kell_gap_probe_rank(pair[1]),
+        reverse=True,
+    )[:max(kell_gap_limit * 12, 60)]
+    gap_probe_tickers = {ticker for ticker, _ in gap_probe}
+    for ticker, row in gap_probe:
         item = merged.setdefault(
             ticker,
             {"ticker": ticker, "sources": [], "sourceRanks": {}, "chartModes": [], "raw": {}},
         )
-        if "kell-gap" not in item["sources"]:
-            item["sources"].append("kell-gap")
         if "bottom-fishing" not in item["chartModes"]:
             item["chartModes"].append("bottom-fishing")
-        item["sourceRanks"]["kell-gap"] = rank
         item["raw"] = {**item["raw"], **row}
-        gap = kell_gap_metrics(row)
-        item["kellGap"] = {
-            "rank": rank,
-            "gapPct": gap.get("gapPct"),
-            "gapHeldPct": gap.get("gapHeldPct"),
-            "open": gap.get("open"),
-            "prevClose": gap.get("prevClose"),
-            "avgVolume20d": gap.get("avgVolume20d"),
-            "rvolToday": _number(row, "rvol_today", "rvolToday"),
-            "rsRating": _number(row, "rs_rating", "rsRating"),
-        }
 
     pending = set(merged)
     charts: dict[str, list] = {}
@@ -659,7 +698,27 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         if not item["sources"]:
             merged.pop(ticker)
 
-    gap_items = [item for item in merged.values() if "kell-gap" in item["sources"]]
+    exact_gap_items = []
+    for ticker in gap_probe_tickers:
+        rows = charts.get(ticker, [])
+        if not is_kell_gap_from_bars(rows):
+            continue
+        item = merged[ticker]
+        gap = kell_gap_from_bars(rows)
+        if "kell-gap" not in item["sources"]:
+            item["sources"].append("kell-gap")
+        item["kellGap"] = {
+            "rank": None,
+            "gapPct": gap.get("gapPct"),
+            "gapHeldPct": gap.get("gapHeldPct"),
+            "open": gap.get("open"),
+            "prevClose": gap.get("prevClose"),
+            "avgVolume20d": gap.get("avgVolume20d"),
+            "rvolToday": _number(item.get("raw") or {}, "rvol_today", "rvolToday"),
+            "rsRating": _number(item.get("raw") or {}, "rs_rating", "rsRating"),
+        }
+        exact_gap_items.append(item)
+
     def gap_quality_rank(item: dict):
         metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
         gap = item.get("kellGap") or {}
@@ -671,20 +730,20 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         gap_pct = float(gap.get("gapPct") or 0.0)
         return slope50 + slope30, min(held, 200.0), close_location, rvol, gap_pct
 
-    gap_items.sort(key=gap_quality_rank, reverse=True)
-    selected_gap = {item["ticker"] for item in gap_items[:kell_gap_limit]}
-    gap_rank_map = {item["ticker"]: rank for rank, item in enumerate(gap_items[:kell_gap_limit], 1)}
+    exact_gap_items.sort(key=gap_quality_rank, reverse=True)
+    selected_gap = {item["ticker"] for item in exact_gap_items[:kell_gap_limit]}
+    gap_rank_map = {item["ticker"]: rank for rank, item in enumerate(exact_gap_items[:kell_gap_limit], 1)}
     for ticker in list(merged):
         item = merged[ticker]
-        if "kell-gap" not in item["sources"]:
-            continue
         if ticker in selected_gap:
+            if "kell-gap" not in item["sources"]:
+                item["sources"].append("kell-gap")
             item["sourceRanks"]["kell-gap"] = gap_rank_map[ticker]
             item["kellGap"]["rank"] = gap_rank_map[ticker]
-            continue
-        item["sources"] = [source for source in item["sources"] if source != "kell-gap"]
-        item["sourceRanks"].pop("kell-gap", None)
-        item.pop("kellGap", None)
+        elif "kell-gap" in item["sources"]:
+            item["sources"] = [source for source in item["sources"] if source != "kell-gap"]
+            item["sourceRanks"].pop("kell-gap", None)
+            item.pop("kellGap", None)
         if not item["sources"]:
             merged.pop(ticker)
 
@@ -726,8 +785,9 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "minAvgVolume20d": 500000,
             "limit": kell_gap_limit,
             "qualifiedCount": len(selected_gap),
-            "eligiblePublicPool": len(kell_gap_pool),
-            "method": "Canonical Oliver Kell Gappers screen, then quality-ranked for the daily best-of board",
+            "eligiblePublicPool": len(exact_gap_items),
+            "probeCount": len(gap_probe_tickers),
+            "method": "Full public pool -> liquid positive-close probe -> exact chart verification of Kell Gappers -> quality-ranked daily best",
         },
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),
