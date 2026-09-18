@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell'};
+const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
 const label=s=>labels[s]||s;
 
 function normalizeBars(rows){
@@ -48,13 +48,23 @@ function draw(canvas,rows,large=false){
   if(large){ctx.fillStyle='#8ea0b7';ctx.fillText('EMA10 / EMA20 / SMA50 · '+bars.length+' sessions',10,h-10)}
 }
 function badges(item){
-  return item.sources.map(s=>'<span class="badge '+(s==='kell-daily'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
+  return item.sources.map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
 }
 function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓':value==='flat'?'→':'—'}
 function ruleAnalysis(item){
   const m=item.metrics||{},rvol=Number(m.rvol),rsi=Number(m.rsi14),gap=Math.abs(Number(m.emaGapPct));
   const hh=m.higherHigh===true,hl=m.higherLow===true,trend=m.slope50==='upward'&&m.slope30w==='upward';
   const kell=item.sources.includes('kell-daily');
+  const kellGap=item.sources.includes('kell-gap');
+  if(kellGap){
+    const g=item.kellGap||{},held=Number(g.gapHeldPct),gap=Number(g.gapPct),strongHold=Number.isFinite(held)&&held>=60;
+    return{
+      status:strongHold?'ACTION':'WATCH',
+      state:strongHold?'KELL GAP HOLD':'KELL GAP WATCH',
+      preferredTrade:strongHold?'Ne chaseati opening gap; tražiti intraday/next-day tightness, first pullback ili reclaim uz stop ispod gap-day lowa.':'Gap je oslabio; čekati da obrani gap, 10/20 EMA ili napravi novi HL prije ulaza.',
+      summary:'Kell Gappers kandidat: '+(Number.isFinite(gap)?gap.toFixed(1)+'% gap. ':'')+(strongHold?'Veći dio gapa je zadržan do closea.':'Gap nije dovoljno uvjerljivo zadržan do closea.')
+    };
+  }
   if(kell){
     const extended=Number.isFinite(rsi)&&rsi>=75;
     return{
@@ -85,9 +95,10 @@ function visible(item){
 }
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),status=String(a.status||'REVIEW').toUpperCase();
+  const gap=item.kellGap||{};
   return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
-    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span></div>'+
+    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<canvas aria-label="'+esc(item.ticker)+' chart" title="Tap/click za analizu"></canvas>'+
     '<div class="metrics structure"><span>50D <b>'+slopeIcon(m.slope50)+'</b></span><span>30W <b>'+slopeIcon(m.slope30w)+'</b></span><span>Swing <b>'+esc(m.swingState||'—')+'</b></span><span>Base <b>'+(m.baseLike===true?'✓':m.baseLike===false?'—':'?')+'</b></span></div>'+
     '<div class="analysis-strip"><span>'+esc(a.state||m.setup||'—')+'</span><strong class="'+(status==='ACTION'?'action':status==='WATCH'?'watch':'')+'">'+esc(status)+'</strong></div>'+
@@ -98,7 +109,7 @@ function render(){
   if(!state.data)return;
   const items=state.data.candidates.filter(visible);
   $('#grid').innerHTML=items.map(card).join('');
-  $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length);
+  $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
   observer?.disconnect();
   observer=new IntersectionObserver(entries=>{
     for(const entry of entries){
@@ -118,7 +129,7 @@ function render(){
 }
 function fact(name,value){return '<div class="fact"><span>'+esc(name)+'</span>'+esc(value??'—')+'</div>'}
 function show(item){
-  const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{};
+  const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
   $('#detailBody').innerHTML=
     '<div class="detail-head"><h2>'+esc(item.ticker)+'</h2><div class="badges">'+badges(item)+'</div></div>'+
@@ -130,6 +141,7 @@ function show(item){
       fact('50D slope',m.slope50||'—')+fact('30W slope',m.slope30w||'—')+
       fact('Swing',m.swingState||'—')+fact('20D / 40D range',pct(m.range20Pct)+' / '+pct(m.range40Pct))+
       fact('Close location',pct(m.closeLocationPct))+fact('Actionability',m.actionability||'—')+
+      (item.sources.includes('kell-gap')?fact('Gap / held',pct(g.gapPct)+' / '+pct(g.gapHeldPct))+fact('Avg Vol 20D',Number.isFinite(Number(g.avgVolume20d))?Intl.NumberFormat('en',{notation:'compact'}).format(g.avgVolume20d):'—'):'')+
     '</div>'+
     '<div class="analysis-text"><b>Sažetak</b>\n'+esc(a.summary||'—')+
     '\n\n<b>Preferred trade</b>\n'+esc(a.preferredTrade||'—')+
