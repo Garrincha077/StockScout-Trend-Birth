@@ -17,9 +17,9 @@ The snapshot builder mirrors the active Unified modes:
 - Bottom Fishing
 - Next
 - Ryan Original
-- Kell daily leaders: highest-RVOL names among the selected daily candidates, default `RVOL >= 3.0x`, top 5
+- Kell daily leaders: top 5 names from the full public Bottom pool matching Unified's existing Oliver Kell saved-screen rules (Reclaim/Launch, 52W Highs, Bull Snort, Doublers) plus a liquid daily `RVOL >= 3.0x` overlay (`ADV50 >= $20M`, price >= $5, positive day)
 
-A ticker can have multiple source badges, for example `Bottom + Kell`.
+A ticker can have multiple source badges, for example `Bottom + Kell`. Kell match reasons are preserved in the ticker detail.
 
 ## Review UI
 
