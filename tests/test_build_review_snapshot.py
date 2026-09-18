@@ -32,9 +32,9 @@ class BuilderTests(unittest.TestCase):
     def test_kell_gap_screen_matches_canonical_thresholds(self):
         row = {
             "ticker": "AAA",
-            "close": 25.0,
-            "open": 24.5,
-            "ret_1d_pct": 1.0,
+            "close": 25.2,
+            "open": 25.0,
+            "ret_1d_pct": 5.0,
             "avg_volume_20d": 600_000,
         }
         metrics = builder.kell_gap_metrics(row)
