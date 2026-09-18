@@ -1,0 +1,48 @@
+name: Trend Birth Review Lab Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feature/unified-review-grid-lab"
+    paths:
+      - "lab/**"
+      - "scripts/build_review_snapshot.py"
+      - "tests/test_build_review_snapshot.py"
+      - ".github/workflows/review-lab-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: trend-birth-review-lab-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest tests/test_build_review_snapshot.py -v
+      - name: Build current read-only review snapshot
+        run: python scripts/build_review_snapshot.py --analysis lab/data/analysis.example.json --output lab/data/latest.json
+      - name: Configure isolated Trend Birth Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload lab site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: lab
+      - name: Deploy lab site
+        id: deployment
+        uses: actions/deploy-pages@v4
