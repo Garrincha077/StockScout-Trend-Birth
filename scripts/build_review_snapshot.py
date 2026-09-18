@@ -495,11 +495,13 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             item["sourceRanks"][mode] = rank
             item["raw"] = {**item["raw"], **row}
 
+    # Keep all strict 3x+ RVOL names temporarily so chart-derived quality can be
+    # evaluated before the final "best of day" Kell board is cut to kell_limit.
     kell_sorted = sorted(
         kell_pool.items(),
         key=lambda pair: _kell_rank(pair[1][1], pair[1][0]),
         reverse=True,
-    )[:kell_limit]
+    )
     for rank, (ticker, (signals, row)) in enumerate(kell_sorted, 1):
         item = merged.setdefault(
             ticker,
@@ -540,6 +542,51 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         charts.update(loaded)
         pending -= set(loaded)
 
+    def kell_chart_quality(item: dict) -> bool:
+        metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
+        slope50 = metrics.get("slope50")
+        slope30w = metrics.get("slope30w")
+        close_location = metrics.get("closeLocationPct")
+        ema_gap = metrics.get("emaGapPct")
+        rsi = metrics.get("rsi14")
+        return (
+            slope50 == "upward"
+            and slope30w in {"upward", "flat"}
+            and close_location is not None and close_location >= 55.0
+            and ema_gap is not None and abs(ema_gap) <= 10.0
+            and (rsi is None or rsi <= 85.0)
+        )
+
+    qualified_kell = [
+        item for item in merged.values()
+        if "kell-daily" in item["sources"] and kell_chart_quality(item)
+    ]
+    qualified_kell.sort(
+        key=lambda item: (
+            len((item.get("kell") or {}).get("signals") or []),
+            float((item.get("kell") or {}).get("rvolToday") or 0.0),
+            float((item.get("kell") or {}).get("rsRating") or 0.0),
+        ),
+        reverse=True,
+    )
+    selected_kell = {item["ticker"] for item in qualified_kell[:kell_limit]}
+    kell_rank_map = {
+        item["ticker"]: rank for rank, item in enumerate(qualified_kell[:kell_limit], 1)
+    }
+    for ticker in list(merged):
+        item = merged[ticker]
+        if "kell-daily" not in item["sources"]:
+            continue
+        if ticker in selected_kell:
+            item["sourceRanks"]["kell-daily"] = kell_rank_map[ticker]
+            item["kell"]["rank"] = kell_rank_map[ticker]
+            continue
+        item["sources"] = [source for source in item["sources"] if source != "kell-daily"]
+        item["sourceRanks"].pop("kell-daily", None)
+        item.pop("kell", None)
+        if not item["sources"]:
+            merged.pop(ticker)
+
     analysis_by_ticker = analysis if isinstance(analysis, dict) else {}
     candidates = []
     for ticker, item in merged.items():
@@ -568,7 +615,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         "kell": {
             "minRelativeVolume": kell_min_rvol,
             "limit": kell_limit,
-            "qualifiedCount": len(kell_sorted),
+            "qualifiedCount": len(selected_kell),
             "eligiblePublicPool": len(kell_pool),
             "method": "Strict liquid positive-day 3x+ RVOL leaders, ranked with Unified Kell saved-screen confluence",
         },
