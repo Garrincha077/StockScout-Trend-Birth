@@ -18,6 +18,7 @@ The snapshot builder mirrors the active Unified modes:
 - Next
 - Ryan Original
 - Kell daily leaders: up to 5 names from the full public Bottom pool that **must** pass a liquid positive-day `RVOL >= 3.0x` gate (`ADV50 >= $20M`, price >= $5); Unified Oliver Kell saved-screen confluence (Reclaim/Launch, 52W Highs, Bull Snort, Doublers) is preserved and used to rank the qualifying power moves
+- Kell Gap-Up: canonical Oliver Kell Gappers screen (`price > $20`, `Avg Vol 20d > 500k`, `gap > 3%`), then the lab ranks the best daily matches by gap hold, close quality, RVOL and 50D/30W context. The canonical eligibility rule and the lab's quality ranking remain separately visible.
 
 A ticker can have multiple source badges, for example `Bottom + Kell`. Kell match reasons are preserved in the ticker detail.
 
