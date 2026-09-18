@@ -31,3 +31,47 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Execute **Step A — Architecture and historical audit** against `Garrincha077/StockScreener-next`.
 - Fill `docs/FIELD_GAP_AUDIT.md` with exact source files/functions and classify Stage, RS, MA Cluster, Emerging Leader, Opportunity v2, Group Leadership, Fundamentals, chart/data infrastructure and relevant utilities as `KEEP / EXTEND / REPLACE / DROP`.
 - Do not begin ranking redesign until the audit identifies what data/history are actually available and which fields need new point-in-time reconstruction.
+
+
+## 2026-09-18 — Isolated Unified review GridView lab
+
+- Repository: `Garrincha077/StockScout-Trend-Birth`.
+- Branch: `feature/unified-review-grid-lab`.
+- Branch head before this log update: `c062bf66885df1adbbdba1e93498817193616209`.
+- Product decision: use Trend Birth as a completely isolated, **read-only companion** above the existing `Garrincha077/StockScout-Unified` production system. Unified remains the authoritative scan source and is not modified by this work.
+- Safety boundary:
+  - no writes to StockScout Unified;
+  - no production Telegram token, Supabase key, broker credential or production secret;
+  - no production deployment trigger;
+  - lab workflow has `contents: read` only;
+  - failure of the lab cannot change Unified scans, rankings, Pages, Telegram delivery or owner state.
+- Added a read-only daily snapshot builder in `scripts/build_review_snapshot.py` that reads the active public Unified manifest and mode assets for Bottom Fishing, Next and Ryan Original, de-duplicates tickers, preserves source labels/ranks, and copies only the chart rows needed for the selected daily review set.
+- Added an exploratory Oliver Kell-style review overlay: names already in the daily review universe with strongest available relative-volume evidence, default `RVOL >= 3.0x`, top 5. This is a review/discovery overlay, not a validated Trend Birth ranking model.
+- Added mobile-first review UI under `lab/`:
+  - one GridView for all selected tickers;
+  - filters for All / Bottom / Next / Ryan / Kell 3x RVOL / Action;
+  - ticker search;
+  - lightweight canvas mini charts with EMA10 / EMA20 / SMA50;
+  - tap/click/keyboard activation of a chart opens a larger ticker detail view;
+  - detail view accepts an external per-ticker analysis JSON so a later ChatGPT Work step can write daily qualitative/technical/fundamental review without contaminating source scan data.
+- Added `lab/data/analysis.example.json` as the analysis handoff contract and `lab/README.md` documenting the isolation boundary and local workflow.
+- Added `.github/workflows/unified-review-grid-lab.yml` as a manual/PR-only validation workflow. It runs unit tests, builds a read-only snapshot from public Unified assets and uploads a short-lived artifact. It does not deploy or notify Telegram.
+- Added `tests/test_build_review_snapshot.py` for relative-volume selection, Ryan buy-signal preference and Bottom structural-priority behavior.
+- Validation performed locally before branch publication:
+  - Python module compile passed;
+  - 3 unit tests passed;
+  - browser JavaScript syntax check passed.
+- Behavior/ranking/scoring impact:
+  - no existing Trend Birth ranking/scoring changed;
+  - no Unified ranking/scoring or notification behavior changed;
+  - the new code is an isolated review/data-presentation layer only.
+- Important caveat: Next and Ryan daily selections can be reconstructed from public activated mode assets. The exact Bottom Telegram digest is generated from a private raw `bottom.json` GitHub Actions handoff, so the current lab Bottom selection is a transparent public-data proxy rather than a byte-for-byte recreation of the private Bottom Telegram selection. This must remain explicit until a safe read-only handoff is added.
+- Main regression/methodological risks:
+  - treating a single RVOL spike as a Kell-quality setup without context;
+  - over-ranking names that are already extended;
+  - confusing a review overlay with validated Trend Birth evidence;
+  - drift between the public Bottom proxy and the private Bottom Telegram digest.
+
+**Next logical step**
+- Run the branch PR validation workflow against the live activated Unified public assets.
+- If the artifact is correct, add a **Trend Birth-only preview publication path** so the user can open one mobile link to the GridView. Do not add production Telegram integration or modify Unified until the preview is stable and explicitly approved.
