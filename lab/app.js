@@ -159,10 +159,12 @@ $('#filters').addEventListener('click',e=>{
   const b=e.target.closest('button[data-filter]');if(!b)return;
   state.filter=b.dataset.filter;document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));render();
 });
-const snapshotUrls=[
-  'data/latest.json',
-  'https://raw.githubusercontent.com/Garrincha077/StockScout-Trend-Birth/feature/unified-review-grid-lab/lab/data/latest.json'
-];
+const requestedDate=new URLSearchParams(location.search).get('date');
+const snapshotPath=requestedDate?'data/history/'+encodeURIComponent(requestedDate)+'.json':'data/latest.json';
+const rawSnapshotPath=requestedDate
+  ?'https://raw.githubusercontent.com/Garrincha077/StockScout-Trend-Birth/feature/unified-review-grid-lab/lab/data/history/'+encodeURIComponent(requestedDate)+'.json'
+  :'https://raw.githubusercontent.com/Garrincha077/StockScout-Trend-Birth/feature/unified-review-grid-lab/lab/data/latest.json';
+const snapshotUrls=[snapshotPath,rawSnapshotPath];
 async function loadSnapshot(){
   let lastError=null;
   for(const url of snapshotUrls){
@@ -175,5 +177,5 @@ async function loadSnapshot(){
   throw lastError||new Error('Snapshot nije dostupan');
 }
 loadSnapshot()
-  .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · read-only';render()})
+  .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(requestedDate?'archive':'latest')+' · read-only';render()})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});
