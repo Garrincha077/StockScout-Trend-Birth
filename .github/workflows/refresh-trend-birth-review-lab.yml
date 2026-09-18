@@ -1,0 +1,115 @@
+name: Refresh Trend Birth Review Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/refresh-trend-birth-review-lab.yml"
+  schedule:
+    - cron: "40 23 * * 1-5"
+      timezone: "Europe/Zagreb"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trend-birth-review-lab-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated LAB branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/unified-review-grid-lab
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate snapshot builder
+        run: python -m unittest tests/test_build_review_snapshot.py -v
+
+      - name: Build candidate snapshot from activated Unified public data
+        run: |
+          python scripts/build_review_snapshot.py \
+            --analysis lab/data/analysis.example.json \
+            --output /tmp/review-latest.json
+
+      - name: Validate, publish latest and archive by session date
+        id: publish
+        shell: bash
+        run: |
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          candidate = Path("/tmp/review-latest.json")
+          latest = Path("lab/data/latest.json")
+          history_dir = Path("lab/data/history")
+
+          data = json.loads(candidate.read_text(encoding="utf-8"))
+          source = data.get("source") or {}
+          session_date = str(source.get("sessionDate") or "").strip()
+
+          if not session_date:
+              raise SystemExit("Refusing publish: missing source.sessionDate")
+          dt.date.fromisoformat(session_date)
+
+          candidate_count = int(data.get("candidateCount") or 0)
+          chart_count = int(data.get("chartCount") or 0)
+          if candidate_count <= 0:
+              raise SystemExit("Refusing publish: candidateCount must be > 0")
+          if chart_count <= 0:
+              raise SystemExit("Refusing publish: chartCount must be > 0")
+
+          old_date = ""
+          if latest.exists() and latest.stat().st_size:
+              try:
+                  old = json.loads(latest.read_text(encoding="utf-8"))
+                  old_date = str((old.get("source") or {}).get("sessionDate") or "").strip()
+              except Exception:
+                  old_date = ""
+
+          if old_date and session_date < old_date:
+              print(f"Upstream session {session_date} is older than current latest {old_date}; refusing rollback.")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write("changed=false\n")
+                  fh.write(f"session_date={session_date}\n")
+              raise SystemExit(0)
+
+          candidate_bytes = candidate.read_bytes()
+          current_bytes = latest.read_bytes() if latest.exists() else b""
+          archive = history_dir / f"{session_date}.json"
+          archive_bytes = archive.read_bytes() if archive.exists() else b""
+
+          changed = candidate_bytes != current_bytes or candidate_bytes != archive_bytes
+          if changed:
+              history_dir.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(candidate, latest)
+              shutil.copyfile(candidate, archive)
+              print(f"Published session {session_date}: {candidate_count} candidates, {chart_count} charts.")
+          else:
+              print(f"Session {session_date} already published; no changes.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"changed={'true' if changed else 'false'}\n")
+              fh.write(f"session_date={session_date}\n")
+          PY
+
+      - name: Commit refreshed LAB snapshot
+        if: steps.publish.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/data/latest.json lab/data/history/
+          git commit -m "chore(lab): refresh review snapshot ${{ steps.publish.outputs.session_date }}"
+          git push origin HEAD:feature/unified-review-grid-lab
