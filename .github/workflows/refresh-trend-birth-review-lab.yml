@@ -29,6 +29,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout isolated LAB branch
         uses: actions/checkout@v4
@@ -40,173 +41,30 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate snapshot builder
-        run: python -m unittest tests/test_build_review_snapshot.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-      - name: Build candidate snapshot from activated Unified public data
+      - name: Validate publication and link contracts
         run: |
-          python scripts/build_review_snapshot.py \
-            --analysis lab/data/analysis.example.json \
-            --output /tmp/review-latest.json
+          python -m unittest discover -s tests -v
+          node --test tests/snapshot-loader.test.cjs
 
-      - name: Validate, publish latest and archive by session date
+      - name: Build from one activated Unified scan
+        run: python scripts/build_review_snapshot.py --output /tmp/review-candidate.json
+
+      - name: Publish immutable snapshot and pointer
         id: publish
-        shell: bash
-        run: |
-          python - <<'PY'
-          import datetime as dt
-          import json
-          import os
-          import shutil
-          from pathlib import Path
+        run: python scripts/publish_review_snapshot.py --input /tmp/review-candidate.json --directory lab/data
 
-          candidate = Path("/tmp/review-latest.json")
-          latest = Path("lab/data/latest.json")
-          history_dir = Path("lab/data/history")
-          telegram_marker = Path("lab/data/telegram-last-sent.txt")
-
-          data = json.loads(candidate.read_text(encoding="utf-8"))
-          source = data.get("source") or {}
-          session_date = str(source.get("sessionDate") or "").strip()
-
-          if not session_date:
-              raise SystemExit("Refusing publish: missing source.sessionDate")
-          dt.date.fromisoformat(session_date)
-
-          candidate_count = int(data.get("candidateCount") or 0)
-          chart_count = int(data.get("chartCount") or 0)
-          if candidate_count <= 0:
-              raise SystemExit("Refusing publish: candidateCount must be > 0")
-          if chart_count <= 0:
-              raise SystemExit("Refusing publish: chartCount must be > 0")
-
-          old_date = ""
-          if latest.exists() and latest.stat().st_size:
-              try:
-                  old = json.loads(latest.read_text(encoding="utf-8"))
-                  old_date = str((old.get("source") or {}).get("sessionDate") or "").strip()
-              except Exception:
-                  old_date = ""
-
-          marker_date = telegram_marker.read_text(encoding="utf-8").strip() if telegram_marker.exists() else ""
-          if marker_date:
-              dt.date.fromisoformat(marker_date)
-
-          if old_date and session_date < old_date:
-              print(f"Upstream session {session_date} is older than current latest {old_date}; refusing rollback.")
-              changed = False
-              notify_needed = False
-          else:
-              candidate_bytes = candidate.read_bytes()
-              current_bytes = latest.read_bytes() if latest.exists() else b""
-              archive = history_dir / f"{session_date}.json"
-              archive_bytes = archive.read_bytes() if archive.exists() else b""
-
-              changed = candidate_bytes != current_bytes or candidate_bytes != archive_bytes
-              if changed:
-                  history_dir.mkdir(parents=True, exist_ok=True)
-                  shutil.copyfile(candidate, latest)
-                  shutil.copyfile(candidate, archive)
-                  print(f"Published session {session_date}: {candidate_count} candidates, {chart_count} charts.")
-              else:
-                  print(f"Session {session_date} already published; no snapshot changes.")
-
-              notify_needed = not marker_date or session_date > marker_date
-              print(f"Telegram marker={marker_date or 'none'}; notify_needed={notify_needed}")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"changed={'true' if changed else 'false'}\n")
-              fh.write(f"session_date={session_date}\n")
-              fh.write(f"notify_needed={'true' if notify_needed else 'false'}\n")
-          PY
-
-      - name: Verify Telegram delivery credentials
-        id: telegram_config
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "Telegram credentials are available."
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Telegram credentials are not available in StockScout-Trend-Birth."
-          fi
-
-      - name: Send one Telegram GridView summary for the new session
-        id: telegram
-        if: steps.publish.outputs.notify_needed == 'true' && steps.telegram_config.outputs.available == 'true'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SESSION_DATE: ${{ steps.publish.outputs.session_date }}
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import urllib.parse
-          import urllib.request
-          from pathlib import Path
-
-          token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-          session_date = os.environ["SESSION_DATE"].strip()
-
-          sent = False
-          if not token or not chat_id:
-              print("Telegram credentials are not available in StockScout-Trend-Birth; delivery deferred.")
-          else:
-              data = json.loads(Path("lab/data/latest.json").read_text(encoding="utf-8"))
-              candidates = data.get("candidates") or []
-              kell = int((data.get("kell") or {}).get("qualifiedCount") or 0)
-              gap = int((data.get("kellGap") or {}).get("qualifiedCount") or 0)
-              multi = sum(1 for item in candidates if len(set(item.get("sources") or [])) > 1)
-              total = int(data.get("candidateCount") or len(candidates))
-              link = "https://stockscout-trend-birth-review-lab.vercel.app"
-              message = (
-                  f"📊 Trend Birth GridView — {session_date}\n"
-                  f"Kandidati: {total}\n"
-                  f"Kell 3x RVOL: {kell} · Gap-Up: {gap} · Multi-hit: {multi}\n"
-                  f"{link}"
-              )
-              payload = urllib.parse.urlencode({
-                  "chat_id": chat_id,
-                  "text": message,
-                  "disable_web_page_preview": "true",
-              }).encode("utf-8")
-              request = urllib.request.Request(
-                  f"https://api.telegram.org/bot{token}/sendMessage",
-                  data=payload,
-                  method="POST",
-              )
-              try:
-                  with urllib.request.urlopen(request, timeout=30) as response:
-                      body = json.loads(response.read().decode("utf-8"))
-                  sent = bool(body.get("ok"))
-              except Exception:
-                  sent = False
-
-              if sent:
-                  Path("lab/data/telegram-last-sent.txt").write_text(session_date + "\n", encoding="utf-8")
-                  print(f"Telegram GridView summary delivered for {session_date}.")
-              else:
-                  print("Telegram delivery failed; marker was not advanced and a later refresh will retry.")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"sent={'true' if sent else 'false'}\n")
-          PY
-
-      - name: Commit refreshed LAB data and Telegram marker
-        if: steps.publish.outputs.changed == 'true' || steps.telegram.outputs.sent == 'true'
+      - name: Commit publication atomically to LAB branch
+        if: steps.publish.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/history/ lab/data/telegram-last-sent.txt
+          git add lab/data/latest.json lab/data/publication.json lab/data/snapshots/ lab/data/history/
           if git diff --cached --quiet; then
-            echo "Nothing to commit"
             exit 0
           fi
-          git commit -m "chore(lab): refresh review data ${{ steps.publish.outputs.session_date }}"
+          git commit -m "chore(lab): publish immutable review snapshot"
           git push origin HEAD:feature/unified-review-grid-lab

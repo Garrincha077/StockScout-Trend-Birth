@@ -31,3 +31,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Execute **Step A — Architecture and historical audit** against `Garrincha077/StockScreener-next`.
 - Fill `docs/FIELD_GAP_AUDIT.md` with exact source files/functions and classify Stage, RS, MA Cluster, Emerging Leader, Opportunity v2, Group Leadership, Fundamentals, chart/data infrastructure and relevant utilities as `KEEP / EXTEND / REPLACE / DROP`.
 - Do not begin ranking redesign until the audit identifies what data/history are actually available and which fields need new point-in-time reconstruction.
+
+
+## 2026-09-21 — Reliable review publication and delivery, phase 1
+
+- Branch: `codex/reliable-review-refresh`. Implementation commit: `8463205dded0069903830e7ad785cde72fcdd405` (follow-up hardening and docs remain on this branch).
+- Changes: One lab publication writer; removes Telegram credentials access and all sending from Trend Birth; calls tested publisher on lab branch.
+- Validation: Workflow parsed locally; publisher/loader contract validated on companion lab branch; activation depends on that branch being promoted first.
+- Scanner selection, rankings and scoring unchanged. No live Telegram message was sent; no production branch was merged or deployed by this implementation.
+- Caveats: coordinated three-PR rollout required; ambiguous send needs manual reconciliation; per-mode metric separation and real dated AI review remain follow-up work.
+- Next: review and activate in the order documented in `REVIEW_PUBLICATION.md`.
