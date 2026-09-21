@@ -139,3 +139,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - A manual smoke trigger on `feature/unified-review-grid-lab` completed successfully: unit tests passed, live Unified ingest passed, archive step passed, and the cache workflow correctly skipped the write because no newer activated Unified session was available.
 - A ChatGPT scheduled task named `Trend Birth Refresh` is enabled for weekdays at 23:30 Europe/Zagreb. It only touches the Trend Birth lab feature branch trigger and verifies the resulting snapshot/archive; it must not modify Unified, Trend Birth main, Telegram, Supabase, or broker state.
 - Remaining infrastructure item: stable public hosting. GitHub Pages cannot be first-enabled by the connected GitHub App, and the Vercel deployment connector currently errors on the deploy action even though the existing isolated Vercel project/read APIs work. The application/data pipeline itself is green.
+
+
+## 2026-09-21 — Reliable review publication and delivery, phase 1
+
+- Branch: `codex/reliable-review-publication`. Implementation commit: `9386eabf5f594982d7bf7de3a107305d321eec29` (follow-up hardening and docs remain on this branch).
+- Changes: Immutable content-addressed snapshots; strict run/manifest validation; preserved date archives; snapshot-aware links without raw fallback; read-only preview workflow; example AI overlay removed from builds.
+- Validation: 12 Python unit tests and 4 Node link tests passed; live build returned 82 candidates/82 charts for 2026-09-18; publication retry was a no-op; HTTP integration with Unified verifier passed.
+- Scanner selection, rankings and scoring unchanged. No live Telegram message was sent; no production branch was merged or deployed by this implementation.
+- Caveats: coordinated three-PR rollout required; ambiguous send needs manual reconciliation; per-mode metric separation and real dated AI review remain follow-up work.
+- Next: review and activate in the order documented in `REVIEW_PUBLICATION.md`.
