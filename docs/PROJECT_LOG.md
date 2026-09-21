@@ -41,3 +41,21 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Scanner selection, rankings and scoring unchanged. No live Telegram message was sent; no production branch was merged or deployed by this implementation.
 - Caveats: coordinated three-PR rollout required; ambiguous send needs manual reconciliation; per-mode metric separation and real dated AI review remain follow-up work.
 - Next: review and activate in the order documented in `REVIEW_PUBLICATION.md`.
+
+
+## 2026-09-21 — Phase 1 activated and verified
+
+- Trend Birth PR #2 merged into the lab branch at `d88df04c65cfb6316d534607038410a880ad3fdf`.
+- Trend Birth PR #3 merged into main at `1ecaa512f64da89353f379aa08c7730991309b04`.
+- Unified PR #76 merged into main at `87f96d1759d8e2b919e72cc1fb99215f52c7ee41`.
+- Both helper schedules were temporarily paused for activation and are now active. Normal Unified EOD scheduling was not changed.
+- First production refresh: https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/35650377382 — success; published data commit `5d757111398d192b85341f091f597246f40219a1`.
+- Published Vercel deployment `dpl_3HMAjgKc1eXVWyYdVbaKDLK7Fuaa` succeeded. Public verifier checked the committed pointer, deployed hash, full chart coverage and active Unified run.
+- Verified session `2026-09-18`, run `2026-09-18-eod-35425827607-1`: 82 candidates/82 charts, 5 Kell 3x, 5 gap candidates, 3 multi-hit candidates.
+- Snapshot SHA-256: `a02793fc34805c2b1d3fac2acada5334ec758d626d669d0b086bf4e143b5abde`.
+- Production notification dry-run: https://github.com/Garrincha077/StockScout-Unified/actions/runs/35650861821 — success. Reservation and send steps were skipped (`deliver=false`); no real Telegram message sent during validation.
+- Repeat refresh: https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/35650957544 — success, `changed=false`, no publication commit.
+- Browser verification: permanent snapshot URL displayed the correct run and 82 candidates; Multi-hit displayed 3; chart click opened ticker detail; invalid snapshot URL showed an error without falling back to latest.
+- Caveat: the roughly 5 MB monolithic snapshot was slow to load in the local in-app browser (eventually successful), while hosted verification completed in seconds. Splitting grid metadata from chart history is a useful next UX optimization.
+- The scheduler-only PR has no `lab/` directory, so its Vercel preview failed with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`. The application branch deployment and both application CI checks passed; no hosting root setting was changed to accommodate an infrastructure-only branch.
+- This supersedes the earlier pre-activation notes. New production messages use immutable URLs; ambiguous sends require reconciliation. Real AI review, per-mode metric separation, exact Bottom Telegram parity and lifecycle tracking remain subsequent phases.
