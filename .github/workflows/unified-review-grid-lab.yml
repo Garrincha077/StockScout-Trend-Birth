@@ -7,14 +7,14 @@ on:
       - "feature/unified-review-grid-lab"
     paths:
       - "lab/**"
-      - "scripts/build_review_snapshot.py"
-      - "tests/test_build_review_snapshot.py"
+      - "scripts/**"
+      - "tests/**"
       - ".github/workflows/unified-review-grid-lab.yml"
   pull_request:
     paths:
       - "lab/**"
-      - "scripts/build_review_snapshot.py"
-      - "tests/test_build_review_snapshot.py"
+      - "scripts/**"
+      - "tests/**"
       - ".github/workflows/unified-review-grid-lab.yml"
 
 permissions:
@@ -29,9 +29,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Unit tests
-        run: python -m unittest tests/test_build_review_snapshot.py -v
+        run: python -m unittest discover -s tests -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Snapshot link tests
+        run: node --test tests/snapshot-loader.test.cjs
       - name: Build read-only snapshot from activated Unified public data
-        run: python scripts/build_review_snapshot.py --analysis lab/data/analysis.example.json --output lab/data/latest.json
+        run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Upload review lab artifact
         uses: actions/upload-artifact@v4
         with:

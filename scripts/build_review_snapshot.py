@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import math
 import urllib.request
@@ -22,6 +23,20 @@ def _get_bytes(url: str) -> bytes:
 
 def _get_json(url: str):
     return json.loads(_get_bytes(url).decode("utf-8"))
+
+
+def verified_mode_manifest(base_url: str, unified: dict, mode: str) -> dict:
+    entry = unified["modes"][mode]
+    content = _get_bytes(urljoin(base_url, "data/" + entry["manifestPath"]))
+    if hashlib.sha256(content).hexdigest() != entry["manifestSha256"]:
+        raise ValueError(f"{mode}: manifest hash mismatch; activation may be changing")
+    manifest = json.loads(content)
+    for field in ("runId", "sessionDate"):
+        if manifest.get(field) != unified.get(field):
+            raise ValueError(f"{mode}: {field} differs from activated Unified scan")
+    if manifest.get("status") != "healthy":
+        raise ValueError(f"{mode}: unhealthy manifest")
+    return manifest
 
 
 def _number(row: dict, *names: str) -> float | None:
@@ -236,7 +251,10 @@ def _asset_json(mode_root: str, manifest: dict, name: str):
     asset = (manifest.get("assets") or {}).get(name)
     if not isinstance(asset, dict) or not asset.get("path"):
         return None
-    return _get_json(urljoin(mode_root, str(asset["path"])))
+    content = _get_bytes(urljoin(mode_root, str(asset["path"])))
+    if not asset.get("sha256") or hashlib.sha256(content).hexdigest() != asset["sha256"]:
+        raise ValueError(f"{name}: asset hash mismatch")
+    return json.loads(content)
 
 
 def _rows_for_mode(mode_root: str, mode: str, manifest: dict, core: dict) -> list[dict]:
@@ -540,6 +558,8 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
 def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int, kell_gap_limit: int = 5) -> dict:
     base_url = base_url.rstrip("/") + "/"
     unified = _get_json(urljoin(base_url, "data/manifest.json"))
+    if unified.get("status") != "healthy":
+        raise ValueError("Unified scan is not healthy")
     session_date = str(unified.get("sessionDate") or "")
     run_id = str(unified.get("runId") or "")
     merged: dict[str, dict] = {}
@@ -550,7 +570,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
 
     for mode in MODES:
         mode_root = urljoin(base_url, f"data/modes/{mode}/")
-        manifest = _get_json(urljoin(mode_root, "manifest.json"))
+        manifest = verified_mode_manifest(base_url, unified, mode)
         core = _asset_json(mode_root, manifest, "core") or {}
         full_rows = _rows_for_mode(mode_root, mode, manifest, core)
         mode_payloads[mode] = (mode_root, manifest, core)
@@ -763,6 +783,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["ticker"],
     ))
 
+    # Avoid publishing a scan assembled across two activations.
+    if _get_json(urljoin(base_url, "data/manifest.json")) != unified:
+        raise ValueError("Unified activation changed during build; retry later")
+
     return {
         "schemaVersion": "trend-birth-review-v1",
         "source": {
@@ -771,6 +795,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "sessionDate": session_date,
             "readOnly": True,
             "modeUniverseCounts": mode_universe_counts,
+            "modeManifests": unified["modes"],
         },
         "kell": {
             "minRelativeVolume": kell_min_rvol,
