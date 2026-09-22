@@ -13,7 +13,7 @@ const kellFilterLabels={
   'kell_rvol_3x':'RVOL ≥3x',
   'kell_bull_snort':'Bull Snort',
   'kell_momentum_3m_50':'3M +50%',
-  'kell_doubler_6m':'6M Doubler',
+  'kell_doubler_ytd':'Doublers YTD',
   'kell_gapper':'Gapper',
   'kell_buyable_gap_proxy':'Buyable Gap proxy',
   'kell_strength_on_down_day':'Strength on Down Day',
@@ -136,6 +136,20 @@ function isKellView(){return kellFilters.has(state.filter)}
 function sourceItems(){
   return isKellView()?(state.kellData?.kellCandidates||state.data?.kellCandidates||[]):(state.data?.candidates||[]);
 }
+function updateKellFilterCounts(){
+  const scoring=state.kellData?.kellScoring||state.data?.kellScoring||{};
+  const counts=scoring.screenCounts||{};
+  const kellItems=state.kellData?.kellCandidates||state.data?.kellCandidates||[];
+  document.querySelectorAll('#filters button[data-filter]').forEach(button=>{
+    const filter=button.dataset.filter;
+    if(!button.dataset.baseLabel)button.dataset.baseLabel=button.textContent;
+    let count=null;
+    if(filter==='kell-any')count=state.kellData?.kellCandidateCount??state.data?.kellCandidateCount??kellItems.length;
+    else if(filter==='kell-score')count=kellItems.filter(item=>Number(item.kell_score)>=60).length;
+    else if(Object.prototype.hasOwnProperty.call(counts,filter))count=counts[filter];
+    if(count!==null)button.textContent=button.dataset.baseLabel+' ('+count+')';
+  });
+}
 async function ensureKellData(){
   if(state.kellData)return state.kellData;
   if(state.kellLoading)return state.kellLoading;
@@ -186,6 +200,7 @@ function card(item){
 let observer;
 function render(){
   if(!state.data)return;
+  updateKellFilterCounts();
   const items=sourceItems().filter(visible);
   if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
