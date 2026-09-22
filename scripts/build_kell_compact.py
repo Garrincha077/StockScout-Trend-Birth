@@ -32,8 +32,11 @@ def compact_candidate(item: dict) -> dict:
         "kell_metrics": pick(item.get("kell_metrics") or {}, KELL_METRIC_KEYS),
         "kell_score": item.get("kell_score"),
         "kell_cycle_stage": item.get("kell_cycle_stage"),
+        "kell_stage": item.get("kell_stage") or {},
         "kell_breakout_proximity_pct": item.get("kell_breakout_proximity_pct"),
-        "kellScreens": list(item.get("kellScreens") or []),
+        "kellScreens": list(item.get("kellScreens") or item.get("kell_screens") or []),
+        "kellSetups": list(item.get("kellSetups") or item.get("kell_setups") or []),
+        "kellContext": list(item.get("kellContext") or []),
     }
 
 def main() -> int:
@@ -45,7 +48,7 @@ def main() -> int:
     source = json.loads(Path(args.input).read_text(encoding="utf-8"))
     src = source.get("source") or {}
     out = {
-        "schemaVersion": "kell-compact-v1",
+        "schemaVersion": "kell-compact-v2",
         "source": {
             "runId": src.get("runId"),
             "sessionDate": src.get("sessionDate"),
