@@ -440,6 +440,61 @@ def _normalized_bars(rows: list) -> list[dict]:
     return bars
 
 
+def _date_from_stamp(value):
+    """Return a UTC date for ISO strings or Unix seconds/milliseconds."""
+    import datetime as _dt
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        numeric = float(text)
+        if math.isfinite(numeric) and numeric > 0:
+            seconds = numeric / 1000.0 if numeric >= 1e12 else numeric
+            return _dt.datetime.fromtimestamp(seconds, tz=_dt.timezone.utc).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    try:
+        return _dt.date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _weekly_bars(rows: list, max_weeks: int = 260) -> list[list]:
+    """Aggregate daily OHLCV into weekly candles for the long-horizon chart."""
+    import datetime as _dt
+    bars = _normalized_bars(rows)
+    weeks: list[dict] = []
+    for bar in bars:
+        date = _date_from_stamp(bar["time"])
+        if date is None:
+            continue
+        monday = date - _dt.timedelta(days=date.weekday())
+        key = monday.isoformat()
+        if not weeks or weeks[-1]["key"] != key:
+            weeks.append({
+                "key": key,
+                "time": date.isoformat(),
+                "open": bar["open"],
+                "high": bar["high"],
+                "low": bar["low"],
+                "close": bar["close"],
+                "volume": bar["volume"],
+            })
+        else:
+            current = weeks[-1]
+            current["time"] = date.isoformat()
+            current["high"] = max(current["high"], bar["high"])
+            current["low"] = min(current["low"], bar["low"])
+            current["close"] = bar["close"]
+            current["volume"] += bar["volume"]
+    if max_weeks > 0:
+        weeks = weeks[-max_weeks:]
+    return [
+        [week["time"], week["open"], week["high"], week["low"], week["close"], week["volume"]]
+        for week in weeks
+    ]
+
+
 def _rsi14(closes: list[float]) -> float | None:
     period = 14
     if len(closes) < period + 1:
@@ -517,21 +572,7 @@ def _sma(values: list[float], window: int) -> list[float | None]:
 
 
 def _weekly_closes(bars: list[dict]) -> list[float]:
-    weeks: list[tuple[str, float]] = []
-    for bar in bars:
-        stamp = str(bar["time"])[:10]
-        try:
-            year, month, day = (int(part) for part in stamp.split("-"))
-            import datetime as _dt
-            date = _dt.date(year, month, day)
-        except Exception:
-            continue
-        monday = (date - _dt.timedelta(days=date.weekday())).isoformat()
-        if weeks and weeks[-1][0] == monday:
-            weeks[-1] = (monday, bar["close"])
-        else:
-            weeks.append((monday, bar["close"]))
-    return [close for _, close in weeks]
+    return [float(row[4]) for row in _weekly_bars(bars, max_weeks=0)]
 
 
 def _slope_state(series: list[float | None], lookback: int) -> str | None:
@@ -915,6 +956,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "unifiedSources": list(pool_item.get("unifiedSources") or []),
             "metrics": _summary(raw, rows),
             "chartBars": rows[-260:],
+            "weeklyChartBars": _weekly_bars(rows, 260),
             "analysis": analysis_by_ticker.get(ticker, {}),
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
