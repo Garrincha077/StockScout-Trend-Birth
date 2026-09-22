@@ -1,9 +1,10 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),filter:'all',query:'',sort:'default',chartPeriod:'1y'};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filter:'none',query:'',sort:'default',chartPeriod:'1y'};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
+const universeLabels={'all':'All','bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan'};
 const label=s=>labels[s]||s;
 const kellScreenLabels={
   'kell_52w_high':'52W / New High',
@@ -254,26 +255,40 @@ function ruleAnalysis(item){
   return{status:'REVIEW',state:'DEVELOPING',preferredTrade:'Bez forsiranog ulaza; čekati spring, HL/reclaim ili trend pullback s jasnom invalidacijom.',summary:'Setup još nema dovoljno kombinirane potvrde za definirani entry.'};
 }
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
-function isKellView(){return kellFilters.has(state.filter)}
-function sourceItems(){
-  return isKellView()?(state.kellData?.kellCandidates||state.data?.kellCandidates||[]):(state.data?.candidates||[]);
+function isKellView(filter=state.filter){return kellFilters.has(filter)}
+function universeMatch(item,universe=state.universe){
+  if(universe==='all')return true;
+  const sources=item?.unifiedSources||item?.sources||[];
+  return sources.includes(universe);
 }
-function updateKellFilterCounts(){
-  const scoring=state.kellData?.kellScoring||state.data?.kellScoring||{};
-  const counts=scoring.screenCounts||{};
+function matchesFilter(item,filter=state.filter){
+  if(filter==='none')return true;
+  if(filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
+  if(filter==='multi')return (item?.unifiedSources||item?.sources||[]).length>1;
+  if(filter==='kell-any')return true;
+  if(filter==='kell-score')return Number(item.kell_score)>=60;
+  if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
+  if(kellFilters.has(filter))return hasKell(item,filter);
+  return true;
+}
+function sourceItems(filter=state.filter){
+  return isKellView(filter)
+    ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
+    :(state.data?.candidates||[]);
+}
+function updateFilterCounts(){
   const kellItems=state.kellData?.kellCandidates||state.data?.kellCandidates||[];
+  const reviewItems=state.data?.candidates||[];
   document.querySelectorAll('#filters button[data-filter]').forEach(button=>{
     const filter=button.dataset.filter;
     if(!button.dataset.baseLabel)button.dataset.baseLabel=button.textContent;
-    let count=null;
-    const setupCounts=scoring.setupCounts||{},contextCounts=scoring.contextCounts||{},stageCounts=scoring.stageCounts||{};
-    if(filter==='kell-any')count=state.kellData?.kellCandidateCount??state.data?.kellCandidateCount??kellItems.length;
-    else if(filter==='kell-score')count=kellItems.filter(item=>Number(item.kell_score)>=60).length;
-    else if(filter.startsWith('stage:'))count=stageCounts[filter.slice(6)]??kellItems.filter(item=>primaryStage(item)===filter.slice(6)).length;
-    else if(Object.prototype.hasOwnProperty.call(counts,filter))count=counts[filter];
-    else if(Object.prototype.hasOwnProperty.call(setupCounts,filter))count=setupCounts[filter];
-    else if(Object.prototype.hasOwnProperty.call(contextCounts,filter))count=contextCounts[filter];
-    if(count!==null)button.textContent=button.dataset.baseLabel+' ('+count+')';
+    if(filter==='none'){
+      button.textContent=button.dataset.baseLabel;
+      return;
+    }
+    const source=isKellView(filter)?kellItems:reviewItems;
+    const count=source.filter(item=>universeMatch(item)&&matchesFilter(item,filter)).length;
+    button.textContent=button.dataset.baseLabel+' ('+count+')';
   });
 }
 async function ensureKellData(){
@@ -345,14 +360,8 @@ async function ensureChartData(item){
 }
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
-  if(state.filter==='all')return true;
-  if(state.filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
-  if(state.filter==='multi')return item.sources.length>1;
-  if(state.filter==='kell-any')return true;
-  if(state.filter==='kell-score')return Number(item.kell_score)>=60;
-  if(state.filter.startsWith('stage:'))return primaryStage(item)===state.filter.slice(6);
-  if(kellFilters.has(state.filter))return hasKell(item,state.filter);
-  return item.sources.includes(state.filter);
+  if(!universeMatch(item))return false;
+  return matchesFilter(item);
 }
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),status=String(a.status||'REVIEW').toUpperCase();
@@ -371,17 +380,18 @@ function card(item){
 let observer;
 function render(){
   if(!state.data)return;
-  updateKellFilterCounts();
+  updateFilterCounts();
   const items=sourceItems().filter(visible);
   if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
+  const universeName=universeLabels[state.universe]||state.universe;
   if(isKellView()){
-    const pool=state.kellData?.kellScoring?.unifiedCandidateCount??state.data.kellScoring?.unifiedCandidateCount??0;
-    const coverage=state.kellData?.kellScoring?.chartCoverageCount??state.data.kellScoring?.chartCoverageCount??0;
-    $('#status').textContent=items.length+' pogodaka · '+(kellFilterLabels[state.filter]||'Kell')+' · skenirano '+pool+' Unified kandidata · chart '+coverage+'/'+pool;
+    const kellPool=(state.kellData?.kellCandidates||state.data?.kellCandidates||[]).filter(item=>universeMatch(item)).length;
+    $('#status').textContent=items.length+' pogodaka · '+universeName+' → '+(kellFilterLabels[state.filter]||'Kell')+' · Kell kandidata u odabranom universeu '+kellPool;
+  }else if(state.filter!=='none'){
+    $('#status').textContent=items.length+' pogodaka · '+universeName+' → '+state.filter;
   }else{
-    const strongKell=(state.kellData?.kellCandidates||state.data.kellCandidates||[]).filter(x=>Number(x.kell_score)>=60).length;
-    $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell ≥60 '+strongKell+' · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
+    $('#status').textContent=items.length+' review kandidata · Universe '+universeName+' · odaberi Screen / Stage / Setup za presjek tog universea';
   }
   observer?.disconnect();
   const lookup=new Map(items.map(item=>[item.ticker,item]));
@@ -454,11 +464,21 @@ $('#chartPeriod')?.addEventListener('change',e=>{
   render();
 });
 $('#filters').addEventListener('click',async e=>{
-  const b=e.target.closest('button[data-filter]');if(!b)return;
-  state.filter=b.dataset.filter;
-  document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));
+  const universeButton=e.target.closest('button[data-universe]');
+  const filterButton=e.target.closest('button[data-filter]');
+  if(!universeButton&&!filterButton)return;
+
+  if(universeButton){
+    state.universe=universeButton.dataset.universe;
+    document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x===universeButton));
+  }
+  if(filterButton){
+    state.filter=filterButton.dataset.filter;
+    document.querySelectorAll('#filters button[data-filter]').forEach(x=>x.classList.toggle('active',x===filterButton));
+  }
+
   if(isKellView()&&!state.kellData){
-    $('#status').textContent='Učitavam Kell full-Unified kandidate…';
+    $('#status').textContent='Učitavam Kell kandidate za odabrani universe…';
     try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
   }
   render();
