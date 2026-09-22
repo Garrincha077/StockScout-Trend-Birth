@@ -175,3 +175,21 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Validation: branch CI is green. On live Unified session `2026-09-21`, the deduplicated candidate union contained 2,683 tickers; 2,174 matched at least one Kell screen. The ordinary Review Grid remained 80 candidates with 80/80 chart coverage. 18 Python tests, historical 2026-09-17 smoke, snapshot-link tests and GridView JavaScript syntax all passed.
 
 - Follow-up benchmark validation: `Strength on Down Day` now reconstructs SPY from Unified's embedded RS ratio (`RS = stock / SPY * 100`) rather than requiring SPY to be a candidate chart. Live session 2026-09-21 implied SPY return about +1.55%, so the screen correctly returned 0 names on that up-market day. Full chart coverage remained 2,683/2,683. Screen counts on that session: 52W 122; unusual volume >=2x 62; RVOL >=3x 15; Bull Snort 15; Doublers 218; Gappers 110; EMA Ready 385; Wedge Pop 14; EMA Crossback 243; Base n' Break 12; Tightening 2,042; Near Breakout 347.
+
+
+## 2026-09-22 — Kell v2 grounded in Victory in Stock Trading
+
+- Reviewed Oliver Kell's *Victory in Stock Trading* and replaced the broad v1 pattern proxies with `kell-overlay-v2-pdf`.
+- Split momentum into `kell_momentum_3m_50` (3M +50%) and the true `kell_doubler_6m` / compatibility `kell_doubler` (6M +100%).
+- Reworked Cycle of Price Action as stateful sequence logic: Wedge Pop = first recapture of a tight 10/20 EMA cluster after working lower; EMA Crossback = first retest after a recent Wedge Pop; Base n' Break = longer EMA-supported contraction followed by breakout.
+- Tightening now requires true-range contraction plus volume dry-up or inside-bar evidence; added a separate TTFTL relative-weakness warning proxy.
+- Added book-aligned name-selection context using only fields already present in Unified: price/liquidity, RS rank, weekly 10EMA, revenue YoY, EPS YoY and fundamental support fallback.
+- Growth context is conservative: both revenue and EPS must be >=25% when both are known; a single known metric must be >=25%; `fundamentalSupport` is only a fallback when numeric growth is unavailable.
+- Added RS Divergence from reconstructed point-in-time SPY history, broad Gapper vs stricter Buyable Gap proxy, and a small `kell_focus` research shortlist.
+- `kell_focus` keeps individual screen lists intact and combines name-selection, leadership/growth context, and a core entry setup or high-quality gap proxy. It is explicitly a reproducible research proxy, not a claim to duplicate a proprietary Kell list.
+- Commits: `849105a` (PDF cycle alignment), `b68fadd` (growth/RS context), `adc210d` (Kell Focus and stricter growth logic), plus docs commit `1191b8f`.
+- Validation run `35776465023` completed successfully: 26 Python tests passed, historical 2026-09-17 membership/order remained unchanged, snapshot-link and JS syntax tests passed, and live full-Unified build passed.
+- Live session 2026-09-21: 2,683 Unified candidates, 2,683/2,683 charts, 1,982 names hit at least one v2 screen. Key counts: Focus 6; Growth 264; RS>=90 330; 3M+50 139; 6M Doubler 131; Bull Snort 25; Buyable Gap 10; RS Divergence 500; Wedge Pop 111; Crossback 15; Base n' Break 51; Tightening 98.
+- Focus list on that session: AMD, SLF, ARM, INTC, MXL, TTMI.
+- Precision improvement against v1 on the same live session: Tightening 2,042 -> 98; EMA Crossback 243 -> 15.
+- Production impact remains **none**. Work stays isolated on `feature/kell-mcp-lab`; Unified/main/Telegram/broker state were not changed.
