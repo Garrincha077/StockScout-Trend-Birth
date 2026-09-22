@@ -26,7 +26,7 @@ A ticker can have multiple source badges, for example `Bottom + Kell`. Kell matc
 
 `index.html` renders one responsive GridView of all selected names. Tapping/clicking a chart opens that ticker's detail view with EMA10/20 proximity, 50D/30W slope, RSI14, base-width proxy, current HH/HL swing structure, close location and a deterministic trade-state review. A Work-written analysis object can override/extend the review with QoQ fundamentals and ticker-specific commentary.
 
-The browser never needs cross-origin access to Unified chart shards. `scripts/build_review_snapshot.py` copies only selected candidates and their required public chart rows into `data/latest.json` during the build.
+The browser never needs cross-origin access to Unified chart shards. `scripts/build_review_snapshot.py` resolves chart history server-side. The ordinary Review Grid keeps its chart rows in the review snapshot; the full Kell candidate view publishes deterministic lazy-load OHLCV shards under `data/kell-charts/`, so charts are available for the full Kell result set without forcing the browser to download all chart history up front.
 
 ## AI analysis handoff
 
