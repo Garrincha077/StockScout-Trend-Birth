@@ -27,7 +27,7 @@ KELL_SCREEN_FIELDS = (
     "kell_rvol_3x",
     "kell_bull_snort",
     "kell_momentum_3m_50",
-    "kell_doubler_6m",
+    "kell_doubler_ytd",
     "kell_gapper",
     "kell_buyable_gap_proxy",
     "kell_strength_on_down_day",
