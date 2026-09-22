@@ -70,6 +70,7 @@ def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
         "kellSetups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "kellContext": list(item.get("kellContext") or []),
         "chartBarsCount": len(bars),
+        "weeklyChartBarsCount": len(item.get("weeklyChartBars") or []),
     }
     if chart_shard is not None:
         out["chartShard"] = chart_shard
@@ -91,18 +92,24 @@ def write_chart_shards(
     shard_count = (len(candidates) + chunk_size - 1) // chunk_size
     chart_candidate_count = 0
     chart_bar_count = 0
+    weekly_chart_candidate_count = 0
+    weekly_chart_bar_count = 0
     for shard_index in range(shard_count):
         chunk = candidates[shard_index * chunk_size:(shard_index + 1) * chunk_size]
         charts: dict[str, list] = {}
         for item in chunk:
             ticker = str(item.get("ticker") or "")
-            rows = [bar for row in (item.get("chartBars") or []) if (bar := compact_bar(row)) is not None]
-            if ticker and len(rows) >= 2:
-                charts[ticker] = rows
+            daily = [bar for row in (item.get("chartBars") or []) if (bar := compact_bar(row)) is not None]
+            weekly = [bar for row in (item.get("weeklyChartBars") or []) if (bar := compact_bar(row)) is not None]
+            if ticker and len(daily) >= 2:
+                charts[ticker] = {"daily": daily, "weekly": weekly}
                 chart_candidate_count += 1
-                chart_bar_count += len(rows)
+                chart_bar_count += len(daily)
+                if len(weekly) >= 2:
+                    weekly_chart_candidate_count += 1
+                    weekly_chart_bar_count += len(weekly)
         payload = {
-            "schemaVersion": "kell-chart-shard-v1",
+            "schemaVersion": "kell-chart-shard-v2",
             "source": {
                 "runId": src.get("runId"),
                 "sessionDate": src.get("sessionDate"),
@@ -115,12 +122,14 @@ def write_chart_shards(
             encoding="utf-8",
         )
     return {
-        "schemaVersion": "kell-chart-shard-v1",
+        "schemaVersion": "kell-chart-shard-v2",
         "basePath": "data/kell-charts",
         "shardCount": shard_count,
         "chunkSize": chunk_size,
         "chartCandidateCount": chart_candidate_count,
         "chartBarCount": chart_bar_count,
+        "weeklyChartCandidateCount": weekly_chart_candidate_count,
+        "weeklyChartBarCount": weekly_chart_bar_count,
     }
 
 
@@ -146,7 +155,7 @@ def main() -> int:
         )
 
     out = {
-        "schemaVersion": "kell-compact-v3",
+        "schemaVersion": "kell-compact-v4",
         "source": {
             "runId": src.get("runId"),
             "sessionDate": src.get("sessionDate"),
