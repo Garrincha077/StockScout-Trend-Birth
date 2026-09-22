@@ -19,6 +19,8 @@ MODEL_VERSION = "kell-overlay-v2-pdf"
 
 WEIGHTS = {
     "name_selection": 8,
+    "growth_context": 8,
+    "rs_leader": 6,
     "52w_high": 5,
     "unusual_volume": 5,
     "bull_snort": 8,
@@ -113,7 +115,11 @@ def _criterion(hit: bool | None, max_points: int, detail: str) -> dict:
     }
 
 
-def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None) -> dict:
+def score_candidate(
+    chart_rows: list | None,
+    benchmark_rows: list | None = None,
+    candidate_context: dict | None = None,
+) -> dict:
     """Return a transparent Kell-style overlay for one existing StockScout candidate.
 
     v2 operationalizes definitions from Oliver Kell's *Victory in Stock Trading*:
@@ -123,6 +129,36 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     """
     bars = _bars(chart_rows)
     bench = _bars(benchmark_rows)
+    context = candidate_context or {}
+
+    def context_number(*names: str) -> float | None:
+        for name in names:
+            try:
+                value = float(context.get(name))
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(value):
+                return value
+        return None
+
+    fundamental_support = context.get("fundamentalSupport")
+    revenue_yoy = context_number("revenueYoY", "revenue_yoy", "revenueGrowth", "salesGrowth")
+    eps_yoy = context_number("epsYoY", "eps_yoy", "epsGrowth", "earningsGrowth")
+    growth_available = fundamental_support is not None or revenue_yoy is not None or eps_yoy is not None
+    growth_context: bool | None = None
+    if growth_available:
+        if fundamental_support is True:
+            growth_context = True
+        elif revenue_yoy is not None and eps_yoy is not None:
+            growth_context = revenue_yoy >= 25.0 and eps_yoy >= 25.0
+        elif revenue_yoy is not None:
+            growth_context = revenue_yoy >= 25.0
+        elif eps_yoy is not None:
+            growth_context = eps_yoy >= 25.0
+
+    rs_rank = context_number("rsRank", "rsRating", "rs_rank", "rs_rating")
+    rs_leader: bool | None = rs_rank >= 90.0 if rs_rank is not None else None
+
     empty = {
         "kell_52w_high": None,
         "kell_unusual_volume": None,
@@ -136,6 +172,8 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         "kell_strength_on_down_day": None,
         "kell_rs_divergence": None,
         "kell_name_selection_ok": None,
+        "kell_growth_context": growth_context,
+        "kell_rs_leader": rs_leader,
         "kell_weekly_trend_ok": None,
         "kell_ema_readiness": None,
         "kell_wedge_pop": None,
@@ -427,6 +465,18 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
             name_selection_ok, WEIGHTS["name_selection"],
             f"price={_fmt(close,2)}; avgVol20={_fmt(vol_base,0)}; book anchors: price>=10, prefers ~1M shares/day",
         ),
+        "growth_context": _criterion(
+            growth_context, WEIGHTS["growth_context"],
+            (
+                f"fundamentalSupport={fundamental_support}; revenueYoY={_fmt(revenue_yoy)}%; epsYoY={_fmt(eps_yoy)}%; book sales-growth anchor=25%"
+                if growth_available
+                else "Unified fundamental growth evidence unavailable; criterion excluded"
+            ),
+        ),
+        "rs_leader": _criterion(
+            rs_leader, WEIGHTS["rs_leader"],
+            f"Unified RS rank={_fmt(rs_rank,0)}; leadership proxy threshold=90" if rs_rank is not None else "Unified RS rank unavailable; criterion excluded",
+        ),
         "52w_high": _criterion(
             near_52w or new_52w_high, WEIGHTS["52w_high"],
             f"distance={_fmt(distance_52w)}%; new_high={new_52w_high}",
@@ -518,6 +568,8 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         "kell_strength_on_down_day": strength_down_day,
         "kell_rs_divergence": rs_divergence,
         "kell_name_selection_ok": name_selection_ok,
+        "kell_growth_context": growth_context,
+        "kell_rs_leader": rs_leader,
         "kell_weekly_trend_ok": weekly_trend_ok,
         "kell_ema_readiness": ema_ready,
         "kell_wedge_pop": wedge_pop,
@@ -538,6 +590,10 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         },
         "kell_metrics": {
             "avg_volume20": vol_base,
+            "fundamental_support": fundamental_support,
+            "revenue_yoy_pct": revenue_yoy,
+            "eps_yoy_pct": eps_yoy,
+            "rs_rank": rs_rank,
             "rvol20": rvol20,
             "ret_1d_pct": ret_1d,
             "ret_3m_pct": ret_3m,
@@ -574,7 +630,7 @@ def enrich_snapshot(snapshot: dict, benchmark_rows: list | None = None) -> dict:
     candidates = snapshot.get("candidates") or []
     original_tickers = [str(item.get("ticker") or "") for item in candidates]
     for item in candidates:
-        item.update(score_candidate(item.get("chartBars") or [], benchmark_rows))
+        item.update(score_candidate(item.get("chartBars") or [], benchmark_rows, item))
     assert [str(item.get("ticker") or "") for item in candidates] == original_tickers
     snapshot["kellScoring"] = {
         "modelVersion": MODEL_VERSION,

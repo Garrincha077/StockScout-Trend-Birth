@@ -51,6 +51,8 @@ class KellScoringTests(unittest.TestCase):
             "kell_strength_on_down_day",
             "kell_rs_divergence",
             "kell_name_selection_ok",
+            "kell_growth_context",
+            "kell_rs_leader",
             "kell_weekly_trend_ok",
             "kell_ema_readiness",
             "kell_wedge_pop",
@@ -165,6 +167,16 @@ class KellScoringTests(unittest.TestCase):
         self.assertFalse(kell.score_candidate(cheap)["kell_name_selection_ok"])
         thin = make_bars(count=40, start=20.0, volume=400_000)
         self.assertFalse(kell.score_candidate(thin)["kell_name_selection_ok"])
+
+    def test_growth_and_rs_context_use_unified_fields(self):
+        bars = make_bars(count=80)
+        out = kell.score_candidate(
+            bars,
+            candidate_context={"fundamentalSupport": True, "revenueYoY": 40, "epsYoY": 55, "rsRank": 94},
+        )
+        self.assertTrue(out["kell_growth_context"])
+        self.assertTrue(out["kell_rs_leader"])
+        self.assertEqual(out["kell_metrics"]["rs_rank"], 94)
 
     def test_wedge_pop_is_recapture_of_tight_ema_cluster(self):
         bars = make_bars(count=50, start=100.0, daily=0.0)

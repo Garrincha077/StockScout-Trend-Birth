@@ -18,6 +18,8 @@ const kellFilterLabels={
   'kell_strength_on_down_day':'Strength on Down Day',
   'kell_rs_divergence':'RS Divergence',
   'kell_name_selection_ok':'Kell Liquid/Price',
+  'kell_growth_context':'Growth Context',
+  'kell_rs_leader':'RS Rank ≥90',
   'kell_weekly_trend_ok':'Weekly 10EMA',
   'kell_ema_readiness':'EMA10/20 Ready',
   'kell_wedge_pop':'Wedge Pop',

@@ -19,6 +19,8 @@ DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
 KELL_SCREEN_FIELDS = (
     "kell_name_selection_ok",
+    "kell_growth_context",
+    "kell_rs_leader",
     "kell_52w_high",
     "kell_unusual_volume",
     "kell_rvol_3x",
@@ -884,13 +886,13 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     kell_candidates = []
     for ticker, pool_item in unified_kell_pool.items():
         rows = kell_unified_charts.get(ticker, [])
-        scored = score_candidate(rows, benchmark_rows)
+        raw = pool_item.get("raw") or {}
+        scored = score_candidate(rows, benchmark_rows, raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         for field in hit_screens:
             kell_screen_counts[field] += 1
         if not hit_screens:
             continue
-        raw = pool_item.get("raw") or {}
         kell_candidates.append({
             "ticker": ticker,
             "sources": list(pool_item.get("unifiedSources") or []),
@@ -916,7 +918,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
-        item.update(score_candidate(rows, benchmark_rows))
+        item.update(score_candidate(rows, benchmark_rows, raw))
         candidates.append(item)
     candidates.sort(key=lambda item: (
         0 if str(item.get("analysis", {}).get("status") or "").upper() == "ACTION" else 1,
