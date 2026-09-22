@@ -436,7 +436,17 @@ def score_candidate(
         if index < 25 or index >= len(bars):
             return False
         e10_i = ema10[index]
-        if e10_i in (None, 0):
+        e20_i = ema20[index]
+        e10_prior = ema10[index - 5] if index >= 5 else None
+        if e10_i in (None, 0) or e20_i in (None, 0) or e10_prior in (None, 0):
+            return False
+        prior_trend_positive = index >= 20 and closes[index - 1] > closes[index - 20]
+        mature_uptrend_context = (
+            float(e10_i) > float(e20_i)
+            and float(e10_i) > float(e10_prior)
+            and prior_trend_positive
+        )
+        if not mature_uptrend_context:
             return False
         row = bars[index]
         row_close = closes[index]
