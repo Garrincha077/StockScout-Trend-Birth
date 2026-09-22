@@ -9,6 +9,14 @@ spec.loader.exec_module(builder)
 
 
 class BuilderTests(unittest.TestCase):
+    def test_kell_dimensions_are_disjoint(self):
+        self.assertTrue(set(builder.KELL_SCREEN_FIELDS).isdisjoint(builder.KELL_SETUP_FIELDS))
+        self.assertTrue(set(builder.KELL_SCREEN_FIELDS).isdisjoint(builder.KELL_CONTEXT_FIELDS))
+        self.assertTrue(set(builder.KELL_SETUP_FIELDS).isdisjoint(builder.KELL_CONTEXT_FIELDS))
+        self.assertIn("kell_gapper", builder.KELL_SCREEN_FIELDS)
+        self.assertIn("kell_wedge_pop", builder.KELL_SETUP_FIELDS)
+        self.assertIn("kell_weekly_trend_ok", builder.KELL_CONTEXT_FIELDS)
+
     def test_relative_volume_uses_strongest_available_field(self):
         row = {"rvolToday": 2.2, "currentThrustRelVolume": 3.4, "weeklyBreakoutRvol": 2.9}
         self.assertEqual(builder.relative_volume(row), 3.4)
