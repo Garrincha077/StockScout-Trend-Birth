@@ -1,4 +1,4 @@
-const state={data:null,filter:'all',query:'',sort:'default'};
+const state={data:null,kellData:null,kellLoading:null,filter:'all',query:'',sort:'default'};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -79,9 +79,14 @@ function badges(item){
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   return sources+kell;
 }
+function hasKell(item,field){
+  return item?.[field]===true||(item?.kellScreens||[]).includes(field);
+}
 function kellHits(item){
   const criteria=item.score_breakdown?.criteria||{};
-  return Object.entries(criteria).filter(([,v])=>v?.hit===true).map(([k])=>k.replaceAll('_',' '));
+  const hits=Object.entries(criteria).filter(([,v])=>v?.hit===true).map(([k])=>k.replaceAll('_',' '));
+  if(hits.length)return hits;
+  return (item.kellScreens||[]).map(k=>k.replace(/^kell_/,'').replaceAll('_',' '));
 }
 function kellBreakdownText(item){
   const breakdown=item.score_breakdown||{},criteria=breakdown.criteria||{};
@@ -95,8 +100,8 @@ function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓'
 function ruleAnalysis(item){
   const m=item.metrics||{},rvol=Number(m.rvol),rsi=Number(m.rsi14),gap=Math.abs(Number(m.emaGapPct));
   const hh=m.higherHigh===true,hl=m.higherLow===true,trend=m.slope50==='upward'&&m.slope30w==='upward';
-  const kell=item.sources.includes('kell-daily')||item.kell_rvol_3x===true;
-  const kellGap=item.sources.includes('kell-gap')||item.kell_gapper===true;
+  const kell=item.sources.includes('kell-daily')||hasKell(item,'kell_rvol_3x');
+  const kellGap=item.sources.includes('kell-gap')||hasKell(item,'kell_gapper');
   if(kellGap){
     const g=item.kellGap||{},held=Number(g.gapHeldPct),gap=Number(g.gapPct??item.kell_metrics?.gap_pct),strongHold=Number.isFinite(held)&&held>=60;
     return{
@@ -129,7 +134,33 @@ function ruleAnalysis(item){
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
 function isKellView(){return kellFilters.has(state.filter)}
 function sourceItems(){
-  return isKellView()?(state.data?.kellCandidates||[]):(state.data?.candidates||[]);
+  return isKellView()?(state.kellData?.kellCandidates||state.data?.kellCandidates||[]):(state.data?.candidates||[]);
+}
+async function ensureKellData(){
+  if(state.kellData)return state.kellData;
+  if(state.kellLoading)return state.kellLoading;
+  state.kellLoading=fetch('data/kell-latest.json',{cache:'no-store'})
+    .then(response=>{
+      if(!response.ok)throw new Error('Kell dataset nije dostupan (HTTP '+response.status+').');
+      return response.json();
+    })
+    .then(data=>{
+      const mainDate=state.data?.source?.sessionDate;
+      const kellDate=data?.source?.sessionDate;
+      if(mainDate&&kellDate&&mainDate!==kellDate){
+        throw new Error('Kell dataset je za '+kellDate+', a Review Grid za '+mainDate+'.');
+      }
+      const normal=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
+      for(const item of data.kellCandidates||[]){
+        const base=normal.get(item.ticker);
+        if(base?.chartBars?.length)item.chartBars=base.chartBars;
+      }
+      state.kellData=data;
+      state.kellLoading=null;
+      return data;
+    })
+    .catch(err=>{state.kellLoading=null;throw err});
+  return state.kellLoading;
 }
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
@@ -138,7 +169,7 @@ function visible(item){
   if(state.filter==='multi')return item.sources.length>1;
   if(state.filter==='kell-any')return true;
   if(state.filter==='kell-score')return Number(item.kell_score)>=60;
-  if(kellFilters.has(state.filter))return item[state.filter]===true;
+  if(kellFilters.has(state.filter))return hasKell(item,state.filter);
   return item.sources.includes(state.filter);
 }
 function card(item){
@@ -159,25 +190,26 @@ function render(){
   if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
   if(isKellView()){
-    const pool=state.data.kellScoring?.unifiedCandidateCount??0;
-    const coverage=state.data.kellScoring?.chartCoverageCount??0;
+    const pool=state.kellData?.kellScoring?.unifiedCandidateCount??state.data.kellScoring?.unifiedCandidateCount??0;
+    const coverage=state.kellData?.kellScoring?.chartCoverageCount??state.data.kellScoring?.chartCoverageCount??0;
     $('#status').textContent=items.length+' pogodaka · '+(kellFilterLabels[state.filter]||'Kell')+' · skenirano '+pool+' Unified kandidata · chart '+coverage+'/'+pool;
   }else{
-    const strongKell=(state.data.kellCandidates||[]).filter(x=>Number(x.kell_score)>=60).length;
+    const strongKell=(state.kellData?.kellCandidates||state.data.kellCandidates||[]).filter(x=>Number(x.kell_score)>=60).length;
     $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell ≥60 '+strongKell+' · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
   }
   observer?.disconnect();
+  const lookup=new Map(items.map(item=>[item.ticker,item]));
   observer=new IntersectionObserver(entries=>{
     for(const entry of entries){
       if(!entry.isIntersecting)continue;
-      const cardEl=entry.target.closest('.card'),item=state.data.candidates.find(x=>x.ticker===cardEl.dataset.ticker);
-      draw(entry.target,item.chartBars);observer.unobserve(entry.target);
+      const cardEl=entry.target.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
+      draw(entry.target,item?.chartBars||[]);observer.unobserve(entry.target);
     }
   },{rootMargin:'240px'});
   document.querySelectorAll('.card').forEach(cardEl=>{
-    const item=state.data.candidates.find(x=>x.ticker===cardEl.dataset.ticker),canvas=cardEl.querySelector('canvas');
+    const item=lookup.get(cardEl.dataset.ticker),canvas=cardEl.querySelector('canvas');
     observer.observe(canvas);
-    const open=()=>show(item);
+    const open=()=>item&&show(item);
     canvas.addEventListener('click',e=>{e.stopPropagation();open()});
     cardEl.addEventListener('click',open);
     cardEl.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
@@ -214,12 +246,18 @@ $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
 $('#search').addEventListener('input',e=>{state.query=e.target.value.trim().toUpperCase();render()});
 $('#sort')?.addEventListener('change',e=>{state.sort=e.target.value;render()});
-$('#filters').addEventListener('click',e=>{
+$('#filters').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-filter]');if(!b)return;
-  state.filter=b.dataset.filter;document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));render();
+  state.filter=b.dataset.filter;
+  document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));
+  if(isKellView()&&!state.kellData){
+    $('#status').textContent='Učitavam Kell full-Unified kandidate…';
+    try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
+  }
+  render();
 });
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
 ReviewSnapshots.load(fetch,location.search)
-  .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render()})
+  .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});
