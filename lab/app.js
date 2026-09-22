@@ -385,13 +385,16 @@ function render(){
   if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
   const universeName=universeLabels[state.universe]||state.universe;
+  const modeCounts=state.kellData?.source?.modeUniverseCounts||state.data?.source?.modeUniverseCounts||{};
+  const unifiedCount=state.kellData?.kellScoring?.unifiedCandidateCount??state.data?.kellScoring?.unifiedCandidateCount;
+  const universeSize=state.universe==='all'?unifiedCount:modeCounts[state.universe];
+  const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
   if(isKellView()){
-    const kellPool=(state.kellData?.kellCandidates||state.data?.kellCandidates||[]).filter(item=>universeMatch(item)).length;
-    $('#status').textContent=items.length+' pogodaka · '+universeName+' → '+(kellFilterLabels[state.filter]||'Kell')+' · Kell kandidata u odabranom universeu '+kellPool;
+    $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+(kellFilterLabels[state.filter]||'Kell');
   }else if(state.filter!=='none'){
-    $('#status').textContent=items.length+' pogodaka · '+universeName+' → '+state.filter;
+    $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+state.filter;
   }else{
-    $('#status').textContent=items.length+' review kandidata · Universe '+universeName+' · odaberi Screen / Stage / Setup za presjek tog universea';
+    $('#status').textContent=items.length+' review kandidata · Universe '+universeText+' · odaberi Screen / Stage / Setup za presjek tog universea';
   }
   observer?.disconnect();
   const lookup=new Map(items.map(item=>[item.ticker,item]));
