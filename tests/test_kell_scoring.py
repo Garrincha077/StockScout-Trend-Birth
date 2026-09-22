@@ -298,13 +298,14 @@ class KellScoringTests(unittest.TestCase):
         self.assertIn("higher_timeframe_support_proxy", out["kell_stage"]["basis"])
 
     def test_exhaustion_extension_stage_is_separate_from_discovery_screens(self):
-        bars = make_bars(count=90, start=100.0, daily=0.0, volume=1_200_000)
-        bars[-5]["high"] = 105.0  # prevent an ordinary 10D close-breakout proxy
+        bars = make_bars(count=90, start=100.0, daily=0.0015, volume=1_200_000)
+        prev_close = bars[-2]["close"]
+        bars[-5]["high"] = prev_close * 1.08  # prevent an ordinary 10D close-breakout proxy
         bars[-1].update({
-            "open": 106.0,
-            "high": 112.0,
-            "low": 99.0,
-            "close": 103.0,
+            "open": prev_close * 1.08,
+            "high": prev_close * 1.14,
+            "low": prev_close * 1.01,
+            "close": prev_close * 1.04,
             "volume": 2_400_000,
         })
         out = kell.score_candidate(bars)
@@ -314,21 +315,22 @@ class KellScoringTests(unittest.TestCase):
         self.assertNotIn("kell_exhaustion_extension", out["kell_setups"])
 
     def test_wedge_drop_requires_recent_exhaustion_and_ema_loss(self):
-        bars = make_bars(count=95, start=100.0, daily=0.0, volume=1_200_000)
+        bars = make_bars(count=95, start=100.0, daily=0.0015, volume=1_200_000)
+        base = bars[-5]["close"]
         bars[-4].update({
-            "open": 106.0,
-            "high": 113.0,
-            "low": 99.0,
-            "close": 102.0,
+            "open": base * 1.08,
+            "high": base * 1.15,
+            "low": base * 1.01,
+            "close": base * 1.04,
             "volume": 2_500_000,
         })
-        set_close(bars[-3], 101.5, spread=0.004)
-        set_close(bars[-2], 101.0, spread=0.004)
+        set_close(bars[-3], base * 1.035, spread=0.004)
+        set_close(bars[-2], base * 1.03, spread=0.004)
         bars[-1].update({
-            "open": 100.5,
-            "high": 101.0,
-            "low": 94.0,
-            "close": 95.0,
+            "open": base * 1.01,
+            "high": base * 1.02,
+            "low": base * 0.90,
+            "close": base * 0.92,
             "volume": 1_600_000,
         })
         out = kell.score_candidate(bars)
