@@ -110,6 +110,21 @@ class BuilderTests(unittest.TestCase):
         # Day 1 implies SPY=500; day 2 implies roughly SPY=490.2.
         self.assertLess(benchmark[-1]["close"], benchmark[-2]["close"])
 
+    def test_weekly_bars_aggregate_iso_and_epoch_dates(self):
+        rows = [
+            ["2026-09-14", 10.0, 11.0, 9.5, 10.5, 100],
+            ["2026-09-15", 10.5, 12.0, 10.0, 11.5, 150],
+            [1790035200, 11.5, 13.0, 11.0, 12.5, 200],  # 2026-09-22 UTC
+        ]
+        weekly = builder._weekly_bars(rows, 260)
+        self.assertEqual(len(weekly), 2)
+        self.assertEqual(weekly[0][1], 10.0)
+        self.assertEqual(weekly[0][2], 12.0)
+        self.assertEqual(weekly[0][3], 9.5)
+        self.assertEqual(weekly[0][4], 11.5)
+        self.assertEqual(weekly[0][5], 250.0)
+        self.assertEqual(weekly[1][4], 12.5)
+
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
         price = 10.0
