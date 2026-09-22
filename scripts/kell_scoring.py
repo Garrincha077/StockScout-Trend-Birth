@@ -15,7 +15,29 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-MODEL_VERSION = "kell-overlay-v3-screening-guide"
+MODEL_VERSION = "kell-overlay-v4-screen-stage-setup"
+
+# Keep discovery, structural stage, actionable setup and supporting context distinct.
+# These are output-contract groups; they do not alter the underlying Unified universe.
+DISCOVERY_FIELDS = (
+    "kell_52w_high",
+    "kell_unusual_volume",
+    "kell_rvol_3x",
+    "kell_bull_snort",
+    "kell_momentum_3m_50",
+    "kell_doubler_ytd",
+    "kell_gapper",
+    "kell_strength_on_down_day",
+    "kell_rs_leader",
+)
+SETUP_FIELDS = (
+    "kell_buyable_gap_proxy",
+    "kell_wedge_pop",
+    "kell_ema_crossback",
+    "kell_base_n_break",
+    "kell_tightening",
+    "kell_breakout_proximity",
+)
 
 WEIGHTS = {
     "name_selection": 8,
@@ -237,6 +259,13 @@ def score_candidate(
         "kell_breakout_proximity": None,
         "kell_breakout_proximity_pct": None,
         "kell_cycle_stage": "unavailable",
+        "kell_stage": {
+            "primary": "unavailable",
+            "confidence": 0.0,
+            "basis": ["insufficient_history"],
+        },
+        "kell_screens": [],
+        "kell_setups": [],
         "kell_focus": None,
         "kell_score": 0.0,
         "score_breakdown": {
@@ -526,13 +555,35 @@ def score_candidate(
             and stock_ret20 < benchmark_ret20
         )
 
-    cycle_stage = (
-        "wedge_pop" if wedge_pop else
-        "ema_crossback" if ema_crossback else
-        "base_n_break" if base_n_break else
-        "trend" if ema_ready else
-        "none"
+    bearish_ema_structure = (
+        e10 is not None and e20 is not None
+        and close < max(float(e10), float(e20))
+        and float(e10) < float(e20)
     )
+    if wedge_pop:
+        cycle_stage = "wedge_pop"
+        stage_confidence = 0.95
+        stage_basis = ["wedge_pop_event", "10_20_ema_recapture"]
+    elif ema_crossback:
+        cycle_stage = "ema_crossback"
+        stage_confidence = 0.95
+        stage_basis = ["first_retest_after_wedge_pop", "10_20_ema_support"]
+    elif base_n_break:
+        cycle_stage = "base_n_break"
+        stage_confidence = 0.95
+        stage_basis = ["base_contraction", "10_20_ema_support", "10d_breakout"]
+    elif ema_ready:
+        cycle_stage = "trend_ema_support"
+        stage_confidence = 0.75
+        stage_basis = ["price_above_rising_10_20_ema"]
+    elif bearish_ema_structure:
+        cycle_stage = "downtrend_repair"
+        stage_confidence = 0.70
+        stage_basis = ["price_below_bearish_10_20_ema"]
+    else:
+        cycle_stage = "transition"
+        stage_confidence = 0.45
+        stage_basis = ["mixed_10_20_ema_structure"]
 
     core_entry_setup = wedge_pop or ema_crossback or base_n_break
     leadership_signal = any((
@@ -650,6 +701,51 @@ def score_candidate(
     possible = sum(x["max_points"] for x in criteria.values() if x["available"])
     score = round(points / possible * 100.0, 1) if possible else 0.0
 
+    component_groups = {
+        "discovery": (
+            "rs_leader", "52w_high", "unusual_volume", "bull_snort",
+            "momentum_3m_50", "doubler_ytd", "gapper", "strength_on_down_day",
+        ),
+        "stage": ("weekly_trend", "ema_readiness"),
+        "setup": (
+            "buyable_gap_proxy", "wedge_pop", "ema_crossback",
+            "base_n_break", "tightening", "breakout_proximity",
+        ),
+        "context": ("name_selection", "growth_context", "rs_divergence"),
+    }
+    components = {}
+    for group_name, group_fields in component_groups.items():
+        group_items = [criteria[name] for name in group_fields if name in criteria and criteria[name]["available"]]
+        group_points = sum(item["points"] for item in group_items)
+        group_possible = sum(item["max_points"] for item in group_items)
+        components[group_name] = {
+            "points": group_points,
+            "possible_points": group_possible,
+            "score": round(group_points / group_possible * 100.0, 1) if group_possible else None,
+        }
+
+    screen_state = {
+        "kell_52w_high": screen_52w_high,
+        "kell_unusual_volume": unusual_volume,
+        "kell_rvol_3x": rvol_3x,
+        "kell_bull_snort": bull_snort,
+        "kell_momentum_3m_50": momentum_3m_50 if ret_3m is not None else None,
+        "kell_doubler_ytd": doubler_ytd if ret_ytd is not None else None,
+        "kell_gapper": gapper,
+        "kell_strength_on_down_day": strength_down_day,
+        "kell_rs_leader": rs_leader,
+    }
+    setup_state = {
+        "kell_buyable_gap_proxy": buyable_gap_proxy,
+        "kell_wedge_pop": wedge_pop,
+        "kell_ema_crossback": ema_crossback,
+        "kell_base_n_break": base_n_break,
+        "kell_tightening": tightening if recent_tr5 is not None else None,
+        "kell_breakout_proximity": breakout_proximity,
+    }
+    kell_screens = [field for field in DISCOVERY_FIELDS if screen_state.get(field) is True]
+    kell_setups = [field for field in SETUP_FIELDS if setup_state.get(field) is True]
+
     return {
         "kell_52w_high": screen_52w_high,
         "kell_unusual_volume": unusual_volume,
@@ -677,6 +773,13 @@ def score_candidate(
         "kell_breakout_proximity": breakout_proximity,
         "kell_breakout_proximity_pct": breakout_proximity_pct,
         "kell_cycle_stage": cycle_stage,
+        "kell_stage": {
+            "primary": cycle_stage,
+            "confidence": stage_confidence,
+            "basis": stage_basis,
+        },
+        "kell_screens": kell_screens,
+        "kell_setups": kell_setups,
         "kell_focus": kell_focus,
         "kell_score": score,
         "score_breakdown": {
@@ -684,6 +787,7 @@ def score_candidate(
             "points": points,
             "possible_points": possible,
             "criteria": criteria,
+            "components": components,
             "warnings": ["too_tight_for_too_long_relative_weakness"] if ttftl_warning is True else [],
         },
         "kell_metrics": {
