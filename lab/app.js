@@ -71,8 +71,20 @@ function avg(values,n,ema=false){
   return out;
 }
 function barDateLabel(value){
-  const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match?match[3]+'.'+match[2]+'.'+match[1].slice(2):String(value||'—').slice(0,8);
+  const text=String(value??'');
+  const match=text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(match)return match[3]+'.'+match[2]+'.'+match[1].slice(2);
+  const numeric=Number(value);
+  if(Number.isFinite(numeric)&&numeric>0){
+    const date=new Date(numeric<1e12?numeric*1000:numeric);
+    if(!Number.isNaN(date.getTime())){
+      const day=String(date.getUTCDate()).padStart(2,'0');
+      const month=String(date.getUTCMonth()+1).padStart(2,'0');
+      const year=String(date.getUTCFullYear()).slice(2);
+      return day+'.'+month+'.'+year;
+    }
+  }
+  return text.slice(0,8)||'—';
 }
 function priceLabel(value){
   const n=Number(value);
