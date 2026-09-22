@@ -422,7 +422,8 @@ def score_candidate(
         and close > prev_close
         and close_location >= 65.0
     )
-    reversal_volume = rvol20 is not None and rvol20 >= 1.5
+    reversal_rvol20 = volumes[-1] / vol_base if vol_base > 0 else None
+    reversal_volume = reversal_rvol20 is not None and reversal_rvol20 >= 1.5
     reversal_extension = bool(
         downside_extension_pct is not None and downside_extension_pct <= -5.0
         and support_rejection
