@@ -10,6 +10,12 @@
   <header class="topbar">
     <div><strong>Trend Birth Review Lab</strong><span id="runMeta">Učitavanje…</span></div>
     <div class="top-controls">
+      <select id="chartPeriod" aria-label="Razdoblje charta">
+        <option value="3m">3M · Daily</option>
+        <option value="6m">6M · Daily</option>
+        <option value="1y" selected>1Y · Daily</option>
+        <option value="5y">5Y · Weekly</option>
+      </select>
       <select id="sort" aria-label="Sortiranje kandidata">
         <option value="default">Default sort</option>
         <option value="kell-score">Kell score ↓</option>
