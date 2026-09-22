@@ -217,14 +217,19 @@ Supporting context:
 - Weekly 10EMA trend: **567**
 - EMA10/20 Ready: **323**
 
-Primary stock-stage classification among the 2,063 published Kell matches:
+Primary stock-stage classification among the 2,063 published Kell matches after the full-cycle refinement:
 
+- Reversal Extension: **4**
 - Wedge Pop: **111**
 - EMA Crossback: **15**
 - Base n' Break: **49**
+- Exhaustion Extension: **6**
+- Wedge Drop: **1**
 - Trend / EMA Support: **285**
-- Downtrend / Repair: **1,091**
-- Transition: **512**
+- Downtrend / Repair: **1,087**
+- Transition: **505**
+
+Before the full-cycle refinement, the generic buckets were Downtrend / Repair **1,091** and Transition **512**, with no Reversal Extension / Exhaustion Extension / Wedge Drop states. The new proxies therefore reclassified **11** names out of those generic buckets without changing any discovery-screen or setup counts.
 
 The setup and stage counts are intentionally allowed to differ. For example, **51** stocks hit the Base n' Break setup while **49** have Base n' Break as their primary stage because one stock can satisfy multiple setup conditions while only one primary stage is published.
 
@@ -232,8 +237,13 @@ Real-output spot checks confirm the separation:
 - **GRAL**: discovery screens include RVOL >=3x / Bull Snort / Gapper / RS Leader; primary stage = Base n' Break; setups include Buyable Gap and Base n' Break.
 - **WBD**: discovery screens include RVOL >=3x / Bull Snort / Gapper; primary stage = Wedge Pop; multiple setup flags remain visible independently.
 - **DELL**: strong discovery/context evidence but primary stage = Trend / EMA Support and no current actionable setup flag.
+- **VKTX**: Reversal Extension stage with elevated volume / Bull Snort / Strength on Down Day evidence.
+- **AMD**: Exhaustion Extension stage while still carrying separate Gapper / Bull Snort / RS-leader discovery hits and a Buyable Gap setup flag.
+- **TARS**: Wedge Drop stage with no discovery-screen hit, demonstrating that the stage layer is not inferred from discovery membership.
 
-CI run **#111** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data v4 validation, safe preview-data publication and artifact upload.
+The Exhaustion Extension proxy was tightened after the first live pass to require an established rising 10/20 EMA context plus a positive prior intermediate trend; live Exhaustion candidates fell from **12 to 6**, reducing rebound/dead-cat-style false positives.
+
+CI run **#120** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data v4 validation, safe preview-data publication and artifact upload.
 
 ## Output / UI contract
 
