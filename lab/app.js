@@ -33,9 +33,12 @@ const kellContextLabels={
   'kell_ema_readiness':'EMA10/20 Ready'
 };
 const kellStageLabels={
+  'stage:reversal_extension':'Reversal Extension',
   'stage:wedge_pop':'Wedge Pop',
   'stage:ema_crossback':'EMA Crossback',
   'stage:base_n_break':"Base n' Break",
+  'stage:exhaustion_extension':'Exhaustion Extension',
+  'stage:wedge_drop':'Wedge Drop',
   'stage:trend_ema_support':'Trend / EMA Support',
   'stage:downtrend_repair':'Downtrend / Repair',
   'stage:transition':'Transition',
