@@ -251,6 +251,9 @@ def score_candidate(
         "kell_rs_leader": rs_leader,
         "kell_weekly_trend_ok": None,
         "kell_ema_readiness": None,
+        "kell_reversal_extension": None,
+        "kell_exhaustion_extension": None,
+        "kell_wedge_drop": None,
         "kell_wedge_pop": None,
         "kell_ema_crossback": None,
         "kell_base_n_break": None,
@@ -394,6 +397,83 @@ def score_candidate(
         return crossed and below_count >= 3 and ema_gap_pct <= 1.5 and contracted and works_lower
 
     wedge_pop = wedge_event(len(bars) - 1)
+
+    # Book-grounded Cycle-of-Price-Action proxies. Kell describes these
+    # qualitatively, so the numerical thresholds below are explicit lab proxies.
+    sma50 = sum(closes[-50:]) / 50.0 if len(closes) >= 50 else None
+    sma200 = sum(closes[-200:]) / 200.0 if len(closes) >= 200 else None
+    prior60 = bars[-61:-1] if len(bars) >= 61 else []
+    prior60_low = min((float(x["low"]) for x in prior60), default=None)
+    support_refs = [value for value in (sma50, sma200, prior60_low) if value not in (None, 0)]
+    support_distance_pct = (
+        min(abs(float(last["low"]) / float(value) - 1.0) * 100.0 for value in support_refs)
+        if support_refs else None
+    )
+    support_rejection = (
+        support_distance_pct is not None and support_distance_pct <= 2.0
+        and any(close >= float(value) * 0.995 for value in support_refs)
+    )
+    downside_extension_pct = (
+        (float(last["low"]) / float(e10) - 1.0) * 100.0
+        if e10 not in (None, 0) else None
+    )
+    bullish_reversal_bar = (
+        close > float(last["open"])
+        and close > prev_close
+        and close_location >= 65.0
+    )
+    reversal_volume = rvol20 is not None and rvol20 >= 1.5
+    reversal_extension = bool(
+        downside_extension_pct is not None and downside_extension_pct <= -5.0
+        and support_rejection
+        and bullish_reversal_bar
+        and reversal_volume
+    )
+
+    def exhaustion_event(index: int) -> bool:
+        if index < 25 or index >= len(bars):
+            return False
+        e10_i = ema10[index]
+        if e10_i in (None, 0):
+            return False
+        row = bars[index]
+        row_close = closes[index]
+        prev_row_close = closes[index - 1]
+        dist = (float(row["high"]) / float(e10_i) - 1.0) * 100.0
+        row_range = float(row["high"]) - float(row["low"])
+        row_close_location = (
+            (row_close - float(row["low"])) / row_range * 100.0
+            if row_range > 0 else 50.0
+        )
+        base_start = max(0, index - 20)
+        prior_vols = volumes[base_start:index]
+        vol_base_i = sum(prior_vols) / len(prior_vols) if prior_vols else 0.0
+        rvol_i = float(row["volume"]) / vol_base_i if vol_base_i > 0 else 0.0
+        gap_i = (
+            (float(row["open"]) / prev_row_close - 1.0) * 100.0
+            if prev_row_close > 0 else 0.0
+        )
+        recent_highs = [float(x["high"]) for x in bars[max(0, index - 20):index]]
+        new_high = not recent_highs or float(row["high"]) >= max(recent_highs)
+        tr_reference = median(tr[max(0, index - 6):index]) if index >= 2 and tr[max(0, index - 6):index] else 0.0
+        extension_threshold = max(8.0, tr_reference * 3.0)
+        blowoff_clue = rvol_i >= 1.5 or gap_i >= 3.0 or row_close_location <= 45.0
+        return new_high and dist >= extension_threshold and blowoff_clue
+
+    exhaustion_extension = exhaustion_event(len(bars) - 1)
+    recent_exhaustion_index = None
+    for i in range(max(25, len(bars) - 16), len(bars) - 1):
+        if exhaustion_event(i):
+            recent_exhaustion_index = i
+
+    wedge_drop = False
+    if recent_exhaustion_index is not None and len(bars) >= 2:
+        e10_now, e20_now = ema10[-1], ema20[-1]
+        e10_prev, e20_prev = ema10[-2], ema20[-2]
+        if None not in (e10_now, e20_now, e10_prev, e20_prev):
+            prior_above = closes[-2] >= min(float(e10_prev), float(e20_prev))
+            current_below = close < min(float(e10_now), float(e20_now))
+            wedge_drop = prior_above and current_below
 
     recent_pop_index = None
     for i in range(max(25, len(bars) - 16), len(bars) - 1):
@@ -560,7 +640,11 @@ def score_candidate(
         and close < max(float(e10), float(e20))
         and float(e10) < float(e20)
     )
-    if wedge_pop:
+    if reversal_extension:
+        cycle_stage = "reversal_extension"
+        stage_confidence = 0.85
+        stage_basis = ["downside_extension_from_10ema", "higher_timeframe_support_proxy", "bullish_reversal_bar", "heavy_volume_proxy"]
+    elif wedge_pop:
         cycle_stage = "wedge_pop"
         stage_confidence = 0.95
         stage_basis = ["wedge_pop_event", "10_20_ema_recapture"]
@@ -572,6 +656,14 @@ def score_candidate(
         cycle_stage = "base_n_break"
         stage_confidence = 0.95
         stage_basis = ["base_contraction", "10_20_ema_support", "10d_breakout"]
+    elif wedge_drop:
+        cycle_stage = "wedge_drop"
+        stage_confidence = 0.90
+        stage_basis = ["recent_exhaustion_extension_proxy", "10_20_ema_loss"]
+    elif exhaustion_extension:
+        cycle_stage = "exhaustion_extension"
+        stage_confidence = 0.80
+        stage_basis = ["extended_from_10ema", "new_20d_high", "blowoff_volume_gap_or_reversal_clue"]
     elif ema_ready:
         cycle_stage = "trend_ema_support"
         stage_confidence = 0.75
@@ -765,6 +857,9 @@ def score_candidate(
         "kell_rs_leader": rs_leader,
         "kell_weekly_trend_ok": weekly_trend_ok,
         "kell_ema_readiness": ema_ready,
+        "kell_reversal_extension": reversal_extension,
+        "kell_exhaustion_extension": exhaustion_extension,
+        "kell_wedge_drop": wedge_drop,
         "kell_wedge_pop": wedge_pop,
         "kell_ema_crossback": ema_crossback,
         "kell_base_n_break": base_n_break,
@@ -827,6 +922,12 @@ def score_candidate(
             "stock_ret_20d_pct": stock_ret20,
             "benchmark_ret_20d_pct": benchmark_ret20,
             "weekly_ema10": weekly_ema10,
+            "sma50": sma50,
+            "sma200": sma200,
+            "prior60_low": prior60_low,
+            "support_distance_pct": support_distance_pct,
+            "downside_extension_pct": downside_extension_pct,
+            "recent_exhaustion_sessions_ago": (len(bars) - 1 - recent_exhaustion_index) if recent_exhaustion_index is not None else None,
         },
     }
 
