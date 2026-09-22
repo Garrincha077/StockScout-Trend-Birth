@@ -53,3 +53,10 @@ See \`docs/KELL_SCORING.md\` for exact v1 thresholds, weights and methodology.
 ### Unified-wide Kell filters
 
 Kell filters scan the deduplicated union of all published Bottom, Next and Ryan candidates, not only the normal top Review Grid rows. Separate filters are available for 52W/New High, unusual volume, RVOL >=3x, Bull Snort, Doublers, Gappers, Strength on Down Day, EMA readiness, Wedge Pop, EMA Crossback, Base n' Break, Tightening and Near Breakout. The normal All/Bottom/Next/Ryan review board is unchanged.
+
+
+### Kell v2 PDF-grounded workflow
+
+The Kell lab now follows a v2 workflow grounded in *Victory in Stock Trading*. All published Unified candidates are still scanned, but 3M +50% momentum and true 6M +100% Doublers are separate lists. Wedge Pop, EMA Crossback and Base n' Break are sequence-aware, not generic EMA/breakout flags. Additional filters expose RS divergence, weekly 10EMA context, growth context, RS rank >=90 and a stricter Buyable Gap proxy.
+
+`Kell Focus` is the compact research shortlist that combines liquidity/price, leadership or growth evidence, and a core Kell entry setup. It does not replace the individual full-Unified filters. The ordinary All/Bottom/Next/Ryan Review Grid remains unchanged.
