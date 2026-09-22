@@ -160,6 +160,7 @@ def main() -> int:
             "runId": src.get("runId"),
             "sessionDate": src.get("sessionDate"),
             "readOnly": True,
+            "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
         "kellScoring": source.get("kellScoring") or {},
         "kellCandidateCount": source.get("kellCandidateCount", 0),
