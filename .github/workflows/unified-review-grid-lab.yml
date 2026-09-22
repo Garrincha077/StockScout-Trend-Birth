@@ -19,7 +19,7 @@ on:
       - ".github/workflows/unified-review-grid-lab.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -42,6 +42,37 @@ jobs:
         run: node --check lab/app.js
       - name: Build read-only snapshot from activated Unified public data
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
+      - name: Build compact Kell preview dataset
+        run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json
+      - name: Validate compact Kell dataset
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("lab/data/kell-latest.json").read_text())
+          assert data["schemaVersion"] == "kell-compact-v1"
+          assert data["source"]["sessionDate"]
+          assert len(data["kellCandidates"]) == data["kellCandidateCount"]
+          assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
+          assert any("kell_focus" in x.get("kellScreens", []) for x in data["kellCandidates"])
+          print({
+              "sessionDate": data["source"]["sessionDate"],
+              "kellCandidates": len(data["kellCandidates"]),
+              "bytes": Path("lab/data/kell-latest.json").stat().st_size,
+          })
+          PY
+      - name: Publish compact Kell data to preview branch
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/data/kell-latest.json
+          if git diff --cached --quiet; then
+            echo "Compact Kell dataset unchanged."
+            exit 0
+          fi
+          git commit -m "chore(kell): refresh compact preview data"
+          git push origin HEAD:feature/kell-mcp-lab
       - name: Upload review lab artifact
         uses: actions/upload-artifact@v4
         with:
