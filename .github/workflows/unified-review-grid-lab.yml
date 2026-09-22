@@ -40,8 +40,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Snapshot link tests
-        run: node --test tests/snapshot-loader.test.cjs
+      - name: Browser model tests
+        run: node --test tests/*.test.cjs
       - name: GridView JavaScript syntax
         run: node --check lab/app.js
       - name: Build read-only snapshot from activated Unified public data
