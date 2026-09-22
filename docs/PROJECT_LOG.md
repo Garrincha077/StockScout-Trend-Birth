@@ -193,3 +193,29 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Focus list on that session: AMD, SLF, ARM, INTC, MXL, TTMI.
 - Precision improvement against v1 on the same live session: Tightening 2,042 -> 98; EMA Crossback 243 -> 15.
 - Production impact remains **none**. Work stays isolated on `feature/kell-mcp-lab`; Unified/main/Telegram/broker state were not changed.
+
+
+## 2026-09-22 — Kell v4 separates discovery screens, stock stage and setups
+
+- Branch: `feature/kell-mcp-lab`. Production `main`, StockScout Unified, Telegram and broker state remain unchanged.
+- Product/data-contract decision: **SCREEN != STAGE != SETUP**.
+  - **Screen** answers why a stock was discovered.
+  - **Stage** publishes one primary current Kell Cycle-of-Price-Action state plus confidence/evidence.
+  - **Setup** publishes actionable pattern/readiness flags that may coexist with the stage.
+  - **Context** carries supporting liquidity, growth, RS and higher-timeframe evidence.
+- Model version: `kell-overlay-v4-screen-stage-setup`; compact browser schema: `kell-compact-v2`.
+- Added disjoint `kellScreens`, `kellSetups`, `kellContext` arrays and a `kell_stage` object. `kell_cycle_stage` remains a compatibility alias.
+- Current primary stages: `wedge_pop`, `ema_crossback`, `base_n_break`, `trend_ema_support`, `downtrend_repair`, `transition`, `unavailable`.
+- GridView now has visibly separate **Screens / Stage / Setups / Context** filter groups. Cards show Stage and Setup separately; ticker detail shows discovery screens, stage, setups, context and stage confidence.
+- Score remains a secondary ranking aid, but now exposes separate `discovery`, `stage`, `setup` and `context` components rather than hiding the dimensions in one number.
+- CI hardening updated the compact-data validator to enforce the v4 contract and mutual separation of the three list dimensions.
+- Full live validation on Unified session `2026-09-21`: **2,683** deduplicated Unified candidates, **2,683/2,683** chart coverage, **2,063** published Kell matches. No candidate-universe expansion occurred.
+- Live discovery counts: 52W 3; unusual volume >=2x 62; RVOL >=3x 15; Bull Snort 20; 3M +50% 139; YTD Doublers 39; Gappers 58; Strength on Down Day 246; RS Leader 330.
+- Live setup counts: Buyable Gap 6; Wedge Pop 111; EMA Crossback 15; Base n' Break 51; Tightening 98; Near Breakout 347.
+- Live primary-stage counts: Wedge Pop 111; EMA Crossback 15; Base n' Break 49; Trend/EMA Support 285; Downtrend/Repair 1,091; Transition 512.
+- Real-candidate checks validated the intended separation: GRAL = Base n' Break stage with several discovery screens and two setups; WBD = Wedge Pop stage with multiple discovery/setup hits; DELL = strong discovery/context evidence but Trend/EMA Support stage and no active setup.
+- GitHub Actions run **#111** completed green end-to-end: Python tests, historical overlay smoke, snapshot-link tests, JS syntax, live Unified rebuild, compact v4 build/validation, preview-data publication and artifact upload.
+- Important finding: `downtrend_repair` is currently broad (1,091 names) because it intentionally starts as a simple bearish 10/20 EMA structural bucket. It should be refined before treating it as a precise Kell cycle stage.
+
+**Next logical step**
+- Extend the stage engine with transparent, book-grounded proxies for **Reversal Extension**, **Exhaustion Extension** and **Wedge Drop**, then retest the full 2,683-name Unified pool and compare stage-distribution precision before/after. Keep the discovery screens unchanged while doing this.
