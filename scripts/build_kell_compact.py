@@ -16,8 +16,8 @@ METRIC_KEYS = (
     "swingState", "baseLike", "setup", "actionability",
 )
 KELL_METRIC_KEYS = (
-    "ret_3m_pct", "ret_6m_pct", "gap_pct", "rvol20",
-    "revenue_yoy_pct", "eps_yoy_pct", "rs_rank", "weekly_ema10",
+    "ret_3m_pct", "ret_6m_pct", "ret_ytd_pct", "gap_pct", "rvol20",
+    "beta", "beta_source", "revenue_yoy_pct", "eps_yoy_pct", "rs_rank", "weekly_ema10",
     "breakout_proximity_pct",
 )
 
