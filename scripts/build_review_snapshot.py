@@ -10,7 +10,9 @@ import math
 import urllib.request
 from pathlib import Path
 from urllib.parse import urljoin
+import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
