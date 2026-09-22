@@ -219,3 +219,31 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Extend the stage engine with transparent, book-grounded proxies for **Reversal Extension**, **Exhaustion Extension** and **Wedge Drop**, then retest the full 2,683-name Unified pool and compare stage-distribution precision before/after. Keep the discovery screens unchanged while doing this.
+
+
+## 2026-09-22 — Kell full Cycle stage milestone
+
+- Continued the v4 stage engine on `feature/kell-mcp-lab` without changing Unified candidate generation, production `main`, Telegram or broker state.
+- Added transparent, book-grounded stage proxies for the three missing outer Cycle phases:
+  - **Reversal Extension** — downside extension from 10EMA + higher-timeframe support proxy + bullish reversal bar + elevated volume;
+  - **Exhaustion Extension** — fresh high materially extended from 10EMA, but only inside an established rising 10/20 EMA / positive intermediate-trend context and with a blowoff clue;
+  - **Wedge Drop** — recent Exhaustion Extension followed by loss of the 10/20 EMA cluster.
+- These are explicitly **lab proxies**, not claimed Kell constants. The numerical gates are documented in `docs/KELL_SCORING.md`.
+- Added dedicated Stage filters for Reversal Extension, Exhaustion Extension and Wedge Drop. They remain separate from discovery Screens and entry-oriented Setup filters.
+- Added regression tests for all three new stage events. A first Exhaustion implementation exposed a precision problem: rebound names could qualify merely by being far above a depressed EMA. Reproduced that behavior, required established uptrend context, updated the synthetic tests, and re-ran the live pipeline.
+- BEFORE -> AFTER on live Unified session `2026-09-21`:
+  - generic Transition: **512 -> 505**;
+  - generic Downtrend/Repair: **1,091 -> 1,087**;
+  - new Reversal Extension: **4**;
+  - new Exhaustion Extension: **6**;
+  - new Wedge Drop: **1**;
+  - Wedge Pop **111**, EMA Crossback **15**, Base n' Break **49**, Trend/EMA Support **285** stayed unchanged.
+- The first live Exhaustion proxy found 12 names. Requiring rising 10EMA > 20EMA plus positive prior intermediate trend reduced this to **6**, while preserving plausible examples such as AMD and ARM.
+- Real-stage spot checks after the refinement: VKTX / THO / ESAB / DNLI = Reversal Extension; AMD / ARM / AMRX / PRTH / FAC / VITL = Exhaustion Extension; TARS = Wedge Drop. These are model classifications, not trade recommendations.
+- Discovery-screen and setup counts were unchanged by the stage refinement, confirming that stage work did not contaminate discovery logic.
+- CI workflow now has branch-level concurrency with `cancel-in-progress: true` so future rapid development pushes do not waste multiple simultaneous full Unified rebuilds.
+- GitHub Actions run **#120** completed green end-to-end: unit tests, historical Kell smoke, snapshot-link tests, JS syntax, live Unified rebuild, compact v4 validation, safe preview-data publication and artifact upload.
+- Full live pool remained **2,683** Unified candidates with **2,063** published Kell matches; no new market-wide universe was introduced.
+
+**Next logical step**
+- Make stage coverage fully independent from discovery publication: preserve stage metadata for all **2,683** existing Unified candidates, while keeping `Kell Hits` as a separate discovery/setup/context subset. Then refine the broad `downtrend_repair` bucket using recent-cycle history rather than adding new discovery screens.
