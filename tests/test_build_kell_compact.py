@@ -11,6 +11,38 @@ spec.loader.exec_module(compact)
 
 
 class KellCompactTests(unittest.TestCase):
+    def test_compact_source_preserves_universe_counts(self):
+        source = {
+            "source": {
+                "runId": "r1",
+                "sessionDate": "2026-09-21",
+                "modeUniverseCounts": {
+                    "bottom-fishing": 2045,
+                    "next": 1989,
+                    "ryan-original": 1989,
+                },
+            },
+            "kellScoring": {},
+            "kellCandidateCount": 0,
+            "kellCandidates": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            source_path = pathlib.Path(tmp) / "source.json"
+            output_path = pathlib.Path(tmp) / "out.json"
+            source_path.write_text(json.dumps(source))
+            old_argv = __import__("sys").argv
+            try:
+                __import__("sys").argv = [
+                    "build_kell_compact.py",
+                    "--input", str(source_path),
+                    "--output", str(output_path),
+                ]
+                self.assertEqual(compact.main(), 0)
+            finally:
+                __import__("sys").argv = old_argv
+            out = json.loads(output_path.read_text())
+            self.assertEqual(out["source"]["modeUniverseCounts"]["bottom-fishing"], 2045)
+
     def test_compact_bar_handles_array_and_object_rows(self):
         self.assertEqual(
             compact.compact_bar(["2026-09-21", 10, 11, 9, 10.5, 1234, 99]),
