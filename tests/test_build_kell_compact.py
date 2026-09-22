@@ -37,6 +37,10 @@ class KellCompactTests(unittest.TestCase):
                     ["2026-09-20", 10, 11, 9, 10.5, 1000],
                     ["2026-09-21", 10.5, 12, 10, 11.5, 1200],
                 ],
+                "weeklyChartBars": [
+                    ["2026-09-11", 9.5, 11, 9, 10, 5000],
+                    ["2026-09-18", 10, 12, 9.5, 11.5, 6000],
+                ],
             })
         with tempfile.TemporaryDirectory() as tmp:
             meta = compact.write_chart_shards(
@@ -47,6 +51,8 @@ class KellCompactTests(unittest.TestCase):
             )
             self.assertEqual(meta["shardCount"], 3)
             self.assertEqual(meta["chartCandidateCount"], 5)
+            self.assertEqual(meta["weeklyChartCandidateCount"], 5)
+            self.assertEqual(meta["schemaVersion"], "kell-chart-shard-v2")
             files = sorted(pathlib.Path(tmp).glob("shard-*.json"))
             self.assertEqual(len(files), 3)
             tickers = set()
@@ -54,9 +60,14 @@ class KellCompactTests(unittest.TestCase):
                 payload = json.loads(path.read_text())
                 tickers.update(payload["charts"])
             self.assertEqual(tickers, {"T0", "T1", "T2", "T3", "T4"})
+            first_payload = json.loads(files[0].read_text())
+            self.assertEqual(first_payload["schemaVersion"], "kell-chart-shard-v2")
+            self.assertEqual(len(first_payload["charts"]["T0"]["daily"]), 2)
+            self.assertEqual(len(first_payload["charts"]["T0"]["weekly"]), 2)
             item = compact.compact_candidate(candidates[0], chart_shard=0)
             self.assertNotIn("chartBars", item)
             self.assertEqual(item["chartBarsCount"], 2)
+            self.assertEqual(item["weeklyChartBarsCount"], 2)
             self.assertEqual(item["chartShard"], 0)
 
 
