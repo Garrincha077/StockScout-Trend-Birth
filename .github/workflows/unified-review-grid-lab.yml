@@ -53,7 +53,10 @@ jobs:
           assert data["schemaVersion"] == "kell-compact-v1"
           assert data["source"]["sessionDate"]
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
+          assert data["kellScoring"]["modelVersion"] == "kell-overlay-v3-screening-guide"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
+          assert "kell_doubler_ytd" in data["kellScoring"]["screenCounts"]
+          assert "kell_doubler_6m" not in data["kellScoring"]["screenCounts"]
           assert any("kell_focus" in x.get("kellScreens", []) for x in data["kellCandidates"])
           print({
               "sessionDate": data["source"]["sessionDate"],
@@ -64,6 +67,17 @@ jobs:
       - name: Publish compact Kell data to preview branch
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
         run: |
+          cp lab/data/kell-latest.json /tmp/kell-latest.json
+          git fetch origin feature/kell-mcp-lab
+          changed=$(git diff --name-only "$GITHUB_SHA"..origin/feature/kell-mcp-lab -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
+          if [ -n "$changed" ]; then
+            echo "Branch advanced with executable changes; newer workflow will publish the dataset."
+            echo "$changed"
+            exit 0
+          fi
+          git reset --hard
+          git checkout -B feature/kell-mcp-lab origin/feature/kell-mcp-lab
+          cp /tmp/kell-latest.json lab/data/kell-latest.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lab/data/kell-latest.json
