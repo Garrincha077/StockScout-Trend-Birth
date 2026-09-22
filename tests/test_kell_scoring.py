@@ -89,6 +89,21 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_rvol_3x"])
         self.assertTrue(out["kell_bull_snort"])
 
+    def test_bull_snort_rejects_thin_names_even_with_high_rvol(self):
+        bars = make_bars(count=80, start=25.0, daily=0.001, volume=100_000)
+        prev_close = bars[-2]["close"]
+        bars[-1].update({
+            "open": prev_close * 1.005,
+            "high": prev_close * 1.04,
+            "low": prev_close * 1.001,
+            "close": prev_close * 1.03,
+            "volume": 300_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertTrue(out["kell_unusual_volume"])
+        self.assertTrue(out["kell_rvol_3x"])
+        self.assertFalse(out["kell_bull_snort"])
+
     def test_three_month_momentum_is_separate_from_true_six_month_doubler(self):
         bars = make_bars(count=150, daily=0.0)
         base = bars[-65]["close"]
@@ -138,6 +153,20 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_gapper"])
         self.assertTrue(out["kell_buyable_gap_proxy"])
         self.assertTrue(out["kell_metrics"]["gap_unfilled"])
+
+    def test_gapper_requires_price_and_average_volume_filters(self):
+        bars = make_bars(count=70, start=8.0, daily=0.001, volume=1_000_000)
+        prev_close = bars[-2]["close"]
+        bars[-1].update({
+            "open": prev_close * 1.05,
+            "high": prev_close * 1.08,
+            "low": prev_close * 1.04,
+            "close": prev_close * 1.07,
+            "volume": 2_000_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertGreater(out["kell_metrics"]["gap_pct"], 3.0)
+        self.assertFalse(out["kell_gapper"])
 
     def test_strength_on_down_day_requires_benchmark(self):
         bars = make_bars(count=40, daily=0.001)
