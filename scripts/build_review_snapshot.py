@@ -18,13 +18,18 @@ from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candid
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
 KELL_SCREEN_FIELDS = (
+    "kell_name_selection_ok",
     "kell_52w_high",
     "kell_unusual_volume",
     "kell_rvol_3x",
     "kell_bull_snort",
-    "kell_doubler",
+    "kell_momentum_3m_50",
+    "kell_doubler_6m",
     "kell_gapper",
+    "kell_buyable_gap_proxy",
     "kell_strength_on_down_day",
+    "kell_rs_divergence",
+    "kell_weekly_trend_ok",
     "kell_ema_readiness",
     "kell_wedge_pop",
     "kell_ema_crossback",
@@ -365,14 +370,17 @@ def load_charts(mode_root: str, manifest: dict, core: dict, tickers: set[str]) -
 
 
 def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
-    """Reconstruct the session SPY return from Unified's embedded RS=stock/SPY*100."""
+    """Reconstruct point-in-time SPY history from Unified's RS=stock/SPY*100 field.
+
+    Next/Ryan public chart rows already embed daily relative strength against SPY.
+    Recovering the benchmark this way keeps Kell relative-strength tests aligned to
+    the exact Unified session without adding SPY to the candidate universe.
+    """
     for rows in charts.values():
         if not isinstance(rows, list) or len(rows) < 2:
             continue
-        pair = rows[-2:]
         derived = []
-        valid = True
-        for row in pair:
+        for row in rows[-260:]:
             try:
                 if isinstance(row, list) and len(row) >= 7:
                     stamp, close, rs = row[0], float(row[4]), float(row[6])
@@ -381,11 +389,9 @@ def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
                     close = float(row.get("close"))
                     rs = float(row.get("rs") or row.get("relativeStrength") or row.get("relative_strength"))
                 else:
-                    valid = False
-                    break
+                    continue
                 if not math.isfinite(close) or not math.isfinite(rs) or close <= 0 or rs <= 0:
-                    valid = False
-                    break
+                    continue
                 spy_close = close * 100.0 / rs
                 derived.append({
                     "time": str(stamp),
@@ -396,9 +402,8 @@ def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
                     "volume": 0.0,
                 })
             except (TypeError, ValueError):
-                valid = False
-                break
-        if valid and len(derived) == 2:
+                continue
+        if len(derived) >= 2:
             return derived
     return []
 
@@ -959,7 +964,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "chartCoverageCount": len(kell_unified_charts),
             "matchedCandidateCount": len(kell_candidates),
             "screenCounts": kell_screen_counts,
-            "method": "Transparent OHLCV screens over the deduplicated union of all published Unified mode candidates; no new market-wide universe",
+            "method": "Kell v2 PDF-grounded OHLCV screens over the deduplicated union of all published Unified mode candidates; no new market-wide universe",
         },
         "kellCandidateCount": len(kell_candidates),
         "kellCandidates": kell_candidates,

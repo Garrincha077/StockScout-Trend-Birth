@@ -15,21 +15,26 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-MODEL_VERSION = "kell-overlay-v1"
+MODEL_VERSION = "kell-overlay-v2-pdf"
 
 WEIGHTS = {
-    "52w_high": 8,
-    "unusual_volume": 10,
-    "bull_snort": 12,
-    "doubler": 8,
-    "gapper": 8,
-    "strength_on_down_day": 8,
-    "ema_readiness": 10,
-    "wedge_pop": 10,
-    "ema_crossback": 8,
-    "base_n_break": 8,
-    "tightening": 5,
-    "breakout_proximity": 5,
+    "name_selection": 8,
+    "52w_high": 5,
+    "unusual_volume": 5,
+    "bull_snort": 8,
+    "momentum_3m_50": 6,
+    "doubler_6m": 8,
+    "gapper": 2,
+    "buyable_gap_proxy": 8,
+    "strength_on_down_day": 6,
+    "rs_divergence": 10,
+    "weekly_trend": 8,
+    "ema_readiness": 6,
+    "wedge_pop": 12,
+    "ema_crossback": 10,
+    "base_n_break": 12,
+    "tightening": 4,
+    "breakout_proximity": 4,
 }
 
 
@@ -109,7 +114,13 @@ def _criterion(hit: bool | None, max_points: int, detail: str) -> dict:
 
 
 def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None) -> dict:
-    """Return additive Kell overlay fields for one existing StockScout candidate."""
+    """Return a transparent Kell-style overlay for one existing StockScout candidate.
+
+    v2 operationalizes definitions from Oliver Kell's *Victory in Stock Trading*:
+    name selection, relative strength, the 10/20 EMA Cycle of Price Action, and
+    multi-timeframe context. Numeric thresholds that the book does not specify are
+    explicitly treated as reproducible proxies rather than proprietary Kell rules.
+    """
     bars = _bars(chart_rows)
     bench = _bars(benchmark_rows)
     empty = {
@@ -117,16 +128,24 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         "kell_unusual_volume": None,
         "kell_rvol_3x": None,
         "kell_bull_snort": None,
+        "kell_momentum_3m_50": None,
+        "kell_doubler_6m": None,
         "kell_doubler": None,
         "kell_gapper": None,
+        "kell_buyable_gap_proxy": None,
         "kell_strength_on_down_day": None,
+        "kell_rs_divergence": None,
+        "kell_name_selection_ok": None,
+        "kell_weekly_trend_ok": None,
         "kell_ema_readiness": None,
         "kell_wedge_pop": None,
         "kell_ema_crossback": None,
         "kell_base_n_break": None,
         "kell_tightening": None,
+        "kell_ttftl_warning": None,
         "kell_breakout_proximity": None,
         "kell_breakout_proximity_pct": None,
+        "kell_cycle_stage": "unavailable",
         "kell_score": 0.0,
         "score_breakdown": {
             "model_version": MODEL_VERSION,
@@ -155,19 +174,20 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
 
     vol_base = sum(volumes[-21:-1]) / 20.0
     rvol20 = volumes[-1] / vol_base if vol_base > 0 else None
+    name_selection_ok = close >= 10.0 and vol_base >= 1_000_000.0
 
     high_window = bars[-252:] if len(bars) >= 252 else bars
     high_52w = max(float(x["high"]) for x in high_window)
     prior_high_window = bars[-253:-1] if len(bars) >= 253 else bars[:-1]
     prior_52w_high = max((float(x["high"]) for x in prior_high_window), default=None)
     distance_52w = (close / high_52w - 1.0) * 100.0 if high_52w > 0 else None
-    new_52w_high = (
-        prior_52w_high is not None and float(last["high"]) >= prior_52w_high
-    )
+    new_52w_high = prior_52w_high is not None and float(last["high"]) >= prior_52w_high
     near_52w = distance_52w is not None and distance_52w >= -3.0
 
     ret_3m = _return_pct(closes, 63)
     ret_6m = _return_pct(closes, 126)
+    momentum_3m_50 = ret_3m is not None and ret_3m >= 50.0
+    doubler_6m = ret_6m is not None and ret_6m >= 100.0
 
     ema10 = _ema(closes, 10)
     ema20 = _ema(closes, 20)
@@ -180,7 +200,7 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         e10 is not None and e20 is not None and e10_5 is not None and e20_5 is not None
         and close >= e10 >= e20
         and e10 > e10_5 and e20 >= e20_5
-        and dist_e10 is not None and dist_e10 <= 8.0
+        and dist_e10 is not None and -1.0 <= dist_e10 <= 5.0
     )
 
     prior10 = bars[-11:-1]
@@ -189,63 +209,107 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     range10 = _range_pct(prior10)
     range20 = _range_pct(prior20)
     range40 = _range_pct(prior40)
-    prior10_high = max(float(x["high"]) for x in prior10) if prior10 else None
-    prior20_high = max(float(x["high"]) for x in prior20) if prior20 else None
-
-    wedge_contracted = (
-        range10 is not None and range20 is not None and range20 > 0
-        and range10 <= range20 * 0.70
-    )
-    wedge_pop = (
-        wedge_contracted
-        and prior10_high is not None and close > prior10_high
-        and rvol20 is not None and rvol20 >= 1.5
-        and close_location >= 65.0
-    )
-
-    prev_e10 = ema10[-2] if len(ema10) >= 2 else None
-    prev_e20 = ema20[-2] if len(ema20) >= 2 else None
-    recent_cross_window = range(max(0, len(bars) - 6), len(bars) - 1)
-    was_below = any(
-        (
-            ema10[i] is not None and closes[i] <= float(ema10[i])
-        ) or (
-            ema20[i] is not None and closes[i] <= float(ema20[i])
-        )
-        for i in recent_cross_window
-    )
-    ema_crossback = (
-        e10 is not None and e20 is not None
-        and close > e10 and close > e20
-        and e10 >= e20 * 0.995
-        and was_below
-        and close_location >= 55.0
-    )
-
-    base_before_break = (
-        range20 is not None and range40 is not None
-        and range20 <= 18.0 and range40 <= 30.0
-    )
-    base_n_break = (
-        base_before_break
-        and prior20_high is not None and close > prior20_high
-        and rvol20 is not None and rvol20 >= 1.3
-        and close_location >= 60.0
-    )
+    prior10_high = max((float(x["high"]) for x in prior10), default=None)
+    prior20_high = max((float(x["high"]) for x in prior20), default=None)
 
     tr = [
         _true_range_pct(bars[i], float(bars[i - 1]["close"]))
         for i in range(1, len(bars))
     ]
-    recent_tr = median(tr[-10:]) if len(tr) >= 10 else None
-    prior_tr_slice = tr[-30:-10] if len(tr) >= 30 else []
-    prior_tr = median(prior_tr_slice) if prior_tr_slice else None
-    tightening = (
-        recent_tr is not None and prior_tr is not None and prior_tr > 0
-        and recent_tr <= prior_tr * 0.75
+    recent_tr5 = median(tr[-5:]) if len(tr) >= 5 else None
+    prior_tr15_slice = tr[-20:-5] if len(tr) >= 20 else []
+    prior_tr15 = median(prior_tr15_slice) if prior_tr15_slice else None
+    recent_vol5 = sum(volumes[-5:]) / 5.0 if len(volumes) >= 5 else None
+    prior_vol15 = sum(volumes[-20:-5]) / 15.0 if len(volumes) >= 20 else None
+    inside_bars_5 = 0
+    for i in range(max(1, len(bars) - 5), len(bars)):
+        if (
+            float(bars[i]["high"]) <= float(bars[i - 1]["high"])
+            and float(bars[i]["low"]) >= float(bars[i - 1]["low"])
+        ):
+            inside_bars_5 += 1
+    tr_contracted = (
+        recent_tr5 is not None and prior_tr15 is not None and prior_tr15 > 0
+        and recent_tr5 <= prior_tr15 * 0.75
     )
-    if not tightening and range10 is not None and range40 is not None and range40 > 0:
-        tightening = range10 <= range40 * 0.55
+    volume_dryup = (
+        recent_vol5 is not None and prior_vol15 is not None and prior_vol15 > 0
+        and recent_vol5 <= prior_vol15 * 0.85
+    )
+    tightening = tr_contracted and (volume_dryup or inside_bars_5 >= 2)
+
+    def wedge_event(index: int) -> bool:
+        if index < 25 or index >= len(bars):
+            return False
+        e10_i, e20_i = ema10[index], ema20[index]
+        e10_p, e20_p = ema10[index - 1], ema20[index - 1]
+        if None in (e10_i, e20_i, e10_p, e20_p):
+            return False
+        cluster_i = max(float(e10_i), float(e20_i))
+        cluster_p = max(float(e10_p), float(e20_p))
+        crossed = closes[index] > cluster_i and closes[index - 1] <= cluster_p
+        below_count = sum(
+            1
+            for j in range(index - 5, index)
+            if ema10[j] is not None and ema20[j] is not None
+            and closes[j] <= max(float(ema10[j]), float(ema20[j]))
+        )
+        ema_gap_pct = abs(float(e10_i) / float(e20_i) - 1.0) * 100.0 if float(e20_i) > 0 else 999.0
+        short_range = _range_pct(bars[index - 5:index])
+        long_range = _range_pct(bars[index - 15:index])
+        contracted = (
+            short_range is not None and long_range is not None and long_range > 0
+            and short_range <= long_range * 0.70
+        )
+        recent_high = max(float(x["high"]) for x in bars[index - 5:index])
+        prior_high = max(float(x["high"]) for x in bars[index - 10:index - 5])
+        works_lower = recent_high <= prior_high * 1.02
+        return crossed and below_count >= 3 and ema_gap_pct <= 1.5 and contracted and works_lower
+
+    wedge_pop = wedge_event(len(bars) - 1)
+
+    recent_pop_index = None
+    for i in range(max(25, len(bars) - 16), len(bars) - 1):
+        if wedge_event(i):
+            recent_pop_index = i
+
+    first_retest = False
+    current_touch = False
+    current_support = False
+    if recent_pop_index is not None and e10 is not None and e20 is not None:
+        current_touch = float(last["low"]) <= max(float(e10), float(e20)) * 1.01
+        current_support = close >= min(float(e10), float(e20)) * 0.995
+        prior_touch = False
+        for j in range(recent_pop_index + 1, len(bars) - 1):
+            if ema10[j] is None or ema20[j] is None:
+                continue
+            if float(bars[j]["low"]) <= max(float(ema10[j]), float(ema20[j])) * 1.01:
+                prior_touch = True
+                break
+        first_retest = not prior_touch
+    ema_crossback = (
+        recent_pop_index is not None
+        and first_retest and current_touch and current_support
+        and close_location >= 45.0
+    )
+
+    base_support_count = 0
+    if len(bars) >= 31:
+        for j in range(len(bars) - 11, len(bars) - 1):
+            if ema20[j] is not None and closes[j] >= float(ema20[j]) * 0.98:
+                base_support_count += 1
+    base_contracted = (
+        range10 is not None and range20 is not None and range20 > 0
+        and range10 <= range20 * 0.80
+    )
+    base_breakout = prior10_high is not None and close > prior10_high
+    base_n_break = (
+        len(bars) >= 31
+        and base_contracted
+        and base_support_count >= 8
+        and base_breakout
+        and close_location >= 55.0
+    )
 
     breakout_proximity_pct = (
         (close / prior20_high - 1.0) * 100.0
@@ -259,83 +323,177 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     unusual_volume = rvol20 is not None and rvol20 >= 2.0
     rvol_3x = rvol20 is not None and rvol20 >= 3.0
     bull_snort = (
-        ret_1d is not None and ret_1d >= 4.0
-        and rvol20 is not None and rvol20 >= 2.0
+        unusual_volume
+        and ret_1d is not None and ret_1d > 0.0
+        and close > float(last["open"])
         and close_location >= 70.0
     )
-    doubler = (
-        (ret_6m is not None and ret_6m >= 100.0)
-        or (ret_3m is not None and ret_3m >= 50.0)
-    )
-    gapper = gap_pct is not None and gap_pct >= 3.0
 
-    strength_down_day: bool | None = None
+    gapper = gap_pct is not None and gap_pct >= 3.0
+    gap_unfilled = gapper and float(last["low"]) > prev_close
+    buyable_gap_proxy = (
+        gapper
+        and gap_unfilled
+        and prior20_high is not None and float(last["open"]) > prior20_high
+        and rvol20 is not None and rvol20 >= 1.5
+    )
+    gap_held_pct = None
+    if gapper and float(last["open"]) > prev_close:
+        gap_size = float(last["open"]) - prev_close
+        gap_held_pct = (close - prev_close) / gap_size * 100.0 if gap_size > 0 else None
+
+    bench_by_date = {str(x["time"]): float(x["close"]) for x in bench}
+    aligned = [
+        (bar, bench_by_date[str(bar["time"])])
+        for bar in bars
+        if str(bar["time"]) in bench_by_date and bench_by_date[str(bar["time"])] > 0
+    ]
     benchmark_ret = None
     relative_outperformance = None
-    if len(bench) >= 2:
-        b_prev = float(bench[-2]["close"])
-        b_close = float(bench[-1]["close"])
-        if b_prev > 0:
-            benchmark_ret = (b_close / b_prev - 1.0) * 100.0
-            if ret_1d is not None:
-                relative_outperformance = ret_1d - benchmark_ret
-                strength_down_day = (
-                    benchmark_ret < 0.0
-                    and ret_1d >= 0.0
-                    and relative_outperformance >= 1.5
-                    and close_location >= 60.0
-                )
+    strength_down_day: bool | None = None
+    stock_ret20 = None
+    benchmark_ret20 = None
+    rs_divergence: bool | None = None
+    if len(aligned) >= 2:
+        stock_prev = float(aligned[-2][0]["close"])
+        stock_now = float(aligned[-1][0]["close"])
+        bench_prev = float(aligned[-2][1])
+        bench_now = float(aligned[-1][1])
+        if stock_prev > 0 and bench_prev > 0:
+            aligned_stock_ret1 = (stock_now / stock_prev - 1.0) * 100.0
+            benchmark_ret = (bench_now / bench_prev - 1.0) * 100.0
+            relative_outperformance = aligned_stock_ret1 - benchmark_ret
+            strength_down_day = benchmark_ret < 0.0 and aligned_stock_ret1 >= 0.0
+    if len(aligned) >= 21:
+        stock_20 = [float(x[0]["close"]) for x in aligned[-21:]]
+        bench_20 = [float(x[1]) for x in aligned[-21:]]
+        stock_ret20 = (stock_20[-1] / stock_20[0] - 1.0) * 100.0 if stock_20[0] > 0 else None
+        benchmark_ret20 = (bench_20[-1] / bench_20[0] - 1.0) * 100.0 if bench_20[0] > 0 else None
+        stock_recent_low = min(float(x[0]["low"]) for x in aligned[-10:])
+        stock_prior_low = min(float(x[0]["low"]) for x in aligned[-20:-10])
+        bench_recent_low = min(float(x[1]) for x in aligned[-10:])
+        bench_prior_low = min(float(x[1]) for x in aligned[-20:-10])
+        higher_low_vs_lower_low = stock_recent_low > stock_prior_low and bench_recent_low < bench_prior_low
+        holds_green_in_correction = (
+            benchmark_ret20 is not None and stock_ret20 is not None
+            and benchmark_ret20 < 0.0 and stock_ret20 >= 0.0
+        )
+        rs_divergence = higher_low_vs_lower_low or holds_green_in_correction
+
+    weekly_closes: list[float] = []
+    weekly_keys: list[str] = []
+    for bar in bars:
+        stamp = str(bar["time"])[:10]
+        try:
+            year, month, day = (int(part) for part in stamp.split("-"))
+            import datetime as _dt
+            iso = _dt.date(year, month, day).isocalendar()
+            key = f"{iso.year}-{iso.week:02d}"
+        except (ValueError, TypeError):
+            continue
+        if weekly_keys and weekly_keys[-1] == key:
+            weekly_closes[-1] = float(bar["close"])
+        else:
+            weekly_keys.append(key)
+            weekly_closes.append(float(bar["close"]))
+    weekly_ema10_series = _ema(weekly_closes, 10)
+    weekly_ema10 = weekly_ema10_series[-1] if weekly_ema10_series else None
+    weekly_ema10_3 = weekly_ema10_series[-4] if len(weekly_ema10_series) >= 4 else None
+    weekly_trend_ok: bool | None = None
+    if weekly_ema10 is not None and weekly_ema10_3 is not None:
+        weekly_trend_ok = (
+            weekly_closes[-1] >= float(weekly_ema10)
+            and float(weekly_ema10) >= float(weekly_ema10_3)
+        )
+
+    range15 = _range_pct(bars[-16:-1]) if len(bars) >= 16 else None
+    ttftl_warning: bool | None = None
+    if range15 is not None and range40 is not None and benchmark_ret20 is not None and stock_ret20 is not None:
+        ttftl_warning = (
+            range40 > 0 and range15 <= range40 * 0.45
+            and stock_ret20 < benchmark_ret20
+        )
+
+    cycle_stage = (
+        "wedge_pop" if wedge_pop else
+        "ema_crossback" if ema_crossback else
+        "base_n_break" if base_n_break else
+        "trend" if ema_ready else
+        "none"
+    )
 
     criteria = {
+        "name_selection": _criterion(
+            name_selection_ok, WEIGHTS["name_selection"],
+            f"price={_fmt(close,2)}; avgVol20={_fmt(vol_base,0)}; book anchors: price>=10, prefers ~1M shares/day",
+        ),
         "52w_high": _criterion(
             near_52w or new_52w_high, WEIGHTS["52w_high"],
             f"distance={_fmt(distance_52w)}%; new_high={new_52w_high}",
         ),
         "unusual_volume": _criterion(
             unusual_volume, WEIGHTS["unusual_volume"],
-            f"RVOL20={_fmt(rvol20, 2)}x; threshold=2.0x",
+            f"RVOL20={_fmt(rvol20,2)}x; operational threshold=2.0x",
         ),
         "bull_snort": _criterion(
             bull_snort, WEIGHTS["bull_snort"],
-            f"ret1d={_fmt(ret_1d)}%; RVOL20={_fmt(rvol20, 2)}x; close_location={_fmt(close_location)}%",
+            f"heavy-volume bullish response: RVOL20={_fmt(rvol20,2)}x; ret1d={_fmt(ret_1d)}%; close_location={_fmt(close_location)}%",
         ),
-        "doubler": _criterion(
-            doubler if ret_3m is not None or ret_6m is not None else None,
-            WEIGHTS["doubler"],
-            f"ret3m={_fmt(ret_3m)}%; ret6m={_fmt(ret_6m)}%; thresholds=50%/100%",
+        "momentum_3m_50": _criterion(
+            momentum_3m_50 if ret_3m is not None else None, WEIGHTS["momentum_3m_50"],
+            f"ret3m={_fmt(ret_3m)}%; threshold=50%",
+        ),
+        "doubler_6m": _criterion(
+            doubler_6m if ret_6m is not None else None, WEIGHTS["doubler_6m"],
+            f"ret6m={_fmt(ret_6m)}%; true doubler threshold=100%",
         ),
         "gapper": _criterion(
             gapper, WEIGHTS["gapper"],
-            f"opening_gap={_fmt(gap_pct)}%; threshold=3%",
+            f"opening_gap={_fmt(gap_pct)}%; broad discovery threshold=3%",
+        ),
+        "buyable_gap_proxy": _criterion(
+            buyable_gap_proxy, WEIGHTS["buyable_gap_proxy"],
+            f"gap={_fmt(gap_pct)}%; unfilled={gap_unfilled}; open>prior20Dhigh={bool(prior20_high and float(last['open'])>prior20_high)}; RVOL20={_fmt(rvol20,2)}x; catalyst not available in OHLCV",
         ),
         "strength_on_down_day": _criterion(
             strength_down_day, WEIGHTS["strength_on_down_day"],
             (
-                f"SPY={_fmt(benchmark_ret)}%; stock={_fmt(ret_1d)}%; "
-                f"relative={_fmt(relative_outperformance)}%"
+                f"benchmark={_fmt(benchmark_ret)}%; stock={_fmt(ret_1d)}%; relative={_fmt(relative_outperformance)}%"
                 if benchmark_ret is not None
-                else "benchmark OHLCV unavailable; criterion excluded from denominator"
+                else "benchmark unavailable; criterion excluded from denominator"
             ),
+        ),
+        "rs_divergence": _criterion(
+            rs_divergence, WEIGHTS["rs_divergence"],
+            (
+                f"stock20={_fmt(stock_ret20)}%; benchmark20={_fmt(benchmark_ret20)}%; structural higher-low/lower-low or green-vs-red correction"
+                if benchmark_ret20 is not None
+                else "20-session benchmark history unavailable; criterion excluded"
+            ),
+        ),
+        "weekly_trend": _criterion(
+            weekly_trend_ok, WEIGHTS["weekly_trend"],
+            f"weeklyClose={_fmt(weekly_closes[-1] if weekly_closes else None,2)}; weeklyEMA10={_fmt(weekly_ema10,2)}; rising={bool(weekly_ema10 is not None and weekly_ema10_3 is not None and weekly_ema10>=weekly_ema10_3)}",
         ),
         "ema_readiness": _criterion(
             ema_ready, WEIGHTS["ema_readiness"],
-            f"close={_fmt(close, 2)}; EMA10={_fmt(e10, 2)}; EMA20={_fmt(e20, 2)}; distEMA10={_fmt(dist_e10)}%",
+            f"close={_fmt(close,2)}; EMA10={_fmt(e10,2)}; EMA20={_fmt(e20,2)}; distEMA10={_fmt(dist_e10)}%",
         ),
         "wedge_pop": _criterion(
             wedge_pop, WEIGHTS["wedge_pop"],
-            f"prior10/prior20 contraction={wedge_contracted}; RVOL20={_fmt(rvol20, 2)}x; close>10Dhigh={bool(prior10_high and close > prior10_high)}",
+            "first recapture of a tight 10/20 EMA cluster after several closes at/below the cluster; prior range contracting/working lower",
         ),
         "ema_crossback": _criterion(
             ema_crossback, WEIGHTS["ema_crossback"],
-            f"was_below_10/20_in_prior5={was_below}; close_above_10/20={bool(e10 and e20 and close > e10 and close > e20)}",
+            f"recent_wedge_pop={recent_pop_index is not None}; first_retest={first_retest}; touches_10/20={current_touch}; supported={current_support}",
         ),
         "base_n_break": _criterion(
-            base_n_break if range40 is not None else None, WEIGHTS["base_n_break"],
-            f"range20={_fmt(range20)}%; range40={_fmt(range40)}%; breakout20D={bool(prior20_high and close > prior20_high)}",
+            base_n_break, WEIGHTS["base_n_break"],
+            f"10D base contraction={base_contracted}; support_count={base_support_count}/10; breakout10D={base_breakout}",
         ),
         "tightening": _criterion(
-            tightening if recent_tr is not None else None, WEIGHTS["tightening"],
-            f"medianTR10={_fmt(recent_tr)}%; priorTR20={_fmt(prior_tr)}%; range10={_fmt(range10)}%; range40={_fmt(range40)}%",
+            tightening if recent_tr5 is not None else None, WEIGHTS["tightening"],
+            f"TR5={_fmt(recent_tr5)} vs prior15={_fmt(prior_tr15)}; volume_dryup={volume_dryup}; insideBars5={inside_bars_5}",
         ),
         "breakout_proximity": _criterion(
             breakout_proximity, WEIGHTS["breakout_proximity"],
@@ -352,29 +510,41 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
         "kell_unusual_volume": unusual_volume,
         "kell_rvol_3x": rvol_3x,
         "kell_bull_snort": bull_snort,
-        "kell_doubler": doubler if ret_3m is not None or ret_6m is not None else None,
+        "kell_momentum_3m_50": momentum_3m_50 if ret_3m is not None else None,
+        "kell_doubler_6m": doubler_6m if ret_6m is not None else None,
+        "kell_doubler": doubler_6m if ret_6m is not None else None,
         "kell_gapper": gapper,
+        "kell_buyable_gap_proxy": buyable_gap_proxy,
         "kell_strength_on_down_day": strength_down_day,
+        "kell_rs_divergence": rs_divergence,
+        "kell_name_selection_ok": name_selection_ok,
+        "kell_weekly_trend_ok": weekly_trend_ok,
         "kell_ema_readiness": ema_ready,
         "kell_wedge_pop": wedge_pop,
         "kell_ema_crossback": ema_crossback,
-        "kell_base_n_break": base_n_break if range40 is not None else None,
-        "kell_tightening": tightening if recent_tr is not None else None,
+        "kell_base_n_break": base_n_break,
+        "kell_tightening": tightening if recent_tr5 is not None else None,
+        "kell_ttftl_warning": ttftl_warning,
         "kell_breakout_proximity": breakout_proximity,
         "kell_breakout_proximity_pct": breakout_proximity_pct,
+        "kell_cycle_stage": cycle_stage,
         "kell_score": score,
         "score_breakdown": {
             "model_version": MODEL_VERSION,
             "points": points,
             "possible_points": possible,
             "criteria": criteria,
+            "warnings": ["too_tight_for_too_long_relative_weakness"] if ttftl_warning is True else [],
         },
         "kell_metrics": {
+            "avg_volume20": vol_base,
             "rvol20": rvol20,
             "ret_1d_pct": ret_1d,
             "ret_3m_pct": ret_3m,
             "ret_6m_pct": ret_6m,
             "gap_pct": gap_pct,
+            "gap_unfilled": gap_unfilled,
+            "gap_held_pct": gap_held_pct,
             "close_location_pct": close_location,
             "distance_to_52w_high_pct": distance_52w,
             "new_52w_high": new_52w_high,
@@ -383,9 +553,18 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
             "range10_pct": range10,
             "range20_pct": range20,
             "range40_pct": range40,
+            "inside_bars_5": inside_bars_5,
+            "tr5_median_pct": recent_tr5,
+            "prior_tr15_median_pct": prior_tr15,
+            "volume_dryup": volume_dryup,
+            "base_support_count": base_support_count,
+            "recent_wedge_pop_sessions_ago": (len(bars) - 1 - recent_pop_index) if recent_pop_index is not None else None,
             "breakout_proximity_pct": breakout_proximity_pct,
             "benchmark_ret_1d_pct": benchmark_ret,
             "relative_outperformance_pct": relative_outperformance,
+            "stock_ret_20d_pct": stock_ret20,
+            "benchmark_ret_20d_pct": benchmark_ret20,
+            "weekly_ema10": weekly_ema10,
         },
     }
 
