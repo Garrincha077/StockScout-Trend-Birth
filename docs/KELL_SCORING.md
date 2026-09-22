@@ -146,7 +146,7 @@ All published screens remain available independently as separate UI buckets.
 
 ## Score
 
-`kell_score` is normalized to 0–100 over available criteria. v3 weights:
+`kell_score` is normalized to 0–100 over available criteria. v4 keeps the same criterion weights, but also publishes separate `discovery`, `stage`, `setup` and `context` component scores:
 
 - Wedge Pop 12
 - Base n' Break 12
@@ -172,33 +172,55 @@ RVOL >=3x remains a separate discovery flag and is not double-counted.
 
 ## Validation — 2026-09-21 Unified session
 
-Full deduplicated Unified pool: **2,683**, chart coverage **2,683/2,683**. At least one v3 Kell screen/proxy matched **2,063** names.
+Full deduplicated Unified pool: **2,683**, chart coverage **2,683/2,683**. The v4 compact Kell collection contains **2,063** names with at least one screen, setup or supporting context hit. This is the same broad matched-candidate coverage as the immediately preceding v3 baseline; candidate generation remains unchanged.
 
-Published / primary buckets:
+Discovery screens:
 
 - 52 Week Highs: **3**
-- Bull Snort: **20**
-- Gappers: **58**
-- Doublers YTD: **39**
-- Strength on Down Day: **246**
-- RVOL >=3x: **15** (stricter abnormal-volume discovery flag)
 - Unusual Volume >=2x: **62**
-
-Research / Cycle context:
-
-- Kell Focus: **6**
+- RVOL >=3x: **15**
+- Bull Snort: **20**
 - 3M +50%: **139**
+- Doublers YTD: **39**
+- Gappers: **58**
+- Strength on Down Day: **246**
+- RS Leader proxy: **330**
+
+Actionable/setup layer:
+
 - Buyable Gap proxy: **6**
-- RS Divergence: **500**
-- Weekly 10EMA trend: **567**
-- EMA10/20 Ready: **323**
-- Wedge Pop: **111**
-- EMA Crossback: **15**
-- Base n' Break: **51**
+- Wedge Pop setup: **111**
+- EMA Crossback setup: **15**
+- Base n' Break setup: **51**
 - Tightening: **98**
 - Near Breakout: **347**
 
-CI run **#102** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data validation and safe publication.
+Supporting context:
+
+- Kell Focus: **6**
+- Kell liquid/price base: **1,428**
+- Growth Context: **264**
+- RS Divergence: **500**
+- Weekly 10EMA trend: **567**
+- EMA10/20 Ready: **323**
+
+Primary stock-stage classification among the 2,063 published Kell matches:
+
+- Wedge Pop: **111**
+- EMA Crossback: **15**
+- Base n' Break: **49**
+- Trend / EMA Support: **285**
+- Downtrend / Repair: **1,091**
+- Transition: **512**
+
+The setup and stage counts are intentionally allowed to differ. For example, **51** stocks hit the Base n' Break setup while **49** have Base n' Break as their primary stage because one stock can satisfy multiple setup conditions while only one primary stage is published.
+
+Real-output spot checks confirm the separation:
+- **GRAL**: discovery screens include RVOL >=3x / Bull Snort / Gapper / RS Leader; primary stage = Base n' Break; setups include Buyable Gap and Base n' Break.
+- **WBD**: discovery screens include RVOL >=3x / Bull Snort / Gapper; primary stage = Wedge Pop; multiple setup flags remain visible independently.
+- **DELL**: strong discovery/context evidence but primary stage = Trend / EMA Support and no current actionable setup flag.
+
+CI run **#111** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data v4 validation, safe preview-data publication and artifact upload.
 
 ## Output / UI contract
 
