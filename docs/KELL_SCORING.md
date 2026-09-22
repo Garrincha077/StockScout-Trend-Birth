@@ -28,9 +28,12 @@ Primary public reference:
 
 Current primary stage values are:
 
+- `reversal_extension`
 - `wedge_pop`
 - `ema_crossback`
 - `base_n_break`
+- `exhaustion_extension`
+- `wedge_drop`
 - `trend_ema_support`
 - `downtrend_repair`
 - `transition`
@@ -94,6 +97,16 @@ The growth, RS and weekly-trend fields are research context, not claims that the
 | 6M +100% diagnostic | 126-session return >=+100%; stored as `kell_doubler_6m`, not the canonical Doubler |
 | Near Breakout | Close within -3.0% to +1.5% of prior 20D high |
 | RS Divergence | Stock higher-low while SPY lower-low, or stock non-negative over 20 sessions while SPY is negative |
+
+## Full-cycle stage proxies
+
+The book's qualitative cycle is treated as structure, not as a claim that every stock follows every step. The lab now covers the missing outer phases with explicit numerical proxies:
+
+- **Reversal Extension**: price must be materially extended below the daily 10EMA, reject a higher-timeframe-support proxy (50SMA, 200SMA or prior 60-session low), print a bullish upper-range reversal bar and show elevated volume. The current lab thresholds are >=5% downside extension, <=2% support proximity and >=1.5x 20D relative volume. These thresholds are lab proxies, not published Kell constants.
+- **Exhaustion Extension**: only considered in an established short/intermediate uptrend (10EMA > 20EMA, rising 10EMA and positive prior trend). Price must make a fresh 20D high while the day's high is extended from the 10EMA by at least max(8%, 3x recent prior true-range median), with a blowoff clue from volume, gap or weak close location. This is deliberately stricter than simply being far above an EMA.
+- **Wedge Drop**: requires a recent Exhaustion Extension proxy and a subsequent close that crosses below the 10/20 EMA cluster. It is a stage/risk-state event, not a discovery screen.
+
+These values are intended to make Kell's qualitative descriptions reproducible and inspectable. They should be calibrated by historical precision tests rather than silently treated as canonical Kell rules.
 
 ## Setup proxies and stage evidence
 
