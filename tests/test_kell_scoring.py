@@ -57,6 +57,9 @@ class KellScoringTests(unittest.TestCase):
             "kell_rs_leader",
             "kell_weekly_trend_ok",
             "kell_ema_readiness",
+            "kell_reversal_extension",
+            "kell_exhaustion_extension",
+            "kell_wedge_drop",
             "kell_wedge_pop",
             "kell_ema_crossback",
             "kell_base_n_break",
@@ -276,6 +279,62 @@ class KellScoringTests(unittest.TestCase):
         self.assertGreaterEqual(out["kell_stage"]["confidence"], 0.9)
         self.assertIn("kell_wedge_pop", out["kell_setups"])
         self.assertNotIn("kell_wedge_pop", out["kell_screens"])
+
+    def test_reversal_extension_stage_requires_extension_support_reversal_and_volume(self):
+        bars = make_bars(count=90, start=100.0, daily=0.0, volume=1_200_000)
+        # Create a prior support reference without changing the prevailing EMA structure.
+        bars[-30]["low"] = 90.0
+        set_close(bars[-2], 94.0, spread=0.01)
+        bars[-1].update({
+            "open": 91.0,
+            "high": 97.0,
+            "low": 90.2,
+            "close": 96.0,
+            "volume": 3_000_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertTrue(out["kell_reversal_extension"])
+        self.assertEqual(out["kell_stage"]["primary"], "reversal_extension")
+        self.assertIn("higher_timeframe_support_proxy", out["kell_stage"]["basis"])
+
+    def test_exhaustion_extension_stage_is_separate_from_discovery_screens(self):
+        bars = make_bars(count=90, start=100.0, daily=0.0, volume=1_200_000)
+        bars[-5]["high"] = 105.0  # prevent an ordinary 10D close-breakout proxy
+        bars[-1].update({
+            "open": 106.0,
+            "high": 112.0,
+            "low": 99.0,
+            "close": 103.0,
+            "volume": 2_400_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertTrue(out["kell_exhaustion_extension"])
+        self.assertEqual(out["kell_stage"]["primary"], "exhaustion_extension")
+        self.assertNotIn("kell_exhaustion_extension", out["kell_screens"])
+        self.assertNotIn("kell_exhaustion_extension", out["kell_setups"])
+
+    def test_wedge_drop_requires_recent_exhaustion_and_ema_loss(self):
+        bars = make_bars(count=95, start=100.0, daily=0.0, volume=1_200_000)
+        bars[-4].update({
+            "open": 106.0,
+            "high": 113.0,
+            "low": 99.0,
+            "close": 102.0,
+            "volume": 2_500_000,
+        })
+        set_close(bars[-3], 101.5, spread=0.004)
+        set_close(bars[-2], 101.0, spread=0.004)
+        bars[-1].update({
+            "open": 100.5,
+            "high": 101.0,
+            "low": 94.0,
+            "close": 95.0,
+            "volume": 1_600_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertTrue(out["kell_wedge_drop"])
+        self.assertEqual(out["kell_stage"]["primary"], "wedge_drop")
+        self.assertIsNotNone(out["kell_metrics"]["recent_exhaustion_sessions_ago"])
 
     def test_tightening_requires_tr_contraction_plus_dryup_or_inside_bars(self):
         bars = make_bars(count=50, start=30.0, daily=0.0, volume=1_500_000)
