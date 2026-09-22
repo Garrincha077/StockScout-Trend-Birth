@@ -36,7 +36,7 @@ def set_close(row, close, spread=0.004, volume=None):
 
 
 class KellScoringTests(unittest.TestCase):
-    def test_score_exposes_v2_fields(self):
+    def test_score_exposes_v4_dimensions(self):
         out = kell.score_candidate(make_bars())
         for field in (
             "kell_52w_high",
@@ -64,12 +64,17 @@ class KellScoringTests(unittest.TestCase):
             "kell_ttftl_warning",
             "kell_breakout_proximity",
             "kell_cycle_stage",
+            "kell_stage",
+            "kell_screens",
+            "kell_setups",
             "kell_focus",
             "kell_score",
             "score_breakdown",
         ):
             self.assertIn(field, out)
-        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v3-screening-guide")
+        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v4-screen-stage-setup")
+        self.assertEqual(set(out["score_breakdown"]["components"]), {"discovery", "stage", "setup", "context"})
+        self.assertIn("primary", out["kell_stage"])
         self.assertGreaterEqual(out["kell_score"], 0)
         self.assertLessEqual(out["kell_score"], 100)
 
@@ -88,6 +93,8 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_unusual_volume"])
         self.assertTrue(out["kell_rvol_3x"])
         self.assertTrue(out["kell_bull_snort"])
+        self.assertIn("kell_bull_snort", out["kell_screens"])
+        self.assertNotIn("kell_bull_snort", out["kell_setups"])
 
     def test_bull_snort_rejects_thin_names_even_with_high_rvol(self):
         bars = make_bars(count=80, start=25.0, daily=0.001, volume=100_000)
@@ -265,6 +272,10 @@ class KellScoringTests(unittest.TestCase):
         out = kell.score_candidate(bars)
         self.assertTrue(out["kell_wedge_pop"])
         self.assertEqual(out["kell_cycle_stage"], "wedge_pop")
+        self.assertEqual(out["kell_stage"]["primary"], "wedge_pop")
+        self.assertGreaterEqual(out["kell_stage"]["confidence"], 0.9)
+        self.assertIn("kell_wedge_pop", out["kell_setups"])
+        self.assertNotIn("kell_wedge_pop", out["kell_screens"])
 
     def test_tightening_requires_tr_contraction_plus_dryup_or_inside_bars(self):
         bars = make_bars(count=50, start=30.0, daily=0.0, volume=1_500_000)
