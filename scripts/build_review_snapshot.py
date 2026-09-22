@@ -18,10 +18,6 @@ from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candid
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
 KELL_SCREEN_FIELDS = (
-    "kell_focus",
-    "kell_name_selection_ok",
-    "kell_growth_context",
-    "kell_rs_leader",
     "kell_52w_high",
     "kell_unusual_volume",
     "kell_rvol_3x",
@@ -29,16 +25,24 @@ KELL_SCREEN_FIELDS = (
     "kell_momentum_3m_50",
     "kell_doubler_ytd",
     "kell_gapper",
-    "kell_buyable_gap_proxy",
     "kell_strength_on_down_day",
-    "kell_rs_divergence",
-    "kell_weekly_trend_ok",
-    "kell_ema_readiness",
+    "kell_rs_leader",
+)
+KELL_SETUP_FIELDS = (
+    "kell_buyable_gap_proxy",
     "kell_wedge_pop",
     "kell_ema_crossback",
     "kell_base_n_break",
     "kell_tightening",
     "kell_breakout_proximity",
+)
+KELL_CONTEXT_FIELDS = (
+    "kell_focus",
+    "kell_name_selection_ok",
+    "kell_growth_context",
+    "kell_rs_divergence",
+    "kell_weekly_trend_ok",
+    "kell_ema_readiness",
 )
 
 
@@ -884,16 +888,27 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     analysis_by_ticker = analysis if isinstance(analysis, dict) else {}
 
     kell_screen_counts = {field: 0 for field in KELL_SCREEN_FIELDS}
+    kell_setup_counts = {field: 0 for field in KELL_SETUP_FIELDS}
+    kell_context_counts = {field: 0 for field in KELL_CONTEXT_FIELDS}
+    kell_stage_counts: dict[str, int] = {}
     kell_candidates = []
     for ticker, pool_item in unified_kell_pool.items():
         rows = kell_unified_charts.get(ticker, [])
         raw = pool_item.get("raw") or {}
         scored = score_candidate(rows, benchmark_rows, raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
+        hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
+        hit_context = [field for field in KELL_CONTEXT_FIELDS if scored.get(field) is True]
         for field in hit_screens:
             kell_screen_counts[field] += 1
-        if not hit_screens:
+        for field in hit_setups:
+            kell_setup_counts[field] += 1
+        for field in hit_context:
+            kell_context_counts[field] += 1
+        if not (hit_screens or hit_setups or hit_context):
             continue
+        stage = str((scored.get("kell_stage") or {}).get("primary") or scored.get("kell_cycle_stage") or "unavailable")
+        kell_stage_counts[stage] = kell_stage_counts.get(stage, 0) + 1
         kell_candidates.append({
             "ticker": ticker,
             "sources": list(pool_item.get("unifiedSources") or []),
@@ -902,6 +917,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "chartBars": rows[-260:],
             "analysis": analysis_by_ticker.get(ticker, {}),
             "kellScreens": hit_screens,
+            "kellSetups": hit_setups,
+            "kellContext": hit_context,
             **scored,
         })
     kell_candidates.sort(key=lambda item: (
@@ -967,7 +984,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "chartCoverageCount": len(kell_unified_charts),
             "matchedCandidateCount": len(kell_candidates),
             "screenCounts": kell_screen_counts,
-            "method": "Kell v2 PDF-grounded OHLCV screens over the deduplicated union of all published Unified mode candidates; no new market-wide universe",
+            "setupCounts": kell_setup_counts,
+            "contextCounts": kell_context_counts,
+            "stageCounts": kell_stage_counts,
+            "method": "Kell v4 overlay over the deduplicated Unified candidate union. Discovery screens, stock stage, actionable setups and supporting context are published as separate dimensions; no new market-wide universe.",
         },
         "kellCandidateCount": len(kell_candidates),
         "kellCandidates": kell_candidates,
