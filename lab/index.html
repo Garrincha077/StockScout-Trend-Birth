@@ -9,7 +9,13 @@
 <body>
   <header class="topbar">
     <div><strong>Trend Birth Review Lab</strong><span id="runMeta">Učitavanje…</span></div>
-    <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
+    <div class="top-controls">
+      <select id="sort" aria-label="Sortiranje kandidata">
+        <option value="default">Default sort</option>
+        <option value="kell-score">Kell score ↓</option>
+      </select>
+      <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
+    </div>
   </header>
   <nav id="filters" class="filters" aria-label="Filter kandidata">
     <button data-filter="all" class="active">All</button>
@@ -18,6 +24,7 @@
     <button data-filter="ryan-original">Ryan</button>
     <button data-filter="kell-daily">Kell 3x RVOL</button>
     <button data-filter="kell-gap">Kell Gap-Up</button>
+    <button data-filter="kell-score">Kell ≥60</button>
     <button data-filter="multi">Multi-hit</button>
     <button data-filter="action">Action</button>
   </nav>

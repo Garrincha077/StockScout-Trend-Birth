@@ -11,6 +11,8 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urljoin
 
+from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
+
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
 
@@ -673,6 +675,15 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         charts.update(loaded)
         pending -= set(loaded)
 
+    # Optional benchmark context for Kell "Strength on Down Day". This does not
+    # widen the candidate universe: SPY is loaded only as a reference series.
+    benchmark_rows: list = []
+    for benchmark_mode in MODES:
+        mode_root, manifest, core = mode_payloads[benchmark_mode]
+        benchmark_rows = load_charts(mode_root, manifest, core, {"SPY"}).get("SPY", [])
+        if benchmark_rows:
+            break
+
     def kell_chart_quality(item: dict) -> bool:
         metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
         slope50 = metrics.get("slope50")
@@ -776,6 +787,9 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["metrics"] = _summary(raw, rows)
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
+        # Additive Oliver Kell overlay only. Candidate membership, source ranks,
+        # and the existing default ordering are intentionally unchanged.
+        item.update(score_candidate(rows, benchmark_rows))
         candidates.append(item)
     candidates.sort(key=lambda item: (
         0 if str(item.get("analysis", {}).get("status") or "").upper() == "ACTION" else 1,
@@ -813,6 +827,13 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "eligiblePublicPool": len(exact_gap_items),
             "probeCount": len(gap_probe_tickers),
             "method": "Full public pool -> liquid positive-close probe -> exact chart verification of Kell Gappers -> quality-ranked daily best",
+        },
+        "kellScoring": {
+            "modelVersion": KELL_SCORE_MODEL_VERSION,
+            "scope": "existing-candidates-only",
+            "candidateGenerationChanged": False,
+            "benchmark": "SPY" if benchmark_rows else "unavailable",
+            "method": "Transparent OHLCV overlay applied after existing StockScout candidate selection",
         },
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),

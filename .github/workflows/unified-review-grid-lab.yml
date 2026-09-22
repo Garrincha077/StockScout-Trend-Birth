@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - "feature/unified-review-grid-lab"
+      - "feature/kell-mcp-lab"
     paths:
       - "lab/**"
       - "scripts/**"
@@ -30,6 +31,8 @@ jobs:
           python-version: "3.12"
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+      - name: Historical Kell overlay smoke (2026-09-17)
+        run: python scripts/kell_scoring.py --input lab/data/history/2026-09-17.json --output /tmp/kell-2026-09-17.json --validate
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

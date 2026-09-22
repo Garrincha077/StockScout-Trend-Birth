@@ -1,4 +1,4 @@
-const state={data:null,filter:'all',query:''};
+const state={data:null,filter:'all',query:'',sort:'default'};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -48,7 +48,22 @@ function draw(canvas,rows,large=false){
   if(large){ctx.fillStyle='#8ea0b7';ctx.fillText('EMA10 / EMA20 / SMA50 · '+bars.length+' sessions',10,h-10)}
 }
 function badges(item){
-  return item.sources.map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
+  const sources=item.sources.map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
+  const score=Number(item.kell_score);
+  const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
+  return sources+kell;
+}
+function kellHits(item){
+  const criteria=item.score_breakdown?.criteria||{};
+  return Object.entries(criteria).filter(([,v])=>v?.hit===true).map(([k])=>k.replaceAll('_',' '));
+}
+function kellBreakdownText(item){
+  const breakdown=item.score_breakdown||{},criteria=breakdown.criteria||{};
+  const rows=Object.entries(criteria).map(([name,v])=>{
+    const mark=v?.hit===true?'✓':v?.hit===false?'—':'?';
+    return mark+' '+name.replaceAll('_',' ')+' '+(v?.points??0)+'/'+(v?.max_points??0)+' · '+(v?.detail||'');
+  });
+  return 'Score '+fmt(item.kell_score,1)+' · '+(breakdown.points??0)+'/'+(breakdown.possible_points??0)+' pts\n'+rows.join('\n');
 }
 function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓':value==='flat'?'→':'—'}
 function ruleAnalysis(item){
@@ -91,6 +106,7 @@ function visible(item){
   if(state.filter==='all')return true;
   if(state.filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
   if(state.filter==='multi')return item.sources.length>1;
+  if(state.filter==='kell-score')return Number(item.kell_score)>=60;
   return item.sources.includes(state.filter);
 }
 function card(item){
@@ -98,7 +114,7 @@ function card(item){
   const gap=item.kellGap||{};
   return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
-    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
+    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<canvas aria-label="'+esc(item.ticker)+' chart" title="Tap/click za analizu"></canvas>'+
     '<div class="metrics structure"><span>50D <b>'+slopeIcon(m.slope50)+'</b></span><span>30W <b>'+slopeIcon(m.slope30w)+'</b></span><span>Swing <b>'+esc(m.swingState||'—')+'</b></span><span>Base <b>'+(m.baseLike===true?'✓':m.baseLike===false?'—':'?')+'</b></span></div>'+
     '<div class="analysis-strip"><span>'+esc(a.state||m.setup||'—')+'</span><strong class="'+(status==='ACTION'?'action':status==='WATCH'?'watch':'')+'">'+esc(status)+'</strong></div>'+
@@ -108,8 +124,10 @@ let observer;
 function render(){
   if(!state.data)return;
   const items=state.data.candidates.filter(visible);
+  if(state.sort==='kell-score')items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
-  $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
+  const strongKell=state.data.candidates.filter(x=>Number(x.kell_score)>=60).length;
+  $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell ≥60 '+strongKell+' · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
   observer?.disconnect();
   observer=new IntersectionObserver(entries=>{
     for(const entry of entries){
@@ -136,6 +154,7 @@ function show(item){
     '<canvas class="detail-chart"></canvas>'+
     '<div class="detail-grid">'+
       fact('Setup state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
+      fact('Kell score',fmt(item.kell_score,1))+fact('Kell hits',kellHits(item).join(' · ')||'—')+
       fact('RVOL',fmt(m.rvol)+'x')+fact('RSI14',fmt(m.rsi14,1))+
       fact('EMA10 / EMA20',fmt(m.ema10)+' / '+fmt(m.ema20))+fact('EMA gap',pct(m.emaGapPct))+
       fact('50D slope',m.slope50||'—')+fact('30W slope',m.slope30w||'—')+
@@ -146,6 +165,7 @@ function show(item){
     '<div class="analysis-text"><b>Sažetak</b>\n'+esc(a.summary||'—')+
     '\n\n<b>Preferred trade</b>\n'+esc(a.preferredTrade||'—')+
     (item.kell?.signals?.length?'\n\n<b>Kell confluence</b>\n'+esc(item.kell.signals.join(' · ')):'')+
+    '\n\n<b>Kell score breakdown</b>\n'+esc(kellBreakdownText(item))+
     '\n\n<b>Fundamenti QoQ</b>\n'+esc(fundamentals)+
     (ai.riskNote?'\n\n<b>Risk note</b>\n'+esc(ai.riskNote):'')+
     '</div>';
@@ -155,6 +175,7 @@ function show(item){
 $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
 $('#search').addEventListener('input',e=>{state.query=e.target.value.trim().toUpperCase();render()});
+$('#sort')?.addEventListener('change',e=>{state.sort=e.target.value;render()});
 $('#filters').addEventListener('click',e=>{
   const b=e.target.closest('button[data-filter]');if(!b)return;
   state.filter=b.dataset.filter;document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('active',x===b));render();

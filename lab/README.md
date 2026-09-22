@@ -7,7 +7,7 @@ This is an isolated, read-only companion to `Garrincha077/StockScout-Unified`.
 - Never writes to StockScout Unified.
 - No Telegram token, Supabase key, broker credential, or production secret is used.
 - Reads only public, activated Unified Pages assets.
-- Development lives on `feature/unified-review-grid-lab` until explicitly promoted.
+- The existing review lab baseline lives on `feature/unified-review-grid-lab`; Oliver Kell scoring work is isolated on `feature/kell-mcp-lab` until explicitly promoted.
 - The lab may fail without affecting Unified scans, Pages, ranking, notifications, or owner state.
 
 ## Daily candidate set
@@ -42,3 +42,10 @@ python -m http.server 8000 -d lab
 ```
 
 Then open `http://localhost:8000/`.
+
+
+## Candidate-only Kell score overlay
+
+\`scripts/kell_scoring.py\` adds a transparent 0–100 Oliver Kell-style score to every candidate already selected by the review pipeline. It does not add candidates or alter the existing default order. The UI exposes a score badge, \`Kell >=60\` filter, score sort, and full per-criterion breakdown.
+
+See \`docs/KELL_SCORING.md\` for exact v1 thresholds, weights and methodology.
