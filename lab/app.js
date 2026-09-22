@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,filter:'all',query:'',sort:'default'};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),filter:'all',query:'',sort:'default'};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -70,20 +70,45 @@ function avg(values,n,ema=false){
   });
   return out;
 }
-function draw(canvas,rows,large=false){
+function barDateLabel(value){
+  const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match?match[3]+'.'+match[2]+'.'+match[1].slice(2):String(value||'—').slice(0,8);
+}
+function priceLabel(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return '—';
+  if(Math.abs(n)>=1000)return n.toFixed(0);
+  if(Math.abs(n)>=100)return n.toFixed(1);
+  if(Math.abs(n)>=10)return n.toFixed(2);
+  return n.toFixed(3);
+}
+function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
   const bars=normalizeBars(rows).slice(large?-504:-180);
   const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1;
   canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
   const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);
-  if(bars.length<2){ctx.fillStyle='#8ea0b7';ctx.fillText('Chart data unavailable',12,22);return}
-  const top=12,bottom=large?36:24,left=6,right=8;
-  const lo=Math.min(...bars.map(b=>b.low)),hi=Math.max(...bars.map(b=>b.high)),range=Math.max(hi-lo,.0001);
-  const x=i=>left+i*(w-left-right)/(bars.length-1),y=v=>top+(hi-v)*(h-top-bottom)/range;
-  ctx.strokeStyle='#1c2d43';ctx.lineWidth=1;
-  for(let i=1;i<4;i++){const yy=top+i*(h-top-bottom)/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke()}
+  ctx.font=(large?'12px':'10px')+' system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+  if(bars.length<2){
+    ctx.fillStyle='#8ea0b7';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    ctx.fillText(emptyMessage,12,22);return;
+  }
+  const top=large?28:16,bottom=large?46:34,left=large?10:8,right=large?72:56;
+  const rawLo=Math.min(...bars.map(b=>b.low)),rawHi=Math.max(...bars.map(b=>b.high));
+  const rawRange=Math.max(rawHi-rawLo,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
+  const lo=rawLo-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
+  const plotW=Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
+  const x=i=>left+i*plotW/(bars.length-1),y=v=>top+(hi-v)*plotH/range;
+
+  ctx.lineWidth=1;ctx.textBaseline='middle';
+  for(let i=0;i<4;i++){
+    const frac=i/3,yy=top+frac*plotH,value=hi-frac*range;
+    ctx.strokeStyle='#1c2d43';ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();
+    ctx.fillStyle='#8ea0b7';ctx.textAlign='left';ctx.fillText(priceLabel(value),w-right+6,yy);
+  }
+
   const closes=bars.map(b=>b.close),e10=avg(closes,10,true),e20=avg(closes,20,true),s50=avg(closes,50,false);
-  const candleW=Math.max(1,Math.min(5,(w-left-right)/bars.length*.7));
+  const candleW=Math.max(1,Math.min(5,plotW/bars.length*.7));
   bars.forEach((b,i)=>{
     const xx=x(i),up=b.close>=b.open;ctx.strokeStyle=up?'#35d78b':'#ff6d7a';ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();ctx.moveTo(xx,y(b.high));ctx.lineTo(xx,y(b.low));ctx.stroke();
@@ -93,9 +118,21 @@ function draw(canvas,rows,large=false){
   [[e10,'#e9bd62'],[e20,'#56a8ff'],[s50,'#a67cff']].forEach(([series,color])=>{
     ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.beginPath();let started=false;
     series.forEach((v,i)=>{if(v==null)return;const xx=x(i),yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
-    ctx.stroke();
+    if(started)ctx.stroke();
   });
-  if(large){ctx.fillStyle='#8ea0b7';ctx.fillText('EMA10 / EMA20 / SMA50 · '+bars.length+' sessions',10,h-10)}
+
+  const tickIndexes=[0,Math.floor((bars.length-1)/2),bars.length-1];
+  const aligns=['left','center','right'];
+  ctx.fillStyle='#8ea0b7';ctx.textBaseline='top';
+  tickIndexes.forEach((index,i)=>{
+    ctx.textAlign=aligns[i];
+    ctx.fillText(barDateLabel(bars[index].time),x(index),h-bottom+8);
+  });
+  ctx.textBaseline='alphabetic';
+  if(large){
+    ctx.textAlign='left';ctx.fillText('EMA10 / EMA20 / SMA50',left,15);
+    ctx.textAlign='right';ctx.fillText(bars.length+' sessions',w-right,15);
+  }
 }
 function badges(item){
   const sources=item.sources.map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
@@ -201,11 +238,47 @@ async function ensureKellData(){
         if(base?.chartBars?.length)item.chartBars=base.chartBars;
       }
       state.kellData=data;
+      state.kellChartShards.clear();
+      state.kellChartLoading.clear();
       state.kellLoading=null;
       return data;
     })
     .catch(err=>{state.kellLoading=null;throw err});
   return state.kellLoading;
+}
+async function ensureChartBars(item){
+  if(item?.chartBars?.length>=2)return item.chartBars;
+  const data=state.kellData;
+  const meta=data?.kellChartData;
+  const shard=Number(item?.chartShard);
+  if(!meta||!Number.isInteger(shard)||shard<0)return [];
+  const key=String(shard);
+  let payload=state.kellChartShards.get(key);
+  if(!payload){
+    let loading=state.kellChartLoading.get(key);
+    if(!loading){
+      const base=String(meta.basePath||'data/kell-charts').replace(/\/$/,'');
+      const path=base+'/shard-'+String(shard).padStart(3,'0')+'.json';
+      loading=fetch(path,{cache:'no-store'})
+        .then(response=>{
+          if(!response.ok)throw new Error('chart shard HTTP '+response.status);
+          return response.json();
+        })
+        .then(result=>{
+          if(result?.schemaVersion!=='kell-chart-shard-v1')throw new Error('invalid chart shard schema');
+          if(result?.source?.sessionDate!==data?.source?.sessionDate)throw new Error('chart shard date mismatch');
+          state.kellChartShards.set(key,result);
+          state.kellChartLoading.delete(key);
+          return result;
+        })
+        .catch(err=>{state.kellChartLoading.delete(key);throw err});
+      state.kellChartLoading.set(key,loading);
+    }
+    payload=await loading;
+  }
+  const rows=payload?.charts?.[item.ticker]||[];
+  if(rows.length>=2)item.chartBars=rows;
+  return rows;
 }
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
@@ -252,8 +325,13 @@ function render(){
   observer=new IntersectionObserver(entries=>{
     for(const entry of entries){
       if(!entry.isIntersecting)continue;
-      const cardEl=entry.target.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
-      draw(entry.target,item?.chartBars||[]);observer.unobserve(entry.target);
+      const canvas=entry.target,cardEl=canvas.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
+      observer.unobserve(canvas);
+      if(item?.chartBars?.length>=2){draw(canvas,item.chartBars);continue}
+      draw(canvas,[],false,'Loading chart…');
+      ensureChartBars(item)
+        .then(rows=>{if(canvas.isConnected)draw(canvas,rows,false,rows.length>=2?'':'Chart data unavailable')})
+        .catch(err=>{if(canvas.isConnected){canvas.title='Chart load error: '+err.message;draw(canvas,[],false,'Chart load failed')}})
     }
   },{rootMargin:'240px'});
   document.querySelectorAll('.card').forEach(cardEl=>{
@@ -292,7 +370,14 @@ function show(item){
     (ai.riskNote?'\n\n<b>Risk note</b>\n'+esc(ai.riskNote):'')+
     '</div>';
   $('#detail').showModal();
-  requestAnimationFrame(()=>draw($('#detailBody canvas'),item.chartBars,true));
+  requestAnimationFrame(()=>{
+    const canvas=$('#detailBody canvas');
+    if(item?.chartBars?.length>=2){draw(canvas,item.chartBars,true);return}
+    draw(canvas,[],true,'Loading chart…');
+    ensureChartBars(item)
+      .then(rows=>draw(canvas,rows,true,rows.length>=2?'':'Chart data unavailable'))
+      .catch(err=>{canvas.title='Chart load error: '+err.message;draw(canvas,[],true,'Chart load failed')});
+  });
 }
 $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
