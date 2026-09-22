@@ -409,9 +409,10 @@ def score_candidate(
         min(abs(float(last["low"]) / float(value) - 1.0) * 100.0 for value in support_refs)
         if support_refs else None
     )
-    support_rejection = (
-        support_distance_pct is not None and support_distance_pct <= 2.0
-        and any(close >= float(value) * 0.995 for value in support_refs)
+    support_rejection = any(
+        abs(float(last["low"]) / float(value) - 1.0) * 100.0 <= 2.0
+        and close >= float(value) * 0.995
+        for value in support_refs
     )
     downside_extension_pct = (
         (float(last["low"]) / float(e10) - 1.0) * 100.0
@@ -456,7 +457,11 @@ def score_candidate(
         )
         recent_highs = [float(x["high"]) for x in bars[max(0, index - 20):index]]
         new_high = not recent_highs or float(row["high"]) >= max(recent_highs)
-        tr_reference = median(tr[max(0, index - 6):index]) if index >= 2 and tr[max(0, index - 6):index] else 0.0
+        prior_tr_values = [
+            _true_range_pct(bars[j], closes[j - 1])
+            for j in range(max(1, index - 6), index)
+        ]
+        tr_reference = median(prior_tr_values) if prior_tr_values else 0.0
         extension_threshold = max(8.0, tr_reference * 3.0)
         blowoff_clue = rvol_i >= 1.5 or gap_i >= 3.0 or row_close_location <= 45.0
         return new_high and dist >= extension_threshold and blowoff_clue
