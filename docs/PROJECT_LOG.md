@@ -262,3 +262,23 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Add optional user-selectable chart windows (for example 3M / 6M / 1Y) only if the denser axes prove useful in review; keep the default lightweight and avoid adding chart-library dependencies unless canvas rendering becomes a real limitation.
+
+
+## 2026-09-22 — Universe-first hierarchical filtering
+
+- Branch: `feature/kell-mcp-lab`; production Unified/Telegram/broker behavior unchanged.
+- Changed the GridView filter model from one mutually-exclusive filter into two independent axes:
+  - **Universe** = `All / Bottom / Next / Ryan`;
+  - **secondary filter** = Screen / Stage / Setup / Context / review filter.
+- A secondary Kell screen now always intersects the selected universe instead of replacing it. Example on live `2026-09-21`: global Bull Snort = 20; Bottom -> Bull Snort = 18; Next -> Bull Snort = 13.
+- Switching universe preserves the selected secondary filter, so the user can compare the same screen across Bottom / Next / Ryan without reselecting it.
+- Filter-button counts are recalculated inside the selected universe, not from global Kell counts.
+- Added a dedicated `No filter` state. `Kell Hits` moved out of Universe and is now a secondary screen-like filter.
+- The status line now shows the selected universe and its full candidate count from Unified metadata: Bottom 2,045; Next 1,989; Ryan 1,989 on the validated session.
+- Universe and secondary-filter active states are visually distinct.
+- Added browser-model regression tests for the hierarchy and a compact-data test ensuring mode universe counts survive publication.
+- GitHub Actions run **#145** passed Python tests, browser-model tests, JavaScript syntax, historical Kell smoke, full live Unified rebuild, compact/shard validation, publication and artifact upload.
+- Latest Vercel preview was live-checked: HTML, app JS and compact data all returned HTTP 200; hierarchy controls and universe-specific intersection logic are present.
+
+**Next logical step**
+- If desired, allow multiple secondary screens to be AND/OR-combined inside the selected universe. Keep single-screen selection as the default because it is simpler and clearer.
