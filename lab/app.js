@@ -7,6 +7,7 @@ const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','ke
 const label=s=>labels[s]||s;
 const kellFilterLabels={
   'kell-any':'Kell Hits',
+  'kell_focus':'Kell Focus',
   'kell_52w_high':'52W / New High',
   'kell_unusual_volume':'Unusual Vol ≥2x',
   'kell_rvol_3x':'RVOL ≥3x',

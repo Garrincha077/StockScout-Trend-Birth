@@ -147,14 +147,14 @@ def score_candidate(
     growth_available = fundamental_support is not None or revenue_yoy is not None or eps_yoy is not None
     growth_context: bool | None = None
     if growth_available:
-        if fundamental_support is True:
-            growth_context = True
-        elif revenue_yoy is not None and eps_yoy is not None:
+        if revenue_yoy is not None and eps_yoy is not None:
             growth_context = revenue_yoy >= 25.0 and eps_yoy >= 25.0
         elif revenue_yoy is not None:
             growth_context = revenue_yoy >= 25.0
         elif eps_yoy is not None:
             growth_context = eps_yoy >= 25.0
+        else:
+            growth_context = bool(fundamental_support)
 
     rs_rank = context_number("rsRank", "rsRating", "rs_rank", "rs_rating")
     rs_leader: bool | None = rs_rank >= 90.0 if rs_rank is not None else None
@@ -184,6 +184,7 @@ def score_candidate(
         "kell_breakout_proximity": None,
         "kell_breakout_proximity_pct": None,
         "kell_cycle_stage": "unavailable",
+        "kell_focus": None,
         "kell_score": 0.0,
         "score_breakdown": {
             "model_version": MODEL_VERSION,
@@ -460,6 +461,31 @@ def score_candidate(
         "none"
     )
 
+    core_entry_setup = wedge_pop or ema_crossback or base_n_break
+    leadership_signal = any((
+        near_52w or new_52w_high,
+        bull_snort,
+        momentum_3m_50,
+        doubler_6m,
+        rs_leader is True,
+    ))
+    supportive_context = rs_divergence is True or weekly_trend_ok is True
+    kell_focus = (
+        name_selection_ok
+        and (
+            (
+                buyable_gap_proxy
+                and (rs_leader is True or growth_context is True)
+            )
+            or (
+                core_entry_setup
+                and supportive_context
+                and leadership_signal
+                and growth_context is not False
+            )
+        )
+    )
+
     criteria = {
         "name_selection": _criterion(
             name_selection_ok, WEIGHTS["name_selection"],
@@ -580,6 +606,7 @@ def score_candidate(
         "kell_breakout_proximity": breakout_proximity,
         "kell_breakout_proximity_pct": breakout_proximity_pct,
         "kell_cycle_stage": cycle_stage,
+        "kell_focus": kell_focus,
         "kell_score": score,
         "score_breakdown": {
             "model_version": MODEL_VERSION,

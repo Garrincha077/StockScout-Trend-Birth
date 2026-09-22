@@ -62,6 +62,7 @@ class KellScoringTests(unittest.TestCase):
             "kell_ttftl_warning",
             "kell_breakout_proximity",
             "kell_cycle_stage",
+            "kell_focus",
             "kell_score",
             "score_breakdown",
         ):
@@ -177,6 +178,27 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_growth_context"])
         self.assertTrue(out["kell_rs_leader"])
         self.assertEqual(out["kell_metrics"]["rs_rank"], 94)
+
+    def test_focus_combines_name_selection_leadership_context_and_setup(self):
+        bars = make_bars(count=140, daily=0.003)
+        # Create a buyable gap; growth + RS context come from Unified-style fields.
+        prior20_high = max(x["high"] for x in bars[-21:-1])
+        prev_close = bars[-2]["close"]
+        open_price = max(prior20_high * 1.02, prev_close * 1.04)
+        bars[-1] = {
+            "time": bars[-1]["time"],
+            "open": open_price,
+            "high": open_price * 1.04,
+            "low": max(prev_close * 1.01, open_price * 0.995),
+            "close": open_price * 1.025,
+            "volume": 3_000_000,
+        }
+        out = kell.score_candidate(
+            bars,
+            candidate_context={"revenueYoY": 40, "epsYoY": 60, "rsRank": 95},
+        )
+        self.assertTrue(out["kell_buyable_gap_proxy"])
+        self.assertTrue(out["kell_focus"])
 
     def test_wedge_pop_is_recapture_of_tight_ema_cluster(self):
         bars = make_bars(count=50, start=100.0, daily=0.0)

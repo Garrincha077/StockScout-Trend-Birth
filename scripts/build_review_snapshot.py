@@ -18,6 +18,7 @@ from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candid
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
 KELL_SCREEN_FIELDS = (
+    "kell_focus",
     "kell_name_selection_ok",
     "kell_growth_context",
     "kell_rs_leader",
