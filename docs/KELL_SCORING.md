@@ -1,16 +1,44 @@
-# Oliver Kell Overlay Scoring v3 — Screening Guide aligned
+# Oliver Kell Overlay Scoring v4 — Screen / Stage / Setup separated
 
 Branch scope: `feature/kell-mcp-lab`
 
 This layer scans the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not alter Unified candidate generation, source ranks, or the ordinary Review Grid.
 
-The model is `kell-overlay-v3-screening-guide`. v3 separates two things that were mixed together in v2:
+The model is `kell-overlay-v4-screen-stage-setup`. v4 makes the app contract explicit:
 
-1. **Published Kell screens** — use the explicit numerical criteria shown in Oliver Kell's Screening Guide / April 2024 Stock Selection webinar.
-2. **Cycle of Price Action research proxies** — Wedge Pop, EMA Crossback, Base n' Break, tightening and readiness remain transparent deterministic approximations because Kell does not publish a complete machine-readable formula for those setups.
+1. **SCREEN / discovery** — why the stock was surfaced (52W high, unusual volume/RVOL, Bull Snort, momentum/Doubler, Gapper, Strength on Down Day, RS leader proxy).
+2. **STAGE / price cycle** — one primary current structural state, stored in `kell_stage.primary`, with confidence and a short evidence basis.
+3. **SETUP / actionable pattern** — patterns or readiness conditions that may coexist with a stage (Buyable Gap proxy, Wedge Pop event, EMA Crossback event, Base n' Break event, Tightening, Near Breakout).
+4. **CONTEXT** — supporting evidence such as liquidity, growth, RS divergence, weekly 10EMA and EMA readiness.
+
+These dimensions are deliberately separate. A stock can have a strong screen while being in a poor or immature stage, and a stage is never inferred merely because a discovery screen fired.
 
 Primary public reference:
 - https://theswingreport.com/wp-content/uploads/2024/04/Stock-Selection-Webinar-April-2024.pdf
+
+## Screen / Stage / Setup contract
+
+`kellScreens`, `kellSetups` and `kellContext` are disjoint lists in the published payload.
+
+`kell_stage` has:
+
+- `primary`: one current structural state;
+- `confidence`: deterministic confidence for that classification;
+- `basis`: the evidence used for the classification.
+
+Current primary stage values are:
+
+- `wedge_pop`
+- `ema_crossback`
+- `base_n_break`
+- `trend_ema_support`
+- `downtrend_repair`
+- `transition`
+- `unavailable`
+
+`kell_cycle_stage` remains as a compatibility alias for the primary stage.
+
+The UI exposes separate filter groups for **Screens**, **Stage**, **Setups** and **Context**. A discovery hit does not automatically imply an actionable entry.
 
 ## Source hierarchy
 
@@ -67,7 +95,7 @@ The growth, RS and weekly-trend fields are research context, not claims that the
 | Near Breakout | Close within -3.0% to +1.5% of prior 20D high |
 | RS Divergence | Stock higher-low while SPY lower-low, or stock non-negative over 20 sessions while SPY is negative |
 
-## Cycle of Price Action proxies
+## Setup proxies and stage evidence
 
 The v3 implementation preserves the stricter v2 sequence logic.
 
@@ -174,6 +202,6 @@ CI run **#102** passed unit tests, historical smoke, snapshot-link tests, GridVi
 
 ## Output / UI contract
 
-The compact preview exposes every candidate that hits at least one Kell screen/proxy and publishes `kellScoring.screenCounts`. The UI provides separate buckets for 52W Highs, Bull Snorts, RVOL >=3x, Doublers YTD, Gappers, Strength on Down Day, Cycle setups and the other research signals, with hit counts shown directly on the filter buttons.
+The compact preview publishes separate `screenCounts`, `setupCounts`, `contextCounts` and `stageCounts`. The UI renders four distinct filter groups so discovery screens are not conflated with the stock's current Cycle-of-Price-Action stage or with an actionable setup.
 
 The ordinary Review Grid candidate generation remains unchanged.
