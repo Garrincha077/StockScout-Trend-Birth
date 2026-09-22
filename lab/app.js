@@ -5,9 +5,7 @@ const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
 const label=s=>labels[s]||s;
-const kellFilterLabels={
-  'kell-any':'Kell Hits',
-  'kell_focus':'Kell Focus',
+const kellScreenLabels={
   'kell_52w_high':'52W / New High',
   'kell_unusual_volume':'Unusual Vol ≥2x',
   'kell_rvol_3x':'RVOL ≥3x',
@@ -15,22 +13,45 @@ const kellFilterLabels={
   'kell_momentum_3m_50':'3M +50%',
   'kell_doubler_ytd':'Doublers YTD',
   'kell_gapper':'Gapper',
-  'kell_buyable_gap_proxy':'Buyable Gap proxy',
   'kell_strength_on_down_day':'Strength on Down Day',
-  'kell_rs_divergence':'RS Divergence',
+  'kell_rs_leader':'RS Leader'
+};
+const kellSetupLabels={
+  'kell_buyable_gap_proxy':'Buyable Gap proxy',
+  'kell_wedge_pop':'Wedge Pop setup',
+  'kell_ema_crossback':'EMA Crossback setup',
+  'kell_base_n_break':"Base n' Break setup",
+  'kell_tightening':'Tightening',
+  'kell_breakout_proximity':'Near Breakout'
+};
+const kellContextLabels={
+  'kell_focus':'Kell Focus',
   'kell_name_selection_ok':'Kell Liquid/Price',
   'kell_growth_context':'Growth Context',
-  'kell_rs_leader':'RS Rank ≥90',
+  'kell_rs_divergence':'RS Divergence',
   'kell_weekly_trend_ok':'Weekly 10EMA',
-  'kell_ema_readiness':'EMA10/20 Ready',
-  'kell_wedge_pop':'Wedge Pop',
-  'kell_ema_crossback':'EMA Crossback',
-  'kell_base_n_break':"Base n' Break",
-  'kell_tightening':'Tightening',
-  'kell_breakout_proximity':'Near Breakout',
+  'kell_ema_readiness':'EMA10/20 Ready'
+};
+const kellStageLabels={
+  'stage:wedge_pop':'Wedge Pop',
+  'stage:ema_crossback':'EMA Crossback',
+  'stage:base_n_break':"Base n' Break",
+  'stage:trend_ema_support':'Trend / EMA Support',
+  'stage:downtrend_repair':'Downtrend / Repair',
+  'stage:transition':'Transition',
+  'stage:unavailable':'Unavailable'
+};
+const kellFilterLabels={
+  'kell-any':'Kell Hits',
+  ...kellScreenLabels,
+  ...kellStageLabels,
+  ...kellSetupLabels,
+  ...kellContextLabels,
   'kell-score':'Kell ≥60'
 };
 const kellFilters=new Set(Object.keys(kellFilterLabels));
+const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
+const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 
 function normalizeBars(rows){
   return(rows||[]).map(r=>Array.isArray(r)
@@ -80,14 +101,17 @@ function badges(item){
   return sources+kell;
 }
 function hasKell(item,field){
-  return item?.[field]===true||(item?.kellScreens||[]).includes(field);
+  return item?.[field]===true
+    ||(item?.kellScreens||item?.kell_screens||[]).includes(field)
+    ||(item?.kellSetups||item?.kell_setups||[]).includes(field)
+    ||(item?.kellContext||[]).includes(field);
 }
-function kellHits(item){
-  const criteria=item.score_breakdown?.criteria||{};
-  const hits=Object.entries(criteria).filter(([,v])=>v?.hit===true).map(([k])=>k.replaceAll('_',' '));
-  if(hits.length)return hits;
-  return (item.kellScreens||[]).map(k=>k.replace(/^kell_/,'').replaceAll('_',' '));
+function namedHits(item,keys,labels){
+  return keys.filter(key=>hasKell(item,key)).map(key=>labels[key]||key.replace(/^kell_/,'').replaceAll('_',' '));
 }
+function kellScreensText(item){return namedHits(item,Object.keys(kellScreenLabels),kellScreenLabels).join(' · ')||'—'}
+function kellSetupsText(item){return namedHits(item,Object.keys(kellSetupLabels),kellSetupLabels).join(' · ')||'—'}
+function kellContextText(item){return namedHits(item,Object.keys(kellContextLabels),kellContextLabels).join(' · ')||'—'}
 function kellBreakdownText(item){
   const breakdown=item.score_breakdown||{},criteria=breakdown.criteria||{};
   const rows=Object.entries(criteria).map(([name,v])=>{
@@ -144,9 +168,13 @@ function updateKellFilterCounts(){
     const filter=button.dataset.filter;
     if(!button.dataset.baseLabel)button.dataset.baseLabel=button.textContent;
     let count=null;
+    const setupCounts=scoring.setupCounts||{},contextCounts=scoring.contextCounts||{},stageCounts=scoring.stageCounts||{};
     if(filter==='kell-any')count=state.kellData?.kellCandidateCount??state.data?.kellCandidateCount??kellItems.length;
     else if(filter==='kell-score')count=kellItems.filter(item=>Number(item.kell_score)>=60).length;
+    else if(filter.startsWith('stage:'))count=stageCounts[filter.slice(6)]??kellItems.filter(item=>primaryStage(item)===filter.slice(6)).length;
     else if(Object.prototype.hasOwnProperty.call(counts,filter))count=counts[filter];
+    else if(Object.prototype.hasOwnProperty.call(setupCounts,filter))count=setupCounts[filter];
+    else if(Object.prototype.hasOwnProperty.call(contextCounts,filter))count=contextCounts[filter];
     if(count!==null)button.textContent=button.dataset.baseLabel+' ('+count+')';
   });
 }
@@ -183,15 +211,19 @@ function visible(item){
   if(state.filter==='multi')return item.sources.length>1;
   if(state.filter==='kell-any')return true;
   if(state.filter==='kell-score')return Number(item.kell_score)>=60;
+  if(state.filter.startsWith('stage:'))return primaryStage(item)===state.filter.slice(6);
   if(kellFilters.has(state.filter))return hasKell(item,state.filter);
   return item.sources.includes(state.filter);
 }
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),status=String(a.status||'REVIEW').toUpperCase();
   const gap=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
+  const stage=stageName(primaryStage(item));
+  const setups=kellSetupsText(item);
   return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
+    '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Setup <b>'+esc(setups)+'</b></span></div>'+
     '<canvas aria-label="'+esc(item.ticker)+' chart" title="Tap/click za analizu"></canvas>'+
     '<div class="metrics structure"><span>50D <b>'+slopeIcon(m.slope50)+'</b></span><span>30W <b>'+slopeIcon(m.slope30w)+'</b></span><span>Swing <b>'+esc(m.swingState||'—')+'</b></span><span>Base <b>'+(m.baseLike===true?'✓':m.baseLike===false?'—':'?')+'</b></span></div>'+
     '<div class="analysis-strip"><span>'+esc(a.state||m.setup||'—')+'</span><strong class="'+(status==='ACTION'?'action':status==='WATCH'?'watch':'')+'">'+esc(status)+'</strong></div>'+
@@ -238,8 +270,10 @@ function show(item){
     '<div class="detail-head"><h2>'+esc(item.ticker)+'</h2><div class="badges">'+badges(item)+'</div></div>'+
     '<canvas class="detail-chart"></canvas>'+
     '<div class="detail-grid">'+
-      fact('Setup state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
-      fact('Kell score',fmt(item.kell_score,1))+fact('Kell hits',kellHits(item).join(' · ')||'—')+
+      fact('Review state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
+      fact('Kell score',fmt(item.kell_score,1))+fact('Kell stage',stageName(primaryStage(item)))+
+      fact('Discovery screens',kellScreensText(item))+fact('Setups',kellSetupsText(item))+
+      fact('Context',kellContextText(item))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
       fact('RVOL',fmt(m.rvol)+'x')+fact('RSI14',fmt(m.rsi14,1))+
       fact('EMA10 / EMA20',fmt(m.ema10)+' / '+fmt(m.ema20))+fact('EMA gap',pct(m.emaGapPct))+
       fact('50D slope',m.slope50||'—')+fact('30W slope',m.slope30w||'—')+
