@@ -172,4 +172,4 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Added separate full-union filters for 52W/New High, unusual volume >=2x, RVOL >=3x, Bull Snort, Doubler/3M-6M momentum, Gapper, Strength on Down Day, EMA10/20 readiness, Wedge Pop, EMA Crossback, Base n' Break, tightening and breakout proximity, plus Kell >=60.
 - Added explicit `kell_rvol_3x` field. It is a screen flag, not an extra score weight, so the existing normalized Kell score remains comparable.
 - The default All/Bottom/Next/Ryan board and existing source rankings remain unchanged. Production impact remains none; work stays isolated on `feature/kell-mcp-lab`.
-- Validation: pending branch CI/live full-union build after this change.
+- Validation: branch CI is green. On live Unified session `2026-09-21`, the deduplicated candidate union contained 2,683 tickers; 2,174 matched at least one Kell screen. The ordinary Review Grid remained 80 candidates with 80/80 chart coverage. 18 Python tests, historical 2026-09-17 smoke, snapshot-link tests and GridView JavaScript syntax all passed.
