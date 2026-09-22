@@ -90,6 +90,18 @@ class BuilderTests(unittest.TestCase):
         row["rvolToday"] = 2.9
         self.assertNotIn("Daily 3x RVOL", builder.kell_signals(row, 3.0))
 
+    def test_embedded_spy_benchmark_from_rs_column(self):
+        charts = {
+            "AAA": [
+                ["2026-09-18", 100, 102, 99, 100, 1_000_000, 20.0],
+                ["2026-09-21", 101, 103, 100, 102, 1_100_000, 20.8082],
+            ]
+        }
+        benchmark = builder._embedded_spy_benchmark(charts)
+        self.assertEqual(len(benchmark), 2)
+        # Day 1 implies SPY=500; day 2 implies roughly SPY=490.2.
+        self.assertLess(benchmark[-1]["close"], benchmark[-2]["close"])
+
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
         price = 10.0

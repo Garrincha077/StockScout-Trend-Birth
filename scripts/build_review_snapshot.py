@@ -364,6 +364,45 @@ def load_charts(mode_root: str, manifest: dict, core: dict, tickers: set[str]) -
     return out
 
 
+def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
+    """Reconstruct the session SPY return from Unified's embedded RS=stock/SPY*100."""
+    for rows in charts.values():
+        if not isinstance(rows, list) or len(rows) < 2:
+            continue
+        pair = rows[-2:]
+        derived = []
+        valid = True
+        for row in pair:
+            try:
+                if isinstance(row, list) and len(row) >= 7:
+                    stamp, close, rs = row[0], float(row[4]), float(row[6])
+                elif isinstance(row, dict):
+                    stamp = row.get("time") or row.get("date") or ""
+                    close = float(row.get("close"))
+                    rs = float(row.get("rs") or row.get("relativeStrength") or row.get("relative_strength"))
+                else:
+                    valid = False
+                    break
+                if not math.isfinite(close) or not math.isfinite(rs) or close <= 0 or rs <= 0:
+                    valid = False
+                    break
+                spy_close = close * 100.0 / rs
+                derived.append({
+                    "time": str(stamp),
+                    "open": spy_close,
+                    "high": spy_close,
+                    "low": spy_close,
+                    "close": spy_close,
+                    "volume": 0.0,
+                })
+            except (TypeError, ValueError):
+                valid = False
+                break
+        if valid and len(derived) == 2:
+            return derived
+    return []
+
+
 def _normalized_bars(rows: list) -> list[dict]:
     bars: list[dict] = []
     for row in rows or []:
@@ -715,14 +754,12 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         charts.update(loaded)
         pending -= set(loaded)
 
-    # Optional benchmark context for Kell "Strength on Down Day". This does not
-    # widen the candidate universe: SPY is loaded only as a reference series.
-    benchmark_rows: list = []
-    for benchmark_mode in MODES:
-        mode_root, manifest, core = mode_payloads[benchmark_mode]
-        benchmark_rows = load_charts(mode_root, manifest, core, {"SPY"}).get("SPY", [])
-        if benchmark_rows:
-            break
+    # Unified Next/Ryan chart rows carry RS = stock / SPY * 100 as a seventh
+    # field. Reconstruct the session SPY return from that embedded reference so
+    # Strength on Down Day works across the entire candidate union without any
+    # new market-wide or Yahoo/MCP scan.
+    benchmark_rows: list = _embedded_spy_benchmark(charts)
+    benchmark_method = "embedded-SPY-relative-strength" if benchmark_rows else "unavailable"
 
     # Score the complete Unified candidate union. Prefer adjusted Next/Ryan
     # chart history when available; fall back to Bottom for Bottom-only names.
@@ -917,7 +954,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "modelVersion": KELL_SCORE_MODEL_VERSION,
             "scope": "all-unified-candidates",
             "candidateGenerationChanged": False,
-            "benchmark": "SPY" if benchmark_rows else "unavailable",
+            "benchmark": benchmark_method,
             "unifiedCandidateCount": len(unified_kell_pool),
             "chartCoverageCount": len(kell_unified_charts),
             "matchedCandidateCount": len(kell_candidates),
