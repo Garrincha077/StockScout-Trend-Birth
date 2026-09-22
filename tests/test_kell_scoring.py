@@ -44,11 +44,13 @@ class KellScoringTests(unittest.TestCase):
             "kell_rvol_3x",
             "kell_bull_snort",
             "kell_momentum_3m_50",
+            "kell_doubler_ytd",
             "kell_doubler_6m",
             "kell_doubler",
             "kell_gapper",
             "kell_buyable_gap_proxy",
             "kell_strength_on_down_day",
+            "kell_down_market_context",
             "kell_rs_divergence",
             "kell_name_selection_ok",
             "kell_growth_context",
@@ -67,7 +69,7 @@ class KellScoringTests(unittest.TestCase):
             "score_breakdown",
         ):
             self.assertIn(field, out)
-        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v2-pdf")
+        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v3-screening-guide")
         self.assertGreaterEqual(out["kell_score"], 0)
         self.assertLessEqual(out["kell_score"], 100)
 
@@ -99,12 +101,25 @@ class KellScoringTests(unittest.TestCase):
         self.assertFalse(out["kell_doubler_6m"])
         self.assertFalse(out["kell_doubler"])
 
-    def test_true_six_month_doubler(self):
+    def test_six_month_double_is_legacy_momentum_not_kell_doubler(self):
         bars = make_bars(count=150, daily=0.006)
         out = kell.score_candidate(bars)
         self.assertTrue(out["kell_doubler_6m"])
-        self.assertTrue(out["kell_doubler"])
+        self.assertFalse(out["kell_doubler"])
         self.assertGreaterEqual(out["kell_metrics"]["ret_6m_pct"], 100)
+
+    def test_kell_doubler_is_ytd_over_100_with_liquidity(self):
+        bars = make_bars(count=260, start=20.0, daily=0.0, volume=900_000, start_date=date(2025, 8, 1))
+        for row in bars:
+            if row["time"][:4] == "2026":
+                days = (date.fromisoformat(row["time"]) - date(2026, 1, 1)).days
+                set_close(row, 20.0 * (1.0 + min(days / 240.0, 1.2)))
+        # Force the latest point comfortably beyond +100% YTD.
+        set_close(bars[-1], 42.0, volume=900_000)
+        out = kell.score_candidate(bars)
+        self.assertTrue(out["kell_doubler_ytd"])
+        self.assertTrue(out["kell_doubler"])
+        self.assertGreater(out["kell_metrics"]["ret_ytd_pct"], 100)
 
     def test_buyable_gap_proxy_requires_breakout_unfilled_gap_and_volume(self):
         bars = make_bars(count=70, daily=0.001)
@@ -141,11 +156,12 @@ class KellScoringTests(unittest.TestCase):
             "low": bench_prev * 0.97,
             "close": bench_prev * 0.98,
         })
-        out = kell.score_candidate(bars, bench)
+        out = kell.score_candidate(bars, bench, {"beta": 1.4})
         self.assertTrue(out["kell_strength_on_down_day"])
-        without = kell.score_candidate(bars)
-        self.assertIsNone(without["kell_strength_on_down_day"])
-        self.assertFalse(without["score_breakdown"]["criteria"]["strength_on_down_day"]["available"])
+        self.assertTrue(out["kell_down_market_context"])
+        without_benchmark = kell.score_candidate(bars, candidate_context={"beta": 1.4})
+        self.assertTrue(without_benchmark["kell_strength_on_down_day"])
+        self.assertIsNone(without_benchmark["kell_down_market_context"])
 
     def test_rs_divergence_detects_stock_higher_low_vs_benchmark_lower_low(self):
         bars = make_bars(count=50, daily=0.0)
@@ -162,7 +178,7 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_rs_divergence"])
 
     def test_name_selection_price_and_liquidity_context(self):
-        liquid = make_bars(count=40, start=20.0, volume=1_500_000)
+        liquid = make_bars(count=40, start=20.0, volume=900_000)
         self.assertTrue(kell.score_candidate(liquid)["kell_name_selection_ok"])
         cheap = make_bars(count=40, start=5.0, volume=1_500_000)
         self.assertFalse(kell.score_candidate(cheap)["kell_name_selection_ok"])
@@ -178,6 +194,16 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_growth_context"])
         self.assertTrue(out["kell_rs_leader"])
         self.assertEqual(out["kell_metrics"]["rs_rank"], 94)
+
+    def test_52w_high_uses_published_liquidity_and_beta_filters(self):
+        bars = make_bars(count=260, start=25.0, daily=0.001, volume=900_000)
+        prior_high = max(row["high"] for row in bars[-253:-1])
+        bars[-1]["high"] = prior_high * 1.01
+        bars[-1]["close"] = prior_high * 1.005
+        bars[-1]["open"] = prior_high * 0.995
+        bars[-1]["low"] = prior_high * 0.99
+        self.assertTrue(kell.score_candidate(bars, candidate_context={"beta": 1.2})["kell_52w_high"])
+        self.assertFalse(kell.score_candidate(bars, candidate_context={"beta": 0.8})["kell_52w_high"])
 
     def test_focus_combines_name_selection_leadership_context_and_setup(self):
         bars = make_bars(count=140, daily=0.003)
