@@ -247,3 +247,18 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Make stage coverage fully independent from discovery publication: preserve stage metadata for all **2,683** existing Unified candidates, while keeping `Kell Hits` as a separate discovery/setup/context subset. Then refine the broad `downtrend_repair` bucket using recent-cycle history rather than adding new discovery screens.
+
+
+## 2026-09-22 — Review chart readability and full Kell chart availability
+
+- Branch: `feature/kell-mcp-lab`; no production Unified, Telegram or broker behavior changed.
+- Reproduced the `Chart data unavailable` problem in full Kell filters. Root cause was not missing Unified OHLCV: live metadata showed **2,683/2,683** chart coverage, but the compact browser payload intentionally stripped `chartBars` from all **2,063** Kell matches. Only tickers also present on the small ordinary Review Grid received chart rows via the client merge.
+- Fixed the data path by publishing lazy OHLCV chart shards from the already-loaded Unified candidate charts. Compact schema is now `kell-compact-v3`; chart schema is `kell-chart-shard-v1`.
+- Live session `2026-09-21`: **2,063/2,063** Kell matches have chart-shard coverage, **535,895** total bars in **43** shards. The UI loads only the shard needed by a visible/detail ticker and caches it client-side.
+- Added explicit chart price scale on the right and three date labels across the x-axis. Detail charts also show EMA10 / EMA20 / SMA50 and session count.
+- Found mixed date encodings in real Unified charts: some rows use ISO dates and some use Unix epoch seconds. The axis formatter now handles both; e.g. GRAL's epoch range resolves from 2025-09-09 to 2026-09-21.
+- Added compact-builder tests for normalized chart rows and complete shard coverage. CI run **#125** passed Python tests, historical Kell smoke, snapshot-link tests, GridView JavaScript syntax, full live Unified rebuild, compact/shard validation, publication and artifact upload.
+- Vercel live checks on the latest preview returned HTTP 200 for the app, `kell-compact-v3`, shard 000 and shard 042; both the first candidate (GRAL) and a final-shard candidate (VTOL) returned 260 bars.
+
+**Next logical step**
+- Add optional user-selectable chart windows (for example 3M / 6M / 1Y) only if the denser axes prove useful in review; keep the default lightweight and avoid adding chart-library dependencies unless canvas rendering becomes a real limitation.
