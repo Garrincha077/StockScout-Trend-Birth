@@ -47,16 +47,29 @@ jobs:
       - name: Build read-only snapshot from activated Unified public data
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Build compact Kell preview dataset
-        run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json
+        run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Validate compact Kell dataset
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           data = json.loads(Path("lab/data/kell-latest.json").read_text())
-          assert data["schemaVersion"] == "kell-compact-v2"
+          assert data["schemaVersion"] == "kell-compact-v3"
           assert data["source"]["sessionDate"]
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
+          chart_meta = data["kellChartData"]
+          assert chart_meta["schemaVersion"] == "kell-chart-shard-v1"
+          assert chart_meta["chartCandidateCount"] == data["kellCandidateCount"]
+          assert chart_meta["shardCount"] > 0
+          chart_files = sorted(Path("lab/data/kell-charts").glob("shard-*.json"))
+          assert len(chart_files) == chart_meta["shardCount"]
+          chart_tickers = set()
+          for path in chart_files:
+              shard = json.loads(path.read_text())
+              assert shard["schemaVersion"] == "kell-chart-shard-v1"
+              assert shard["source"]["sessionDate"] == data["source"]["sessionDate"]
+              chart_tickers.update(shard["charts"])
+          assert len(chart_tickers) == data["kellCandidateCount"]
           assert data["kellScoring"]["modelVersion"] == "kell-overlay-v4-screen-stage-setup"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
           assert "kell_doubler_ytd" in data["kellScoring"]["screenCounts"]
@@ -72,6 +85,9 @@ jobs:
               assert screens.isdisjoint(context)
               assert setups.isdisjoint(context)
               assert (item.get("kell_stage") or {}).get("primary")
+              assert isinstance(item.get("chartShard"), int)
+              assert item.get("chartBarsCount", 0) >= 2
+              assert item["ticker"] in chart_tickers
           print({
               "sessionDate": data["source"]["sessionDate"],
               "kellCandidates": len(data["kellCandidates"]),
@@ -82,6 +98,8 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
         run: |
           cp lab/data/kell-latest.json /tmp/kell-latest.json
+          rm -rf /tmp/kell-charts
+          cp -R lab/data/kell-charts /tmp/kell-charts
           git fetch origin feature/kell-mcp-lab
           changed=$(git diff --name-only "$GITHUB_SHA"..origin/feature/kell-mcp-lab -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
           if [ -n "$changed" ]; then
@@ -92,9 +110,11 @@ jobs:
           git reset --hard
           git checkout -B feature/kell-mcp-lab origin/feature/kell-mcp-lab
           cp /tmp/kell-latest.json lab/data/kell-latest.json
+          rm -rf lab/data/kell-charts
+          cp -R /tmp/kell-charts lab/data/kell-charts
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/kell-latest.json
+          git add lab/data/kell-latest.json lab/data/kell-charts
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
