@@ -162,4 +162,4 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Added isolated tests plus a GitHub Actions historical smoke step that enriches \`lab/data/history/2026-09-17.json\` and asserts candidate membership/order is preserved.
 - Added \`docs/KELL_SCORING.md\` documenting definitions, weights, data provenance and caveats.
 - Production impact: **none**. No merge to \`main\`, no Unified change, no Telegram change, no broker state change.
-- Validation status at commit time: pending branch CI; promote nothing until unit tests, historical smoke and live snapshot build are green.
+- Validation: branch CI is green on the implementation/fix commit: 18 Python tests passed; the 2026-09-17 historical Kell smoke scored all 82/82 existing candidates and preserved candidate membership/order exactly; top scores in that archived run were CMPS 57.6, SDGR 55.4 and VITL 54.3. The live public-data build for session 2026-09-21 produced 80 candidates with 80/80 chart coverage. Snapshot-link tests passed. A follow-up CI hardening step also adds `node --check lab/app.js` for GridView syntax.
