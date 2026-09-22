@@ -142,6 +142,36 @@ All published screens remain available independently as separate UI buckets.
 
 RVOL >=3x remains a separate discovery flag and is not double-counted.
 
+## Validation — 2026-09-21 Unified session
+
+Full deduplicated Unified pool: **2,683**, chart coverage **2,683/2,683**. At least one v3 Kell screen/proxy matched **2,063** names.
+
+Published / primary buckets:
+
+- 52 Week Highs: **3**
+- Bull Snort: **20**
+- Gappers: **58**
+- Doublers YTD: **39**
+- Strength on Down Day: **246**
+- RVOL >=3x: **15** (stricter abnormal-volume discovery flag)
+- Unusual Volume >=2x: **62**
+
+Research / Cycle context:
+
+- Kell Focus: **6**
+- 3M +50%: **139**
+- Buyable Gap proxy: **6**
+- RS Divergence: **500**
+- Weekly 10EMA trend: **567**
+- EMA10/20 Ready: **323**
+- Wedge Pop: **111**
+- EMA Crossback: **15**
+- Base n' Break: **51**
+- Tightening: **98**
+- Near Breakout: **347**
+
+CI run **#102** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data validation and safe publication.
+
 ## Output / UI contract
 
 The compact preview exposes every candidate that hits at least one Kell screen/proxy and publishes `kellScoring.screenCounts`. The UI provides separate buckets for 52W Highs, Bull Snorts, RVOL >=3x, Doublers YTD, Gappers, Strength on Down Day, Cycle setups and the other research signals, with hit counts shown directly on the filter buttons.
