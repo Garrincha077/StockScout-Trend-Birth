@@ -11,7 +11,7 @@ test('universe and secondary filters are separate controls',()=>{
   for(const universe of ['all','bottom-fishing','next','ryan-original']){
     assert.match(html,new RegExp('data-universe="'+universe+'"'));
   }
-  assert.match(html,/data-filter="none" class="active">All candidates/);
+  assert.match(html,/data-filter="none" class="active">No filter/);
   assert.match(html,/data-filter="kell_bull_snort"/);
   assert.doesNotMatch(html,/data-filter="bottom-fishing"/);
 });
