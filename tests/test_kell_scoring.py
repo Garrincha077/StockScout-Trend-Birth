@@ -32,6 +32,7 @@ class KellScoringTests(unittest.TestCase):
         for field in (
             "kell_52w_high",
             "kell_unusual_volume",
+            "kell_rvol_3x",
             "kell_bull_snort",
             "kell_doubler",
             "kell_gapper",
@@ -62,6 +63,7 @@ class KellScoringTests(unittest.TestCase):
         }
         out = kell.score_candidate(bars)
         self.assertTrue(out["kell_unusual_volume"])
+        self.assertTrue(out["kell_rvol_3x"])
         self.assertTrue(out["kell_bull_snort"])
 
     def test_doubler_accepts_strong_3m_momentum(self):

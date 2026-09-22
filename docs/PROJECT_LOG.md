@@ -163,3 +163,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Added \`docs/KELL_SCORING.md\` documenting definitions, weights, data provenance and caveats.
 - Production impact: **none**. No merge to \`main\`, no Unified change, no Telegram change, no broker state change.
 - Validation: branch CI is green on the implementation/fix commit: 18 Python tests passed; the 2026-09-17 historical Kell smoke scored all 82/82 existing candidates and preserved candidate membership/order exactly; top scores in that archived run were CMPS 57.6, SDGR 55.4 and VITL 54.3. The live public-data build for session 2026-09-21 produced 80 candidates with 80/80 chart coverage. Snapshot-link tests passed. A follow-up CI hardening step also adds `node --check lab/app.js` for GridView syntax.
+
+
+## 2026-09-22 — Kell screens expanded to the full Unified candidate union
+
+- Clarified product scope: every Kell screen now scans the deduplicated union of all candidates published by Unified across Bottom Fishing, Next and Ryan. Unified publisher semantics were verified: each mode's published `core.universe` is its candidate set (`counts.universe == counts.candidates`), so this does not introduce a new market-wide scan.
+- Added a separate `kellCandidates` snapshot collection so full-union Kell matches do not alter or flood the ordinary Review Grid candidate set.
+- Added separate full-union filters for 52W/New High, unusual volume >=2x, RVOL >=3x, Bull Snort, Doubler/3M-6M momentum, Gapper, Strength on Down Day, EMA10/20 readiness, Wedge Pop, EMA Crossback, Base n' Break, tightening and breakout proximity, plus Kell >=60.
+- Added explicit `kell_rvol_3x` field. It is a screen flag, not an extra score weight, so the existing normalized Kell score remains comparable.
+- The default All/Bottom/Next/Ryan board and existing source rankings remain unchanged. Production impact remains none; work stays isolated on `feature/kell-mcp-lab`.
+- Validation: pending branch CI/live full-union build after this change.

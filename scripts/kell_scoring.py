@@ -115,6 +115,7 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     empty = {
         "kell_52w_high": None,
         "kell_unusual_volume": None,
+        "kell_rvol_3x": None,
         "kell_bull_snort": None,
         "kell_doubler": None,
         "kell_gapper": None,
@@ -256,6 +257,7 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     )
 
     unusual_volume = rvol20 is not None and rvol20 >= 2.0
+    rvol_3x = rvol20 is not None and rvol20 >= 3.0
     bull_snort = (
         ret_1d is not None and ret_1d >= 4.0
         and rvol20 is not None and rvol20 >= 2.0
@@ -348,6 +350,7 @@ def score_candidate(chart_rows: list | None, benchmark_rows: list | None = None)
     return {
         "kell_52w_high": near_52w or new_52w_high,
         "kell_unusual_volume": unusual_volume,
+        "kell_rvol_3x": rvol_3x,
         "kell_bull_snort": bull_snort,
         "kell_doubler": doubler if ret_3m is not None or ret_6m is not None else None,
         "kell_gapper": gapper,

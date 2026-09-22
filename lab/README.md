@@ -49,3 +49,7 @@ Then open `http://localhost:8000/`.
 \`scripts/kell_scoring.py\` adds a transparent 0–100 Oliver Kell-style score to every candidate already selected by the review pipeline. It does not add candidates or alter the existing default order. The UI exposes a score badge, \`Kell >=60\` filter, score sort, and full per-criterion breakdown.
 
 See \`docs/KELL_SCORING.md\` for exact v1 thresholds, weights and methodology.
+
+### Unified-wide Kell filters
+
+Kell filters scan the deduplicated union of all published Bottom, Next and Ryan candidates, not only the normal top Review Grid rows. Separate filters are available for 52W/New High, unusual volume, RVOL >=3x, Bull Snort, Doublers, Gappers, Strength on Down Day, EMA readiness, Wedge Pop, EMA Crossback, Base n' Break, Tightening and Near Breakout. The normal All/Bottom/Next/Ryan review board is unchanged.

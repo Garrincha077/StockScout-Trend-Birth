@@ -2,7 +2,7 @@
 
 Branch scope: \`feature/kell-mcp-lab\`
 
-This layer scores **only candidates StockScout has already selected**. It does not create a new market-wide universe and does not change candidate membership, source ranks, or the default GridView ordering.
+This layer scores the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not change Unified candidate generation, source ranks, or the default Review Grid ordering.
 
 ## Data source
 
@@ -18,6 +18,7 @@ The final \`kell_score\` is normalized to 0–100 over the criteria that have en
 | --- | ---: | --- |
 | 52W / New High | 8 | Close within 3% of 52-week high or current bar makes a new 52-week high |
 | Unusual Volume | 10 | Latest volume / prior 20-session average >= 2.0x |
+| RVOL 3x screen | — | Separate screen flag when latest volume / prior 20-session average >= 3.0x; not an extra score weight |
 | Bull Snort | 12 | 1D return >= 4%, RVOL20 >= 2.0x, close in top 30% of daily range |
 | Doubler / 3M–6M momentum | 8 | 3M return >= 50% or 6M return >= 100% |
 | Gapper | 8 | Open >= 3% above prior close |
@@ -53,3 +54,7 @@ Each candidate receives:
 \`score_breakdown\` contains the hit state, awarded points, maximum points, availability and a human-readable detail string for every criterion.
 
 These are explicit research proxies, not claims that the formulas reproduce any proprietary Oliver Kell screen exactly.
+
+## Unified-wide screen output
+
+The snapshot contains a separate `kellCandidates` collection built from the deduplicated union of all published Unified candidates. `kellScoring.screenCounts` reports full-union counts for every Kell screen. The normal `candidates` collection and default Review Grid remain unchanged; Kell filters switch the UI to `kellCandidates` so they can show every match from Unified, including names outside the ordinary top review rows.

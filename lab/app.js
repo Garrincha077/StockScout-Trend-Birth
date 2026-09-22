@@ -5,6 +5,24 @@ const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
 const label=s=>labels[s]||s;
+const kellFilterLabels={
+  'kell-any':'Kell Hits',
+  'kell_52w_high':'52W / New High',
+  'kell_unusual_volume':'Unusual Vol ≥2x',
+  'kell_rvol_3x':'RVOL ≥3x',
+  'kell_bull_snort':'Bull Snort',
+  'kell_doubler':'Doubler / 3–6M',
+  'kell_gapper':'Gapper',
+  'kell_strength_on_down_day':'Strength on Down Day',
+  'kell_ema_readiness':'EMA10/20 Ready',
+  'kell_wedge_pop':'Wedge Pop',
+  'kell_ema_crossback':'EMA Crossback',
+  'kell_base_n_break':"Base n' Break",
+  'kell_tightening':'Tightening',
+  'kell_breakout_proximity':'Near Breakout',
+  'kell-score':'Kell ≥60'
+};
+const kellFilters=new Set(Object.keys(kellFilterLabels));
 
 function normalizeBars(rows){
   return(rows||[]).map(r=>Array.isArray(r)
@@ -69,10 +87,10 @@ function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓'
 function ruleAnalysis(item){
   const m=item.metrics||{},rvol=Number(m.rvol),rsi=Number(m.rsi14),gap=Math.abs(Number(m.emaGapPct));
   const hh=m.higherHigh===true,hl=m.higherLow===true,trend=m.slope50==='upward'&&m.slope30w==='upward';
-  const kell=item.sources.includes('kell-daily');
-  const kellGap=item.sources.includes('kell-gap');
+  const kell=item.sources.includes('kell-daily')||item.kell_rvol_3x===true;
+  const kellGap=item.sources.includes('kell-gap')||item.kell_gapper===true;
   if(kellGap){
-    const g=item.kellGap||{},held=Number(g.gapHeldPct),gap=Number(g.gapPct),strongHold=Number.isFinite(held)&&held>=60;
+    const g=item.kellGap||{},held=Number(g.gapHeldPct),gap=Number(g.gapPct??item.kell_metrics?.gap_pct),strongHold=Number.isFinite(held)&&held>=60;
     return{
       status:strongHold?'ACTION':'WATCH',
       state:strongHold?'KELL GAP HOLD':'KELL GAP WATCH',
@@ -101,17 +119,23 @@ function ruleAnalysis(item){
   return{status:'REVIEW',state:'DEVELOPING',preferredTrade:'Bez forsiranog ulaza; čekati spring, HL/reclaim ili trend pullback s jasnom invalidacijom.',summary:'Setup još nema dovoljno kombinirane potvrde za definirani entry.'};
 }
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
+function isKellView(){return kellFilters.has(state.filter)}
+function sourceItems(){
+  return isKellView()?(state.data?.kellCandidates||[]):(state.data?.candidates||[]);
+}
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
   if(state.filter==='all')return true;
   if(state.filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
   if(state.filter==='multi')return item.sources.length>1;
+  if(state.filter==='kell-any')return true;
   if(state.filter==='kell-score')return Number(item.kell_score)>=60;
+  if(kellFilters.has(state.filter))return item[state.filter]===true;
   return item.sources.includes(state.filter);
 }
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),status=String(a.status||'REVIEW').toUpperCase();
-  const gap=item.kellGap||{};
+  const gap=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
@@ -123,11 +147,17 @@ function card(item){
 let observer;
 function render(){
   if(!state.data)return;
-  const items=state.data.candidates.filter(visible);
-  if(state.sort==='kell-score')items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
+  const items=sourceItems().filter(visible);
+  if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
   $('#grid').innerHTML=items.map(card).join('');
-  const strongKell=state.data.candidates.filter(x=>Number(x.kell_score)>=60).length;
-  $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell ≥60 '+strongKell+' · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
+  if(isKellView()){
+    const pool=state.data.kellScoring?.unifiedCandidateCount??0;
+    const coverage=state.data.kellScoring?.chartCoverageCount??0;
+    $('#status').textContent=items.length+' pogodaka · '+(kellFilterLabels[state.filter]||'Kell')+' · skenirano '+pool+' Unified kandidata · chart '+coverage+'/'+pool;
+  }else{
+    const strongKell=(state.data.kellCandidates||[]).filter(x=>Number(x.kell_score)>=60).length;
+    $('#status').textContent=items.length+' / '+state.data.candidateCount+' kandidata · Kell ≥60 '+strongKell+' · Kell 3x '+(state.data.kell?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-daily')).length)+' · Gap '+(state.data.kellGap?.qualifiedCount??state.data.candidates.filter(x=>x.sources.includes('kell-gap')).length);
+  }
   observer?.disconnect();
   observer=new IntersectionObserver(entries=>{
     for(const entry of entries){
@@ -147,7 +177,7 @@ function render(){
 }
 function fact(name,value){return '<div class="fact"><span>'+esc(name)+'</span>'+esc(value??'—')+'</div>'}
 function show(item){
-  const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{};
+  const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
   $('#detailBody').innerHTML=
     '<div class="detail-head"><h2>'+esc(item.ticker)+'</h2><div class="badges">'+badges(item)+'</div></div>'+

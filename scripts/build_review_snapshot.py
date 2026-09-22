@@ -17,6 +17,21 @@ from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candid
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
+KELL_SCREEN_FIELDS = (
+    "kell_52w_high",
+    "kell_unusual_volume",
+    "kell_rvol_3x",
+    "kell_bull_snort",
+    "kell_doubler",
+    "kell_gapper",
+    "kell_strength_on_down_day",
+    "kell_ema_readiness",
+    "kell_wedge_pop",
+    "kell_ema_crossback",
+    "kell_base_n_break",
+    "kell_tightening",
+    "kell_breakout_proximity",
+)
 
 
 def _get_bytes(url: str) -> bytes:
@@ -570,6 +585,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     mode_payloads: dict[str, tuple[str, dict, dict]] = {}
     kell_pool: dict[str, tuple[list[str], dict]] = {}
     kell_gap_probe_pool: dict[str, dict] = {}
+    unified_kell_pool: dict[str, dict] = {}
     mode_universe_counts: dict[str, int] = {}
 
     for mode in MODES:
@@ -579,6 +595,28 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         full_rows = _rows_for_mode(mode_root, mode, manifest, core)
         mode_payloads[mode] = (mode_root, manifest, core)
         mode_universe_counts[mode] = len(full_rows)
+
+        # Full Unified candidate union for Kell screens. In Unified's published
+        # contract, core.universe is the mode candidate set (counts.universe ==
+        # counts.candidates), so this is not a new market-wide universe.
+        for row in full_rows:
+            ticker = _ticker(row)
+            if not ticker:
+                continue
+            pool_item = unified_kell_pool.setdefault(
+                ticker,
+                {"ticker": ticker, "unifiedSources": [], "chartModes": [], "raw": {}},
+            )
+            if mode not in pool_item["unifiedSources"]:
+                pool_item["unifiedSources"].append(mode)
+            if mode not in pool_item["chartModes"]:
+                pool_item["chartModes"].append(mode)
+            if mode == "next":
+                pool_item["raw"] = {**pool_item["raw"], **row}
+            elif mode == "bottom-fishing":
+                pool_item["raw"] = {**row, **pool_item["raw"]}
+            else:
+                pool_item["raw"] = {**row, **pool_item["raw"]}
 
         # The Bottom public screener carries the full transparent evidence fields
         # used by Unified's existing Kell saved screens. Scan that broad pool once.
@@ -686,6 +724,24 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         if benchmark_rows:
             break
 
+    # Score the complete Unified candidate union. Prefer adjusted Next/Ryan
+    # chart history when available; fall back to Bottom for Bottom-only names.
+    kell_unified_charts: dict[str, list] = dict(charts)
+    kell_pending = set(unified_kell_pool) - set(kell_unified_charts)
+    for mode in ("next", "ryan-original", "bottom-fishing"):
+        if not kell_pending:
+            break
+        mode_root, manifest, core = mode_payloads[mode]
+        mode_tickers = {
+            ticker for ticker in kell_pending
+            if mode in unified_kell_pool[ticker]["chartModes"]
+        }
+        if not mode_tickers:
+            continue
+        loaded = load_charts(mode_root, manifest, core, mode_tickers)
+        kell_unified_charts.update(loaded)
+        kell_pending -= set(loaded)
+
     def kell_chart_quality(item: dict) -> bool:
         metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
         slope50 = metrics.get("slope50")
@@ -781,6 +837,33 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             merged.pop(ticker)
 
     analysis_by_ticker = analysis if isinstance(analysis, dict) else {}
+
+    kell_screen_counts = {field: 0 for field in KELL_SCREEN_FIELDS}
+    kell_candidates = []
+    for ticker, pool_item in unified_kell_pool.items():
+        rows = kell_unified_charts.get(ticker, [])
+        scored = score_candidate(rows, benchmark_rows)
+        hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
+        for field in hit_screens:
+            kell_screen_counts[field] += 1
+        if not hit_screens:
+            continue
+        raw = pool_item.get("raw") or {}
+        kell_candidates.append({
+            "ticker": ticker,
+            "sources": list(pool_item.get("unifiedSources") or []),
+            "unifiedSources": list(pool_item.get("unifiedSources") or []),
+            "metrics": _summary(raw, rows),
+            "chartBars": rows[-260:],
+            "analysis": analysis_by_ticker.get(ticker, {}),
+            "kellScreens": hit_screens,
+            **scored,
+        })
+    kell_candidates.sort(key=lambda item: (
+        -float(item.get("kell_score") or 0.0),
+        item["ticker"],
+    ))
+
     candidates = []
     for ticker, item in merged.items():
         raw = item.pop("raw")
@@ -832,11 +915,17 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         },
         "kellScoring": {
             "modelVersion": KELL_SCORE_MODEL_VERSION,
-            "scope": "existing-candidates-only",
+            "scope": "all-unified-candidates",
             "candidateGenerationChanged": False,
             "benchmark": "SPY" if benchmark_rows else "unavailable",
-            "method": "Transparent OHLCV overlay applied after existing StockScout candidate selection",
+            "unifiedCandidateCount": len(unified_kell_pool),
+            "chartCoverageCount": len(kell_unified_charts),
+            "matchedCandidateCount": len(kell_candidates),
+            "screenCounts": kell_screen_counts,
+            "method": "Transparent OHLCV screens over the deduplicated union of all published Unified mode candidates; no new market-wide universe",
         },
+        "kellCandidateCount": len(kell_candidates),
+        "kellCandidates": kell_candidates,
         "candidateCount": len(candidates),
         "chartCount": sum(bool(item["chartBars"]) for item in candidates),
         "candidates": candidates,
@@ -865,6 +954,8 @@ def main() -> int:
         "charts": snapshot["chartCount"],
         "sessionDate": snapshot["source"]["sessionDate"],
         "kellEligible": snapshot["kell"]["eligiblePublicPool"],
+        "kellUnifiedCandidates": snapshot["kellScoring"]["unifiedCandidateCount"],
+        "kellMatchedCandidates": snapshot["kellScoring"]["matchedCandidateCount"],
     }))
     return 0
 
