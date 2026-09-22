@@ -50,14 +50,24 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path("lab/data/kell-latest.json").read_text())
-          assert data["schemaVersion"] == "kell-compact-v1"
+          assert data["schemaVersion"] == "kell-compact-v2"
           assert data["source"]["sessionDate"]
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
-          assert data["kellScoring"]["modelVersion"] == "kell-overlay-v3-screening-guide"
+          assert data["kellScoring"]["modelVersion"] == "kell-overlay-v4-screen-stage-setup"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
           assert "kell_doubler_ytd" in data["kellScoring"]["screenCounts"]
           assert "kell_doubler_6m" not in data["kellScoring"]["screenCounts"]
-          assert any("kell_focus" in x.get("kellScreens", []) for x in data["kellCandidates"])
+          assert "kell_wedge_pop" in data["kellScoring"]["setupCounts"]
+          assert "kell_focus" in data["kellScoring"]["contextCounts"]
+          assert data["kellScoring"]["stageCounts"]
+          for item in data["kellCandidates"]:
+              screens = set(item.get("kellScreens", []))
+              setups = set(item.get("kellSetups", []))
+              context = set(item.get("kellContext", []))
+              assert screens.isdisjoint(setups)
+              assert screens.isdisjoint(context)
+              assert setups.isdisjoint(context)
+              assert (item.get("kell_stage") or {}).get("primary")
           print({
               "sessionDate": data["source"]["sessionDate"],
               "kellCandidates": len(data["kellCandidates"]),
