@@ -1,51 +1,75 @@
-# Oliver Kell Overlay Scoring v2 — PDF grounded
+# Oliver Kell Overlay Scoring v3 — Screening Guide aligned
 
 Branch scope: `feature/kell-mcp-lab`
 
 This layer scans the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not alter Unified candidate generation, source ranks, or the ordinary Review Grid.
 
-The model is `kell-overlay-v2-pdf`. It was revised against Oliver Kell's *Victory in Stock Trading*. The book supplies the qualitative framework; where Kell does not publish a numerical threshold, this lab uses an explicit, reproducible proxy and labels it as such.
+The model is `kell-overlay-v3-screening-guide`. v3 separates two things that were mixed together in v2:
+
+1. **Published Kell screens** — use the explicit numerical criteria shown in Oliver Kell's Screening Guide / April 2024 Stock Selection webinar.
+2. **Cycle of Price Action research proxies** — Wedge Pop, EMA Crossback, Base n' Break, tightening and readiness remain transparent deterministic approximations because Kell does not publish a complete machine-readable formula for those setups.
+
+Primary public reference:
+- https://theswingreport.com/wp-content/uploads/2024/04/Stock-Selection-Webinar-April-2024.pdf
 
 ## Source hierarchy
 
 1. Existing Unified candidate membership.
 2. Existing Unified daily OHLCV/chart history.
 3. Unified embedded relative-strength series (`RS = stock / SPY * 100`) to reconstruct point-in-time SPY history.
-4. Existing Unified context fields such as `rsRank`, `fundamentalSupport`, `revenueYoY`, and `epsYoY`.
+4. Existing Unified context fields such as `rsRank`, growth fields and beta where available.
 5. No external symbol may be added to the candidate pool by the Kell layer.
 
-## Name-selection context
+## Published screen formulas
 
-- `kell_name_selection_ok`: price >= $10 and prior 20-session average volume >= 1,000,000 shares.
+| Screen | v3 operational definition |
+| --- | --- |
+| Bull Snort | Price > $20; Avg Vol 20D > 500k shares; stock up on the day; RVOL20 >=2.0x. Kell says 3x+ is preferred, so `kell_rvol_3x` remains a separate stricter flag. |
+| 52 Week Highs | New 52-week high today; Price > $20; Avg Vol 20D > 500k; Beta >1. |
+| Gappers | Price > $20; Avg Vol 20D > 500k; opening gap >3%. |
+| Doublers | Price > $20; Avg Vol 20D > 500k; calendar YTD performance >100%. |
+| Strength on Down Days | Price > $20; Avg Vol 20D > 500k; Beta >1; stock up on the day. Kell typically uses this screen when the market is down roughly 1–2% or more. |
+
+Implementation notes:
+
+- `kell_doubler_ytd` and compatibility alias `kell_doubler` are the canonical Doublers screen.
+- `kell_doubler_6m` is retained only as a **legacy momentum diagnostic**; it is no longer treated as Kell's Doublers formula.
+- `kell_down_market_context` is a separate context flag and becomes true when the reconstructed SPY session is down at least 1%. It is not baked into the published Strength screen formula.
+- `kell_unusual_volume` (RVOL20 >=2x) and `kell_rvol_3x` remain standalone discovery flags across the Unified pool.
+- `kell_buyable_gap_proxy` remains a stricter research overlay requiring an unfilled >3% gap, open above the prior 20D high and RVOL >=1.5x. It is not presented as Kell's published Gappers formula.
+
+## Beta handling
+
+The public 52 Week Highs and Strength on Down Days screens require Beta >1.
+
+v3 uses:
+
+1. an existing Unified beta field when one is present; otherwise
+2. a point-in-time 126-session daily beta estimate versus the reconstructed SPY series, requiring at least 60 aligned return observations.
+
+The beta fallback does not expand the universe and does not use Yahoo/MCP discovery.
+
+## Name-selection and growth context
+
+- `kell_name_selection_ok`: Price > $20 and Avg Vol 20D >500k, matching the common liquidity base in Kell's published screens.
 - `kell_growth_context`: if both revenue YoY and EPS YoY exist, both must be >=25%; if only one numeric field exists, it must be >=25%; `fundamentalSupport` is used only when neither numeric growth field is available.
 - `kell_rs_leader`: Unified RS rank >=90.
 - `kell_weekly_trend_ok`: weekly close is at/above a rising 10-week EMA.
 
-These are transparent research proxies around the book's name-selection framework, not claims that Kell published these exact scanner formulas.
+The growth, RS and weekly-trend fields are research context, not claims that they are additional filters in the five published screens above.
 
-## Momentum, volume and gaps
+## Additional momentum context
 
-| Screen | v2 operational definition |
+| Signal | Definition |
 | --- | --- |
-| 52W / New High | Close within 3% of 52-week high or current bar makes a new 52-week high |
-| Unusual Volume | RVOL20 >=2.0x |
-| RVOL 3x | RVOL20 >=3.0x; separate screen flag |
-| Bull Snort | RVOL20 >=2.0x, bullish/positive response, close in top 30% of daily range |
 | 3M +50% | 63-session return >=+50% |
-| 6M Doubler | 126-session return >=+100%; this is the true `kell_doubler` compatibility flag |
-| Gapper | Opening gap >=+3% |
-| Buyable Gap proxy | Gap >=3%, open above prior 20D high, gap remains unfilled, RVOL20 >=1.5x; catalyst is unavailable from OHLCV and is not asserted |
+| 6M +100% diagnostic | 126-session return >=+100%; stored as `kell_doubler_6m`, not the canonical Doubler |
+| Near Breakout | Close within -3.0% to +1.5% of prior 20D high |
+| RS Divergence | Stock higher-low while SPY lower-low, or stock non-negative over 20 sessions while SPY is negative |
 
-## Relative strength
+## Cycle of Price Action proxies
 
-- `kell_strength_on_down_day`: benchmark closes down while the stock closes non-negative on the aligned session.
-- `kell_rs_divergence`: stock forms a higher low while the benchmark forms a lower low, or the benchmark is negative over the aligned 20-session window while the stock is non-negative.
-
-SPY history is reconstructed from Unified's existing RS series, keeping the benchmark point-in-time aligned to the same Unified data.
-
-## Cycle of Price Action
-
-The v2 implementation treats these as a **sequence**, not unrelated breakout flags.
+The v3 implementation preserves the stricter v2 sequence logic.
 
 ### Wedge Pop
 
@@ -63,13 +87,11 @@ Proxy for the first recapture through a tightening 10/20 EMA cluster after price
 Must follow a recent Wedge Pop:
 
 - recent Wedge Pop within approximately 15 sessions;
-- this is the **first** retest of the 10/20 EMA area after that pop;
+- first retest of the 10/20 EMA area after that pop;
 - current low touches within ~1% of the EMA cluster;
 - price holds the cluster on the close.
 
 ### Base n' Break
-
-Longer consolidation supported by the short EMAs:
 
 - at least 8 of the prior 10 closes hold at/above roughly 98% of the 20EMA;
 - 10D range <=80% of 20D range;
@@ -78,8 +100,6 @@ Longer consolidation supported by the short EMAs:
 
 ### Tightening
 
-Tightening requires:
-
 - 5D median true range <=75% of the prior 15D median true range; and
 - either 5D average volume <=85% of prior 15D average volume, or at least two inside bars in the last five sessions.
 
@@ -87,36 +107,43 @@ Tightening requires:
 
 ## Kell Focus
 
-`kell_focus` is a compact actionable research shortlist, **not a claim to reproduce a proprietary Kell watchlist**.
+`kell_focus` is a compact research shortlist, **not a claim to reproduce a proprietary Kell watchlist**.
 
-A name must first pass `kell_name_selection_ok`, then either:
+A name must first pass the common Kell liquidity base, then either:
 
 1. pass the Buyable Gap proxy and have RS-leader or positive growth context; or
-2. have a core Cycle entry setup (Wedge Pop, EMA Crossback, or Base n' Break), supportive context (RS divergence or weekly trend), at least one leadership signal (52W/new high, Bull Snort, 3M +50%, 6M Doubler, or RS leader), and no known-negative growth context.
+2. have a core Cycle entry setup (Wedge Pop, EMA Crossback, or Base n' Break), supportive context (RS divergence or weekly trend), at least one leadership signal (canonical 52W High, Bull Snort, 3M +50%, canonical YTD Doubler, or RS leader), and no known-negative growth context.
 
-All individual screens remain available independently.
+All published screens remain available independently as separate UI buckets.
 
 ## Score
 
-`kell_score` is normalized to 0–100 over available criteria. v2 weights: Wedge Pop 12; Base n' Break 12; EMA Crossback 10; RS Divergence 10; Name Selection 8; Growth Context 8; 6M Doubler 8; Buyable Gap 8; Weekly Trend 8; Bull Snort 8; RS Leader 6; Strength on Down Day 6; EMA Readiness 6; 3M +50% 6; 52W/New High 5; Unusual Volume 5; Tightening 4; Breakout Proximity 4; broad Gapper 2. RVOL >=3x remains a separate discovery flag and is not double-counted.
+`kell_score` is normalized to 0–100 over available criteria. v3 weights:
 
-## Validation — 2026-09-21 Unified session
+- Wedge Pop 12
+- Base n' Break 12
+- EMA Crossback 10
+- RS Divergence 10
+- Name Selection 8
+- Growth Context 8
+- YTD Doubler 8
+- Buyable Gap proxy 8
+- Weekly Trend 8
+- Bull Snort 8
+- RS Leader 6
+- Strength on Down Day 6
+- EMA Readiness 6
+- 3M +50% 6
+- canonical Gapper 6
+- 52W High 5
+- Unusual Volume 5
+- Tightening 4
+- Breakout Proximity 4
 
-Full deduplicated Unified pool: **2,683**, chart coverage **2,683/2,683**.
+RVOL >=3x remains a separate discovery flag and is not double-counted.
 
-- Kell Focus: 6
-- Growth Context: 264
-- RS Rank >=90: 330
-- 3M +50%: 139
-- 6M Doubler: 131
-- Bull Snort: 25
-- Buyable Gap proxy: 10
-- RS Divergence: 500
-- Wedge Pop: 111
-- EMA Crossback: 15
-- Base n' Break: 51
-- Tightening: 98
+## Output / UI contract
 
-The ordinary Review Grid remained 80 candidates. CI passed 26 Python tests, the stored 2026-09-17 historical smoke, snapshot-link tests, GridView JavaScript syntax, and the live full-Unified build.
+The compact preview exposes every candidate that hits at least one Kell screen/proxy and publishes `kellScoring.screenCounts`. The UI provides separate buckets for 52W Highs, Bull Snorts, RVOL >=3x, Doublers YTD, Gappers, Strength on Down Day, Cycle setups and the other research signals, with hit counts shown directly on the filter buttons.
 
-The prior v1 definitions were materially broader on the same live session: Tightening 2,042 and EMA Crossback 243. v2 reduced those to 98 and 15 by enforcing the Cycle structure rather than generic contraction or EMA recapture.
+The ordinary Review Grid candidate generation remains unchanged.
