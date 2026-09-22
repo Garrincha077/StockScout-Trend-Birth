@@ -15,7 +15,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-MODEL_VERSION = "kell-overlay-v2-pdf"
+MODEL_VERSION = "kell-overlay-v3-screening-guide"
 
 WEIGHTS = {
     "name_selection": 8,
@@ -25,8 +25,8 @@ WEIGHTS = {
     "unusual_volume": 5,
     "bull_snort": 8,
     "momentum_3m_50": 6,
-    "doubler_6m": 8,
-    "gapper": 2,
+    "doubler_ytd": 8,
+    "gapper": 6,
     "buyable_gap_proxy": 8,
     "strength_on_down_day": 6,
     "rs_divergence": 10,
@@ -94,6 +94,56 @@ def _return_pct(closes: list[float], sessions: int) -> float | None:
     return (closes[-1] / closes[-sessions - 1] - 1.0) * 100.0
 
 
+def _year(value: Any) -> int | None:
+    try:
+        return int(str(value)[:4])
+    except (TypeError, ValueError):
+        return None
+
+
+def _ytd_return_pct(bars: list[dict[str, Any]]) -> float | None:
+    """Calendar YTD performance versus the last available close of the prior year."""
+    if len(bars) < 2:
+        return None
+    current_year = _year(bars[-1].get("time"))
+    if current_year is None:
+        return None
+    prior_year_close = None
+    for bar in reversed(bars[:-1]):
+        bar_year = _year(bar.get("time"))
+        if bar_year is not None and bar_year < current_year:
+            prior_year_close = float(bar["close"])
+            break
+    if prior_year_close is None or prior_year_close <= 0:
+        return None
+    return (float(bars[-1]["close"]) / prior_year_close - 1.0) * 100.0
+
+
+def _beta_from_aligned(
+    aligned: list[tuple[dict[str, Any], float]],
+    lookback: int = 126,
+    min_observations: int = 60,
+) -> float | None:
+    """Estimate daily beta from aligned stock/SPY closes without adding external data."""
+    sample = aligned[-(lookback + 1):]
+    pairs: list[tuple[float, float]] = []
+    for i in range(1, len(sample)):
+        stock_prev = float(sample[i - 1][0]["close"])
+        stock_now = float(sample[i][0]["close"])
+        bench_prev = float(sample[i - 1][1])
+        bench_now = float(sample[i][1])
+        if stock_prev <= 0 or bench_prev <= 0:
+            continue
+        pairs.append((stock_now / stock_prev - 1.0, bench_now / bench_prev - 1.0))
+    if len(pairs) < min_observations:
+        return None
+    stock_mean = sum(x for x, _ in pairs) / len(pairs)
+    bench_mean = sum(y for _, y in pairs) / len(pairs)
+    covariance = sum((x - stock_mean) * (y - bench_mean) for x, y in pairs)
+    variance = sum((y - bench_mean) ** 2 for _, y in pairs)
+    return covariance / variance if variance > 0 else None
+
+
 def _true_range_pct(bar: dict[str, Any], prev_close: float) -> float:
     high = float(bar["high"])
     low = float(bar["low"])
@@ -122,10 +172,10 @@ def score_candidate(
 ) -> dict:
     """Return a transparent Kell-style overlay for one existing StockScout candidate.
 
-    v2 operationalizes definitions from Oliver Kell's *Victory in Stock Trading*:
-    name selection, relative strength, the 10/20 EMA Cycle of Price Action, and
-    multi-timeframe context. Numeric thresholds that the book does not specify are
-    explicitly treated as reproducible proxies rather than proprietary Kell rules.
+    v3 separates Kell's published Screening Guide formulas from the Cycle-of-Price-
+    Action proxies. Core screens use the published price/volume/gap/YTD/beta rules;
+    Wedge Pop, EMA Crossback, Base n' Break and related readiness fields remain
+    transparent reproducible proxies rather than proprietary formulas.
     """
     bars = _bars(chart_rows)
     bench = _bars(benchmark_rows)
@@ -158,6 +208,7 @@ def score_candidate(
 
     rs_rank = context_number("rsRank", "rsRating", "rs_rank", "rs_rating")
     rs_leader: bool | None = rs_rank >= 90.0 if rs_rank is not None else None
+    context_beta = context_number("beta", "beta1Y", "beta_1y", "beta60m", "beta_60m")
 
     empty = {
         "kell_52w_high": None,
@@ -165,11 +216,13 @@ def score_candidate(
         "kell_rvol_3x": None,
         "kell_bull_snort": None,
         "kell_momentum_3m_50": None,
+        "kell_doubler_ytd": None,
         "kell_doubler_6m": None,
         "kell_doubler": None,
         "kell_gapper": None,
         "kell_buyable_gap_proxy": None,
         "kell_strength_on_down_day": None,
+        "kell_down_market_context": None,
         "kell_rs_divergence": None,
         "kell_name_selection_ok": None,
         "kell_growth_context": growth_context,
@@ -212,21 +265,27 @@ def score_candidate(
     gap_pct = (float(last["open"]) / prev_close - 1.0) * 100.0 if prev_close > 0 else None
 
     vol_base = sum(volumes[-21:-1]) / 20.0
+    avg_volume20 = sum(volumes[-20:]) / 20.0
     rvol20 = volumes[-1] / vol_base if vol_base > 0 else None
-    name_selection_ok = close >= 10.0 and vol_base >= 1_000_000.0
+    liquid_screen_base = close > 20.0 and avg_volume20 > 500_000.0
+    name_selection_ok = liquid_screen_base
 
     high_window = bars[-252:] if len(bars) >= 252 else bars
     high_52w = max(float(x["high"]) for x in high_window)
-    prior_high_window = bars[-253:-1] if len(bars) >= 253 else bars[:-1]
+    prior_high_window = bars[-253:-1] if len(bars) >= 253 else []
     prior_52w_high = max((float(x["high"]) for x in prior_high_window), default=None)
     distance_52w = (close / high_52w - 1.0) * 100.0 if high_52w > 0 else None
-    new_52w_high = prior_52w_high is not None and float(last["high"]) >= prior_52w_high
+    new_52w_high: bool | None = (
+        float(last["high"]) >= prior_52w_high if prior_52w_high is not None else None
+    )
     near_52w = distance_52w is not None and distance_52w >= -3.0
 
     ret_3m = _return_pct(closes, 63)
     ret_6m = _return_pct(closes, 126)
+    ret_ytd = _ytd_return_pct(bars)
     momentum_3m_50 = ret_3m is not None and ret_3m >= 50.0
     doubler_6m = ret_6m is not None and ret_6m >= 100.0
+    doubler_ytd = liquid_screen_base and ret_ytd is not None and ret_ytd > 100.0
 
     ema10 = _ema(closes, 10)
     ema20 = _ema(closes, 20)
@@ -362,14 +421,13 @@ def score_candidate(
     unusual_volume = rvol20 is not None and rvol20 >= 2.0
     rvol_3x = rvol20 is not None and rvol20 >= 3.0
     bull_snort = (
-        unusual_volume
+        liquid_screen_base
+        and unusual_volume
         and ret_1d is not None and ret_1d > 0.0
-        and close > float(last["open"])
-        and close_location >= 70.0
     )
 
-    gapper = gap_pct is not None and gap_pct >= 3.0
-    gap_unfilled = gapper and float(last["low"]) > prev_close
+    gapper = liquid_screen_base and gap_pct is not None and gap_pct > 3.0
+    gap_unfilled = gap_pct is not None and gap_pct > 3.0 and float(last["low"]) > prev_close
     buyable_gap_proxy = (
         gapper
         and gap_unfilled
@@ -389,7 +447,6 @@ def score_candidate(
     ]
     benchmark_ret = None
     relative_outperformance = None
-    strength_down_day: bool | None = None
     stock_ret20 = None
     benchmark_ret20 = None
     rs_divergence: bool | None = None
@@ -402,7 +459,23 @@ def score_candidate(
             aligned_stock_ret1 = (stock_now / stock_prev - 1.0) * 100.0
             benchmark_ret = (bench_now / bench_prev - 1.0) * 100.0
             relative_outperformance = aligned_stock_ret1 - benchmark_ret
-            strength_down_day = benchmark_ret < 0.0 and aligned_stock_ret1 >= 0.0
+
+    estimated_beta = _beta_from_aligned(aligned)
+    beta = context_beta if context_beta is not None else estimated_beta
+    beta_source = "unified" if context_beta is not None else ("estimated-SPY-126d" if estimated_beta is not None else "unavailable")
+    beta_ok: bool | None = beta > 1.0 if beta is not None else None
+    screen_52w_high: bool | None = (
+        None if new_52w_high is None or beta_ok is None
+        else bool(liquid_screen_base and new_52w_high and beta_ok)
+    )
+    strength_down_day: bool | None = (
+        None if beta_ok is None or ret_1d is None
+        else bool(liquid_screen_base and beta_ok and ret_1d > 0.0)
+    )
+    down_market_context: bool | None = (
+        benchmark_ret <= -1.0 if benchmark_ret is not None else None
+    )
+
     if len(aligned) >= 21:
         stock_20 = [float(x[0]["close"]) for x in aligned[-21:]]
         bench_20 = [float(x[1]) for x in aligned[-21:]]
@@ -463,10 +536,10 @@ def score_candidate(
 
     core_entry_setup = wedge_pop or ema_crossback or base_n_break
     leadership_signal = any((
-        near_52w or new_52w_high,
+        screen_52w_high is True,
         bull_snort,
         momentum_3m_50,
-        doubler_6m,
+        doubler_ytd,
         rs_leader is True,
     ))
     supportive_context = rs_divergence is True or weekly_trend_ok is True
@@ -489,7 +562,7 @@ def score_candidate(
     criteria = {
         "name_selection": _criterion(
             name_selection_ok, WEIGHTS["name_selection"],
-            f"price={_fmt(close,2)}; avgVol20={_fmt(vol_base,0)}; book anchors: price>=10, prefers ~1M shares/day",
+            f"price={_fmt(close,2)}; avgVol20={_fmt(avg_volume20,0)}; Screening Guide daily liquidity base: price>20, avgVol20>500k",
         ),
         "growth_context": _criterion(
             growth_context, WEIGHTS["growth_context"],
@@ -504,8 +577,8 @@ def score_candidate(
             f"Unified RS rank={_fmt(rs_rank,0)}; leadership proxy threshold=90" if rs_rank is not None else "Unified RS rank unavailable; criterion excluded",
         ),
         "52w_high": _criterion(
-            near_52w or new_52w_high, WEIGHTS["52w_high"],
-            f"distance={_fmt(distance_52w)}%; new_high={new_52w_high}",
+            screen_52w_high, WEIGHTS["52w_high"],
+            f"new52wHigh={new_52w_high}; price={_fmt(close,2)}; avgVol20={_fmt(avg_volume20,0)}; beta={_fmt(beta,2)} ({beta_source}); guide requires new high, price>20, avgVol20>500k, beta>1",
         ),
         "unusual_volume": _criterion(
             unusual_volume, WEIGHTS["unusual_volume"],
@@ -513,19 +586,19 @@ def score_candidate(
         ),
         "bull_snort": _criterion(
             bull_snort, WEIGHTS["bull_snort"],
-            f"heavy-volume bullish response: RVOL20={_fmt(rvol20,2)}x; ret1d={_fmt(ret_1d)}%; close_location={_fmt(close_location)}%",
+            f"guide: price>20, avgVol20>500k, stock up, RVOL20>=2x (3x preferred); price={_fmt(close,2)}; avgVol20={_fmt(avg_volume20,0)}; RVOL20={_fmt(rvol20,2)}x; ret1d={_fmt(ret_1d)}%",
         ),
         "momentum_3m_50": _criterion(
             momentum_3m_50 if ret_3m is not None else None, WEIGHTS["momentum_3m_50"],
             f"ret3m={_fmt(ret_3m)}%; threshold=50%",
         ),
-        "doubler_6m": _criterion(
-            doubler_6m if ret_6m is not None else None, WEIGHTS["doubler_6m"],
-            f"ret6m={_fmt(ret_6m)}%; true doubler threshold=100%",
+        "doubler_ytd": _criterion(
+            doubler_ytd if ret_ytd is not None else None, WEIGHTS["doubler_ytd"],
+            f"guide: price>20, avgVol20>500k, YTD>100%; YTD={_fmt(ret_ytd)}%; avgVol20={_fmt(avg_volume20,0)}",
         ),
         "gapper": _criterion(
             gapper, WEIGHTS["gapper"],
-            f"opening_gap={_fmt(gap_pct)}%; broad discovery threshold=3%",
+            f"guide: price>20, avgVol20>500k, opening gap>3%; gap={_fmt(gap_pct)}%; price={_fmt(close,2)}; avgVol20={_fmt(avg_volume20,0)}",
         ),
         "buyable_gap_proxy": _criterion(
             buyable_gap_proxy, WEIGHTS["buyable_gap_proxy"],
@@ -533,11 +606,7 @@ def score_candidate(
         ),
         "strength_on_down_day": _criterion(
             strength_down_day, WEIGHTS["strength_on_down_day"],
-            (
-                f"benchmark={_fmt(benchmark_ret)}%; stock={_fmt(ret_1d)}%; relative={_fmt(relative_outperformance)}%"
-                if benchmark_ret is not None
-                else "benchmark unavailable; criterion excluded from denominator"
-            ),
+            f"guide screen: price>20, avgVol20>500k, beta>1, stock up; beta={_fmt(beta,2)} ({beta_source}); stock={_fmt(ret_1d)}%; SPY={_fmt(benchmark_ret)}%; severe-down-day context={down_market_context}",
         ),
         "rs_divergence": _criterion(
             rs_divergence, WEIGHTS["rs_divergence"],
@@ -582,16 +651,18 @@ def score_candidate(
     score = round(points / possible * 100.0, 1) if possible else 0.0
 
     return {
-        "kell_52w_high": near_52w or new_52w_high,
+        "kell_52w_high": screen_52w_high,
         "kell_unusual_volume": unusual_volume,
         "kell_rvol_3x": rvol_3x,
         "kell_bull_snort": bull_snort,
         "kell_momentum_3m_50": momentum_3m_50 if ret_3m is not None else None,
+        "kell_doubler_ytd": doubler_ytd if ret_ytd is not None else None,
         "kell_doubler_6m": doubler_6m if ret_6m is not None else None,
-        "kell_doubler": doubler_6m if ret_6m is not None else None,
+        "kell_doubler": doubler_ytd if ret_ytd is not None else None,
         "kell_gapper": gapper,
         "kell_buyable_gap_proxy": buyable_gap_proxy,
         "kell_strength_on_down_day": strength_down_day,
+        "kell_down_market_context": down_market_context,
         "kell_rs_divergence": rs_divergence,
         "kell_name_selection_ok": name_selection_ok,
         "kell_growth_context": growth_context,
@@ -616,7 +687,8 @@ def score_candidate(
             "warnings": ["too_tight_for_too_long_relative_weakness"] if ttftl_warning is True else [],
         },
         "kell_metrics": {
-            "avg_volume20": vol_base,
+            "avg_volume20": avg_volume20,
+            "rvol_baseline_volume20": vol_base,
             "fundamental_support": fundamental_support,
             "revenue_yoy_pct": revenue_yoy,
             "eps_yoy_pct": eps_yoy,
@@ -625,6 +697,9 @@ def score_candidate(
             "ret_1d_pct": ret_1d,
             "ret_3m_pct": ret_3m,
             "ret_6m_pct": ret_6m,
+            "ret_ytd_pct": ret_ytd,
+            "beta": beta,
+            "beta_source": beta_source,
             "gap_pct": gap_pct,
             "gap_unfilled": gap_unfilled,
             "gap_held_pct": gap_held_pct,
