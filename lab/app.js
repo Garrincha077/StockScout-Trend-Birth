@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),filter:'all',query:'',sort:'default'};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),filter:'all',query:'',sort:'default',chartPeriod:'1y'};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -70,21 +70,61 @@ function avg(values,n,ema=false){
   });
   return out;
 }
-function barDateLabel(value){
-  const text=String(value??'');
+const chartPeriods={
+  '3m':{label:'3M · D',daily:63},
+  '6m':{label:'6M · D',daily:126},
+  '1y':{label:'1Y · D',daily:260},
+  '5y':{label:'5Y · W',weekly:true,weeks:260}
+};
+function barDate(value){
+  const text=String(value??'').trim();
   const match=text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(match)return match[3]+'.'+match[2]+'.'+match[1].slice(2);
+  if(match)return new Date(Date.UTC(+match[1],+match[2]-1,+match[3]));
   const numeric=Number(value);
   if(Number.isFinite(numeric)&&numeric>0){
     const date=new Date(numeric<1e12?numeric*1000:numeric);
-    if(!Number.isNaN(date.getTime())){
-      const day=String(date.getUTCDate()).padStart(2,'0');
-      const month=String(date.getUTCMonth()+1).padStart(2,'0');
-      const year=String(date.getUTCFullYear()).slice(2);
-      return day+'.'+month+'.'+year;
+    return Number.isNaN(date.getTime())?null:date;
+  }
+  return null;
+}
+function weeklyBars(rows){
+  const bars=normalizeBars(rows),out=[];
+  let current=null;
+  for(const bar of bars){
+    const date=barDate(bar.time);if(!date)continue;
+    const day=date.getUTCDay(),offset=(day+6)%7;
+    const monday=new Date(date.getTime()-offset*86400000);
+    const key=monday.toISOString().slice(0,10);
+    if(!current||current.key!==key){
+      current={key,time:date.toISOString().slice(0,10),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume||0};
+      out.push(current);
+    }else{
+      current.time=date.toISOString().slice(0,10);
+      current.high=Math.max(current.high,bar.high);
+      current.low=Math.min(current.low,bar.low);
+      current.close=bar.close;
+      current.volume+=(bar.volume||0);
     }
   }
-  return text.slice(0,8)||'—';
+  return out;
+}
+function rowsForPeriod(item){
+  const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
+  if(period.weekly){
+    const weekly=item?.weeklyChartBars?.length>=2?normalizeBars(item.weeklyChartBars):weeklyBars(item?.chartBars||[]);
+    return weekly.slice(-period.weeks);
+  }
+  return normalizeBars(item?.chartBars||[]).slice(-period.daily);
+}
+function barDateLabel(value){
+  const date=barDate(value);
+  if(date){
+    const day=String(date.getUTCDate()).padStart(2,'0');
+    const month=String(date.getUTCMonth()+1).padStart(2,'0');
+    const year=String(date.getUTCFullYear()).slice(2);
+    return day+'.'+month+'.'+year;
+  }
+  return String(value??'').slice(0,8)||'—';
 }
 function priceLabel(value){
   const n=Number(value);
@@ -95,7 +135,8 @@ function priceLabel(value){
   return n.toFixed(3);
 }
 function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
-  const bars=normalizeBars(rows).slice(large?-504:-180);
+  const bars=normalizeBars(rows);
+  const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
   const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1;
   canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
@@ -105,7 +146,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     ctx.fillStyle='#8ea0b7';ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.fillText(emptyMessage,12,22);return;
   }
-  const top=large?28:16,bottom=large?46:34,left=large?10:8,right=large?72:56;
+  const top=large?32:24,bottom=large?46:38,left=large?10:8,right=large?72:60;
   const rawLo=Math.min(...bars.map(b=>b.low)),rawHi=Math.max(...bars.map(b=>b.high));
   const rawRange=Math.max(rawHi-rawLo,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
   const lo=rawLo-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
@@ -141,9 +182,14 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     ctx.fillText(barDateLabel(bars[index].time),x(index),h-bottom+8);
   });
   ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#8ea0b7';
+  ctx.textAlign='left';
+  ctx.fillText(period.label,left,14);
   if(large){
-    ctx.textAlign='left';ctx.fillText('EMA10 / EMA20 / SMA50',left,15);
-    ctx.textAlign='right';ctx.fillText(bars.length+' sessions',w-right,15);
+    ctx.textAlign='center';
+    ctx.fillText(period.weekly?'EMA10W / EMA20W / SMA50W':'EMA10 / EMA20 / SMA50',left+plotW/2,14);
+    ctx.textAlign='right';
+    ctx.fillText(bars.length+(period.weekly?' weeks':' sessions'),w-right,14);
   }
 }
 function badges(item){
@@ -258,12 +304,12 @@ async function ensureKellData(){
     .catch(err=>{state.kellLoading=null;throw err});
   return state.kellLoading;
 }
-async function ensureChartBars(item){
-  if(item?.chartBars?.length>=2)return item.chartBars;
+async function ensureChartData(item){
+  if(rowsForPeriod(item).length>=2)return rowsForPeriod(item);
   const data=state.kellData;
   const meta=data?.kellChartData;
   const shard=Number(item?.chartShard);
-  if(!meta||!Number.isInteger(shard)||shard<0)return [];
+  if(!meta||!Number.isInteger(shard)||shard<0)return rowsForPeriod(item);
   const key=String(shard);
   let payload=state.kellChartShards.get(key);
   if(!payload){
@@ -277,7 +323,7 @@ async function ensureChartBars(item){
           return response.json();
         })
         .then(result=>{
-          if(result?.schemaVersion!=='kell-chart-shard-v1')throw new Error('invalid chart shard schema');
+          if(!['kell-chart-shard-v1','kell-chart-shard-v2'].includes(result?.schemaVersion))throw new Error('invalid chart shard schema');
           if(result?.source?.sessionDate!==data?.source?.sessionDate)throw new Error('chart shard date mismatch');
           state.kellChartShards.set(key,result);
           state.kellChartLoading.delete(key);
@@ -288,9 +334,14 @@ async function ensureChartBars(item){
     }
     payload=await loading;
   }
-  const rows=payload?.charts?.[item.ticker]||[];
-  if(rows.length>=2)item.chartBars=rows;
-  return rows;
+  const chart=payload?.charts?.[item.ticker];
+  if(Array.isArray(chart)){
+    if(chart.length>=2)item.chartBars=chart;
+  }else if(chart){
+    if(chart.daily?.length>=2)item.chartBars=chart.daily;
+    if(chart.weekly?.length>=2)item.weeklyChartBars=chart.weekly;
+  }
+  return rowsForPeriod(item);
 }
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
@@ -339,9 +390,10 @@ function render(){
       if(!entry.isIntersecting)continue;
       const canvas=entry.target,cardEl=canvas.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
       observer.unobserve(canvas);
-      if(item?.chartBars?.length>=2){draw(canvas,item.chartBars);continue}
+      const ready=rowsForPeriod(item);
+      if(ready.length>=2){draw(canvas,ready);continue}
       draw(canvas,[],false,'Loading chart…');
-      ensureChartBars(item)
+      ensureChartData(item)
         .then(rows=>{if(canvas.isConnected)draw(canvas,rows,false,rows.length>=2?'':'Chart data unavailable')})
         .catch(err=>{if(canvas.isConnected){canvas.title='Chart load error: '+err.message;draw(canvas,[],false,'Chart load failed')}})
     }
@@ -384,9 +436,10 @@ function show(item){
   $('#detail').showModal();
   requestAnimationFrame(()=>{
     const canvas=$('#detailBody canvas');
-    if(item?.chartBars?.length>=2){draw(canvas,item.chartBars,true);return}
+    const ready=rowsForPeriod(item);
+    if(ready.length>=2){draw(canvas,ready,true);return}
     draw(canvas,[],true,'Loading chart…');
-    ensureChartBars(item)
+    ensureChartData(item)
       .then(rows=>draw(canvas,rows,true,rows.length>=2?'':'Chart data unavailable'))
       .catch(err=>{canvas.title='Chart load error: '+err.message;draw(canvas,[],true,'Chart load failed')});
   });
@@ -395,6 +448,11 @@ $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
 $('#search').addEventListener('input',e=>{state.query=e.target.value.trim().toUpperCase();render()});
 $('#sort')?.addEventListener('change',e=>{state.sort=e.target.value;render()});
+$('#chartPeriod')?.addEventListener('change',e=>{
+  state.chartPeriod=e.target.value in chartPeriods?e.target.value:'1y';
+  if($('#detail')?.open)$('#detail').close();
+  render();
+});
 $('#filters').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-filter]');if(!b)return;
   state.filter=b.dataset.filter;
