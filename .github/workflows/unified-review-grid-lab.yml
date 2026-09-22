@@ -54,21 +54,25 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path("lab/data/kell-latest.json").read_text())
-          assert data["schemaVersion"] == "kell-compact-v3"
+          assert data["schemaVersion"] == "kell-compact-v4"
           assert data["source"]["sessionDate"]
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
           chart_meta = data["kellChartData"]
-          assert chart_meta["schemaVersion"] == "kell-chart-shard-v1"
+          assert chart_meta["schemaVersion"] == "kell-chart-shard-v2"
           assert chart_meta["chartCandidateCount"] == data["kellCandidateCount"]
+          assert chart_meta["weeklyChartCandidateCount"] > 0
           assert chart_meta["shardCount"] > 0
           chart_files = sorted(Path("lab/data/kell-charts").glob("shard-*.json"))
           assert len(chart_files) == chart_meta["shardCount"]
           chart_tickers = set()
           for path in chart_files:
               shard = json.loads(path.read_text())
-              assert shard["schemaVersion"] == "kell-chart-shard-v1"
+              assert shard["schemaVersion"] == "kell-chart-shard-v2"
               assert shard["source"]["sessionDate"] == data["source"]["sessionDate"]
-              chart_tickers.update(shard["charts"])
+              for ticker, chart in shard["charts"].items():
+                  assert len(chart.get("daily") or []) >= 2
+                  assert len(chart.get("weekly") or []) >= 2
+                  chart_tickers.add(ticker)
           assert len(chart_tickers) == data["kellCandidateCount"]
           assert data["kellScoring"]["modelVersion"] == "kell-overlay-v4-screen-stage-setup"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
@@ -87,6 +91,7 @@ jobs:
               assert (item.get("kell_stage") or {}).get("primary")
               assert isinstance(item.get("chartShard"), int)
               assert item.get("chartBarsCount", 0) >= 2
+              assert item.get("weeklyChartBarsCount", 0) >= 2
               assert item["ticker"] in chart_tickers
           print({
               "sessionDate": data["source"]["sessionDate"],
