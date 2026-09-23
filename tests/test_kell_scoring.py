@@ -75,11 +75,18 @@ class KellScoringTests(unittest.TestCase):
             "score_breakdown",
         ):
             self.assertIn(field, out)
-        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v4-screen-stage-setup")
-        self.assertEqual(set(out["score_breakdown"]["components"]), {"discovery", "stage", "setup", "context"})
+        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v5-quality-readiness-context")
+        self.assertEqual(set(out["score_breakdown"]["components"]), {"quality", "readiness", "context"})
         self.assertIn("primary", out["kell_stage"])
+        for field in (
+            "kell_quality_score", "kell_readiness_score", "kell_actionability_score",
+            "kell_context_score", "kell_evidence_coverage", "kell_stage_cap",
+        ):
+            self.assertIn(field, out)
+        self.assertEqual(out["kell_readiness_score"], out["kell_actionability_score"])
         self.assertGreaterEqual(out["kell_score"], 0)
         self.assertLessEqual(out["kell_score"], 100)
+        self.assertLessEqual(out["kell_score"], out["kell_stage_cap"])
 
     def test_bull_snort_is_heavy_volume_bullish_response(self):
         bars = make_bars(count=80, daily=0.001)
@@ -313,6 +320,8 @@ class KellScoringTests(unittest.TestCase):
         self.assertEqual(out["kell_stage"]["primary"], "exhaustion_extension")
         self.assertNotIn("kell_exhaustion_extension", out["kell_screens"])
         self.assertNotIn("kell_exhaustion_extension", out["kell_setups"])
+        self.assertLessEqual(out["kell_score"], 60.0)
+        self.assertLessEqual(out["kell_readiness_score"], 60.0)
 
     def test_wedge_drop_requires_recent_exhaustion_and_ema_loss(self):
         bars = make_bars(count=95, start=100.0, daily=0.0015, volume=1_200_000)
@@ -337,6 +346,8 @@ class KellScoringTests(unittest.TestCase):
         self.assertTrue(out["kell_wedge_drop"])
         self.assertEqual(out["kell_stage"]["primary"], "wedge_drop")
         self.assertIsNotNone(out["kell_metrics"]["recent_exhaustion_sessions_ago"])
+        self.assertLessEqual(out["kell_score"], 35.0)
+        self.assertLessEqual(out["kell_readiness_score"], 35.0)
 
     def test_tightening_requires_tr_contraction_plus_dryup_or_inside_bars(self):
         bars = make_bars(count=50, start=30.0, daily=0.0, volume=1_500_000)
@@ -352,6 +363,47 @@ class KellScoringTests(unittest.TestCase):
             row["volume"] = 500_000
         out = kell.score_candidate(bars)
         self.assertTrue(out["kell_tightening"])
+
+    def test_v5_rs_scoring_is_continuous_across_old_binary_boundary(self):
+        bars = make_bars(count=260, start=25.0, daily=0.001, volume=900_000)
+        low = kell.score_candidate(bars, candidate_context={"rsRank": 89})
+        high = kell.score_candidate(bars, candidate_context={"rsRank": 90})
+        self.assertFalse(low["kell_rs_leader"])
+        self.assertTrue(high["kell_rs_leader"])
+        self.assertGreater(high["kell_quality_score"], low["kell_quality_score"])
+        self.assertLess(high["kell_quality_score"] - low["kell_quality_score"], 3.0)
+
+    def test_v5_evidence_coverage_separates_score_from_missing_context(self):
+        bars = make_bars(count=260, start=25.0, daily=0.001, volume=900_000)
+        bench = make_bars(count=260, start=100.0, daily=0.0005, volume=5_000_000)
+        sparse = kell.score_candidate(bars)
+        rich = kell.score_candidate(
+            bars,
+            bench,
+            {"rsRank": 94, "revenueYoY": 35, "epsYoY": 40, "beta": 1.3},
+        )
+        self.assertGreater(rich["kell_evidence_coverage"], sparse["kell_evidence_coverage"])
+        self.assertIn("legacy_v4_score", rich["score_breakdown"])
+        self.assertIn("raw_composite", rich["score_breakdown"])
+
+    def test_v5_correlated_volume_clues_are_grouped_inside_quality(self):
+        bars = make_bars(count=80, start=30.0, daily=0.001, volume=1_000_000)
+        prev_close = bars[-2]["close"]
+        bars[-1].update({
+            "open": prev_close * 1.04,
+            "high": prev_close * 1.08,
+            "low": prev_close * 1.035,
+            "close": prev_close * 1.07,
+            "volume": 4_000_000,
+        })
+        out = kell.score_candidate(bars, candidate_context={"rsRank": 95})
+        self.assertTrue(out["kell_unusual_volume"])
+        self.assertTrue(out["kell_rvol_3x"])
+        self.assertTrue(out["kell_bull_snort"])
+        self.assertTrue(out["kell_gapper"])
+        demand = out["score_breakdown"]["components"]["quality"]["institutional_demand"]
+        self.assertGreaterEqual(demand, 80.0)
+        self.assertLessEqual(demand, 100.0)
 
     def test_enrich_snapshot_preserves_membership_and_order(self):
         snapshot = {
