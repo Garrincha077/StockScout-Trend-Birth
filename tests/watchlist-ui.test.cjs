@@ -40,3 +40,10 @@ test('browser rejects Kell or chart data from another Unified activation',()=>{
   assert.match(app,/result\?\.source\?\.runId!==data\?\.source\?\.runId/);
   assert.match(app,/chart shard Unified activation mismatch/);
 });
+
+test('Kell Hits filter does not treat every saved Unified name as a Kell hit',()=>{
+  assert.match(app,/if\(filter==='kell-any'\)return Boolean\(/);
+  assert.match(app,/item\?\.kellScreens/);
+  assert.match(app,/item\?\.kellSetups/);
+  assert.match(app,/item\?\.kellContext/);
+});
