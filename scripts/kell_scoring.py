@@ -15,7 +15,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-MODEL_VERSION = "kell-overlay-v4-screen-stage-setup"
+MODEL_VERSION = "kell-overlay-v5-quality-readiness-context"
 
 # Keep discovery, structural stage, actionable setup and supporting context distinct.
 # These are output-contract groups; they do not alter the underlying Unified universe.
@@ -187,6 +187,34 @@ def _criterion(hit: bool | None, max_points: int, detail: str) -> dict:
     }
 
 
+def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
+    return max(low, min(high, float(value)))
+
+
+def _piecewise_score(value: float | None, knots: list[tuple[float, float]]) -> float | None:
+    """Linearly interpolate a transparent 0-100 proxy score across ordered knots."""
+    if value is None or not knots:
+        return None
+    x = float(value)
+    if x <= knots[0][0]:
+        return _clamp(knots[0][1])
+    for (x0, y0), (x1, y1) in zip(knots, knots[1:]):
+        if x <= x1:
+            if x1 == x0:
+                return _clamp(y1)
+            ratio = (x - x0) / (x1 - x0)
+            return _clamp(y0 + ratio * (y1 - y0))
+    return _clamp(knots[-1][1])
+
+
+def _weighted_neutral(items: list[tuple[float | None, float]], neutral: float = 50.0) -> float:
+    """Weighted average with an explicit neutral prior for unavailable evidence."""
+    total_weight = sum(weight for _, weight in items)
+    if total_weight <= 0:
+        return neutral
+    return sum((neutral if value is None else float(value)) * weight for value, weight in items) / total_weight
+
+
 def score_candidate(
     chart_rows: list | None,
     benchmark_rows: list | None = None,
@@ -194,10 +222,10 @@ def score_candidate(
 ) -> dict:
     """Return a transparent Kell-style overlay for one existing StockScout candidate.
 
-    v3 separates Kell's published Screening Guide formulas from the Cycle-of-Price-
-    Action proxies. Core screens use the published price/volume/gap/YTD/beta rules;
-    Wedge Pop, EMA Crossback, Base n' Break and related readiness fields remain
-    transparent reproducible proxies rather than proprietary formulas.
+    v5 preserves Kell's published Screening Guide formulas but ranks candidates with
+    separate Quality, Readiness and Context scores. Correlated discovery clues are
+    grouped instead of naively stacked; late-cycle stages cap the final score. Numerical
+    thresholds that Kell does not publish remain explicit, inspectable research proxies.
     """
     bars = _bars(chart_rows)
     bench = _bars(benchmark_rows)
@@ -271,11 +299,22 @@ def score_candidate(
         "kell_setups": [],
         "kell_focus": None,
         "kell_score": 0.0,
+        "kell_quality_score": 0.0,
+        "kell_readiness_score": 0.0,
+        "kell_actionability_score": 0.0,
+        "kell_context_score": 0.0,
+        "kell_evidence_coverage": 0.0,
+        "kell_structural_risk_score": None,
+        "kell_stage_cap": 55.0,
         "score_breakdown": {
             "model_version": MODEL_VERSION,
-            "points": 0,
-            "possible_points": 0,
+            "legacy_v4_score": 0.0,
+            "raw_composite": 0.0,
+            "stage_cap": 55.0,
+            "final_score": 0.0,
+            "evidence_coverage": 0.0,
             "criteria": {},
+            "components": {},
         },
         "kell_metrics": {},
     }
@@ -805,32 +844,227 @@ def score_candidate(
         ),
     }
 
-    points = sum(x["points"] for x in criteria.values() if x["available"])
-    possible = sum(x["max_points"] for x in criteria.values() if x["available"])
-    score = round(points / possible * 100.0, 1) if possible else 0.0
+    # Preserve the old additive v4 result only as a diagnostic baseline.
+    legacy_points = sum(x["points"] for x in criteria.values() if x["available"])
+    legacy_possible = sum(x["max_points"] for x in criteria.values() if x["available"])
+    legacy_v4_score = round(legacy_points / legacy_possible * 100.0, 1) if legacy_possible else 0.0
 
-    component_groups = {
-        "discovery": (
-            "rs_leader", "52w_high", "unusual_volume", "bull_snort",
-            "momentum_3m_50", "doubler_ytd", "gapper", "strength_on_down_day",
-        ),
-        "stage": ("weekly_trend", "ema_readiness"),
-        "setup": (
-            "buyable_gap_proxy", "wedge_pop", "ema_crossback",
-            "base_n_break", "tightening", "breakout_proximity",
-        ),
-        "context": ("name_selection", "growth_context", "rs_divergence"),
+    # v5 QUALITY: group correlated evidence instead of awarding separate full points
+    # for several manifestations of the same momentum / institutional-demand event.
+    rvol_strength = _piecewise_score(
+        rvol20,
+        [(0.5, 0), (1.0, 10), (1.5, 30), (2.0, 55), (3.0, 80), (5.0, 95), (8.0, 100)],
+    )
+    response_strength = None
+    if ret_1d is not None:
+        response_strength = _clamp(50.0 + ret_1d * 7.0 + (close_location - 50.0) * 0.25)
+    institutional_demand_score = _weighted_neutral([
+        (rvol_strength, 0.80),
+        (response_strength, 0.20),
+    ])
+
+    rs_strength = _piecewise_score(
+        rs_rank,
+        [(50, 0), (70, 25), (80, 50), (90, 80), (95, 92), (99, 100)],
+    )
+    momentum_strength = _piecewise_score(
+        ret_3m,
+        [(-10, 0), (0, 10), (20, 35), (50, 75), (100, 100)],
+    )
+    high_proximity_strength = _piecewise_score(
+        distance_52w,
+        [(-25, 0), (-15, 20), (-10, 40), (-5, 70), (-3, 85), (0, 100)],
+    )
+    leadership_score = _weighted_neutral([
+        (rs_strength, 0.50),
+        (momentum_strength, 0.30),
+        (high_proximity_strength, 0.20),
+    ])
+
+    price_quality = _piecewise_score(close, [(5, 0), (10, 25), (20, 85), (50, 100)])
+    volume_quality = _piecewise_score(
+        avg_volume20,
+        [(100_000, 0), (300_000, 40), (500_000, 75), (1_000_000, 90), (2_000_000, 100)],
+    )
+    name_quality_score = _weighted_neutral([
+        (price_quality, 0.40),
+        (volume_quality, 0.60),
+    ])
+
+    daily_trend_score = None
+    if None not in (e10, e20, e10_5, e20_5):
+        if close >= float(e10) >= float(e20) and float(e10) > float(e10_5) and float(e20) >= float(e20_5):
+            daily_trend_score = 100.0
+        elif close >= max(float(e10), float(e20)):
+            daily_trend_score = 75.0
+        elif close >= min(float(e10), float(e20)):
+            daily_trend_score = 55.0
+        elif float(e10) < float(e20):
+            daily_trend_score = 15.0
+        else:
+            daily_trend_score = 35.0
+    weekly_trend_score = 100.0 if weekly_trend_ok is True else (25.0 if weekly_trend_ok is False else None)
+    higher_timeframe_trend_score = _weighted_neutral([
+        (weekly_trend_score, 0.55),
+        (daily_trend_score, 0.45),
+    ])
+
+    quality_score = _weighted_neutral([
+        (institutional_demand_score, 0.30),
+        (leadership_score, 0.30),
+        (name_quality_score, 0.20),
+        (higher_timeframe_trend_score, 0.20),
+    ])
+
+    # v5 CONTEXT: growth and relative-strength divergence support the trade thesis,
+    # but do not overpower price-cycle readiness.
+    growth_inputs: list[float] = []
+    growth_knots = [(-25, 0), (0, 20), (15, 50), (25, 70), (50, 90), (100, 100)]
+    if revenue_yoy is not None:
+        growth_inputs.append(float(_piecewise_score(revenue_yoy, growth_knots)))
+    if eps_yoy is not None:
+        growth_inputs.append(float(_piecewise_score(eps_yoy, growth_knots)))
+    if growth_inputs:
+        growth_score = sum(growth_inputs) / len(growth_inputs)
+    elif fundamental_support is not None:
+        growth_score = 75.0 if bool(fundamental_support) else 25.0
+    else:
+        growth_score = None
+    rs_divergence_score = 100.0 if rs_divergence is True else (45.0 if rs_divergence is False else None)
+    context_score = _weighted_neutral([
+        (growth_score, 0.65),
+        (rs_divergence_score, 0.35),
+    ])
+
+    # v5 READINESS: current price-cycle location is dominant. This is deliberately
+    # separate from discovery quality so a great leader can still be a poor entry now.
+    stage_base_scores = {
+        "ema_crossback": 95.0,
+        "base_n_break": 92.0,
+        "wedge_pop": 88.0,
+        "trend_ema_support": 72.0,
+        "reversal_extension": 65.0,
+        "transition": 50.0,
+        "downtrend_repair": 28.0,
+        "exhaustion_extension": 30.0,
+        "wedge_drop": 10.0,
+        "unavailable": 35.0,
     }
-    components = {}
-    for group_name, group_fields in component_groups.items():
-        group_items = [criteria[name] for name in group_fields if name in criteria and criteria[name]["available"]]
-        group_points = sum(item["points"] for item in group_items)
-        group_possible = sum(item["max_points"] for item in group_items)
-        components[group_name] = {
-            "points": group_points,
-            "possible_points": group_possible,
-            "score": round(group_points / group_possible * 100.0, 1) if group_possible else None,
-        }
+    stage_caps = {
+        "ema_crossback": 100.0,
+        "base_n_break": 100.0,
+        "wedge_pop": 100.0,
+        "trend_ema_support": 90.0,
+        "reversal_extension": 80.0,
+        "transition": 75.0,
+        "downtrend_repair": 55.0,
+        "exhaustion_extension": 60.0,
+        "wedge_drop": 35.0,
+        "unavailable": 55.0,
+    }
+    stage_base_score = stage_base_scores.get(cycle_stage, 50.0)
+    stage_cap = stage_caps.get(cycle_stage, 75.0)
+
+    setup_score = 35.0
+    if buyable_gap_proxy:
+        setup_score = max(setup_score, 86.0)
+    if wedge_pop:
+        setup_score = max(setup_score, 90.0)
+    if base_n_break:
+        setup_score = max(setup_score, 95.0)
+    if ema_crossback:
+        setup_score = max(setup_score, 98.0)
+    if tightening:
+        setup_score += 5.0
+    if breakout_proximity:
+        setup_score += 4.0
+    setup_score = _clamp(setup_score)
+
+    # Structural-risk proxy: distance from the current close to the natural Kell-style
+    # invalidation, normalized by recent true range. These numerical cut-offs are ours,
+    # not Kell-published constants.
+    atr14_pct = sum(tr[-14:]) / min(len(tr), 14) if tr else None
+    invalidation = None
+    if wedge_pop:
+        invalidation = float(last["low"])
+    elif ema_crossback and e10 is not None and e20 is not None:
+        invalidation = min(float(last["low"]), min(float(e10), float(e20)) * 0.995)
+    elif base_n_break and e10 is not None and e20 is not None:
+        invalidation = min(float(e10), float(e20)) * 0.995
+    elif buyable_gap_proxy:
+        invalidation = float(last["low"])
+    elif cycle_stage == "trend_ema_support" and e10 is not None and e20 is not None:
+        invalidation = min(float(e10), float(e20)) * 0.995
+    elif reversal_extension:
+        invalidation = float(last["low"])
+
+    structural_risk_pct = None
+    structural_risk_atr = None
+    structural_risk_score = None
+    if invalidation is not None and invalidation < close and close > 0 and atr14_pct not in (None, 0):
+        structural_risk_pct = (close - invalidation) / close * 100.0
+        structural_risk_atr = structural_risk_pct / float(atr14_pct)
+        structural_risk_score = _piecewise_score(
+            structural_risk_atr,
+            [(0.5, 100), (1.0, 95), (1.25, 90), (1.5, 82), (2.0, 65), (2.5, 50), (3.0, 35), (4.0, 15), (5.0, 0)],
+        )
+
+    readiness_raw = _weighted_neutral([
+        (stage_base_score, 0.70),
+        (setup_score, 0.20),
+        (structural_risk_score, 0.10),
+    ])
+    readiness_score = min(readiness_raw, stage_cap)
+
+    # Coverage is reported separately so a high score built on sparse context is visible.
+    coverage_evidence = [
+        (rvol20 is not None, 20.0),
+        (ret_3m is not None, 10.0),
+        (ret_6m is not None, 10.0),
+        (len(bars) >= 253, 10.0),
+        (rs_rank is not None, 15.0),
+        (weekly_trend_ok is not None, 10.0),
+        (growth_available, 15.0),
+        (rs_divergence is not None, 10.0),
+    ]
+    evidence_coverage = sum(weight for available, weight in coverage_evidence if available)
+
+    raw_composite = quality_score * 0.35 + readiness_score * 0.50 + context_score * 0.15
+    ttftl_penalty = 8.0 if ttftl_warning is True else 0.0
+    pre_cap_score = max(0.0, raw_composite - ttftl_penalty)
+    score = round(min(pre_cap_score, stage_cap), 1)
+    quality_score = round(quality_score, 1)
+    readiness_score = round(readiness_score, 1)
+    context_score = round(context_score, 1)
+    evidence_coverage = round(evidence_coverage, 1)
+    structural_risk_score = round(structural_risk_score, 1) if structural_risk_score is not None else None
+
+    components = {
+        "quality": {
+            "score": quality_score,
+            "weight": 0.35,
+            "institutional_demand": round(institutional_demand_score, 1),
+            "leadership": round(leadership_score, 1),
+            "name_quality": round(name_quality_score, 1),
+            "higher_timeframe_trend": round(higher_timeframe_trend_score, 1),
+        },
+        "readiness": {
+            "score": readiness_score,
+            "weight": 0.50,
+            "raw_score": round(readiness_raw, 1),
+            "stage_base": stage_base_score,
+            "setup": round(setup_score, 1),
+            "structural_risk": structural_risk_score,
+            "structural_risk_atr": round(structural_risk_atr, 2) if structural_risk_atr is not None else None,
+            "stage_cap": stage_cap,
+        },
+        "context": {
+            "score": context_score,
+            "weight": 0.15,
+            "growth": round(growth_score, 1) if growth_score is not None else None,
+            "rs_divergence": rs_divergence_score,
+        },
+    }
 
     screen_state = {
         "kell_52w_high": screen_52w_high,
@@ -893,10 +1127,23 @@ def score_candidate(
         "kell_setups": kell_setups,
         "kell_focus": kell_focus,
         "kell_score": score,
+        "kell_quality_score": quality_score,
+        "kell_readiness_score": readiness_score,
+        "kell_actionability_score": readiness_score,
+        "kell_context_score": context_score,
+        "kell_evidence_coverage": evidence_coverage,
+        "kell_structural_risk_score": structural_risk_score,
+        "kell_stage_cap": stage_cap,
         "score_breakdown": {
             "model_version": MODEL_VERSION,
-            "points": points,
-            "possible_points": possible,
+            "legacy_v4_score": legacy_v4_score,
+            "legacy_points": legacy_points,
+            "legacy_possible_points": legacy_possible,
+            "raw_composite": round(raw_composite, 1),
+            "ttftl_penalty": ttftl_penalty,
+            "stage_cap": stage_cap,
+            "final_score": score,
+            "evidence_coverage": evidence_coverage,
             "criteria": criteria,
             "components": components,
             "warnings": ["too_tight_for_too_long_relative_weakness"] if ttftl_warning is True else [],
