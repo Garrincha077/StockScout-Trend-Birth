@@ -1,4 +1,5 @@
 import importlib.util
+import gzip
 import json
 import pathlib
 import tempfile
@@ -80,6 +81,21 @@ class KellForwardValidationTests(unittest.TestCase):
         session = series[-10]["date"]
         out = validation._outcome(series, session, 20)
         self.assertIsNone(out)
+
+    def test_load_score_snapshots_reads_json_gz(self):
+        payload = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {"sessionDate": "2026-09-09", "runId": "r1"},
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [["AAA", 80.0, 60.0]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "2026-09-09.json.gz"
+            path.write_bytes(gzip.compress(json.dumps(payload).encode()))
+            rows = validation.load_score_snapshots(pathlib.Path(tmp))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["sessionDate"], "2026-09-09")
+        self.assertEqual(rows[0]["candidates"][0]["ticker"], "AAA")
 
     def test_candidate_rows_reads_compact_recovered_v2(self):
         payload = {
