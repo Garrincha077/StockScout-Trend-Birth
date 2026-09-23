@@ -64,7 +64,7 @@ def pages_zip(path: pathlib.Path):
         if mode == "bottom-fishing":
             # BBB proves exact historical membership can exist without becoming a
             # Kell match when the archived artifact has no usable chart evidence.
-            core["universe"].append({"ticker": "BBB", "rsRank": 99})
+            core["universe"].append({"ticker": "BBB", "rsRank": 10})
         chart_path = (
             f"runs/{run_id}/charts/manifest.json"
             if mode == "bottom-fishing"
