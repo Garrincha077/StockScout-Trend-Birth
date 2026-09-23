@@ -278,6 +278,24 @@
     {
       "sessionDate": "2026-09-21",
       "ticker": "WBD",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "gap_through_resistance",
+        "unfilled_gap",
+        "heavy_volume",
+        "strong_close",
+        "early_cycle_wedge_pop_context"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/21 opened about 7.05% above the prior close and above the prior 20-session resistance area, held the gap, closed near the session high, and traded on extreme point-in-time relative volume. The same session was independently reviewed as a valid Wedge Pop, providing constructive early-cycle context rather than exhaustion."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "WBD",
       "layer": "stage",
       "signal": "wedge_pop",
       "label": "VALID",
