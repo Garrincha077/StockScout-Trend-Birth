@@ -51,7 +51,7 @@ const kellFilterLabels={
   ...kellStageLabels,
   ...kellSetupLabels,
   ...kellContextLabels,
-  'kell-score':'Kell ≥60'
+  'kell-score':'Kell Focus ≥60'
 };
 const kellFilters=new Set(Object.keys(kellFilterLabels));
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
@@ -212,16 +212,29 @@ function kellScreensText(item){return namedHits(item,Object.keys(kellScreenLabel
 function kellSetupsText(item){return namedHits(item,Object.keys(kellSetupLabels),kellSetupLabels).join(' · ')||'—'}
 function kellContextText(item){return namedHits(item,Object.keys(kellContextLabels),kellContextLabels).join(' · ')||'—'}
 function kellBreakdownText(item){
-  const breakdown=item.score_breakdown||{},criteria=breakdown.criteria||{};
-  const rows=Object.entries(criteria).map(([name,v])=>{
-    const mark=v?.hit===true?'✓':v?.hit===false?'—':'?';
-    return mark+' '+name.replaceAll('_',' ')+' '+(v?.points??0)+'/'+(v?.max_points??0)+' · '+(v?.detail||'');
-  });
-  return 'Score '+fmt(item.kell_score,1)+' · '+(breakdown.points??0)+'/'+(breakdown.possible_points??0)+' pts\n'+rows.join('\n');
+  const b=item.score_breakdown||{},parts=b.components||{},ready=parts.readiness||{};
+  const lines=[
+    'Focus '+fmt(item.kell_score,1)+' · raw '+fmt(b.raw_composite,1)+' · stage cap '+fmt(b.stage_cap??item.kell_stage_cap,0),
+    'Quality '+fmt(item.kell_quality_score,1)+' · Readiness '+fmt(item.kell_readiness_score,1)+' · Context '+fmt(item.kell_context_score,1),
+    'Evidence '+fmt(item.kell_evidence_coverage,0)+'%'+(Number.isFinite(Number(item.kell_structural_risk_score))?' · Structural risk '+fmt(item.kell_structural_risk_score,0):''),
+  ];
+  if(Number.isFinite(Number(ready.structural_risk_atr)))lines.push('Natural invalidation distance '+fmt(ready.structural_risk_atr,2)+' ATR');
+  if(Number.isFinite(Number(b.legacy_v4_score)))lines.push('Legacy v4 additive score '+fmt(b.legacy_v4_score,1)+' (diagnostic only)');
+  if(Number(b.ttftl_penalty)>0)lines.push('TTFTL penalty -'+fmt(b.ttftl_penalty,0));
+  if((b.warnings||[]).length)lines.push('Warnings: '+b.warnings.join(', '));
+  return lines.join('\n');
 }
 function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓':value==='flat'?'→':'—'}
 function ruleAnalysis(item){
   const m=item.metrics||{},rvol=Number(m.rvol),rsi=Number(m.rsi14),gap=Math.abs(Number(m.emaGapPct));
+  const readiness=Number(item.kell_readiness_score),stage=primaryStage(item);
+  if(Number.isFinite(readiness)&&item.kell_stage){
+    if(stage==='wedge_drop')return{status:'REVIEW',state:'KELL WEDGE DROP',preferredTrade:'Nema novog long entryja; čekati repair i novi Wedge Pop/reclaim.',summary:'Kasna/risk-off faza Kell ciklusa. Stage cap sprječava da jaki discovery signali prikriju lošu trenutnu lokaciju.'};
+    if(stage==='exhaustion_extension')return{status:'WATCH',state:'KELL EXHAUSTION',preferredTrade:'Ne chaseati extension; čekati re-base, EMA reset ili novi low-risk setup.',summary:'Leader može ostati kvalitetan, ali trenutni entry readiness je namjerno ograničen late-cycle capom.'};
+    if(readiness>=80)return{status:'ACTION',state:'KELL READY · '+stageName(stage),preferredTrade:'Koristi prirodnu invalidaciju setupa; ne ulaziti ako se strukturni risk previše proširi.',summary:'Kell v5 readiness je visok: stage, setup i strukturni risk su usklađeni.'};
+    if(readiness>=60)return{status:'WATCH',state:'KELL WATCH · '+stageName(stage),preferredTrade:'Čekati jasniji trigger ili bolji odnos entryja prema prirodnoj invalidaciji.',summary:'Kvaliteta može biti dobra, ali entry još nije u gornjoj readiness zoni.'};
+    return{status:'REVIEW',state:'KELL EARLY/LATE · '+stageName(stage),preferredTrade:'Bez forsiranog ulaza; čekati povoljniji dio Cycle of Price Action.',summary:'Discovery kvaliteta i trenutna actionability namjerno su odvojene.'};
+  }
   const hh=m.higherHigh===true,hl=m.higherLow===true,trend=m.slope50==='upward'&&m.slope30w==='upward';
   const kell=item.sources.includes('kell-daily')||hasKell(item,'kell_rvol_3x');
   const kellGap=item.sources.includes('kell-gap')||hasKell(item,'kell_gapper');
@@ -371,7 +384,8 @@ function card(item){
   return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
-    '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Setup <b>'+esc(setups)+'</b></span></div>'+
+    '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Q / R / C <b>'+fmt(item.kell_quality_score,0)+' / '+fmt(item.kell_readiness_score,0)+' / '+fmt(item.kell_context_score,0)+'</b></span><span>Evidence <b>'+fmt(item.kell_evidence_coverage,0)+'%</b></span></div>'+
+    '<div class="metrics kell-dimensions"><span>Setup <b>'+esc(setups)+'</b></span></div>'+
     '<canvas aria-label="'+esc(item.ticker)+' chart" title="Tap/click za analizu"></canvas>'+
     '<div class="metrics structure"><span>50D <b>'+slopeIcon(m.slope50)+'</b></span><span>30W <b>'+slopeIcon(m.slope30w)+'</b></span><span>Swing <b>'+esc(m.swingState||'—')+'</b></span><span>Base <b>'+(m.baseLike===true?'✓':m.baseLike===false?'—':'?')+'</b></span></div>'+
     '<div class="analysis-strip"><span>'+esc(a.state||m.setup||'—')+'</span><strong class="'+(status==='ACTION'?'action':status==='WATCH'?'watch':'')+'">'+esc(status)+'</strong></div>'+
@@ -429,9 +443,12 @@ function show(item){
     '<canvas class="detail-chart"></canvas>'+
     '<div class="detail-grid">'+
       fact('Review state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
-      fact('Kell score',fmt(item.kell_score,1))+fact('Kell stage',stageName(primaryStage(item)))+
+      fact('Kell Focus',fmt(item.kell_score,1))+fact('Kell stage',stageName(primaryStage(item)))+
+      fact('Quality',fmt(item.kell_quality_score,1))+fact('Readiness / Actionability',fmt(item.kell_readiness_score,1))+
+      fact('Context score',fmt(item.kell_context_score,1))+fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+
+      fact('Structural risk',Number.isFinite(Number(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+fact('Stage cap',fmt(item.kell_stage_cap,0))+
       fact('Discovery screens',kellScreensText(item))+fact('Setups',kellSetupsText(item))+
-      fact('Context',kellContextText(item))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
+      fact('Context flags',kellContextText(item))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
       fact('RVOL',fmt(m.rvol)+'x')+fact('RSI14',fmt(m.rsi14,1))+
       fact('EMA10 / EMA20',fmt(m.ema10)+' / '+fmt(m.ema20))+fact('EMA gap',pct(m.emaGapPct))+
       fact('50D slope',m.slope50||'—')+fact('30W slope',m.slope30w||'—')+
