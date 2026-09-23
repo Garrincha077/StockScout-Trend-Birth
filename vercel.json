@@ -5,8 +5,8 @@
   "cleanUrls": true,
   "git": {
     "deploymentEnabled": {
-      "feature/unified-review-grid-lab": true,
-      "*": false
+      "**": false,
+      "feature/unified-review-grid-lab": true
     }
   },
   "headers": [
