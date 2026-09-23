@@ -10,6 +10,7 @@ Default horizons are trading sessions: 5, 10, 20, 40, 60 and 120.
 from __future__ import annotations
 
 import argparse
+import base64
 import gzip
 import json
 import math
@@ -97,9 +98,12 @@ def _snapshot_priority(snapshot: dict) -> tuple[int, int, int, str]:
 
 def load_score_snapshots(scores_dir: Path) -> list[dict]:
     by_date: dict[str, dict] = {}
-    paths = sorted(scores_dir.glob("*.json")) + sorted(scores_dir.glob("*.json.gz"))
+    paths = (sorted(scores_dir.glob("*.json")) + sorted(scores_dir.glob("*.json.gz")) + sorted(scores_dir.glob("*.json.gz.b64")))
     for path in paths:
-        if path.suffix == ".gz":
+        if path.name.endswith(".json.gz.b64"):
+            packed = base64.b64decode(path.read_text(encoding="ascii"), validate=True)
+            payload = json.loads(gzip.decompress(packed).decode("utf-8"))
+        elif path.suffix == ".gz":
             payload = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
         else:
             payload = json.loads(path.read_text(encoding="utf-8"))
