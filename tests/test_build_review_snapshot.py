@@ -98,6 +98,43 @@ class BuilderTests(unittest.TestCase):
         row["rvolToday"] = 2.9
         self.assertNotIn("Daily 3x RVOL", builder.kell_signals(row, 3.0))
 
+    def test_kell_full_union_chart_priority_is_next_then_ryan_then_bottom(self):
+        payloads = {
+            "bottom-fishing": ("bottom", {}, {}),
+            "next": ("next", {}, {}),
+            "ryan-original": ("ryan", {}, {}),
+        }
+        pool = {
+            "AAA": {"chartModes": ["bottom-fishing", "next", "ryan-original"]},
+            "BBB": {"chartModes": ["bottom-fishing", "ryan-original"]},
+            "CCC": {"chartModes": ["bottom-fishing"]},
+        }
+        calls = []
+        original = builder.load_charts
+
+        def fake(root, manifest, core, tickers):
+            calls.append((root, set(tickers)))
+            if root == "next":
+                return {"AAA": [["NEXT"]]} if "AAA" in tickers else {}
+            if root == "ryan":
+                return {"BBB": [["RYAN"]]} if "BBB" in tickers else {}
+            if root == "bottom":
+                return {ticker: [["BOTTOM"]] for ticker in tickers}
+            return {}
+
+        builder.load_charts = fake
+        try:
+            out = builder._load_preferred_kell_charts(payloads, pool)
+        finally:
+            builder.load_charts = original
+
+        self.assertEqual(out["AAA"], [["NEXT"]])
+        self.assertEqual(out["BBB"], [["RYAN"]])
+        self.assertEqual(out["CCC"], [["BOTTOM"]])
+        self.assertEqual(calls[0], ("next", {"AAA"}))
+        self.assertEqual(calls[1], ("ryan", {"BBB"}))
+        self.assertEqual(calls[2], ("bottom", {"CCC"}))
+
     def test_embedded_spy_benchmark_from_rs_column(self):
         charts = {
             "AAA": [
