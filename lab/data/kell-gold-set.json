@@ -424,6 +424,23 @@
       ],
       "reviewMethod": "manual_point_in_time_ohlcv_review",
       "notes": "The structure is plausible after the September decline, but the pop bar closed weakly and volume confirmation was limited."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "VICR",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "FALSE_POSITIVE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "late_cycle_exhaustion",
+        "already_extended",
+        "gap_can_be_exhaustion",
+        "cycle_location_contradicts_buyable_context"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 opened 241.04 above the prior 20-session high near 232.74, held above the 223.90 prior close, printed about 2.54x point-in-time RVOL, and closed 268.34 near the high. The same v5 snapshot classifies VICR as Exhaustion Extension, so the mechanical gap proxy is not sufficient to call the event buyable in cycle context."
     }
   ]
 }
