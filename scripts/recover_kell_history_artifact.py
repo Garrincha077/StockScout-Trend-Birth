@@ -297,7 +297,8 @@ def recover(artifact_zip: Path) -> dict:
 
             candidates.sort(key=lambda item: (-float(item[1] or 0), str(item[0])))
             return {
-                "schemaVersion": "kell-score-history-v2",\n                "columns": list(HISTORY_COLUMNS),
+                "schemaVersion": "kell-score-history-v2",
+                "columns": list(HISTORY_COLUMNS),
                 "source": {
                     "sessionDate": session_date,
                     "runId": run_id,
