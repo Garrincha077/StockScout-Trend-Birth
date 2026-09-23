@@ -187,6 +187,37 @@ jobs:
         run: python scripts/kell_signal_validation.py --input lab/data/latest.json --output lab/data/kell-signal-validation.json --strict
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
+      - name: Run point-in-time Kell forward validator
+        run: |
+          python scripts/kell_forward_validation.py \
+            --scores-dir lab/data/kell-score-history \
+            --charts-dir lab/data/kell-charts \
+            --output lab/data/kell-forward-validation.json \
+            --horizons 5,10,20,40,60,120 \
+            --min-outcome-coverage-pct 99
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("lab/data/kell-forward-validation.json").read_text())
+          assert report["schemaVersion"] == "kell-forward-validation-v1"
+          assert report["source"]["scoreSnapshotCount"] >= 1
+          assert report["source"]["outcomeCoverageGuard"] is True
+          assert report["source"]["minOutcomeCoveragePct"] == 99.0
+          for horizon in report["horizons"]:
+              comparison = report["comparison"][str(horizon)]
+              if not comparison["eligibleForValidation"]:
+                  assert comparison["v5MinusV4TopDecileMeanReturnPct"] is None
+                  assert comparison["v5TopMinusBottomSpreadPct"] is None
+                  assert comparison["v4TopMinusBottomSpreadPct"] is None
+          print(json.dumps({
+              "status": "ok",
+              "scoreSnapshots": report["source"]["scoreSnapshotCount"],
+              "chartTickers": report["source"]["chartTickerCount"],
+              "coverage5D": report["models"]["v5"]["5"]["outcomeCoverage"],
+              "eligible5D": report["comparison"]["5"]["eligibleForValidation"],
+          }, sort_keys=True))
+          PY
       - name: Kell v5 BEFORE/AFTER spot check
         run: |
           python - <<'PY'
@@ -229,6 +260,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
         run: |
           cp lab/data/kell-latest.json /tmp/kell-latest.json
+          cp lab/data/kell-forward-validation.json /tmp/kell-forward-validation.json
           cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
           rm -rf /tmp/kell-charts
           cp -R lab/data/kell-charts /tmp/kell-charts
@@ -244,6 +276,7 @@ jobs:
           git reset --hard
           git checkout -B feature/kell-mcp-lab origin/feature/kell-mcp-lab
           cp /tmp/kell-latest.json lab/data/kell-latest.json
+          cp /tmp/kell-forward-validation.json lab/data/kell-forward-validation.json
           cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
           rm -rf lab/data/kell-charts
           cp -R /tmp/kell-charts lab/data/kell-charts
