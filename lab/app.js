@@ -26,7 +26,7 @@ const kellSetupLabels={
   'kell_breakout_proximity':'Near Breakout'
 };
 const kellContextLabels={
-  'kell_focus':'Kell Focus',
+  'kell_focus':'Kell Shortlist',
   'kell_name_selection_ok':'Kell Liquid/Price',
   'kell_growth_context':'Growth Context',
   'kell_rs_divergence':'RS Divergence',
