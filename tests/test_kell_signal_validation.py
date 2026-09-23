@@ -110,6 +110,73 @@ class KellSignalValidationTests(unittest.TestCase):
         self.assertEqual(stats["contradiction"], 1)
         self.assertGreater(report["hardErrorCount"], 0)
 
+    def test_crossback_raw_two_percent_wick_can_be_strong_when_under_one_atr(self):
+        bars = make_bars(count=60, start=100.0, daily=0.0)
+        for row in bars[-15:-1]:
+            row.update({
+                "open": 100.0,
+                "high": 102.5,
+                "low": 97.5,
+                "close": 100.0,
+                "volume": 1_000_000,
+            })
+        bars[-1].update({
+            "open": 100.0,
+            "high": 101.0,
+            "low": 97.5,
+            "close": 100.5,
+            "volume": 1_000_000,
+        })
+        item = {
+            "ticker": "WIDE",
+            "kell_metrics": {"recent_wedge_pop_sessions_ago": 5},
+        }
+        grade, reasons = validation._audit_ema_crossback(item, validation._bars(bars))
+        evidence = validation._ema_crossback_evidence(validation._bars(bars))
+        self.assertLess(evidence["penetrationPct"], -2.0)
+        self.assertLessEqual(evidence["undercutAtr"], 1.0)
+        self.assertEqual(grade, "strong")
+        self.assertNotIn("deep_ema_undercut_gt_1atr", reasons)
+
+    def test_crossback_deep_undercut_over_one_atr_is_borderline(self):
+        bars = make_bars(count=60, start=100.0, daily=0.0)
+        for row in bars[-15:-1]:
+            row.update({
+                "open": 100.0,
+                "high": 100.4,
+                "low": 99.6,
+                "close": 100.0,
+                "volume": 1_000_000,
+            })
+        bars[-1].update({
+            "open": 100.0,
+            "high": 101.0,
+            "low": 97.5,
+            "close": 100.5,
+            "volume": 1_000_000,
+        })
+        item = {
+            "ticker": "DEEP",
+            "kell_metrics": {"recent_wedge_pop_sessions_ago": 5},
+        }
+        grade, reasons = validation._audit_ema_crossback(item, validation._bars(bars))
+        evidence = validation._ema_crossback_evidence(validation._bars(bars))
+        self.assertGreater(evidence["undercutAtr"], 1.0)
+        self.assertEqual(grade, "borderline")
+        self.assertIn("deep_ema_undercut_gt_1atr", reasons)
+
+    def test_crossback_support_distribution_is_exposed(self):
+        bars = make_bars(count=60, start=100.0, daily=0.0)
+        item = scored_candidate("XBACK", bars)
+        item["kell_ema_crossback"] = True
+        item["kell_stage"] = {"primary": "ema_crossback", "confidence": 0.9, "basis": []}
+        item["kell_cycle_stage"] = "ema_crossback"
+        item.setdefault("kell_metrics", {})["recent_wedge_pop_sessions_ago"] = 4
+        report = validation.validate_snapshot(snapshot(item))
+        support = report["checks"]["setupQuality"]["emaCrossbackSupport"]
+        self.assertEqual(sum(support["distribution"].values()), 1)
+        self.assertEqual(len(support["largestUndercuts"]), 1)
+
     def test_base_n_break_falling_ema_is_borderline_not_contract_failure(self):
         bars = make_bars(count=80, start=100.0, daily=0.0)
         item = scored_candidate("BASE", bars)
