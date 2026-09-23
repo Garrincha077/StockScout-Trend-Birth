@@ -58,8 +58,45 @@ def _score(item: dict, model: str) -> float | None:
     raise ValueError(f"unknown model: {model}")
 
 
+def _run_attempt(source: dict) -> int:
+    direct = source.get("runAttempt")
+    try:
+        if direct is not None:
+            return int(direct)
+    except (TypeError, ValueError):
+        pass
+    run_id = str(source.get("runId") or "")
+    tail = run_id.rsplit("-", 1)[-1]
+    return int(tail) if tail.isdigit() else 0
+
+
+def _snapshot_priority(snapshot: dict) -> tuple[int, int, int, str]:
+    source = snapshot.get("source") or {}
+    recovered = bool(source.get("recovered"))
+    exact_recovery = (
+        recovered
+        and source.get("recoveryReliability") == "exact-pages-artifact"
+        and source.get("artifactIdentityVerified") is True
+        and source.get("pointInTimeCandidateMembership") is True
+    )
+    point_in_time_recovery = recovered and source.get("pointInTimeCandidateMembership") is True
+    if not recovered:
+        authenticity = 3  # contemporaneously archived score snapshot
+    elif exact_recovery:
+        authenticity = 2  # exact historical Pages universe, current model recomputation
+    elif point_in_time_recovery:
+        authenticity = 1
+    else:
+        authenticity = 0
+    try:
+        artifact_id = int(source.get("artifactId") or 0)
+    except (TypeError, ValueError):
+        artifact_id = 0
+    return authenticity, _run_attempt(source), artifact_id, str(snapshot.get("path") or "")
+
+
 def load_score_snapshots(scores_dir: Path) -> list[dict]:
-    snapshots = []
+    by_date: dict[str, dict] = {}
     paths = sorted(scores_dir.glob("*.json")) + sorted(scores_dir.glob("*.json.gz"))
     for path in paths:
         if path.suffix == ".gz":
@@ -72,22 +109,25 @@ def load_score_snapshots(scores_dir: Path) -> list[dict]:
             else [payload]
         )
         for snapshot_payload in payloads:
-            session_date = _date(
-                (snapshot_payload.get("source") or {}).get("sessionDate")
-                or snapshot_payload.get("sessionDate")
-            )
+            source = dict(snapshot_payload.get("source") or {})
+            session_date = _date(source.get("sessionDate") or snapshot_payload.get("sessionDate"))
             if not session_date:
                 continue
             rows = _candidate_rows(snapshot_payload)
-            snapshots.append({
+            snapshot = {
                 "path": str(path),
                 "sessionDate": session_date,
-                "runId": (snapshot_payload.get("source") or {}).get("runId"),
+                "runId": source.get("runId"),
                 "modelVersion": (snapshot_payload.get("kellScoring") or {}).get("modelVersion")
                 or snapshot_payload.get("modelVersion"),
+                "source": source,
+                "schemaVersion": snapshot_payload.get("schemaVersion"),
                 "candidates": rows,
-            })
-    return snapshots
+            }
+            current = by_date.get(session_date)
+            if current is None or _snapshot_priority(snapshot) > _snapshot_priority(current):
+                by_date[session_date] = snapshot
+    return [by_date[key] for key in sorted(by_date)]
 
 
 def _normalize_bar(row: Any) -> dict | None:
