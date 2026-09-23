@@ -7,17 +7,21 @@ on:
       - "feature/unified-review-grid-lab"
       - "feature/kell-mcp-lab"
       - "fix/kell-review-date-alignment"
+      - "feature/persistent-watchlist"
+      - "feature/unified-watchlist-integration"
     paths:
       - "lab/**"
       - "scripts/**"
       - "tests/**"
       - ".github/workflows/unified-review-grid-lab.yml"
+      - "vercel.json"
   pull_request:
     paths:
       - "lab/**"
       - "scripts/**"
       - "tests/**"
       - ".github/workflows/unified-review-grid-lab.yml"
+      - "vercel.json"
 
 permissions:
   contents: write
@@ -186,6 +190,8 @@ jobs:
               "bytes": Path("lab/data/kell-latest.json").stat().st_size,
           })
           PY
+      - name: Validate Unified -> Review -> Kell source identity
+        run: python scripts/validate_unified_review_bundle.py --review lab/data/latest.json --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Validate Kell signal contracts and setup quality
         run: python scripts/kell_signal_validation.py --input lab/data/latest.json --output lab/data/kell-signal-validation.json --sample-limit 100 --strict
       - name: Build Kell visual calibration report
@@ -269,8 +275,8 @@ jobs:
                   "stage": (item.get("kell_stage") or {}).get("primary"),
               }, sort_keys=True))
           PY
-      - name: Publish aligned Review + Kell data atomically
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment')
+      - name: Publish aligned Review + Kell data to preview branch
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment' || github.ref == 'refs/heads/feature/persistent-watchlist' || github.ref == 'refs/heads/feature/unified-watchlist-integration')
         run: |
           mkdir -p /tmp/review-publication
           cp lab/data/latest.json /tmp/review-publication/latest.json
@@ -289,7 +295,7 @@ jobs:
           cp -R lab/data/kell-score-history /tmp/kell-score-history
           target_branch="$GITHUB_REF_NAME"
           git fetch origin "$target_branch"
-          changed=$(git diff --name-only "$GITHUB_SHA"..origin/"$target_branch" -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
+          changed=$(git diff --name-only "$GITHUB_SHA"..origin/"$target_branch" -- lab scripts tests .github/workflows/unified-review-grid-lab.yml vercel.json || true)
           if [ -n "$changed" ]; then
             echo "Branch advanced with executable changes; newer workflow will publish the dataset."
             echo "$changed"
@@ -319,11 +325,14 @@ jobs:
           kell = json.loads(Path("lab/data/kell-latest.json").read_text())
           review_date = latest["source"]["sessionDate"]
           review_run = latest["source"]["runId"]
+          review_unified_sha = latest["source"]["unifiedManifestSha256"]
           assert publication["sessionDate"] == review_date
           assert publication["runId"] == review_run
+          assert publication["unifiedManifestSha256"] == review_unified_sha
           assert kell["source"]["sessionDate"] == review_date
           assert kell["source"]["runId"] == review_run
-          print({"alignedSessionDate": review_date, "runId": review_run})
+          assert kell["source"]["unifiedManifestSha256"] == review_unified_sha
+          print({"alignedSessionDate": review_date, "runId": review_run, "unifiedManifestSha256": review_unified_sha})
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -345,4 +354,5 @@ jobs:
             scripts/build_kell_calibration_report.py
             scripts/recover_kell_history_artifact.py
             scripts/kell_forward_validation.py
+            scripts/validate_unified_review_bundle.py
           retention-days: 7

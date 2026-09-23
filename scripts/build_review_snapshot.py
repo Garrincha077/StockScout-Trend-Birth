@@ -691,7 +691,10 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
 
 def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int, kell_gap_limit: int = 5) -> dict:
     base_url = base_url.rstrip("/") + "/"
-    unified = _get_json(urljoin(base_url, "data/manifest.json"))
+    unified_manifest_url = urljoin(base_url, "data/manifest.json")
+    unified_manifest_bytes = _get_bytes(unified_manifest_url)
+    unified_manifest_sha256 = hashlib.sha256(unified_manifest_bytes).hexdigest()
+    unified = json.loads(unified_manifest_bytes.decode("utf-8"))
     if unified.get("status") != "healthy":
         raise ValueError("Unified scan is not healthy")
     session_date = str(unified.get("sessionDate") or "")
@@ -943,10 +946,12 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     kell_context_counts = {field: 0 for field in KELL_CONTEXT_FIELDS}
     kell_stage_counts: dict[str, int] = {}
     kell_candidates = []
+    unified_candidate_index = []
     for ticker, pool_item in unified_kell_pool.items():
         rows = kell_unified_charts.get(ticker, [])
         raw = pool_item.get("raw") or {}
         scored = score_candidate(rows, benchmark_rows, raw)
+        summary = _summary(raw, rows)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
         hit_context = [field for field in KELL_CONTEXT_FIELDS if scored.get(field) is True]
@@ -956,15 +961,33 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             kell_setup_counts[field] += 1
         for field in hit_context:
             kell_context_counts[field] += 1
+        stage = str((scored.get("kell_stage") or {}).get("primary") or scored.get("kell_cycle_stage") or "unavailable")
+        unified_candidate_index.append({
+            "ticker": ticker,
+            "sources": list(pool_item.get("unifiedSources") or []),
+            "unifiedSources": list(pool_item.get("unifiedSources") or []),
+            "metrics": summary,
+            "kell_score": scored.get("kell_score"),
+            "kell_quality_score": scored.get("kell_quality_score"),
+            "kell_readiness_score": scored.get("kell_readiness_score"),
+            "kell_context_score": scored.get("kell_context_score"),
+            "kell_evidence_coverage": scored.get("kell_evidence_coverage"),
+            "kell_structural_risk_score": scored.get("kell_structural_risk_score"),
+            "kell_stage_cap": scored.get("kell_stage_cap"),
+            "kell_cycle_stage": scored.get("kell_cycle_stage"),
+            "kell_stage": scored.get("kell_stage") or {},
+            "kellScreens": hit_screens,
+            "kellSetups": hit_setups,
+            "kellContext": hit_context,
+        })
         if not (hit_screens or hit_setups or hit_context):
             continue
-        stage = str((scored.get("kell_stage") or {}).get("primary") or scored.get("kell_cycle_stage") or "unavailable")
         kell_stage_counts[stage] = kell_stage_counts.get(stage, 0) + 1
         kell_candidates.append({
             "ticker": ticker,
             "sources": list(pool_item.get("unifiedSources") or []),
             "unifiedSources": list(pool_item.get("unifiedSources") or []),
-            "metrics": _summary(raw, rows),
+            "metrics": summary,
             "chartBars": rows[-260:],
             "weeklyChartBars": _weekly_bars(rows, 260),
             "analysis": analysis_by_ticker.get(ticker, {}),
@@ -977,6 +1000,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         -float(item.get("kell_score") or 0.0),
         item["ticker"],
     ))
+    unified_candidate_index.sort(key=lambda item: item["ticker"])
 
     candidates = []
     for ticker, item in merged.items():
@@ -996,8 +1020,11 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["ticker"],
     ))
 
-    # Avoid publishing a scan assembled across two activations.
-    if _get_json(urljoin(base_url, "data/manifest.json")) != unified:
+    # Avoid publishing a scan assembled across two activations. Compare the
+    # exact activated manifest bytes, not only parsed JSON, and carry the
+    # fingerprint through every downstream Review/Kell artifact.
+    final_unified_manifest_bytes = _get_bytes(unified_manifest_url)
+    if hashlib.sha256(final_unified_manifest_bytes).hexdigest() != unified_manifest_sha256:
         raise ValueError("Unified activation changed during build; retry later")
 
     return {
@@ -1006,6 +1033,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "repo": "Garrincha077/StockScout-Unified",
             "runId": run_id,
             "sessionDate": session_date,
+            "unifiedManifestSha256": unified_manifest_sha256,
+            "unifiedManifestPath": "data/manifest.json",
             "readOnly": True,
             "modeUniverseCounts": mode_universe_counts,
             "modeManifests": unified["modes"],
@@ -1041,6 +1070,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "stageCounts": kell_stage_counts,
             "method": "Kell v5 overlay over the deduplicated Unified candidate union. Discovery screens remain separate from stage/setup; ranking uses Quality + Readiness + Context with evidence coverage, structural-risk proxy and late-cycle stage caps. No new market-wide universe.",
         },
+        "unifiedCandidateIndexCount": len(unified_candidate_index),
+        "unifiedCandidateIndex": unified_candidate_index,
         "kellCandidateCount": len(kell_candidates),
         "kellCandidates": kell_candidates,
         "candidateCount": len(candidates),

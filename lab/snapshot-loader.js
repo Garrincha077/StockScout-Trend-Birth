@@ -30,6 +30,9 @@
     if (data.source?.runId !== manifest.runId || data.source?.sessionDate !== manifest.sessionDate) {
       throw new Error('Objava i podaci nisu usklađeni.');
     }
+    if (manifest.unifiedManifestSha256 && data.source?.unifiedManifestSha256 !== manifest.unifiedManifestSha256) {
+      throw new Error('Objava nije vezana uz istu Unified aktivaciju.');
+    }
     return data;
   }
   root.ReviewSnapshots = {load};
