@@ -30,3 +30,10 @@ test('opening Watchlist defaults to all saved names rather than inheriting a sta
   assert.match(app,/nextUniverse==='watchlist'&&state\.universe!=='watchlist'/);
   assert.match(app,/state\.filter='none'/);
 });
+
+test('browser rejects Kell or chart data from another Unified activation',()=>{
+  assert.match(app,/reviewSource\.runId&&kellSource\.runId&&reviewSource\.runId!==kellSource\.runId/);
+  assert.match(app,/reviewSource\.unifiedManifestSha256&&reviewSource\.unifiedManifestSha256!==kellSource\.unifiedManifestSha256/);
+  assert.match(app,/result\?\.source\?\.runId!==data\?\.source\?\.runId/);
+  assert.match(app,/chart shard Unified activation mismatch/);
+});
