@@ -23,7 +23,11 @@ builder = module("build_review_snapshot")
 
 def fixture():
     return {
-        "source": {"runId": "2026-09-18-eod-123-1", "sessionDate": "2026-09-18"},
+        "source": {
+            "runId": "2026-09-18-eod-123-1",
+            "sessionDate": "2026-09-18",
+            "unifiedManifestSha256": "a" * 64,
+        },
         "candidateCount": 1,
         "chartCount": 1,
         "candidates": [{"ticker": "AAA", "chartBars": [[1, 1, 2, 1, 2, 100]]}],
@@ -50,12 +54,13 @@ class PublicationTests(unittest.TestCase):
                 second["sha256"],
                 hashlib.sha256((root / "latest.json").read_bytes()).hexdigest(),
             )
+            self.assertEqual(second["unifiedManifestSha256"], "a" * 64)
 
     def test_rejects_rollback_missing_charts_duplicates_and_bad_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             publisher.publish(fixture(), root)
-            for mutation in ("rollback", "charts", "duplicate", "run"):
+            for mutation in ("rollback", "charts", "duplicate", "run", "unified_sha"):
                 snapshot = fixture()
                 if mutation == "rollback":
                     snapshot["source"]["sessionDate"] = "2026-09-17"
@@ -65,6 +70,8 @@ class PublicationTests(unittest.TestCase):
                     snapshot["candidates"] *= 2
                 if mutation == "run":
                     snapshot["source"]["runId"] = "../escape"
+                if mutation == "unified_sha":
+                    snapshot["source"]["unifiedManifestSha256"] = "bad"
                 with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                     publisher.publish(snapshot, root)
 
