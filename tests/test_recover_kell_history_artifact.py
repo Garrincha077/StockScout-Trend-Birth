@@ -123,7 +123,7 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
             pages_zip(source)
             out = recover.recover(source)
 
-        self.assertEqual(out["schemaVersion"], "kell-score-history-v1")
+        self.assertEqual(out["schemaVersion"], "kell-score-history-v2")
         self.assertEqual(out["source"]["sessionDate"], "2026-09-09")
         self.assertEqual(out["source"]["runId"], "2026-09-09-eod-test")
         self.assertTrue(out["source"]["pointInTimeCandidateMembership"])
@@ -131,19 +131,14 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
         self.assertEqual(out["source"]["chartCoverageCount"], 2)
         self.assertEqual(out["candidateCount"], 2)
 
-        by_ticker = {item["ticker"]: item for item in out["candidates"]}
-        item = by_ticker["AAA"]
-        self.assertEqual(
-            set(item["sources"]),
-            {"bottom-fishing", "next", "ryan-original"},
-        )
-        self.assertEqual(
-            set(by_ticker["CCC"]["sources"]),
-            {"bottom-fishing", "ryan-original"},
-        )
+        columns = out["columns"]
+        rows = {row[0]: dict(zip(columns, row)) for row in out["candidates"]}
+        item = rows["AAA"]
+        self.assertEqual(item["source_mask"], 7)
+        self.assertEqual(rows["CCC"]["source_mask"], 5)
         # CCC would not match on its low-price/low-volume Ryan chart alone.
         # Its inclusion proves Bottom rsRank=95 correctly overrides Ryan rsRank=10.
-        self.assertGreater(by_ticker["CCC"]["legacy_v4_score"], 0)
+        self.assertGreater(rows["CCC"]["legacy_v4_score"], 0)
         # Next is deliberately the richest/higher-priority scalar context.
         self.assertGreater(item["kell_quality_score"], 0)
         self.assertGreater(item["kell_evidence_coverage"], 0)
