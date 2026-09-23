@@ -373,6 +373,13 @@ class KellScoringTests(unittest.TestCase):
         self.assertGreater(high["kell_quality_score"], low["kell_quality_score"])
         self.assertLess(high["kell_quality_score"] - low["kell_quality_score"], 3.0)
 
+    def test_v5_52w_quality_requires_full_history(self):
+        short = make_bars(count=80, start=25.0, daily=0.002, volume=900_000)
+        out = kell.score_candidate(short, candidate_context={"rsRank": 90})
+        quality = out["score_breakdown"]["components"]["quality"]
+        self.assertIsNone(quality["high_proximity_52w"])
+        self.assertFalse(out["kell_52w_high"])
+
     def test_v5_evidence_coverage_separates_score_from_missing_context(self):
         bars = make_bars(count=260, start=25.0, daily=0.001, volume=900_000)
         bench = make_bars(count=260, start=100.0, daily=0.0005, volume=5_000_000)
