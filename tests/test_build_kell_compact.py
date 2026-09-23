@@ -24,6 +24,11 @@ class KellCompactTests(unittest.TestCase):
                 },
             },
             "kellScoring": {},
+            "unifiedCandidateIndexCount": 2,
+            "unifiedCandidateIndex": [
+                {"ticker": "AAA", "sources": ["next"], "unifiedSources": ["next"], "metrics": {"price": 12}},
+                {"ticker": "BBB", "sources": ["bottom-fishing"], "unifiedSources": ["bottom-fishing"], "metrics": {"price": 8}},
+            ],
             "kellCandidateCount": 0,
             "kellCandidates": [],
         }
@@ -45,6 +50,9 @@ class KellCompactTests(unittest.TestCase):
             self.assertEqual(out["schemaVersion"], "kell-compact-v5")
             self.assertEqual(out["source"]["modeUniverseCounts"]["bottom-fishing"], 2045)
             self.assertEqual(out["source"]["unifiedManifestSha256"], "b" * 64)
+            self.assertEqual(out["unifiedCandidateIndexCount"], 2)
+            self.assertEqual([item["ticker"] for item in out["unifiedCandidateIndex"]], ["AAA", "BBB"])
+            self.assertEqual(out["unifiedCandidateIndex"][0]["unifiedSources"], ["next"])
 
     def test_compact_bar_handles_array_and_object_rows(self):
         self.assertEqual(
