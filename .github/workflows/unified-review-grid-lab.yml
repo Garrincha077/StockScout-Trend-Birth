@@ -189,6 +189,14 @@ jobs:
         run: python scripts/build_kell_calibration_report.py --snapshot lab/data/latest.json --validation lab/data/kell-signal-validation.json --output lab/kell-calibration.html
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
+      - name: Evaluate human-reviewed Kell Gold Set
+        run: |
+          python scripts/kell_gold_set.py \
+            --gold-set lab/data/kell-gold-set.json \
+            --current lab/data/kell-latest.json \
+            --scores-dir lab/data/kell-score-history \
+            --output lab/data/kell-gold-set-eval.json \
+            --strict
       - name: Run point-in-time Kell forward validator
         run: |
           python scripts/kell_forward_validation.py \
