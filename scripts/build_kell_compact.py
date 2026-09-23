@@ -74,6 +74,7 @@ def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
     out = {
         "ticker": item.get("ticker"),
         "sources": list(item.get("sources") or []),
+        "unifiedSources": list(item.get("unifiedSources") or item.get("sources") or []),
         "metrics": pick(item.get("metrics") or {}, METRIC_KEYS),
         "kell_metrics": pick(item.get("kell_metrics") or {}, KELL_METRIC_KEYS),
         "kell_score": item.get("kell_score"),
@@ -188,6 +189,11 @@ def main() -> int:
             "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
         "kellScoring": source.get("kellScoring") or {},
+        "unifiedCandidateIndexCount": source.get("unifiedCandidateIndexCount", 0),
+        "unifiedCandidateIndex": [
+            compact_candidate(item)
+            for item in (source.get("unifiedCandidateIndex") or [])
+        ],
         "kellCandidateCount": source.get("kellCandidateCount", 0),
         "kellChartData": chart_data,
         "kellCandidates": [
