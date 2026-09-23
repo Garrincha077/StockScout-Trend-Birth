@@ -76,6 +76,37 @@ class KellForwardValidationTests(unittest.TestCase):
         self.assertLess(report["models"]["v4"]["20"]["topMinusBottomMeanReturnPct"], 0)
         self.assertGreater(report["models"]["v5"]["60"]["topDecile"]["mean_return_pct"], 0)
 
+    def test_outcome_coverage_guard_blocks_incomplete_chart_store(self):
+        dates = [
+            "2026-09-01", "2026-09-02", "2026-09-03",
+            "2026-09-04", "2026-09-07", "2026-09-08",
+        ]
+        bars = [
+            {"date": day, "open": 10 + i, "high": 11 + i, "low": 9 + i, "close": 10 + i, "volume": 1_000_000}
+            for i, day in enumerate(dates)
+        ]
+        snapshots = [{
+            "sessionDate": "2026-09-01",
+            "candidates": [
+                {"ticker": "AAA", "kell_score": 90.0, "legacy_v4_score": 80.0},
+                {"ticker": "BBB", "kell_score": 70.0, "legacy_v4_score": 60.0},
+            ],
+        }]
+        observations = validation.build_observations(snapshots, {"AAA": bars}, (5,))
+        coverage = validation.outcome_coverage(snapshots, {"AAA": bars}, observations, (5,))
+        self.assertEqual(coverage["v5"]["5"]["expectedObservations"], 2)
+        self.assertEqual(coverage["v5"]["5"]["observedObservations"], 1)
+        self.assertEqual(coverage["v5"]["5"]["coveragePct"], 50.0)
+        report = validation.summarize(
+            observations,
+            (5,),
+            coverage=coverage,
+            min_outcome_coverage_pct=99.0,
+        )
+        self.assertFalse(report["models"]["v5"]["5"]["eligibleForValidation"])
+        self.assertFalse(report["comparison"]["5"]["eligibleForValidation"])
+        self.assertIsNone(report["comparison"]["5"]["v5MinusV4TopDecileMeanReturnPct"])
+
     def test_immature_horizon_is_excluded(self):
         series = [validation._normalize_bar(row) for row in bars(count=40)]
         series = [row for row in series if row is not None]
