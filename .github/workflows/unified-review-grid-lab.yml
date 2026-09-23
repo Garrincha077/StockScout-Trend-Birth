@@ -6,6 +6,7 @@ on:
     branches:
       - "feature/unified-review-grid-lab"
       - "feature/kell-mcp-lab"
+      - "fix/kell-review-date-alignment"
     paths:
       - "lab/**"
       - "scripts/**"
@@ -124,6 +125,8 @@ jobs:
         run: node --check lab/app.js
       - name: Build read-only snapshot from activated Unified public data
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
+      - name: Publish immutable review snapshot atomically
+        run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory lab/data
       - name: Build compact Kell preview dataset
         run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Validate compact Kell dataset
@@ -266,9 +269,15 @@ jobs:
                   "stage": (item.get("kell_stage") or {}).get("primary"),
               }, sort_keys=True))
           PY
-      - name: Publish compact Kell data to preview branch
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
+      - name: Publish aligned Review + Kell data to preview branch
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment')
         run: |
+          mkdir -p /tmp/review-publication
+          cp lab/data/latest.json /tmp/review-publication/latest.json
+          cp lab/data/publication.json /tmp/review-publication/publication.json
+          rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
+          cp -R lab/data/history /tmp/review-publication/history
+          cp -R lab/data/snapshots /tmp/review-publication/snapshots
           cp lab/data/kell-latest.json /tmp/kell-latest.json
           cp lab/data/kell-forward-validation.json /tmp/kell-forward-validation.json
           cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
@@ -278,15 +287,21 @@ jobs:
           cp -R lab/data/kell-charts /tmp/kell-charts
           rm -rf /tmp/kell-score-history
           cp -R lab/data/kell-score-history /tmp/kell-score-history
-          git fetch origin feature/kell-mcp-lab
-          changed=$(git diff --name-only "$GITHUB_SHA"..origin/feature/kell-mcp-lab -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
+          target_branch="$GITHUB_REF_NAME"
+          git fetch origin "$target_branch"
+          changed=$(git diff --name-only "$GITHUB_SHA"..origin/"$target_branch" -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
           if [ -n "$changed" ]; then
             echo "Branch advanced with executable changes; newer workflow will publish the dataset."
             echo "$changed"
             exit 0
           fi
           git reset --hard
-          git checkout -B feature/kell-mcp-lab origin/feature/kell-mcp-lab
+          git checkout -B "$target_branch" origin/"$target_branch"
+          cp /tmp/review-publication/latest.json lab/data/latest.json
+          cp /tmp/review-publication/publication.json lab/data/publication.json
+          rm -rf lab/data/history lab/data/snapshots
+          cp -R /tmp/review-publication/history lab/data/history
+          cp -R /tmp/review-publication/snapshots lab/data/snapshots
           cp /tmp/kell-latest.json lab/data/kell-latest.json
           cp /tmp/kell-forward-validation.json lab/data/kell-forward-validation.json
           cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
@@ -296,15 +311,29 @@ jobs:
           cp -R /tmp/kell-charts lab/data/kell-charts
           rm -rf lab/data/kell-score-history
           cp -R /tmp/kell-score-history lab/data/kell-score-history
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          latest = json.loads(Path("lab/data/latest.json").read_text())
+          publication = json.loads(Path("lab/data/publication.json").read_text())
+          kell = json.loads(Path("lab/data/kell-latest.json").read_text())
+          review_date = latest["source"]["sessionDate"]
+          review_run = latest["source"]["runId"]
+          assert publication["sessionDate"] == review_date
+          assert publication["runId"] == review_run
+          assert kell["source"]["sessionDate"] == review_date
+          assert kell["source"]["runId"] == review_run
+          print({"alignedSessionDate": review_date, "runId": review_run})
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history
+          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
           fi
-          git commit -m "chore(kell): refresh compact preview data"
-          git push origin HEAD:feature/kell-mcp-lab
+          git commit -m "chore(lab): publish aligned Review and Kell data"
+          git push origin HEAD:"$target_branch"
       - name: Upload review lab artifact
         uses: actions/upload-artifact@v4
         with:
