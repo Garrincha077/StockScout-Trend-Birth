@@ -1,0 +1,286 @@
+{
+  "candidateCount": 2085,
+  "checks": {
+    "layerSeparation": {
+      "examples": [],
+      "overlapCount": 0
+    },
+    "screenContract": {
+      "examples": [],
+      "mismatchCount": 0,
+      "signals": {
+        "kell_52w_high": {
+          "checked": 1566,
+          "matched": 1566,
+          "mismatched": 0
+        },
+        "kell_bull_snort": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_doubler_ytd": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_gapper": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_momentum_3m_50": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_rs_leader": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_rvol_3x": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        },
+        "kell_strength_on_down_day": {
+          "checked": 1580,
+          "matched": 1580,
+          "mismatched": 0
+        },
+        "kell_unusual_volume": {
+          "checked": 2085,
+          "matched": 2085,
+          "mismatched": 0
+        }
+      }
+    },
+    "setupQuality": {
+      "examples": {
+        "kell_base_n_break": [],
+        "kell_buyable_gap_proxy": [
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_gap_close"
+            ],
+            "stage": "transition",
+            "ticker": "ONON"
+          }
+        ],
+        "kell_ema_crossback": [
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "AAMI"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "SMWB"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "YEXT"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "GRMN"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "DFIN"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "deep_ema_undercut"
+            ],
+            "stage": "ema_crossback",
+            "ticker": "INTR"
+          }
+        ],
+        "kell_wedge_pop": [
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "NX"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "NBBK"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "pre_pop_price_not_working_lower_or_sideways"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "SEPN"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "SXT"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "pre_pop_price_not_working_lower_or_sideways"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "CLOV"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "MYE"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "NATL"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "APLE"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "CODI"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "DRI"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "RLJ"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "WWW"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "MAGN"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "USNA"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "GO"
+          }
+        ]
+      },
+      "note": "Borderline is diagnostic, not a hard failure. Strong checks are deliberately stricter than the production v5 detector and are intended for calibration.",
+      "signals": {
+        "kell_base_n_break": {
+          "borderline": 0,
+          "contradiction": 0,
+          "strong": 48,
+          "total": 48
+        },
+        "kell_buyable_gap_proxy": {
+          "borderline": 1,
+          "contradiction": 0,
+          "strong": 3,
+          "total": 4
+        },
+        "kell_ema_crossback": {
+          "borderline": 6,
+          "contradiction": 0,
+          "strong": 55,
+          "total": 61
+        },
+        "kell_wedge_pop": {
+          "borderline": 20,
+          "contradiction": 0,
+          "strong": 124,
+          "total": 144
+        }
+      }
+    },
+    "stageEventConsistency": {
+      "examples": [],
+      "mismatchCount": 0
+    }
+  },
+  "hardErrorCount": 0,
+  "modelVersion": "kell-overlay-v5-quality-readiness-context",
+  "schemaVersion": "kell-signal-validation-v1",
+  "source": {
+    "runId": "2026-09-22-eod-35798588370-1",
+    "sessionDate": "2026-09-22"
+  },
+  "universePreserved": true
+}
