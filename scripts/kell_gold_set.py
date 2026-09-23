@@ -16,9 +16,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-GOLD_SCHEMA_VERSION = "kell-gold-set-v1"
-REPORT_SCHEMA_VERSION = "kell-gold-set-eval-v1"
-VALID_LABELS = {"VALID", "BORDERLINE", "FALSE_POSITIVE"}
+GOLD_SCHEMA_VERSION = "kell-gold-set-v2"
+REPORT_SCHEMA_VERSION = "kell-gold-set-eval-v2"
+VALID_LABELS = {"VALID", "BORDERLINE", "FALSE_POSITIVE", "FALSE_NEGATIVE"}
 VALID_LAYERS = {"screen", "stage", "setup", "context"}
 
 
@@ -53,6 +53,14 @@ def validate_gold_set(gold: dict) -> list[str]:
             errors.append(f"{prefix}: invalid label {label!r}")
         if not isinstance(row.get("predictionAtReview"), bool):
             errors.append(f"{prefix}: predictionAtReview must be boolean")
+        elif label == "FALSE_POSITIVE" and row.get("predictionAtReview") is not True:
+            errors.append(f"{prefix}: FALSE_POSITIVE requires predictionAtReview=true")
+        elif label == "FALSE_NEGATIVE" and row.get("predictionAtReview") is not False:
+            errors.append(f"{prefix}: FALSE_NEGATIVE requires predictionAtReview=false")
+        elif label in {"VALID", "BORDERLINE"} and row.get("predictionAtReview") is False:
+            errors.append(
+                f"{prefix}: reviewed positive missed by the model must use FALSE_NEGATIVE"
+            )
         reasons = row.get("reasonCodes")
         if not isinstance(reasons, list) or not all(isinstance(x, str) and x for x in reasons):
             errors.append(f"{prefix}: reasonCodes must be a non-empty string list")
@@ -148,10 +156,17 @@ def _bucket_metrics(rows: list[dict]) -> dict:
     evaluated = [row for row in rows if row["predictionNow"] is not None]
     current_predicted = [row for row in evaluated if row["predictionNow"] is True]
     baseline_predicted = [row for row in rows if row["predictionAtReview"] is True]
-    expected_positive = [row for row in evaluated if row["label"] in {"VALID", "BORDERLINE"}]
-    valid_current = [row for row in current_predicted if row["label"] == "VALID"]
+    expected_positive = [
+        row for row in evaluated
+        if row["label"] in {"VALID", "BORDERLINE", "FALSE_NEGATIVE"}
+    ]
+    valid_current = [
+        row for row in current_predicted
+        if row["label"] in {"VALID", "FALSE_NEGATIVE"}
+    ]
     accepted_current = [
-        row for row in current_predicted if row["label"] in {"VALID", "BORDERLINE"}
+        row for row in current_predicted
+        if row["label"] in {"VALID", "BORDERLINE", "FALSE_NEGATIVE"}
     ]
 
     def pct(num: int, den: int) -> float | None:
@@ -159,7 +174,7 @@ def _bucket_metrics(rows: list[dict]) -> dict:
 
     weighted = (
         sum(
-            1.0 if row["label"] == "VALID"
+            1.0 if row["label"] in {"VALID", "FALSE_NEGATIVE"}
             else 0.5 if row["label"] == "BORDERLINE"
             else 0.0
             for row in current_predicted
@@ -189,6 +204,12 @@ def _bucket_metrics(rows: list[dict]) -> dict:
             len(expected_positive),
         ),
         "weightedQualityPct": round(weighted, 1) if weighted is not None else None,
+        "observedFalsePositives": sum(
+            row["label"] == "FALSE_POSITIVE" for row in rows
+        ),
+        "observedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" for row in rows
+        ),
         "fixedFalsePositives": sum(
             row["label"] == "FALSE_POSITIVE"
             and row["predictionAtReview"] is True
@@ -197,6 +218,14 @@ def _bucket_metrics(rows: list[dict]) -> dict:
         ),
         "unresolvedFalsePositives": sum(
             row["label"] == "FALSE_POSITIVE" and row["predictionNow"] is True
+            for row in evaluated
+        ),
+        "fixedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" and row["predictionNow"] is True
+            for row in evaluated
+        ),
+        "unresolvedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" and row["predictionNow"] is False
             for row in evaluated
         ),
         "hardRegressions": sum(
@@ -235,20 +264,19 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
         baseline = bool(label["predictionAtReview"])
         if prediction is None:
             change = "unavailable"
+        elif label["label"] == "FALSE_POSITIVE":
+            change = "unresolved_false_positive" if prediction else "fixed_false_positive"
+        elif label["label"] == "FALSE_NEGATIVE":
+            change = "fixed_false_negative" if prediction else "unresolved_false_negative"
         elif baseline == prediction:
             change = "unchanged"
         elif baseline and not prediction:
-            if label["label"] == "FALSE_POSITIVE":
-                change = "fixed_false_positive"
-            elif label["label"] == "VALID":
+            if label["label"] == "VALID":
                 change = "regression_valid_lost"
             else:
                 change = "borderline_removed"
         else:
-            if label["label"] == "FALSE_POSITIVE":
-                change = "new_false_positive"
-            else:
-                change = "recovered_positive"
+            change = "recovered_positive"
 
         rows.append({
             "sessionDate": session,
@@ -287,6 +315,20 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
     ]
     summary["availableSessionCount"] = len(payloads)
     summary["labeledSessionCount"] = len({row["sessionDate"] for row in rows})
+    summary["sessionsWithFalsePositives"] = len({
+        row["sessionDate"] for row in rows if row["label"] == "FALSE_POSITIVE"
+    })
+    summary["sessionsWithFalseNegatives"] = len({
+        row["sessionDate"] for row in rows if row["label"] == "FALSE_NEGATIVE"
+    })
+
+    session_groups: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        session_groups[row["sessionDate"]].append(row)
+    sessions = {
+        session: _bucket_metrics(session_rows)
+        for session, session_rows in sorted(session_groups.items())
+    }
 
     return {
         "schemaVersion": REPORT_SCHEMA_VERSION,
@@ -294,6 +336,7 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
         "validationErrors": errors,
         "summary": summary,
         "buckets": buckets,
+        "sessions": sessions,
         "rows": rows,
     }
 
@@ -328,6 +371,10 @@ def main() -> int:
         "lostFromBaseline": report["summary"]["lostFromBaseline"],
         "addedFromBaseline": report["summary"]["addedFromBaseline"],
         "hardRegressions": report["summary"]["hardRegressions"],
+        "observedFalsePositives": report["summary"]["observedFalsePositives"],
+        "observedFalseNegatives": report["summary"]["observedFalseNegatives"],
+        "unresolvedFalsePositives": report["summary"]["unresolvedFalsePositives"],
+        "unresolvedFalseNegatives": report["summary"]["unresolvedFalseNegatives"],
         "acceptedPrecisionPct": report["summary"]["acceptedPrecisionPct"],
         "weightedQualityPct": report["summary"]["weightedQualityPct"],
     }, sort_keys=True))
