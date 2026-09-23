@@ -10,6 +10,7 @@ Default horizons are trading sessions: 5, 10, 20, 40, 60 and 120.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
 from pathlib import Path
@@ -59,8 +60,12 @@ def _score(item: dict, model: str) -> float | None:
 
 def load_score_snapshots(scores_dir: Path) -> list[dict]:
     snapshots = []
-    for path in sorted(scores_dir.glob("*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
+    paths = sorted(scores_dir.glob("*.json")) + sorted(scores_dir.glob("*.json.gz"))
+    for path in paths:
+        if path.suffix == ".gz":
+            payload = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
+        else:
+            payload = json.loads(path.read_text(encoding="utf-8"))
         session_date = _date((payload.get("source") or {}).get("sessionDate") or payload.get("sessionDate"))
         if not session_date:
             continue
