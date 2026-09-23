@@ -1,4 +1,6 @@
 import importlib.util
+import base64
+import gzip
 import io
 import json
 import pathlib
@@ -166,6 +168,24 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
             (35798588370, 2),
         )
         self.assertEqual(recover._run_identity("2026-09-09-eod-test"), (None, None))
+
+    def test_write_recovered_base64_gzip_roundtrip(self):
+        payload = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {"sessionDate": "2026-09-09"},
+            "columns": ["ticker", "kell_score"],
+            "candidates": [["AAA", 80.0]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = recover.write_recovered(
+                payload,
+                pathlib.Path(tmp),
+                "json-gzip-base64",
+            )
+            self.assertEqual(path.name, "2026-09-09.json.gz.b64")
+            packed = base64.b64decode(path.read_text(), validate=True)
+            restored = json.loads(gzip.decompress(packed).decode("utf-8"))
+        self.assertEqual(restored, payload)
 
     def test_pages_artifact_requires_consistent_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
