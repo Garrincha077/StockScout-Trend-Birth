@@ -135,6 +135,7 @@ def write_chart_shards(
             "source": {
                 "runId": src.get("runId"),
                 "sessionDate": src.get("sessionDate"),
+                "unifiedManifestSha256": src.get("unifiedManifestSha256"),
             },
             "shard": shard_index,
             "charts": charts,
@@ -181,6 +182,8 @@ def main() -> int:
         "source": {
             "runId": src.get("runId"),
             "sessionDate": src.get("sessionDate"),
+            "unifiedManifestSha256": src.get("unifiedManifestSha256"),
+            "unifiedManifestPath": src.get("unifiedManifestPath") or "data/manifest.json",
             "readOnly": True,
             "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
