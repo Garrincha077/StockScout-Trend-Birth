@@ -691,7 +691,10 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
 
 def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int, kell_gap_limit: int = 5) -> dict:
     base_url = base_url.rstrip("/") + "/"
-    unified = _get_json(urljoin(base_url, "data/manifest.json"))
+    unified_manifest_url = urljoin(base_url, "data/manifest.json")
+    unified_manifest_bytes = _get_bytes(unified_manifest_url)
+    unified_manifest_sha256 = hashlib.sha256(unified_manifest_bytes).hexdigest()
+    unified = json.loads(unified_manifest_bytes.decode("utf-8"))
     if unified.get("status") != "healthy":
         raise ValueError("Unified scan is not healthy")
     session_date = str(unified.get("sessionDate") or "")
@@ -996,8 +999,11 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["ticker"],
     ))
 
-    # Avoid publishing a scan assembled across two activations.
-    if _get_json(urljoin(base_url, "data/manifest.json")) != unified:
+    # Avoid publishing a scan assembled across two activations. Compare the
+    # exact activated manifest bytes, not only parsed JSON, and carry the
+    # fingerprint through every downstream Review/Kell artifact.
+    final_unified_manifest_bytes = _get_bytes(unified_manifest_url)
+    if hashlib.sha256(final_unified_manifest_bytes).hexdigest() != unified_manifest_sha256:
         raise ValueError("Unified activation changed during build; retry later")
 
     return {
@@ -1006,6 +1012,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "repo": "Garrincha077/StockScout-Unified",
             "runId": run_id,
             "sessionDate": session_date,
+            "unifiedManifestSha256": unified_manifest_sha256,
+            "unifiedManifestPath": "data/manifest.json",
             "readOnly": True,
             "modeUniverseCounts": mode_universe_counts,
             "modeManifests": unified["modes"],
