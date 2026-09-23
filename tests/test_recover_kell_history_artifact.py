@@ -65,6 +65,12 @@ def pages_zip(path: pathlib.Path):
             # BBB proves exact historical membership can exist without becoming a
             # Kell match when the archived artifact has no usable chart evidence.
             core["universe"].append({"ticker": "BBB", "rsRank": 10})
+            # CCC is shared only by Bottom/Ryan. Bottom must win scalar context,
+            # matching build_review_snapshot.py merge semantics.
+            core["universe"].append({"ticker": "CCC", "rsRank": 95})
+        elif mode == "ryan-original":
+            core["universe"].append({"ticker": "CCC", "rsRank": 10})
+            core["chartShards"]["CCC"] = "001.json"
         chart_path = (
             f"runs/{run_id}/charts/manifest.json"
             if mode == "bottom-fishing"
@@ -85,6 +91,13 @@ def pages_zip(path: pathlib.Path):
             files[f"data/modes/{mode}/runs/{run_id}/charts/000.json"] = {
                 "AAA": bars,
             }
+            if mode == "ryan-original":
+                low_bars = trading_bars(start_price=9.0)
+                for row in low_bars:
+                    row[5] = 100_000
+                files[f"data/modes/{mode}/runs/{run_id}/charts/001.json"] = {
+                    "CCC": low_bars,
+                }
         else:
             files[f"data/modes/{mode}/runs/{run_id}/charts/manifest.json"] = {
                 "shardsByTicker": {},
@@ -114,16 +127,23 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
         self.assertEqual(out["source"]["sessionDate"], "2026-09-09")
         self.assertEqual(out["source"]["runId"], "2026-09-09-eod-test")
         self.assertTrue(out["source"]["pointInTimeCandidateMembership"])
-        self.assertEqual(out["source"]["unifiedCandidateCount"], 2)
-        self.assertEqual(out["source"]["chartCoverageCount"], 1)
-        self.assertEqual(out["candidateCount"], 1)
+        self.assertEqual(out["source"]["unifiedCandidateCount"], 3)
+        self.assertEqual(out["source"]["chartCoverageCount"], 2)
+        self.assertEqual(out["candidateCount"], 2)
 
-        item = out["candidates"][0]
-        self.assertEqual(item["ticker"], "AAA")
+        by_ticker = {item["ticker"]: item for item in out["candidates"]}
+        item = by_ticker["AAA"]
         self.assertEqual(
             set(item["sources"]),
             {"bottom-fishing", "next", "ryan-original"},
         )
+        self.assertEqual(
+            set(by_ticker["CCC"]["sources"]),
+            {"bottom-fishing", "ryan-original"},
+        )
+        # CCC would not match on its low-price/low-volume Ryan chart alone.
+        # Its inclusion proves Bottom rsRank=95 correctly overrides Ryan rsRank=10.
+        self.assertGreater(by_ticker["CCC"]["legacy_v4_score"], 0)
         # Next is deliberately the richest/higher-priority scalar context.
         self.assertGreater(item["kell_quality_score"], 0)
         self.assertGreater(item["kell_evidence_coverage"], 0)
