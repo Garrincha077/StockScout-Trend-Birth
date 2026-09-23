@@ -1,0 +1,343 @@
+{
+  "schemaVersion": "kell-gold-set-v1",
+  "purpose": "Human-reviewed calibration labels for StockScout Kell overlay. Labels are independent review evidence and must never be generated automatically from the detector being tested.",
+  "labelPolicy": {
+    "VALID": "Structure matches the reviewed Kell concept closely enough to preserve as a positive example.",
+    "BORDERLINE": "Core structure is plausible but execution quality/context is imperfect; keep separate from clean positives.",
+    "FALSE_POSITIVE": "The model published the signal, but manual review concludes the Kell concept is not actually present."
+  },
+  "labels": [
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "GRAL",
+      "layer": "stage",
+      "signal": "base_n_break",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "multi_week_base",
+        "ema_supported",
+        "breakout_structure"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check",
+      "notes": "Previously spot-checked as Base n' Break while validating SCREEN/STAGE/SETUP separation."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "WBD",
+      "layer": "stage",
+      "signal": "wedge_pop",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "repair_then_recapture",
+        "tight_ema_cluster"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check",
+      "notes": "Previously spot-checked as Wedge Pop during v4 real-candidate validation."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "DELL",
+      "layer": "stage",
+      "signal": "trend_ema_support",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "trend_support_without_current_entry"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check",
+      "notes": "Previously reviewed as strong discovery/context evidence with no active setup."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "VKTX",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "THO",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "ESAB",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "DNLI",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "AMD",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "ARM",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "AMRX",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "PRTH",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "FAC",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "VITL",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "TARS",
+      "layer": "stage",
+      "signal": "wedge_drop",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "recent_exhaustion",
+        "loss_of_ema_cluster"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "HALO",
+      "layer": "setup",
+      "signal": "kell_base_n_break",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "multi_week_base",
+        "ema_supported",
+        "current_breakout",
+        "strong_close",
+        "heavy_volume"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 closes 115.13 near the high after a multi-week 105-112 consolidation; RVOL20 about 2.08."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "SEPN",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "prior_decline_and_repair",
+        "ema_recapture",
+        "strong_close"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "Declined from the August high into a multi-week repair, then 9/22 recaptured with a strong close."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "KLIC",
+      "layer": "setup",
+      "signal": "kell_ema_crossback",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "recent_wedge_pop",
+        "first_retest_sequence",
+        "ema_support",
+        "strong_reversal_close"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 tested support intraday and closed 89.54 near the high on elevated volume."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "GRMN",
+      "layer": "setup",
+      "signal": "kell_ema_crossback",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "recent_wedge_pop",
+        "first_retest_sequence",
+        "ema_support",
+        "strong_reversal_close"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 undercut the EMA area intraday but recovered to close 284.67 near the high; ATR-normalized undercut remained below 1 ATR."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "ONON",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "BORDERLINE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "gap_through_resistance",
+        "unfilled_gap",
+        "heavy_volume",
+        "weak_gap_close",
+        "weak_relative_strength"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "The 11% gap and volume are real and the gap stayed open, but the stock closed near the session low and came from a weak intermediate trend."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "NX",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
+      "label": "BORDERLINE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "repair_then_recapture",
+        "weak_close_location",
+        "low_relative_volume"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "Structurally plausible recapture after repair, but the 9/22 bar is not a high-conviction ignition move."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "SXT",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
+      "label": "BORDERLINE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "repair_then_recapture",
+        "weak_close_location",
+        "low_relative_volume",
+        "limited_relative_strength"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "The structure is plausible after the September decline, but the pop bar closed weakly and volume confirmation was limited."
+    }
+  ]
+}
