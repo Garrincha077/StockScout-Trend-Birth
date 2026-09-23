@@ -66,17 +66,27 @@ def load_score_snapshots(scores_dir: Path) -> list[dict]:
             payload = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
         else:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        session_date = _date((payload.get("source") or {}).get("sessionDate") or payload.get("sessionDate"))
-        if not session_date:
-            continue
-        rows = _candidate_rows(payload)
-        snapshots.append({
-            "path": str(path),
-            "sessionDate": session_date,
-            "runId": (payload.get("source") or {}).get("runId"),
-            "modelVersion": (payload.get("kellScoring") or {}).get("modelVersion") or payload.get("modelVersion"),
-            "candidates": rows,
-        })
+        payloads = (
+            list(payload.get("snapshots") or [])
+            if payload.get("schemaVersion") == "kell-score-history-bundle-v1"
+            else [payload]
+        )
+        for snapshot_payload in payloads:
+            session_date = _date(
+                (snapshot_payload.get("source") or {}).get("sessionDate")
+                or snapshot_payload.get("sessionDate")
+            )
+            if not session_date:
+                continue
+            rows = _candidate_rows(snapshot_payload)
+            snapshots.append({
+                "path": str(path),
+                "sessionDate": session_date,
+                "runId": (snapshot_payload.get("source") or {}).get("runId"),
+                "modelVersion": (snapshot_payload.get("kellScoring") or {}).get("modelVersion")
+                or snapshot_payload.get("modelVersion"),
+                "candidates": rows,
+            })
     return snapshots
 
 
