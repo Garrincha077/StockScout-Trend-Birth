@@ -183,6 +183,8 @@ jobs:
               "bytes": Path("lab/data/kell-latest.json").stat().st_size,
           })
           PY
+      - name: Validate Kell signal contracts and setup quality
+        run: python scripts/kell_signal_validation.py --input lab/data/latest.json --output lab/data/kell-signal-validation.json --strict
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
       - name: Kell v5 BEFORE/AFTER spot check
@@ -227,6 +229,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
         run: |
           cp lab/data/kell-latest.json /tmp/kell-latest.json
+          cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
           rm -rf /tmp/kell-charts
           cp -R lab/data/kell-charts /tmp/kell-charts
           rm -rf /tmp/kell-score-history
@@ -241,13 +244,14 @@ jobs:
           git reset --hard
           git checkout -B feature/kell-mcp-lab origin/feature/kell-mcp-lab
           cp /tmp/kell-latest.json lab/data/kell-latest.json
+          cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
           rm -rf lab/data/kell-charts
           cp -R /tmp/kell-charts lab/data/kell-charts
           rm -rf lab/data/kell-score-history
           cp -R /tmp/kell-score-history lab/data/kell-score-history
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/kell-latest.json lab/data/kell-charts lab/data/kell-score-history
+          git add lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-charts lab/data/kell-score-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
@@ -261,6 +265,7 @@ jobs:
           path: |
             lab
             scripts/kell_scoring.py
+            scripts/kell_signal_validation.py
             scripts/recover_kell_history_artifact.py
             scripts/kell_forward_validation.py
           retention-days: 7
