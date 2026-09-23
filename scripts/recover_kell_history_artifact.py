@@ -41,6 +41,17 @@ CONTEXT_FIELDS = (
     "kell_rs_divergence", "kell_weekly_trend_ok", "kell_ema_readiness",
 )
 
+HISTORY_COLUMNS = (
+    "ticker", "kell_score", "legacy_v4_score", "kell_quality_score",
+    "kell_readiness_score", "kell_context_score", "kell_evidence_coverage",
+    "kell_stage_cap", "stage", "source_mask",
+)
+
+
+def _source_mask(sources: list[str]) -> int:
+    bits = {"bottom-fishing": 1, "next": 2, "ryan-original": 4}
+    return sum(bits.get(source, 0) for source in sources)
+
 
 def _name(value: str) -> str:
     return value[2:] if value.startswith("./") else value
@@ -208,20 +219,20 @@ def _is_match(scored: dict) -> bool:
     return any(scored.get(field) is True for field in (*SCREEN_FIELDS, *SETUP_FIELDS, *CONTEXT_FIELDS))
 
 
-def _archive_row(ticker: str, sources: list[str], scored: dict) -> dict:
+def _archive_row(ticker: str, sources: list[str], scored: dict) -> list:
     breakdown = scored.get("score_breakdown") or {}
-    return {
-        "ticker": ticker,
-        "sources": sources,
-        "kell_score": scored.get("kell_score"),
-        "legacy_v4_score": breakdown.get("legacy_v4_score"),
-        "kell_quality_score": scored.get("kell_quality_score"),
-        "kell_readiness_score": scored.get("kell_readiness_score"),
-        "kell_context_score": scored.get("kell_context_score"),
-        "kell_evidence_coverage": scored.get("kell_evidence_coverage"),
-        "kell_stage_cap": scored.get("kell_stage_cap"),
-        "stage": (scored.get("kell_stage") or {}).get("primary") or scored.get("kell_cycle_stage"),
-    }
+    return [
+        ticker,
+        scored.get("kell_score"),
+        breakdown.get("legacy_v4_score"),
+        scored.get("kell_quality_score"),
+        scored.get("kell_readiness_score"),
+        scored.get("kell_context_score"),
+        scored.get("kell_evidence_coverage"),
+        scored.get("kell_stage_cap"),
+        (scored.get("kell_stage") or {}).get("primary") or scored.get("kell_cycle_stage"),
+        _source_mask(sources),
+    ]
 
 
 def recover(artifact_zip: Path) -> dict:
@@ -284,9 +295,9 @@ def recover(artifact_zip: Path) -> dict:
                 if _is_match(scored):
                     candidates.append(_archive_row(ticker, membership[ticker], scored))
 
-            candidates.sort(key=lambda item: (-float(item.get("kell_score") or 0), item["ticker"]))
+            candidates.sort(key=lambda item: (-float(item[1] or 0), str(item[0])))
             return {
-                "schemaVersion": "kell-score-history-v1",
+                "schemaVersion": "kell-score-history-v2",\n                "columns": list(HISTORY_COLUMNS),
                 "source": {
                     "sessionDate": session_date,
                     "runId": run_id,
