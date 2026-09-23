@@ -100,6 +100,70 @@ class KellForwardValidationTests(unittest.TestCase):
         self.assertEqual([row["sessionDate"] for row in rows], ["2026-09-09", "2026-09-10"])
         self.assertEqual(rows[1]["candidates"][0]["ticker"], "BBB")
 
+    def test_load_score_snapshots_prefers_contemporaneous_archive_over_recovery(self):
+        live = {
+            "schemaVersion": "kell-score-history-v1",
+            "source": {"sessionDate": "2026-09-22", "runId": "live-1"},
+            "candidates": [{"ticker": "LIVE", "kell_score": 90.0, "legacy_v4_score": 70.0}],
+        }
+        recovered = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {
+                "sessionDate": "2026-09-22",
+                "runId": "2026-09-22-eod-123-2",
+                "recovered": True,
+                "recoveryReliability": "exact-pages-artifact",
+                "artifactIdentityVerified": True,
+                "pointInTimeCandidateMembership": True,
+                "runAttempt": 2,
+                "artifactId": 99,
+            },
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [["REC", 80.0, 60.0]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "live.json").write_text(json.dumps(live))
+            (root / "recovered.json.gz").write_bytes(gzip.compress(json.dumps(recovered).encode()))
+            rows = validation.load_score_snapshots(root)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["candidates"][0]["ticker"], "LIVE")
+        self.assertFalse(rows[0]["source"].get("recovered", False))
+
+    def test_load_score_snapshots_prefers_verified_exact_recovery(self):
+        weak = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {
+                "sessionDate": "2026-09-09",
+                "runId": "2026-09-09-eod-123-1",
+                "recovered": True,
+                "pointInTimeCandidateMembership": True,
+            },
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [["WEAK", 80.0, 60.0]],
+        }
+        exact = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {
+                "sessionDate": "2026-09-09",
+                "runId": "2026-09-09-eod-124-1",
+                "recovered": True,
+                "recoveryReliability": "exact-pages-artifact",
+                "artifactIdentityVerified": True,
+                "pointInTimeCandidateMembership": True,
+                "artifactId": 124,
+            },
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [["EXACT", 81.0, 61.0]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "weak.json").write_text(json.dumps(weak))
+            (root / "exact.json").write_text(json.dumps(exact))
+            rows = validation.load_score_snapshots(root)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["candidates"][0]["ticker"], "EXACT")
+
     def test_load_score_snapshots_reads_json_gz(self):
         payload = {
             "schemaVersion": "kell-score-history-v2",
