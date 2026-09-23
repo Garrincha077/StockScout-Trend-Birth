@@ -343,6 +343,46 @@ The Exhaustion Extension proxy was tightened after the first live pass to requir
 
 CI run **#120** passed unit tests, historical smoke, snapshot-link tests, GridView JavaScript syntax, the full live Unified rebuild, compact-data v4 validation, safe preview-data publication and artifact upload.
 
+## Kell Signal Validation v1 — live 2026-09-22 audit
+
+The lab now runs `scripts/kell_signal_validation.py` on the full point-in-time Unified/Kell snapshot before publication. This is an **audit layer**, not another screener and not another ranking model. It preserves the original candidate universe and classifies current setup evidence as `strong`, `borderline`, or `contradiction`.
+
+Hard CI failures are limited to objective contract problems:
+
+- published SCREEN flags disagree with their own metrics/formulas;
+- a primary event STAGE is missing its underlying event flag;
+- SCREEN / SETUP / CONTEXT lists overlap;
+- a published core setup contradicts the minimum structural conditions that generated it;
+- the Kell overlay changes or exceeds the Unified universe contract.
+
+The stricter `borderline` checks are diagnostic only. They intentionally do **not** change production setup flags until candidate charts justify a calibration change.
+
+Live audit on session **2026-09-22**:
+
+- audited Kell candidates: **2,085**
+- hard errors: **0**
+- SCREEN contract mismatches: **0**
+- STAGE/event mismatches: **0**
+- SCREEN/SETUP/CONTEXT overlaps: **0**
+- universe preserved: **true**
+
+Core setup quality, production hit count -> strict audit:
+
+- Base n' Break: **48 -> 48 strong / 0 borderline / 0 contradiction**
+- Buyable Gap proxy: **4 -> 3 strong / 1 borderline / 0 contradiction**
+- EMA Crossback: **61 -> 55 strong / 6 borderline / 0 contradiction**
+- Wedge Pop: **144 -> 124 strong / 20 borderline / 0 contradiction**
+
+So the production layer had **257** core setup hits; **230** passed the stricter quality audit and **27** were retained but marked for visual/calibration review. Nothing was silently removed.
+
+The main precision finding is EMA Crossback: six live candidates (**AAMI, SMWB, YEXT, GRMN, DFIN, INTR**) had a pullback that undercut the lower 10/20 EMA cluster by more than the stricter validation tolerance before recovering. Because Kell describes Crossback as the first retest **into** the moving averages and a low-risk area to trade against them, these names are now explicit calibration candidates rather than being assumed clean examples.
+
+Wedge Pop had **20** borderline cases, mostly weak close-location bars; two named examples (**SEPN, CLOV**) also failed the stricter "working lower or sideways before the pop" check. The book does not publish a required close-location threshold, so this remains diagnostic evidence rather than a production filter.
+
+Buyable Gap had one borderline live case (**ONON**) because the gap bar closed weakly, but the minimum unfilled-gap / breakout / RVOL proxy remained internally valid.
+
+The generated report is published as `lab/data/kell-signal-validation.json` and included in the lab artifact.
+
 ## Output / UI contract
 
 The compact preview publishes separate `screenCounts`, `setupCounts`, `contextCounts` and `stageCounts`. The UI renders four distinct filter groups so discovery screens are not conflated with the stock's current Cycle-of-Price-Action stage or with an actionable setup.
