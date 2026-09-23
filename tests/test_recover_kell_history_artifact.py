@@ -127,6 +127,14 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
         self.assertEqual(out["source"]["sessionDate"], "2026-09-09")
         self.assertEqual(out["source"]["runId"], "2026-09-09-eod-test")
         self.assertTrue(out["source"]["pointInTimeCandidateMembership"])
+        self.assertEqual(out["source"]["recoveryMethod"], "exact-github-pages-artifact")
+        self.assertEqual(out["source"]["recoveryReliability"], "exact-pages-artifact")
+        self.assertTrue(out["source"]["artifactIdentityVerified"])
+        self.assertEqual(
+            out["source"]["scoreSemantics"],
+            "current-model-recomputed-on-point-in-time-inputs",
+        )
+        self.assertFalse(out["source"]["scoreObservedAtSession"])
         self.assertEqual(out["source"]["unifiedCandidateCount"], 3)
         self.assertEqual(out["source"]["chartCoverageCount"], 2)
         self.assertEqual(out["candidateCount"], 2)
@@ -151,6 +159,13 @@ class RecoverKellHistoryArtifactTests(unittest.TestCase):
                 "downtrend_repair", "transition",
             },
         )
+
+    def test_run_identity_extracts_workflow_run_and_attempt(self):
+        self.assertEqual(
+            recover._run_identity("2026-09-22-eod-35798588370-2"),
+            (35798588370, 2),
+        )
+        self.assertEqual(recover._run_identity("2026-09-09-eod-test"), (None, None))
 
     def test_pages_artifact_requires_consistent_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
