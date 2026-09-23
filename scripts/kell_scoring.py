@@ -1239,7 +1239,7 @@ def main() -> int:
         "sessionDate": (snapshot.get("source") or {}).get("sessionDate"),
         "candidateCount": len(before),
         "candidateCountPreserved": before == after,
-        "scoreCoverage": sum(item.get("score_breakdown", {}).get("possible_points", 0) > 0 for item in snapshot.get("candidates") or []),
+        "scoreCoverage": sum(float(item.get("kell_evidence_coverage") or 0.0) > 0 for item in snapshot.get("candidates") or []),
         "topKellScores": scores[:10],
     }
     if args.output:
