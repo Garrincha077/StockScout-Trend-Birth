@@ -301,3 +301,21 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Expand the Gold Set across additional independent sessions and deliberately hunt for confirmed `FALSE_POSITIVE` / false-negative examples, especially Wedge Pop and Buyable Gap. Only after that evidence exists should a proxy threshold or ranking weight be changed.
+
+
+## 2026-09-23 — Persistent starred candidate Watchlist
+
+- Branch: `feature/persistent-watchlist`, based on `fix/kell-review-date-alignment`; draft PR #7. Production `main`, Unified EOD / Trend Birth candidate generation, Telegram and broker state remain unchanged.
+- Added a durable browser-side Watchlist to the Review Grid. Every visible candidate card now has an accessible `☆ / ★` toggle; starring saves the ticker, and un-starring is the only application action that removes it.
+- Watchlist persistence uses versioned `localStorage` key `stockscout.review.watchlist.v1`. It survives page refreshes, new daily datasets and deployments on the same browser/origin. It is intentionally not presented as cross-device/account sync; clearing site data or changing origin/browser can remove the local copy.
+- Added a dedicated `★ Watchlist (N)` Universe. Entering it resets the secondary screen/stage/setup filter to `No filter` so previously selected daily filters do not silently hide saved names.
+- Current Review/Kell fields are merged onto saved names when available. If a saved ticker disappears from the current daily scan, it remains in the Watchlist with an explicit `Nije u današnjem scanu` state until manually removed.
+- Added `lab/watchlist-store.js` as a small storage boundary so a future server/account-backed implementation can replace persistence without rewriting card/filter behavior.
+- Added storage tests for persistence, explicit removal, normalization/deduplication and corrupt-storage fallback, plus UI regression tests for script order, star isolation from card-detail clicks, stale saved candidates and Watchlist filter behavior.
+- First CI run #236 reproduced one browser regression: the pre-existing universe test asserted the old assignment syntax rather than the behavior. Root cause was a brittle test, not Watchlist state. The test was updated to verify the explicit `nextUniverse` transition and rerun.
+- GitHub Actions run **#237** completed green end-to-end: Python unit tests, historical Kell smoke, all browser-model tests, GridView JavaScript syntax, live Unified snapshot build, immutable publication check, compact Kell build/validation, signal-contract validation, Gold Set, forward validator, Kell BEFORE/AFTER spot check and artifact upload all passed.
+- Live regression check on session `2026-09-22`: **2,693 Unified candidates**, **2,085 Kell matches**, compact charts **2,085/2,085**, signal validator **0 hard errors / 0 screen mismatches / 0 stage mismatches / 0 layer overlaps**, Gold Set **21/21 evaluable**, **0 hard regressions**, **92.9% weighted quality**. The Watchlist change did not alter scanner membership or Kell scoring.
+- Real-candidate spot check remained intact in the same run, including HALO, OKTA, KLIC, AMD, VKTX and TARS in the existing Kell validation output.
+
+**Next logical step**
+- Keep this implementation isolated for UI use/review. If cross-device persistence becomes necessary, replace only the storage adapter with an authenticated server/account store while preserving the current Watchlist UI contract.
