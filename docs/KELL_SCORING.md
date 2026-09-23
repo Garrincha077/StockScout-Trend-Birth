@@ -238,7 +238,33 @@ Context is deliberately smaller than price-cycle readiness:
 - `kell_stage_cap`
 - `score_breakdown.legacy_v4_score` — diagnostic BEFORE score only.
 
-## Validation — 2026-09-21 Unified session
+## Live v5 validation — 2026-09-22 Unified session
+
+Final CI run **#161 = SUCCESS** on commit `9febd946`, followed by the generated-data publication commit. The run passed unit tests, the historical 2026-09-17 smoke test, browser-model tests, JavaScript syntax, full Unified rebuild, compact v5 validation, live BEFORE/AFTER spot checks, publication and artifact upload.
+
+Live coverage:
+
+- Unified candidate union: **2,693**
+- Kell matched candidates: **2,084**
+- Chart coverage in compact Kell data: **2,084 / 2,084**
+- Lazy chart shards: **44**
+- Compact browser payload: **4,055,937 bytes**
+- Session date: **2026-09-22**
+
+The v5 rank now strongly separates name quality from current entry readiness. Live spot checks (`legacy v4 -> Focus v5`) were:
+
+- **GRAL**: 33.3 -> **54.4**; Quality 81.7, Readiness 33.8, Context 59.6; stage = Exhaustion Extension, cap 60.
+- **WBD**: 22.5 -> **52.9**; Quality 73.8, Readiness 47.8; stage = Transition.
+- **DELL**: 34.3 -> **59.4**; Quality 60.8, Readiness 47.0, Context 97.3; stage = Transition.
+- **VKTX**: 42.3 -> **73.6**; Quality 77.7, Readiness 87.7; stage = Wedge Pop.
+- **AMD**: 50.8 -> **79.7**; Quality 74.3, Readiness 87.1; stage = Base n' Break.
+- **TARS**: 18.6 -> **51.1**; Quality 45.1, Readiness 47.0; stage = Transition.
+
+Top live v5 names began with **HALO 87.8**, **OKTA 83.1**, **SNX 81.8**, **BLLN 81.6**, **AAMI 80.7**, **SCCO 80.6**, **TTMI 80.5**, **MRVL 80.4**, **RSKD 79.9**, **AMD 79.7**. Importantly, the highest ranks are now dominated by Base n' Break / EMA Crossback readiness rather than simply by the largest number of correlated discovery hits.
+
+The published discovery-screen definitions and candidate membership are unchanged by v5; only ranking/explainability changed.
+
+## Historical v4 baseline — 2026-09-21 Unified session
 
 Full deduplicated Unified pool: **2,683**, chart coverage **2,683/2,683**. The v4 compact Kell collection contains **2,063** names with at least one screen, setup or supporting context hit. This is the same broad matched-candidate coverage as the immediately preceding v3 baseline; candidate generation remains unchanged.
 
