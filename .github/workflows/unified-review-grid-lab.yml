@@ -105,6 +105,8 @@ jobs:
               "bytes": Path("lab/data/kell-latest.json").stat().st_size,
           })
           PY
+      - name: Archive point-in-time Kell scores
+        run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
       - name: Kell v5 BEFORE/AFTER spot check
         run: |
           python - <<'PY'
@@ -149,6 +151,8 @@ jobs:
           cp lab/data/kell-latest.json /tmp/kell-latest.json
           rm -rf /tmp/kell-charts
           cp -R lab/data/kell-charts /tmp/kell-charts
+          rm -rf /tmp/kell-score-history
+          cp -R lab/data/kell-score-history /tmp/kell-score-history
           git fetch origin feature/kell-mcp-lab
           changed=$(git diff --name-only "$GITHUB_SHA"..origin/feature/kell-mcp-lab -- lab scripts tests .github/workflows/unified-review-grid-lab.yml || true)
           if [ -n "$changed" ]; then
@@ -161,9 +165,11 @@ jobs:
           cp /tmp/kell-latest.json lab/data/kell-latest.json
           rm -rf lab/data/kell-charts
           cp -R /tmp/kell-charts lab/data/kell-charts
+          rm -rf lab/data/kell-score-history
+          cp -R /tmp/kell-score-history lab/data/kell-score-history
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/kell-latest.json lab/data/kell-charts
+          git add lab/data/kell-latest.json lab/data/kell-charts lab/data/kell-score-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
