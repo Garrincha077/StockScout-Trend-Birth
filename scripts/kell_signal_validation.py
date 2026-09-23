@@ -88,6 +88,74 @@ def _range_pct(sample: list[dict[str, Any]]) -> float | None:
     return (high / low - 1.0) * 100.0 if low > 0 else None
 
 
+def _atr_pct(bars: list[dict[str, Any]], window: int = 14) -> float | None:
+    """Average true range as a percent of prior close, used only for calibration."""
+    if len(bars) < 2:
+        return None
+    start = max(1, len(bars) - window)
+    values: list[float] = []
+    for index in range(start, len(bars)):
+        prev_close = float(bars[index - 1]["close"])
+        if prev_close <= 0:
+            continue
+        high = float(bars[index]["high"])
+        low = float(bars[index]["low"])
+        true_range = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        values.append(true_range / prev_close * 100.0)
+    return sum(values) / len(values) if values else None
+
+
+def _ema_crossback_evidence(bars: list[dict[str, Any]]) -> dict[str, float | bool | None]:
+    """Return volatility-normalized support evidence for a current EMA Crossback bar."""
+    if len(bars) < 30:
+        return {
+            "penetrationPct": None,
+            "undercutAtr": None,
+            "closeVsLowerEmaPct": None,
+            "closeVsMidpointPct": None,
+            "closeLocationPct": None,
+            "touchesCluster": False,
+            "holdsCluster": False,
+        }
+    closes = [float(row["close"]) for row in bars]
+    e10 = _ema(closes, 10)
+    e20 = _ema(closes, 20)
+    if e10[-1] is None or e20[-1] is None:
+        return {
+            "penetrationPct": None,
+            "undercutAtr": None,
+            "closeVsLowerEmaPct": None,
+            "closeVsMidpointPct": None,
+            "closeLocationPct": None,
+            "touchesCluster": False,
+            "holdsCluster": False,
+        }
+
+    lower = min(float(e10[-1]), float(e20[-1]))
+    upper = max(float(e10[-1]), float(e20[-1]))
+    midpoint = (lower + upper) / 2.0
+    row = bars[-1]
+    low = float(row["low"])
+    close = float(row["close"])
+    span = float(row["high"]) - low
+    penetration_pct = (low / lower - 1.0) * 100.0 if lower > 0 else None
+    atr_pct = _atr_pct(bars)
+    undercut_atr = (
+        max(0.0, -float(penetration_pct)) / atr_pct
+        if penetration_pct is not None and atr_pct not in (None, 0)
+        else None
+    )
+    return {
+        "penetrationPct": penetration_pct,
+        "undercutAtr": undercut_atr,
+        "closeVsLowerEmaPct": (close / lower - 1.0) * 100.0 if lower > 0 else None,
+        "closeVsMidpointPct": (close / midpoint - 1.0) * 100.0 if midpoint > 0 else None,
+        "closeLocationPct": ((close - low) / span * 100.0) if span > 0 else 50.0,
+        "touchesCluster": low <= upper * 1.01,
+        "holdsCluster": close >= lower * 0.995,
+    }
+
+
 def _truth(item: dict, field: str) -> bool | None:
     value = item.get(field)
     return value if isinstance(value, bool) else None
@@ -194,17 +262,7 @@ def _audit_wedge_pop(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[
 def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[str]]:
     if len(bars) < 30:
         return "contradiction", ["insufficient_history"]
-    closes = [float(row["close"]) for row in bars]
-    e10 = _ema(closes, 10)
-    e20 = _ema(closes, 20)
-    if e10[-1] is None or e20[-1] is None:
-        return "contradiction", ["ema_unavailable"]
-
-    lower = min(float(e10[-1]), float(e20[-1]))
-    upper = max(float(e10[-1]), float(e20[-1]))
-    midpoint = (lower + upper) / 2.0
-    low = float(bars[-1]["low"])
-    close = closes[-1]
+    evidence = _ema_crossback_evidence(bars)
     pop_age = _metric(item, "recent_wedge_pop_sessions_ago")
     if pop_age is None:
         raw_age = (item.get("kell_metrics") or {}).get("recent_wedge_pop_sessions_ago")
@@ -213,9 +271,11 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
         except (TypeError, ValueError):
             pop_age = None
 
-    penetration_pct = (low / lower - 1.0) * 100.0 if lower > 0 else -999.0
-    touches = low <= upper * 1.01
-    holds = close >= lower * 0.995
+    touches = evidence["touchesCluster"] is True
+    holds = evidence["holdsCluster"] is True
+    undercut_atr = evidence["undercutAtr"]
+    close_vs_mid = evidence["closeVsMidpointPct"]
+
     reasons: list[str] = []
     if pop_age is None or pop_age > 15:
         reasons.append("no_recent_wedge_pop")
@@ -223,9 +283,14 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
         reasons.append("did_not_retest_ema_cluster")
     if not holds:
         reasons.append("failed_to_hold_ema_cluster")
-    if penetration_pct < -2.0:
-        reasons.append("deep_ema_undercut")
-    if close < midpoint * 0.995:
+
+    # Kell describes a first pullback *into* the 10/20 EMA and explicitly notes
+    # that deciding which moving average a stock is respecting is a judgment
+    # call. A fixed 2% wick allowance therefore penalizes volatile names
+    # inconsistently. Use a volatility-normalized quality flag instead.
+    if isinstance(undercut_atr, (int, float)) and undercut_atr > 1.0:
+        reasons.append("deep_ema_undercut_gt_1atr")
+    if isinstance(close_vs_mid, (int, float)) and close_vs_mid < -0.5:
         reasons.append("weak_crossback_close")
 
     if (pop_age is None or pop_age > 15) or not touches or not holds:
@@ -352,6 +417,14 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
         for field in CORE_SETUP_FIELDS
     }
     setup_examples: dict[str, list[dict]] = {field: [] for field in CORE_SETUP_FIELDS}
+    crossback_support_distribution = {
+        "clean_support": 0,
+        "normal_wick_le_0_5atr": 0,
+        "recovering_wick_0_5_to_1atr": 0,
+        "deep_undercut_gt_1atr": 0,
+        "failed_hold": 0,
+    }
+    crossback_support_rows: list[dict] = []
     overlap_errors: list[dict] = []
 
     for item in candidates:
@@ -407,13 +480,58 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
             stat = setup_stats[field]
             stat["total"] += 1
             stat[grade] += 1
+
+            evidence = None
+            if field == "kell_ema_crossback":
+                evidence = _ema_crossback_evidence(bars)
+                undercut_atr = evidence.get("undercutAtr")
+                if evidence.get("holdsCluster") is not True:
+                    bucket = "failed_hold"
+                elif isinstance(undercut_atr, (int, float)) and undercut_atr > 1.0:
+                    bucket = "deep_undercut_gt_1atr"
+                elif isinstance(undercut_atr, (int, float)) and undercut_atr > 0.5:
+                    bucket = "recovering_wick_0_5_to_1atr"
+                elif isinstance(undercut_atr, (int, float)) and undercut_atr > 0:
+                    bucket = "normal_wick_le_0_5atr"
+                else:
+                    bucket = "clean_support"
+                crossback_support_distribution[bucket] += 1
+                crossback_support_rows.append({
+                    "ticker": ticker,
+                    "grade": grade,
+                    "stage": primary,
+                    "penetrationPct": (
+                        round(float(evidence["penetrationPct"]), 2)
+                        if isinstance(evidence.get("penetrationPct"), (int, float)) else None
+                    ),
+                    "undercutAtr": (
+                        round(float(undercut_atr), 2)
+                        if isinstance(undercut_atr, (int, float)) else None
+                    ),
+                    "closeVsLowerEmaPct": (
+                        round(float(evidence["closeVsLowerEmaPct"]), 2)
+                        if isinstance(evidence.get("closeVsLowerEmaPct"), (int, float)) else None
+                    ),
+                    "closeVsMidpointPct": (
+                        round(float(evidence["closeVsMidpointPct"]), 2)
+                        if isinstance(evidence.get("closeVsMidpointPct"), (int, float)) else None
+                    ),
+                    "closeLocationPct": (
+                        round(float(evidence["closeLocationPct"]), 1)
+                        if isinstance(evidence.get("closeLocationPct"), (int, float)) else None
+                    ),
+                })
+
             if grade != "strong" and len(setup_examples[field]) < sample_limit:
-                setup_examples[field].append({
+                example = {
                     "ticker": ticker,
                     "grade": grade,
                     "reasons": reasons,
                     "stage": primary,
-                })
+                }
+                if evidence is not None:
+                    example["evidence"] = evidence
+                setup_examples[field].append(example)
 
     screen_mismatch_count = sum(stat["mismatched"] for stat in screen_stats.values())
     setup_contradictions = sum(stat["contradiction"] for stat in setup_stats.values())
@@ -460,6 +578,18 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
             "setupQuality": {
                 "signals": setup_stats,
                 "examples": setup_examples,
+                "emaCrossbackSupport": {
+                    "distribution": crossback_support_distribution,
+                    "largestUndercuts": sorted(
+                        crossback_support_rows,
+                        key=lambda row: -float(row.get("undercutAtr") or 0.0),
+                    )[:sample_limit],
+                    "rule": (
+                        "Wick depth is normalized by 14-session average true-range percent. "
+                        "Undercuts <=1 ATR that recover/hold the EMA cluster are not penalized "
+                        "solely because their raw percentage wick exceeds a fixed threshold."
+                    ),
+                },
                 "note": (
                     "Borderline is diagnostic, not a hard failure. Strong checks are deliberately "
                     "stricter than the production v5 detector and are intended for calibration."
