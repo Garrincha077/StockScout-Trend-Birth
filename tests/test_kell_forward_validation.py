@@ -1,4 +1,5 @@
 import importlib.util
+import base64
 import gzip
 import json
 import pathlib
@@ -163,6 +164,29 @@ class KellForwardValidationTests(unittest.TestCase):
             rows = validation.load_score_snapshots(root)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["candidates"][0]["ticker"], "EXACT")
+
+    def test_load_score_snapshots_reads_base64_gzip_recovery(self):
+        payload = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {
+                "sessionDate": "2026-09-09",
+                "runId": "2026-09-09-eod-123-1",
+                "recovered": True,
+                "recoveryReliability": "exact-pages-artifact",
+                "artifactIdentityVerified": True,
+                "pointInTimeCandidateMembership": True,
+            },
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [["AAA", 80.0, 60.0]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "2026-09-09.json.gz.b64"
+            packed = gzip.compress(json.dumps(payload).encode())
+            path.write_text(base64.b64encode(packed).decode("ascii"))
+            rows = validation.load_score_snapshots(pathlib.Path(tmp))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["sessionDate"], "2026-09-09")
+        self.assertEqual(rows[0]["candidates"][0]["ticker"], "AAA")
 
     def test_load_score_snapshots_reads_json_gz(self):
         payload = {
