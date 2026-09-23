@@ -376,6 +376,29 @@ def load_charts(mode_root: str, manifest: dict, core: dict, tickers: set[str]) -
     return out
 
 
+def _load_preferred_kell_charts(
+    mode_payloads: dict[str, tuple[str, dict, dict]],
+    unified_kell_pool: dict[str, dict],
+) -> dict[str, list]:
+    """Load full-union Kell charts with deterministic Next -> Ryan -> Bottom priority."""
+    out: dict[str, list] = {}
+    pending = set(unified_kell_pool)
+    for mode in ("next", "ryan-original", "bottom-fishing"):
+        if not pending or mode not in mode_payloads:
+            break
+        mode_root, manifest, core = mode_payloads[mode]
+        mode_tickers = {
+            ticker for ticker in pending
+            if mode in (unified_kell_pool[ticker].get("chartModes") or [])
+        }
+        if not mode_tickers:
+            continue
+        loaded = load_charts(mode_root, manifest, core, mode_tickers)
+        out.update(loaded)
+        pending -= set(loaded)
+    return out
+
+
 def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
     """Reconstruct point-in-time SPY history from Unified's RS=stock/SPY*100 field.
 
@@ -814,26 +837,10 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     benchmark_rows: list = _embedded_spy_benchmark(charts)
     benchmark_method = "embedded-SPY-relative-strength" if benchmark_rows else "unavailable"
 
-    # Score the complete Unified candidate union. Build this chart map from
-    # scratch in explicit Next -> Ryan -> Bottom priority. Do not seed it from
-    # the ordinary Review Grid chart cache: that cache is loaded Bottom-first
-    # and would make Kell scores depend on whether a ticker happened to be on
-    # the smaller review board.
-    kell_unified_charts: dict[str, list] = {}
-    kell_pending = set(unified_kell_pool)
-    for mode in ("next", "ryan-original", "bottom-fishing"):
-        if not kell_pending:
-            break
-        mode_root, manifest, core = mode_payloads[mode]
-        mode_tickers = {
-            ticker for ticker in kell_pending
-            if mode in unified_kell_pool[ticker]["chartModes"]
-        }
-        if not mode_tickers:
-            continue
-        loaded = load_charts(mode_root, manifest, core, mode_tickers)
-        kell_unified_charts.update(loaded)
-        kell_pending -= set(loaded)
+    # Score the complete Unified candidate union from a deterministic chart
+    # source order. This is intentionally independent of ordinary Review Grid
+    # membership, which may have cached a Bottom chart first.
+    kell_unified_charts = _load_preferred_kell_charts(mode_payloads, unified_kell_pool)
 
     def kell_chart_quality(item: dict) -> bool:
         metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
