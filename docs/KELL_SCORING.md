@@ -238,6 +238,23 @@ Context is deliberately smaller than price-cycle readiness:
 - `kell_stage_cap`
 - `score_breakdown.legacy_v4_score` — diagnostic BEFORE score only.
 
+## Forward validation plan
+
+The next calibration layer is explicitly **point-in-time**. It does not backfill historical candidate membership from today's Unified universe. Each daily run now archives a small score-only snapshot under `lab/data/kell-score-history/YYYY-MM-DD.json`, preserving the actual ticker set and v4/v5 scores seen on that session.
+
+`scripts/kell_forward_validation.py` joins those archived score states to later OHLCV only for outcome measurement. Default forward horizons are trading sessions:
+
+- **5D**
+- **10D**
+- **20D**
+- **40D** (~2 months)
+- **60D** (~3 months)
+- **120D** (~6 months)
+
+For each horizon and for both v5 Focus and legacy v4, the validator reports score deciles, mean/median forward return, positive-return hit rate, MFE, MAE, top-decile versus bottom-decile spread and top-quintile versus bottom-quintile spread.
+
+A horizon is included only when it has actually matured; the validator will not manufacture a 60D/120D result from insufficient future bars. The current archive is intentionally starting now, so longer-horizon statistical conclusions must wait until enough sessions have matured unless older point-in-time candidate snapshots are recovered from trustworthy historical artifacts.
+
 ## Live v5 validation — 2026-09-22 Unified session
 
 Final CI run **#161 = SUCCESS** on commit `9febd946`, followed by the generated-data publication commit. The run passed unit tests, the historical 2026-09-17 smoke test, browser-model tests, JavaScript syntax, full Unified rebuild, compact v5 validation, live BEFORE/AFTER spot checks, publication and artifact upload.
