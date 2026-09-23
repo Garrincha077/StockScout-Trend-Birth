@@ -17,6 +17,10 @@ test('reject traversal without fetching', async () => {
   await assert.rejects(load(()=>assert.fail('must not fetch'), '?snapshot=../latest'));
 });
 test('latest follows manifest and rejects mixed runs', async () => {
-  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,runId:'run-1',sessionDate:'2026-09-18'};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
   await assert.rejects(load(async path=>({ok:true,json:async()=>path.endsWith('publication.json')?manifest:{source:{runId:'run-2'}}}), ''));
+});
+test('latest rejects a different Unified activation even when date and run match', async () => {
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
+  await assert.rejects(load(async path=>({ok:true,json:async()=>path.endsWith('publication.json')?manifest:{source:{runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'b'.repeat(64)}}}), ''));
 });
