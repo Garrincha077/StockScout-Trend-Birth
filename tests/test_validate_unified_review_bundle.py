@@ -34,6 +34,11 @@ class UnifiedBundleValidatorTests(unittest.TestCase):
                 "candidateGenerationChanged": False,
                 "unifiedCandidateCount": 2,
             },
+            "unifiedCandidateIndexCount": 2,
+            "unifiedCandidateIndex": [
+                {"ticker": "AAA", "sources": ["next"]},
+                {"ticker": "BBB", "sources": ["bottom-fishing"]},
+            ],
             "kellCandidateCount": 1,
         }
         review_path = root / "latest.json"
@@ -53,6 +58,11 @@ class UnifiedBundleValidatorTests(unittest.TestCase):
                 "readOnly": True,
             },
             "kellScoring": {"unifiedCandidateCount": 2},
+            "unifiedCandidateIndexCount": 2,
+            "unifiedCandidateIndex": [
+                {"ticker": "AAA", "sources": ["next"]},
+                {"ticker": "BBB", "sources": ["bottom-fishing"]},
+            ],
             "kellCandidateCount": 1,
             "kellCandidates": [{"ticker": "AAA"}],
             "kellChartData": {"shardCount": 1},
