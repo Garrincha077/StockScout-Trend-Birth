@@ -62,6 +62,17 @@ def validate(review_path: Path, publication_path: Path, kell_path: Path, charts_
         raise ValueError("Unexpected Kell scope")
     if review_kell.get("unifiedCandidateCount") != compact_kell.get("unifiedCandidateCount"):
         raise ValueError("Unified candidate count drift between Review and Kell")
+    unified_count = int(review_kell.get("unifiedCandidateCount") or 0)
+    review_index = review.get("unifiedCandidateIndex") or []
+    compact_index = kell.get("unifiedCandidateIndex") or []
+    if review.get("unifiedCandidateIndexCount") != unified_count or len(review_index) != unified_count:
+        raise ValueError("Review Unified membership index is incomplete")
+    if kell.get("unifiedCandidateIndexCount") != unified_count or len(compact_index) != unified_count:
+        raise ValueError("Compact Unified membership index is incomplete")
+    review_index_tickers = [str(item.get("ticker") or "") for item in review_index]
+    compact_index_tickers = [str(item.get("ticker") or "") for item in compact_index]
+    if len(set(review_index_tickers)) != unified_count or set(review_index_tickers) != set(compact_index_tickers):
+        raise ValueError("Unified membership index drift")
     if review.get("kellCandidateCount") != kell.get("kellCandidateCount"):
         raise ValueError("Kell candidate count drift")
     if len(kell.get("kellCandidates") or []) != kell.get("kellCandidateCount"):
