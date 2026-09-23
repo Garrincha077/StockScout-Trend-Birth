@@ -22,7 +22,10 @@ test('cards expose an accessible star toggle without opening the detail card',()
 
 test('saved tickers survive disappearance from the current daily scan',()=>{
   assert.match(app,/watchlistMissing:true/);
-  assert.match(app,/Nije u današnjem scanu/);
+  assert.match(app,/Nije u današnjem Unified scanu/);
+  assert.match(app,/state\.kellData\?\.unifiedCandidateIndex\|\|state\.data\?\.unifiedCandidateIndex/);
+  assert.match(app,/watchlistUnifiedOnly=true/);
+  assert.match(app,/U današnjem Unified scanu/);
   assert.match(app,/if\(state\.universe==='watchlist'\)return watchlistItems\(\)/);
 });
 
