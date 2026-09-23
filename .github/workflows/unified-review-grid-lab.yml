@@ -54,7 +54,7 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path("lab/data/kell-latest.json").read_text())
-          assert data["schemaVersion"] == "kell-compact-v4"
+          assert data["schemaVersion"] == "kell-compact-v5"
           assert data["source"]["sessionDate"]
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
           chart_meta = data["kellChartData"]
@@ -74,7 +74,7 @@ jobs:
                   assert len(chart.get("weekly") or []) >= 2
                   chart_tickers.add(ticker)
           assert len(chart_tickers) == data["kellCandidateCount"]
-          assert data["kellScoring"]["modelVersion"] == "kell-overlay-v4-screen-stage-setup"
+          assert data["kellScoring"]["modelVersion"] == "kell-overlay-v5-quality-readiness-context"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
           assert "kell_doubler_ytd" in data["kellScoring"]["screenCounts"]
           assert "kell_doubler_6m" not in data["kellScoring"]["screenCounts"]
@@ -89,6 +89,12 @@ jobs:
               assert screens.isdisjoint(context)
               assert setups.isdisjoint(context)
               assert (item.get("kell_stage") or {}).get("primary")
+              assert 0 <= float(item.get("kell_score") or 0) <= 100
+              assert 0 <= float(item.get("kell_quality_score") or 0) <= 100
+              assert 0 <= float(item.get("kell_readiness_score") or 0) <= 100
+              assert 0 <= float(item.get("kell_context_score") or 0) <= 100
+              assert 0 <= float(item.get("kell_evidence_coverage") or 0) <= 100
+              assert float(item.get("kell_score") or 0) <= float(item.get("kell_stage_cap") or 100)
               assert isinstance(item.get("chartShard"), int)
               assert item.get("chartBarsCount", 0) >= 2
               assert item.get("weeklyChartBarsCount", 0) >= 2
