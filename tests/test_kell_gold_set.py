@@ -77,6 +77,35 @@ class KellGoldSetTests(unittest.TestCase):
         self.assertEqual(rows["BBB"]["change"], "fixed_false_positive")
         self.assertEqual(rows["CCC"]["change"], "borderline_removed")
 
+
+    def test_recovered_v2_columnar_archive_is_supported(self):
+        gold_set = {
+            "schemaVersion": gold.GOLD_SCHEMA_VERSION,
+            "labels": [
+                label("AAA", "stage", "wedge_pop", "VALID"),
+                label("AAA", "setup", "kell_wedge_pop", "VALID"),
+            ],
+        }
+        archive = {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {"sessionDate": "2026-09-22"},
+            "kellScoring": {"modelVersion": "recovered-v2"},
+            "columns": [
+                "ticker", "kell_score", "legacy_v4_score", "kell_quality_score",
+                "kell_readiness_score", "kell_context_score", "kell_evidence_coverage",
+                "kell_stage_cap", "stage", "source_mask",
+            ],
+            "candidates": [["AAA", 70, 40, 60, 80, 50, 100, 100, "wedge_pop", 7]],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "2026-09-22.json"
+            path.write_text(__import__("json").dumps(archive), encoding="utf-8")
+            report = gold.evaluate_gold_set(gold_set, scores_dir=Path(tmp))
+        self.assertEqual(report["summary"]["evaluated"], 1)
+        self.assertEqual(report["summary"]["unavailable"], 1)
+        self.assertEqual(report["rows"][0]["predictionNow"], True)
+        self.assertEqual(report["rows"][1]["unavailableReason"], "setup_not_archived")
+
     def test_legacy_archive_stage_is_evaluable_but_missing_setup_is_unavailable(self):
         gold_set = {
             "schemaVersion": gold.GOLD_SCHEMA_VERSION,
