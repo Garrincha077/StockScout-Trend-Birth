@@ -180,5 +180,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trend-birth-review-grid-lab
-          path: lab
+          path: |
+            lab
+            scripts/kell_scoring.py
+            scripts/recover_kell_history_artifact.py
+            scripts/kell_forward_validation.py
           retention-days: 7
