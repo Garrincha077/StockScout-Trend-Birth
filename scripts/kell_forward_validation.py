@@ -36,6 +36,13 @@ def _date(value: Any) -> str:
 
 
 def _candidate_rows(payload: dict) -> list[dict]:
+    if payload.get("schemaVersion") == "kell-score-history-v2":
+        columns = list(payload.get("columns") or [])
+        return [
+            dict(zip(columns, row))
+            for row in (payload.get("candidates") or [])
+            if isinstance(row, list) and len(row) == len(columns)
+        ]
     return list(payload.get("candidates") or payload.get("kellCandidates") or [])
 
 
