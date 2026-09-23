@@ -239,7 +239,7 @@ def recover(artifact_zip: Path) -> dict:
             mode_data: dict[str, tuple[dict, dict]] = {}
             membership: dict[str, list[str]] = {}
             contexts: dict[str, dict] = {}
-            priority = {"bottom-fishing": 1, "ryan-original": 2, "next": 3}
+            # Match build_review_snapshot.py merge semantics exactly: Next scalars\n            # override Bottom, while existing Bottom/Next scalars override Ryan.\n            priority = {"ryan-original": 1, "bottom-fishing": 2, "next": 3}
             context_priority: dict[str, int] = {}
             for mode in MODES:
                 manifest, core = _load_mode(artifact, mode)
