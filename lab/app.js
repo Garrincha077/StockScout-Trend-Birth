@@ -321,7 +321,11 @@ function matchesFilter(item,filter=state.filter){
   if(filter==='none')return true;
   if(filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
   if(filter==='multi')return (item?.unifiedSources||item?.sources||[]).length>1;
-  if(filter==='kell-any')return true;
+  if(filter==='kell-any')return Boolean(
+    (item?.kellScreens||item?.kell_screens||[]).length
+    ||(item?.kellSetups||item?.kell_setups||[]).length
+    ||(item?.kellContext||[]).length
+  );
   if(filter==='kell-score')return Number(item.kell_score)>=60;
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
