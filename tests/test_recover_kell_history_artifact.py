@@ -65,13 +65,18 @@ def pages_zip(path: pathlib.Path):
             # BBB proves exact historical membership can exist without becoming a
             # Kell match when the archived artifact has no usable chart evidence.
             core["universe"].append({"ticker": "BBB", "rsRank": 99})
+        chart_path = (
+            f"runs/{run_id}/charts/manifest.json"
+            if mode == "bottom-fishing"
+            else f"runs/{run_id}/charts"
+        )
         manifest = {
             "runId": run_id,
             "sessionDate": session,
             "status": "healthy",
             "assets": {
                 "core": {"path": f"runs/{run_id}/core.json"},
-                "charts": {"path": f"runs/{run_id}/charts"},
+                "charts": {"path": chart_path},
             },
         }
         files[f"data/modes/{mode}/manifest.json"] = manifest
@@ -79,6 +84,10 @@ def pages_zip(path: pathlib.Path):
         if mode in {"next", "ryan-original"}:
             files[f"data/modes/{mode}/runs/{run_id}/charts/000.json"] = {
                 "AAA": bars,
+            }
+        else:
+            files[f"data/modes/{mode}/runs/{run_id}/charts/manifest.json"] = {
+                "shardsByTicker": {},
             }
 
     tar_bytes = io.BytesIO()
