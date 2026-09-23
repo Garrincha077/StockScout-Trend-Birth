@@ -288,7 +288,7 @@ jobs:
           cp -R /tmp/kell-score-history lab/data/kell-score-history
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history
+          git add lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
