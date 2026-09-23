@@ -1029,7 +1029,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "setupCounts": kell_setup_counts,
             "contextCounts": kell_context_counts,
             "stageCounts": kell_stage_counts,
-            "method": "Kell v4 overlay over the deduplicated Unified candidate union. Discovery screens, stock stage, actionable setups and supporting context are published as separate dimensions; no new market-wide universe.",
+            "method": "Kell v5 overlay over the deduplicated Unified candidate union. Discovery screens remain separate from stage/setup; ranking uses Quality + Readiness + Context with evidence coverage, structural-risk proxy and late-cycle stage caps. No new market-wide universe.",
         },
         "kellCandidateCount": len(kell_candidates),
         "kellCandidates": kell_candidates,
