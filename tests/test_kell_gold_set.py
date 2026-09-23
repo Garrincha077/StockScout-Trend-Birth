@@ -141,6 +141,57 @@ class KellGoldSetTests(unittest.TestCase):
         self.assertEqual(report["summary"]["evaluated"], 1)
         self.assertEqual(report["summary"]["unavailable"], 1)
 
+    def test_raw_snapshot_rescore_recovers_missing_setup_archive(self):
+        bars = [
+            [f"2026-08-{day:02d}", 100.0, 101.0, 99.0, 100.0, 1_000_000]
+            for day in range(1, 22)
+        ]
+        bars.append(["2026-09-21", 105.0, 110.0, 104.0, 109.0, 2_000_000])
+
+        gold_set = {
+            "schemaVersion": gold.GOLD_SCHEMA_VERSION,
+            "labels": [
+                dict(
+                    label("AAA", "setup", "kell_buyable_gap_proxy", "VALID"),
+                    sessionDate="2026-09-21",
+                )
+            ],
+        }
+        archive = {
+            "source": {"sessionDate": "2026-09-21"},
+            "kellScoring": {"modelVersion": "legacy-stage-only"},
+            "candidates": [{"ticker": "AAA", "stage": "transition"}],
+        }
+        snapshot = {
+            "source": {"sessionDate": "2026-09-21"},
+            "candidates": [{"ticker": "AAA", "chartBars": bars}],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scores = root / "scores"
+            snapshots = root / "snapshots"
+            scores.mkdir()
+            snapshots.mkdir()
+            (scores / "2026-09-21.json").write_text(
+                __import__("json").dumps(archive), encoding="utf-8"
+            )
+            (snapshots / "2026-09-21-eod.json").write_text(
+                __import__("json").dumps(snapshot), encoding="utf-8"
+            )
+            report = gold.evaluate_gold_set(
+                gold_set,
+                scores_dir=scores,
+                snapshots_dir=snapshots,
+            )
+
+        row = report["rows"][0]
+        self.assertIs(row["predictionNow"], True)
+        self.assertEqual(row["evaluationSource"], "raw_snapshot_rescore")
+        self.assertEqual(row["modelVersionNow"], "kell-overlay-v5-quality-readiness-context")
+        self.assertEqual(report["summary"]["rescoredRowCount"], 1)
+        self.assertEqual(report["summary"]["rawSnapshotSessionCount"], 1)
+
     def test_false_negative_metrics_and_session_rollup(self):
         gold_set = {
             "schemaVersion": gold.GOLD_SCHEMA_VERSION,
