@@ -239,6 +239,47 @@
             ],
             "stage": "wedge_pop",
             "ticker": "GO"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "IEX"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "CRWV"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "MIDD"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "IMKTA"
+          },
+          {
+            "grade": "borderline",
+            "reasons": [
+              "pre_pop_price_not_working_lower_or_sideways",
+              "weak_pop_close_location"
+            ],
+            "stage": "wedge_pop",
+            "ticker": "PVH"
           }
         ]
       },
