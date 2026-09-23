@@ -82,6 +82,24 @@ class KellForwardValidationTests(unittest.TestCase):
         out = validation._outcome(series, session, 20)
         self.assertIsNone(out)
 
+    def test_load_score_snapshots_expands_recovered_bundle(self):
+        snap = lambda d, t: {
+            "schemaVersion": "kell-score-history-v2",
+            "source": {"sessionDate": d, "runId": "r-" + d},
+            "columns": ["ticker", "kell_score", "legacy_v4_score"],
+            "candidates": [[t, 80.0, 60.0]],
+        }
+        payload = {
+            "schemaVersion": "kell-score-history-bundle-v1",
+            "snapshots": [snap("2026-09-09", "AAA"), snap("2026-09-10", "BBB")],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "recovered.json.gz"
+            path.write_bytes(gzip.compress(json.dumps(payload).encode()))
+            rows = validation.load_score_snapshots(pathlib.Path(tmp))
+        self.assertEqual([row["sessionDate"] for row in rows], ["2026-09-09", "2026-09-10"])
+        self.assertEqual(rows[1]["candidates"][0]["ticker"], "BBB")
+
     def test_load_score_snapshots_reads_json_gz(self):
         payload = {
             "schemaVersion": "kell-score-history-v2",
