@@ -64,7 +64,25 @@ def validate_gold_set(gold: dict) -> list[str]:
 
 
 def _candidates(payload: dict) -> list[dict]:
-    return list(payload.get("kellCandidates") or payload.get("candidates") or [])
+    """Return candidate mappings from compact, v1, or columnar v2 archives."""
+    rows = list(payload.get("kellCandidates") or payload.get("candidates") or [])
+    if not rows:
+        return []
+    if all(isinstance(row, dict) for row in rows):
+        return rows
+
+    columns = payload.get("columns") or []
+    if columns and all(isinstance(row, list) for row in rows):
+        out: list[dict] = []
+        for row in rows:
+            item = {
+                str(columns[index]): value
+                for index, value in enumerate(row)
+                if index < len(columns)
+            }
+            out.append(item)
+        return out
+    return []
 
 
 def _session(payload: dict) -> str:
