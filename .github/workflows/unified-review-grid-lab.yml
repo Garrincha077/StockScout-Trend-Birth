@@ -105,6 +105,44 @@ jobs:
               "bytes": Path("lab/data/kell-latest.json").stat().st_size,
           })
           PY
+      - name: Kell v5 BEFORE/AFTER spot check
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("lab/data/kell-latest.json").read_text())
+          items = data["kellCandidates"]
+          by_ticker = {item["ticker"]: item for item in items}
+          watch = ["GRAL", "WBD", "DELL", "VKTX", "AMD", "TARS"]
+          print("KELL_V5_SPOT_CHECK")
+          for ticker in watch:
+              item = by_ticker[ticker]
+              breakdown = item.get("score_breakdown") or {}
+              print(json.dumps({
+                  "ticker": ticker,
+                  "legacyV4": breakdown.get("legacy_v4_score"),
+                  "focusV5": item.get("kell_score"),
+                  "quality": item.get("kell_quality_score"),
+                  "readiness": item.get("kell_readiness_score"),
+                  "context": item.get("kell_context_score"),
+                  "coverage": item.get("kell_evidence_coverage"),
+                  "stage": (item.get("kell_stage") or {}).get("primary"),
+                  "stageCap": item.get("kell_stage_cap"),
+              }, sort_keys=True))
+          print("KELL_V5_TOP10")
+          for item in sorted(items, key=lambda x: (-float(x.get("kell_score") or 0), x["ticker"]))[:10]:
+              breakdown = item.get("score_breakdown") or {}
+              print(json.dumps({
+                  "ticker": item["ticker"],
+                  "legacyV4": breakdown.get("legacy_v4_score"),
+                  "focusV5": item.get("kell_score"),
+                  "quality": item.get("kell_quality_score"),
+                  "readiness": item.get("kell_readiness_score"),
+                  "context": item.get("kell_context_score"),
+                  "coverage": item.get("kell_evidence_coverage"),
+                  "stage": (item.get("kell_stage") or {}).get("primary"),
+              }, sort_keys=True))
+          PY
       - name: Publish compact Kell data to preview branch
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
         run: |
