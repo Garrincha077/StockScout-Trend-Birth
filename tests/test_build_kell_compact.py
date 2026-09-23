@@ -41,6 +41,7 @@ class KellCompactTests(unittest.TestCase):
             finally:
                 __import__("sys").argv = old_argv
             out = json.loads(output_path.read_text())
+            self.assertEqual(out["schemaVersion"], "kell-compact-v5")
             self.assertEqual(out["source"]["modeUniverseCounts"]["bottom-fishing"], 2045)
 
     def test_compact_bar_handles_array_and_object_rows(self):
@@ -55,6 +56,37 @@ class KellCompactTests(unittest.TestCase):
             }),
             ["2026-09-22", 10.0, 12.0, 9.5, 11.0, 1500.0],
         )
+
+    def test_compact_candidate_preserves_v5_score_dimensions(self):
+        item = {
+            "ticker": "AAA",
+            "sources": ["next"],
+            "metrics": {"price": 50},
+            "kell_score": 82.5,
+            "kell_quality_score": 91.0,
+            "kell_readiness_score": 84.0,
+            "kell_actionability_score": 84.0,
+            "kell_context_score": 63.0,
+            "kell_evidence_coverage": 90.0,
+            "kell_structural_risk_score": 78.0,
+            "kell_stage_cap": 100.0,
+            "score_breakdown": {
+                "model_version": "kell-overlay-v5-quality-readiness-context",
+                "legacy_v4_score": 76.0,
+                "raw_composite": 82.5,
+                "stage_cap": 100.0,
+                "final_score": 82.5,
+                "evidence_coverage": 90.0,
+                "components": {"quality": {"score": 91.0}},
+                "criteria": {"verbose": {"detail": "do not copy this into compact"}},
+            },
+            "kell_stage": {"primary": "ema_crossback", "confidence": 0.95, "basis": []},
+        }
+        out = compact.compact_candidate(item)
+        self.assertEqual(out["kell_quality_score"], 91.0)
+        self.assertEqual(out["kell_readiness_score"], 84.0)
+        self.assertEqual(out["score_breakdown"]["legacy_v4_score"], 76.0)
+        self.assertNotIn("criteria", out["score_breakdown"])
 
     def test_chart_shards_cover_candidates_without_embedding_bars(self):
         candidates = []
