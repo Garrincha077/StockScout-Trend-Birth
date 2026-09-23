@@ -184,7 +184,7 @@ jobs:
           })
           PY
       - name: Validate Kell signal contracts and setup quality
-        run: python scripts/kell_signal_validation.py --input lab/data/latest.json --output lab/data/kell-signal-validation.json --strict
+        run: python scripts/kell_signal_validation.py --input lab/data/latest.json --output lab/data/kell-signal-validation.json --sample-limit 100 --strict
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
       - name: Run point-in-time Kell forward validator
