@@ -3,6 +3,12 @@
   "buildCommand": "rm -rf dist && mkdir -p dist && cp -R lab/. dist/",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "feature/unified-review-grid-lab": true,
+      "*": false
+    }
+  },
   "headers": [
     {
       "source": "/data/(.*)",
