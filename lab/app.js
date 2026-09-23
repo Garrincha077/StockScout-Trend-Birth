@@ -355,10 +355,18 @@ async function ensureKellData(){
       return response.json();
     })
     .then(data=>{
-      const mainDate=state.data?.source?.sessionDate;
-      const kellDate=data?.source?.sessionDate;
+      const reviewSource=state.data?.source||{};
+      const kellSource=data?.source||{};
+      const mainDate=reviewSource.sessionDate;
+      const kellDate=kellSource.sessionDate;
       if(mainDate&&kellDate&&mainDate!==kellDate){
         throw new Error('Kell dataset je za '+kellDate+', a Review Grid za '+mainDate+'.');
+      }
+      if(reviewSource.runId&&kellSource.runId&&reviewSource.runId!==kellSource.runId){
+        throw new Error('Kell i Review Grid nisu iz istog Unified runa.');
+      }
+      if(reviewSource.unifiedManifestSha256&&reviewSource.unifiedManifestSha256!==kellSource.unifiedManifestSha256){
+        throw new Error('Kell i Review Grid nisu iz iste aktivirane Unified objave.');
       }
       const normal=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
       for(const item of data.kellCandidates||[]){
@@ -395,6 +403,10 @@ async function ensureChartData(item){
         .then(result=>{
           if(!['kell-chart-shard-v1','kell-chart-shard-v2'].includes(result?.schemaVersion))throw new Error('invalid chart shard schema');
           if(result?.source?.sessionDate!==data?.source?.sessionDate)throw new Error('chart shard date mismatch');
+          if(result?.source?.runId!==data?.source?.runId)throw new Error('chart shard run mismatch');
+          if(data?.source?.unifiedManifestSha256&&result?.source?.unifiedManifestSha256!==data.source.unifiedManifestSha256){
+            throw new Error('chart shard Unified activation mismatch');
+          }
           state.kellChartShards.set(key,result);
           state.kellChartLoading.delete(key);
           return result;
