@@ -81,6 +81,20 @@ class KellForwardValidationTests(unittest.TestCase):
         out = validation._outcome(series, session, 20)
         self.assertIsNone(out)
 
+    def test_candidate_rows_reads_compact_recovered_v2(self):
+        payload = {
+            "schemaVersion": "kell-score-history-v2",
+            "columns": ["ticker", "kell_score", "legacy_v4_score", "stage"],
+            "candidates": [
+                ["AAA", 82.5, 61.0, "ema_crossback"],
+                ["BBB", 44.0, 55.0, "transition"],
+            ],
+        }
+        rows = validation._candidate_rows(payload)
+        self.assertEqual(rows[0]["ticker"], "AAA")
+        self.assertEqual(rows[0]["kell_score"], 82.5)
+        self.assertEqual(rows[1]["legacy_v4_score"], 55.0)
+
     def test_load_chart_store_from_shards(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "shard-000.json"
