@@ -269,8 +269,8 @@ jobs:
                   "stage": (item.get("kell_stage") or {}).get("primary"),
               }, sort_keys=True))
           PY
-      - name: Publish aligned Review + Kell data to preview branch
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment')
+      - name: Publish aligned Review + Kell data atomically
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment')
         run: |
           mkdir -p /tmp/review-publication
           cp lab/data/latest.json /tmp/review-publication/latest.json
