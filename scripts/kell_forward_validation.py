@@ -247,6 +247,53 @@ def build_observations(
     return observations
 
 
+def outcome_coverage(
+    snapshots: list[dict],
+    chart_store: dict[str, list[dict]],
+    observations: list[dict],
+    horizons: tuple[int, ...] = DEFAULT_HORIZONS,
+) -> dict[str, dict[str, dict]]:
+    calendar = sorted({
+        bar["date"]
+        for bars in chart_store.values()
+        for bar in bars
+        if bar.get("date")
+    })
+    calendar_index = {value: index for index, value in enumerate(calendar)}
+    matured_by_horizon: dict[int, set[str]] = {}
+    for horizon in horizons:
+        matured_by_horizon[horizon] = {
+            snapshot["sessionDate"]
+            for snapshot in snapshots
+            if snapshot["sessionDate"] in calendar_index
+            and calendar_index[snapshot["sessionDate"]] + horizon < len(calendar)
+        }
+
+    result: dict[str, dict[str, dict]] = {model: {} for model in MODEL_FIELDS}
+    for model in MODEL_FIELDS:
+        for horizon in horizons:
+            matured_sessions = matured_by_horizon[horizon]
+            expected = 0
+            for snapshot in snapshots:
+                if snapshot["sessionDate"] not in matured_sessions:
+                    continue
+                expected += sum(_score(item, model) is not None for item in snapshot["candidates"])
+            observed = sum(
+                1
+                for row in observations
+                if row["model"] == model and row["horizon"] == horizon
+            )
+            coverage_pct = round(observed / expected * 100.0, 2) if expected else None
+            result[model][str(horizon)] = {
+                "maturedSessions": len(matured_sessions),
+                "expectedObservations": expected,
+                "observedObservations": observed,
+                "missingObservations": max(expected - observed, 0),
+                "coveragePct": coverage_pct,
+            }
+    return result
+
+
 def _stats(rows: list[dict]) -> dict:
     if not rows:
         return {
@@ -264,7 +311,12 @@ def _stats(rows: list[dict]) -> dict:
     }
 
 
-def summarize(observations: list[dict], horizons: tuple[int, ...] = DEFAULT_HORIZONS) -> dict:
+def summarize(
+    observations: list[dict],
+    horizons: tuple[int, ...] = DEFAULT_HORIZONS,
+    coverage: dict[str, dict[str, dict]] | None = None,
+    min_outcome_coverage_pct: float = 99.0,
+) -> dict:
     result = {
         "schemaVersion": "kell-forward-validation-v1",
         "horizons": list(horizons),
@@ -290,9 +342,25 @@ def summarize(observations: list[dict], horizons: tuple[int, ...] = DEFAULT_HORI
                 if a["mean_return_pct"] is None or b["mean_return_pct"] is None:
                     return None
                 return round(a["mean_return_pct"] - b["mean_return_pct"], 3)
+            coverage_row = (coverage or {}).get(model, {}).get(str(horizon))
+            coverage_pct = (
+                coverage_row.get("coveragePct")
+                if isinstance(coverage_row, dict)
+                else None
+            )
+            eligible = (
+                coverage_row is None
+                or (
+                    coverage_pct is not None
+                    and float(coverage_pct) >= float(min_outcome_coverage_pct)
+                )
+            )
             model_out[str(horizon)] = {
                 "observations": len(rows),
                 "maturedSessions": len({row["sessionDate"] for row in rows}),
+                "outcomeCoverage": coverage_row,
+                "eligibleForValidation": eligible,
+                "minOutcomeCoveragePct": min_outcome_coverage_pct,
                 "deciles": deciles,
                 "topDecile": top_stats,
                 "bottomDecile": bottom_stats,
@@ -309,12 +377,20 @@ def summarize(observations: list[dict], horizons: tuple[int, ...] = DEFAULT_HORI
         v4 = result["models"]["v4"][str(horizon)]
         v5_top = v5["topDecile"]["mean_return_pct"]
         v4_top = v4["topDecile"]["mean_return_pct"]
+        eligible = bool(v5.get("eligibleForValidation")) and bool(v4.get("eligibleForValidation"))
         comparison[str(horizon)] = {
+            "eligibleForValidation": eligible,
             "v5MinusV4TopDecileMeanReturnPct": (
-                round(v5_top - v4_top, 3) if v5_top is not None and v4_top is not None else None
+                round(v5_top - v4_top, 3)
+                if eligible and v5_top is not None and v4_top is not None
+                else None
             ),
-            "v5TopMinusBottomSpreadPct": v5["topMinusBottomMeanReturnPct"],
-            "v4TopMinusBottomSpreadPct": v4["topMinusBottomMeanReturnPct"],
+            "v5TopMinusBottomSpreadPct": (
+                v5["topMinusBottomMeanReturnPct"] if eligible else None
+            ),
+            "v4TopMinusBottomSpreadPct": (
+                v4["topMinusBottomMeanReturnPct"] if eligible else None
+            ),
         }
     result["comparison"] = comparison
     return result
@@ -326,6 +402,12 @@ def main() -> int:
     parser.add_argument("--charts-dir", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument(
+        "--min-outcome-coverage-pct",
+        type=float,
+        default=99.0,
+        help="Minimum matured outcome coverage required before validation comparisons are eligible",
+    )
+    parser.add_argument(
         "--horizons",
         default=",".join(str(x) for x in DEFAULT_HORIZONS),
         help="Comma-separated trading-session horizons, default 5,10,20,40,60,120",
@@ -335,11 +417,19 @@ def main() -> int:
     snapshots = load_score_snapshots(Path(args.scores_dir))
     charts = load_chart_store(Path(args.charts_dir))
     observations = build_observations(snapshots, charts, horizons)
-    report = summarize(observations, horizons)
+    coverage = outcome_coverage(snapshots, charts, observations, horizons)
+    report = summarize(
+        observations,
+        horizons,
+        coverage=coverage,
+        min_outcome_coverage_pct=args.min_outcome_coverage_pct,
+    )
     report["source"] = {
         "scoreSnapshotCount": len(snapshots),
         "chartTickerCount": len(charts),
         "pointInTimeCandidateMembership": True,
+        "minOutcomeCoveragePct": args.min_outcome_coverage_pct,
+        "outcomeCoverageGuard": True,
     }
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
