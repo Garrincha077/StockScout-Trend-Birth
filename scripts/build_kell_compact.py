@@ -55,6 +55,20 @@ def compact_bar(row) -> list | None:
     return [values[0], *numeric]
 
 
+def compact_score_breakdown(item: dict) -> dict:
+    """Keep the browser explanation useful without copying verbose criterion detail strings."""
+    source = item.get("score_breakdown") or {}
+    components = source.get("components") or {}
+    return {
+        key: source.get(key)
+        for key in (
+            "model_version", "legacy_v4_score", "raw_composite", "ttftl_penalty",
+            "stage_cap", "final_score", "evidence_coverage", "warnings",
+        )
+        if key in source
+    } | {"components": components}
+
+
 def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
     bars = item.get("chartBars") or []
     out = {
@@ -63,6 +77,14 @@ def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
         "metrics": pick(item.get("metrics") or {}, METRIC_KEYS),
         "kell_metrics": pick(item.get("kell_metrics") or {}, KELL_METRIC_KEYS),
         "kell_score": item.get("kell_score"),
+        "kell_quality_score": item.get("kell_quality_score"),
+        "kell_readiness_score": item.get("kell_readiness_score"),
+        "kell_actionability_score": item.get("kell_actionability_score"),
+        "kell_context_score": item.get("kell_context_score"),
+        "kell_evidence_coverage": item.get("kell_evidence_coverage"),
+        "kell_structural_risk_score": item.get("kell_structural_risk_score"),
+        "kell_stage_cap": item.get("kell_stage_cap"),
+        "score_breakdown": compact_score_breakdown(item),
         "kell_cycle_stage": item.get("kell_cycle_stage"),
         "kell_stage": item.get("kell_stage") or {},
         "kell_breakout_proximity_pct": item.get("kell_breakout_proximity_pct"),
@@ -155,7 +177,7 @@ def main() -> int:
         )
 
     out = {
-        "schemaVersion": "kell-compact-v4",
+        "schemaVersion": "kell-compact-v5",
         "source": {
             "runId": src.get("runId"),
             "sessionDate": src.get("sessionDate"),
