@@ -11,6 +11,7 @@ It never reconstructs historical membership from today's universe.
 from __future__ import annotations
 
 import argparse
+import base64
 import gzip
 import json
 import math
@@ -353,6 +354,22 @@ def recover(artifact_zip: Path, provenance: dict | None = None) -> dict:
             artifact.close()
 
 
+def write_recovered(payload: dict, output_dir: Path, encoding: str = "json") -> Path:
+    session_date = payload["source"]["sessionDate"]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if encoding == "json":
+        output = output_dir / f"{session_date}.json"
+        output.write_bytes(raw)
+        return output
+    if encoding == "json-gzip-base64":
+        output = output_dir / f"{session_date}.json.gz.b64"
+        packed = gzip.compress(raw, mtime=0)
+        output.write_text(base64.b64encode(packed).decode("ascii"), encoding="ascii")
+        return output
+    raise ValueError(f"unsupported encoding: {encoding}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     source = parser.add_mutually_exclusive_group(required=True)
@@ -370,6 +387,7 @@ def main() -> int:
     parser.add_argument("--artifact-created-at")
     parser.add_argument("--artifact-expires-at")
     parser.add_argument("--source-path")
+    parser.add_argument("--encoding", choices=("json", "json-gzip-base64"), default="json")
     args = parser.parse_args()
     provenance = {
         "sourceRepository": args.source_repository,
@@ -394,9 +412,7 @@ def main() -> int:
         recovered = recover(artifact_zip, provenance=provenance)
 
     session_date = recovered["source"]["sessionDate"]
-    output = Path(args.output_dir) / f"{session_date}.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(recovered, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    output = write_recovered(recovered, Path(args.output_dir), args.encoding)
     print(json.dumps({
         "status": "ok",
         "sessionDate": session_date,
