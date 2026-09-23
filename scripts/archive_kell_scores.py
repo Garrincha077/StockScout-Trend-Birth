@@ -20,6 +20,9 @@ def compact_candidate(item: dict) -> dict:
         "kell_evidence_coverage": item.get("kell_evidence_coverage"),
         "kell_stage_cap": item.get("kell_stage_cap"),
         "stage": (item.get("kell_stage") or {}).get("primary") or item.get("kell_cycle_stage"),
+        "screens": list(item.get("kellScreens") or item.get("kell_screens") or []),
+        "setups": list(item.get("kellSetups") or item.get("kell_setups") or []),
+        "context": list(item.get("kellContext") or item.get("kell_context") or []),
     }
 
 
