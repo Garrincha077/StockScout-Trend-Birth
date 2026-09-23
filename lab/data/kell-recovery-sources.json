@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "kell-recovery-sources-v1",
+  "sourceRepository": "Garrincha077/StockScout-Unified",
+  "policy": {
+    "candidateMembership": "exact historical GitHub Pages artifacts only; never reconstruct with a later universe",
+    "scoreSemantics": "current-model-recomputed-on-point-in-time-inputs",
+    "scoreObservedAtSession": false,
+    "storageEncoding": "json-gzip-base64"
+  },
+  "sources": [
+    {
+      "sessionDate": "2026-09-09",
+      "workflowRunId": 34416769508,
+      "workflowRunNumber": 44,
+      "runAttempt": 2,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10144397061,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:9416220225ebf587cf5a7b99ac370ab3f3fd20d8bb1ccd635fd0fe64b874001c",
+      "artifactCreatedAt": "2026-09-10T09:00:50Z",
+      "artifactExpiresAt": "2026-09-24T09:00:36Z"
+    },
+    {
+      "sessionDate": "2026-09-10",
+      "workflowRunId": 34541553475,
+      "workflowRunNumber": 45,
+      "runAttempt": 2,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10267735054,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:4272d4f860601a949537f77257c2a19a9598b2a620e6527bee75c6c9264ed172",
+      "artifactCreatedAt": "2026-09-11T14:07:00Z",
+      "artifactExpiresAt": "2026-09-25T14:06:44Z"
+    },
+    {
+      "sessionDate": "2026-09-11",
+      "workflowRunId": 34658040085,
+      "workflowRunNumber": 46,
+      "runAttempt": 1,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10287363099,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:0e85c947533ac266c9b376a1466e294c8173230e3b54054d9346de3d14ec83f0",
+      "artifactCreatedAt": "2026-09-12T00:39:01Z",
+      "artifactExpiresAt": "2026-09-26T00:38:47Z"
+    },
+    {
+      "sessionDate": "2026-09-14",
+      "workflowRunId": 34910964290,
+      "workflowRunNumber": 47,
+      "runAttempt": 1,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10376378456,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:fac01856039cede9ba7097ea3969a7d6bcd497f5d0b1083c84901379db70cc5b",
+      "artifactCreatedAt": "2026-09-15T01:25:38Z",
+      "artifactExpiresAt": "2026-09-29T01:25:29Z"
+    },
+    {
+      "sessionDate": "2026-09-15",
+      "workflowRunId": 35036281920,
+      "workflowRunNumber": 48,
+      "runAttempt": 1,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10425164585,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:5a633fc1766b5350dbd0545cb26a8274af56132bda8df7a4c057ceec0ace8b71",
+      "artifactCreatedAt": "2026-09-16T00:59:01Z",
+      "artifactExpiresAt": "2026-09-30T00:58:46Z"
+    },
+    {
+      "sessionDate": "2026-09-16",
+      "workflowRunId": 35163474443,
+      "workflowRunNumber": 49,
+      "runAttempt": 1,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10475538273,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:29b3946bc831a17fcabc21de3780099f863e8398850ed6caf992d01b13764b3f",
+      "artifactCreatedAt": "2026-09-17T01:17:17Z",
+      "artifactExpiresAt": "2026-10-01T01:17:00Z"
+    },
+    {
+      "sessionDate": "2026-09-17",
+      "workflowRunId": 35287538852,
+      "workflowRunNumber": 50,
+      "runAttempt": 1,
+      "headSha": "22b821b77d73b28a7ba44c5915604697bfbd5bc3",
+      "artifactId": 10527200950,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:40c6ee01660574e51d97ee3725322c87e4b4159eacf31499f13866a4cebc1472",
+      "artifactCreatedAt": "2026-09-18T00:39:02Z",
+      "artifactExpiresAt": "2026-10-02T00:38:46Z"
+    },
+    {
+      "sessionDate": "2026-09-18",
+      "workflowRunId": 35425827607,
+      "workflowRunNumber": 52,
+      "runAttempt": 1,
+      "headSha": "310d8dab59305af2aa4d00a43b78f17ca56e3726",
+      "artifactId": 10580240802,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:5f3e5f01207aea0f53386f2b652b1644a1b6d01af185aee048b20e6d26b159a8",
+      "artifactCreatedAt": "2026-09-19T07:05:43Z",
+      "artifactExpiresAt": "2026-10-03T07:05:28Z"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "workflowRunId": 35670984797,
+      "workflowRunNumber": 53,
+      "runAttempt": 2,
+      "headSha": "87f96d1759d8e2b919e72cc1fb99215f52c7ee41",
+      "artifactId": 10686830280,
+      "artifactName": "github-pages",
+      "artifactDigest": "sha256:65c6206a20cc12edfff6824e9c9e696d9d4a787006bf20fe31ccf85f65b96d1e",
+      "artifactCreatedAt": "2026-09-22T09:29:06Z",
+      "artifactExpiresAt": "2026-10-06T09:28:50Z"
+    }
+  ],
+  "unavailable": [
+    {
+      "workflowRunId": 34290932161,
+      "artifactId": 10095305177,
+      "status": "expired",
+      "expiredAt": "2026-09-23T08:34:51Z"
+    },
+    {
+      "workflowRunId": 34170702450,
+      "artifactId": 10036181262,
+      "status": "expired",
+      "expiredAt": "2026-09-22T00:13:02Z"
+    },
+    {
+      "workflowRunId": 33817398952,
+      "artifactId": 9918954368,
+      "status": "expired",
+      "expiredAt": "2026-09-18T00:45:44Z"
+    },
+    {
+      "workflowRunId": 33695167266,
+      "artifactId": 9873594102,
+      "status": "expired",
+      "expiredAt": "2026-09-17T00:51:29Z"
+    },
+    {
+      "workflowRunId": 33928346179,
+      "status": "no-github-pages-artifact",
+      "conclusion": "failure"
+    }
+  ]
+}
