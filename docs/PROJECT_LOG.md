@@ -282,3 +282,22 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - If desired, allow multiple secondary screens to be AND/OR-combined inside the selected universe. Keep single-screen selection as the default because it is simpler and clearer.
+
+
+## 2026-09-23 — Kell Gold Set + calibration harness
+
+- Branch: `feature/kell-mcp-lab`; production Unified EOD / Trend Birth, Telegram and broker behavior remain unchanged.
+- Added a persistent human-reviewed calibration set in `lab/data/kell-gold-set.json` with point-in-time `VALID / BORDERLINE / FALSE_POSITIVE` semantics and reason codes. The seed set currently contains **21 reviewed labels across 2 sessions**: **18 VALID** and **3 BORDERLINE**.
+- Added `scripts/kell_gold_set.py` to compare the signal recorded at review time (BEFORE) with the same ticker/session in current or recovered point-in-time Kell archives (AFTER). The report is written to `lab/data/kell-gold-set-eval.json`.
+- Metrics are reported overall and per signal bucket: reviewed/evaluated count, added/lost predictions, accepted precision, strict VALID precision, positive recall, weighted quality, fixed/unresolved false positives and hard VALID regressions.
+- Historical compatibility matters: recovered `kell-score-history-v2` archives are columnar rows, while newer archives are dictionary-based. The first CI run exposed this mismatch with `AttributeError: 'list' object has no attribute 'get'`; the evaluator was fixed to inflate v2 rows via the archive `columns` definition and a dedicated regression test was added.
+- Point-in-time archives now preserve Screen / Setup / Context arrays for future calibration while still omitting chart bars. Older archives remain stage-evaluable and report unavailable dimensions honestly rather than treating them as negatives.
+- Real 2026-09-22 candidate review seeded setup labels including HALO Base n' Break, KLIC and GRMN EMA Crossback, SEPN Wedge Pop, and BORDERLINE execution-quality examples ONON buyable gap plus NX/SXT Wedge Pop. No FALSE_POSITIVE label was invented where chart review was not sufficiently clear.
+- Final Gold Set evaluation: **21/21 evaluable**, **0 unavailable**, **0 lost**, **0 added**, **0 hard regressions**, accepted precision **100%**, strict VALID precision **85.7%**, weighted quality **92.9%**. Wedge Pop is the main quality-calibration bucket in the seed sample: 1 VALID + 2 BORDERLINE; Buyable Gap has 1 BORDERLINE.
+- Regression state remained clean on live session `2026-09-22`: **2,693** Unified candidates, **2,085** Kell matches, full **2,693** chart coverage; signal validator reported **0 hard errors**, **0 screen mismatches**, **0 stage mismatches**, **0 layer overlaps**.
+- Core setup contract counts remained unchanged: Base n' Break 48/48 strong, Buyable Gap 4/4 strong, EMA Crossback 61/61 strong, Wedge Pop 144/144 strong. Gold Set labels are deliberately a stricter human calibration layer and do not automatically change production proxy thresholds.
+- Forward-validation guard still behaves correctly: 10 point-in-time score snapshots are available, but 5/10/20/40/60/120-day comparisons remain ineligible until >=99% outcome coverage exists; no premature performance conclusion is emitted.
+- GitHub Actions run **#222** completed green end-to-end after the archive compatibility fix: unit tests, historical smoke, browser tests, live Unified rebuild, compact validation, signal validation, calibration report, Gold Set evaluation, forward validator, BEFORE/AFTER spot check, publication and artifact upload all passed.
+
+**Next logical step**
+- Expand the Gold Set across additional independent sessions and deliberately hunt for confirmed `FALSE_POSITIVE` / false-negative examples, especially Wedge Pop and Buyable Gap. Only after that evidence exists should a proxy threshold or ranking weight be changed.
