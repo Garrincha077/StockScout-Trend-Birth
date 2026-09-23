@@ -1,10 +1,10 @@
-# Oliver Kell Overlay Scoring v4 — Screen / Stage / Setup separated
+# Oliver Kell Overlay Scoring v5 — Quality / Readiness / Context
 
 Branch scope: `feature/kell-mcp-lab`
 
 This layer scans the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not alter Unified candidate generation, source ranks, or the ordinary Review Grid.
 
-The model is `kell-overlay-v4-screen-stage-setup`. v4 makes the app contract explicit:
+The model is `kell-overlay-v5-quality-readiness-context`. v5 keeps the v4 Screen / Stage / Setup contract and replaces the naive additive ranking with a stage-aware composite:
 
 1. **SCREEN / discovery** — why the stock was surfaced (52W high, unusual volume/RVOL, Bull Snort, momentum/Doubler, Gapper, Strength on Down Day, RS leader proxy).
 2. **STAGE / price cycle** — one primary current structural state, stored in `kell_stage.primary`, with confidence and a short evidence basis.
@@ -157,31 +157,86 @@ A name must first pass the common Kell liquidity base, then either:
 
 All published screens remain available independently as separate UI buckets.
 
-## Score
+## Score v5
 
-`kell_score` is normalized to 0–100 over available criteria. v4 keeps the same criterion weights, but also publishes separate `discovery`, `stage`, `setup` and `context` component scores:
+The old v4 score is still calculated as `legacy_v4_score` for BEFORE/AFTER diagnostics, but it no longer determines ranking. The problem with v4 was correlated double counting: Bull Snort, RVOL, Gapper, RS and momentum could all award separate full points even when they described one underlying momentum / institutional-demand event.
 
-- Wedge Pop 12
-- Base n' Break 12
-- EMA Crossback 10
-- RS Divergence 10
-- Name Selection 8
-- Growth Context 8
-- YTD Doubler 8
-- Buyable Gap proxy 8
-- Weekly Trend 8
-- Bull Snort 8
-- RS Leader 6
-- Strength on Down Day 6
-- EMA Readiness 6
-- 3M +50% 6
-- canonical Gapper 6
-- 52W High 5
-- Unusual Volume 5
-- Tightening 4
-- Breakout Proximity 4
+The v5 final score is:
 
-RVOL >=3x remains a separate discovery flag and is not double-counted.
+`Kell Focus = 35% Quality + 50% Readiness + 15% Context`
+
+and is then constrained by the current Cycle-of-Price-Action stage. Missing contextual data uses a neutral prior rather than silently inflating the score, while `kell_evidence_coverage` reports how much supporting evidence was actually available.
+
+### Quality (35%)
+
+Quality asks whether the stock behaves like a Kell-type leader. Correlated clues are grouped into four families rather than stacked independently:
+
+- **Institutional demand** — continuous RVOL strength plus bullish price response / close location.
+- **Leadership** — continuous RS rank, 3-month momentum and proximity to the 52-week high.
+- **Name quality** — continuous price and 20-day liquidity quality.
+- **Higher-timeframe trend** — daily 10/20 EMA structure plus rising weekly 10EMA evidence.
+
+The public discovery screens remain unchanged and independently filterable; this grouping affects ranking only.
+
+### Readiness / Actionability (50%)
+
+Readiness asks whether the stock is at a favorable current point in Kell's Cycle of Price Action. Stage baselines are intentionally unequal:
+
+- EMA Crossback: 95
+- Base n' Break: 92
+- Wedge Pop: 88
+- Trend / EMA Support: 72
+- Reversal Extension: 65
+- Transition: 50
+- Downtrend / Repair: 28
+- Exhaustion Extension: 30
+- Wedge Drop: 10
+
+Current setups then contribute a setup-quality score. Core entry setups dominate: EMA Crossback > Base n' Break > Wedge Pop > Buyable Gap proxy. Tightening and breakout proximity are smaller confirmation bonuses.
+
+Where a natural Kell-style invalidation can be identified, v5 also computes a **structural-risk proxy**: distance from current price to the setup invalidation, normalized by recent true range. The numerical ATR-like cut-offs are lab proxies, not Kell-published rules.
+
+### Stage caps
+
+A high-quality leader cannot rank as a top current entry if it is late or structurally damaged. The final score and readiness are capped by stage:
+
+| Stage | Maximum Focus / Readiness |
+| --- | ---: |
+| EMA Crossback | 100 |
+| Base n' Break | 100 |
+| Wedge Pop | 100 |
+| Trend / EMA Support | 90 |
+| Reversal Extension | 80 |
+| Transition | 75 |
+| Downtrend / Repair | 55 |
+| Exhaustion Extension | 60 |
+| Wedge Drop | 35 |
+| Unavailable | 55 |
+
+This is the key v5 behavior: a stock can remain an excellent **Quality** name while receiving a much lower **Readiness** score because it is extended, broken or simply not at a low-risk entry.
+
+### Context (15%)
+
+Context is deliberately smaller than price-cycle readiness:
+
+- growth evidence from available revenue / EPS growth fields;
+- RS divergence versus reconstructed SPY history.
+
+### Evidence coverage
+
+`kell_evidence_coverage` is a separate 0-100 measure based on availability of daily volume evidence, 3M/6M history, 52-week history, RS rank, weekly trend, growth evidence and benchmark-relative evidence. It is not a hidden bonus. A high Focus score with low coverage is therefore visibly less certain than a similar score with near-complete evidence.
+
+### Published v5 fields
+
+- `kell_score` — final stage-capped Kell Focus score.
+- `kell_quality_score`
+- `kell_readiness_score`
+- `kell_actionability_score` — compatibility alias for readiness.
+- `kell_context_score`
+- `kell_evidence_coverage`
+- `kell_structural_risk_score`
+- `kell_stage_cap`
+- `score_breakdown.legacy_v4_score` — diagnostic BEFORE score only.
 
 ## Validation — 2026-09-21 Unified session
 
