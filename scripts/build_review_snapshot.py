@@ -814,10 +814,13 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     benchmark_rows: list = _embedded_spy_benchmark(charts)
     benchmark_method = "embedded-SPY-relative-strength" if benchmark_rows else "unavailable"
 
-    # Score the complete Unified candidate union. Prefer adjusted Next/Ryan
-    # chart history when available; fall back to Bottom for Bottom-only names.
-    kell_unified_charts: dict[str, list] = dict(charts)
-    kell_pending = set(unified_kell_pool) - set(kell_unified_charts)
+    # Score the complete Unified candidate union. Build this chart map from
+    # scratch in explicit Next -> Ryan -> Bottom priority. Do not seed it from
+    # the ordinary Review Grid chart cache: that cache is loaded Bottom-first
+    # and would make Kell scores depend on whether a ticker happened to be on
+    # the smaller review board.
+    kell_unified_charts: dict[str, list] = {}
+    kell_pending = set(unified_kell_pool)
     for mode in ("next", "ryan-original", "bottom-fishing"):
         if not kell_pending:
             break
