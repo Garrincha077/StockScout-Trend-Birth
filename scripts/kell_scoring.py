@@ -871,9 +871,13 @@ def score_candidate(
         ret_3m,
         [(-10, 0), (0, 10), (20, 35), (50, 75), (100, 100)],
     )
-    high_proximity_strength = _piecewise_score(
-        distance_52w,
-        [(-25, 0), (-15, 20), (-10, 40), (-5, 70), (-3, 85), (0, 100)],
+    high_proximity_strength = (
+        _piecewise_score(
+            distance_52w,
+            [(-25, 0), (-15, 20), (-10, 40), (-5, 70), (-3, 85), (0, 100)],
+        )
+        if len(bars) >= 253
+        else None
     )
     leadership_score = _weighted_neutral([
         (rs_strength, 0.50),
