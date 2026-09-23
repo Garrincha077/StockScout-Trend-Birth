@@ -33,6 +33,84 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Recover verified historical Kell archives
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/kell-mcp-lab'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import tempfile
+
+          sources_path = Path("lab/data/kell-recovery-sources.json")
+          if not sources_path.exists():
+              print("No Kell recovery source manifest; skipping.")
+              raise SystemExit(0)
+
+          manifest = json.loads(sources_path.read_text())
+          source_repo = manifest["sourceRepository"]
+          output_dir = Path("lab/data/kell-score-history")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          recovered = []
+          skipped = []
+
+          with tempfile.TemporaryDirectory() as tmp:
+              tmpdir = Path(tmp)
+              for source in manifest.get("sources") or []:
+                  session = source["sessionDate"]
+                  target = output_dir / f"{session}.json.gz.b64"
+                  if target.exists():
+                      skipped.append(session)
+                      continue
+
+                  artifact_id = int(source["artifactId"])
+                  artifact_zip = tmpdir / f"{artifact_id}.zip"
+                  endpoint = f"repos/{source_repo}/actions/artifacts/{artifact_id}/zip"
+                  print(f"Downloading exact Pages artifact {artifact_id} for {session}...")
+                  with artifact_zip.open("wb") as handle:
+                      subprocess.run(
+                          ["gh", "api", endpoint],
+                          stdout=handle,
+                          check=True,
+                          env={**os.environ, "GH_TOKEN": os.environ["GH_TOKEN"]},
+                      )
+
+                  source_url = f"https://api.github.com/repos/{source_repo}/actions/artifacts/{artifact_id}/zip"
+                  cmd = [
+                      sys.executable,
+                      "scripts/recover_kell_history_artifact.py",
+                      "--artifact", str(artifact_zip),
+                      "--output-dir", str(output_dir),
+                      "--encoding", "json-gzip-base64",
+                      "--source-repository", source_repo,
+                      "--workflow-run-id", str(source["workflowRunId"]),
+                      "--workflow-run-number", str(source["workflowRunNumber"]),
+                      "--run-attempt", str(source["runAttempt"]),
+                      "--head-sha", source["headSha"],
+                      "--artifact-id", str(artifact_id),
+                      "--artifact-name", source["artifactName"],
+                      "--artifact-digest", source["artifactDigest"],
+                      "--artifact-created-at", source["artifactCreatedAt"],
+                      "--artifact-expires-at", source["artifactExpiresAt"],
+                      "--source-path", source_url,
+                  ]
+                  subprocess.run(cmd, check=True)
+                  if not target.exists():
+                      raise RuntimeError(f"Recovered artifact did not produce expected session {session}")
+                  recovered.append(session)
+                  artifact_zip.unlink(missing_ok=True)
+
+          print(json.dumps({
+              "status": "ok",
+              "recovered": recovered,
+              "skippedExisting": skipped,
+              "trackedSessionCount": len(list(output_dir.glob("*.json.gz.b64"))),
+          }))
+          PY
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Historical Kell overlay smoke (2026-09-17)
