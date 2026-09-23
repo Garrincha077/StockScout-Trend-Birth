@@ -177,6 +177,51 @@ class KellSignalValidationTests(unittest.TestCase):
         self.assertEqual(sum(support["distribution"].values()), 1)
         self.assertEqual(len(support["largestUndercuts"]), 1)
 
+    def test_wedge_pop_weak_close_is_soft_quality_not_structural_borderline(self):
+        bars = make_bars(count=60, start=100.0, daily=0.0)
+        bars[-2].update({
+            "open": 99.8,
+            "high": 100.0,
+            "low": 99.6,
+            "close": 99.8,
+            "volume": 1_000_000,
+        })
+        bars[-1].update({
+            "open": 99.9,
+            "high": 102.0,
+            "low": 99.9,
+            "close": 100.2,
+            "volume": 1_000_000,
+        })
+        normalized = validation._bars(bars)
+        grade, reasons = validation._audit_wedge_pop({}, normalized)
+        flags, evidence = validation._wedge_pop_soft_quality_flags(normalized)
+        self.assertEqual(grade, "strong")
+        self.assertEqual(reasons, [])
+        self.assertIn("weak_pop_close_location", flags)
+        self.assertLess(evidence["closeLocationPct"], 55.0)
+
+    def test_buyable_gap_weak_close_is_soft_quality_only(self):
+        bars = make_bars(count=80, daily=0.0)
+        prev = bars[-2]["close"]
+        prior20_high = max(row["high"] for row in bars[-21:-1])
+        open_price = max(prev * 1.05, prior20_high * 1.02)
+        bars[-1].update({
+            "open": open_price,
+            "high": open_price * 1.08,
+            "low": open_price * 0.995,
+            "close": open_price * 1.001,
+            "volume": 3_000_000,
+        })
+        item = {"kell_metrics": {"rvol20": 3.0}}
+        normalized = validation._bars(bars)
+        grade, reasons = validation._audit_buyable_gap(item, normalized)
+        flags, evidence = validation._buyable_gap_soft_quality_flags(item, normalized)
+        self.assertEqual(grade, "strong")
+        self.assertEqual(reasons, [])
+        self.assertIn("weak_gap_close", flags)
+        self.assertLess(evidence["closeLocationPct"], 50.0)
+
     def test_base_n_break_falling_ema_is_borderline_not_contract_failure(self):
         bars = make_bars(count=80, start=100.0, daily=0.0)
         item = scored_candidate("BASE", bars)
