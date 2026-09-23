@@ -6,7 +6,8 @@
   "git": {
     "deploymentEnabled": {
       "**": false,
-      "feature/unified-review-grid-lab": true
+      "feature/unified-review-grid-lab": true,
+      "feature/persistent-watchlist": true
     }
   },
   "headers": [
