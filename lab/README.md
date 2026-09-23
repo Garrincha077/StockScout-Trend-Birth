@@ -44,19 +44,33 @@ python -m http.server 8000 -d lab
 Then open `http://localhost:8000/`.
 
 
-## Candidate-only Kell score overlay
+## Candidate-only Kell v5 overlay
 
-\`scripts/kell_scoring.py\` adds a transparent 0–100 Oliver Kell-style score to every candidate already selected by the review pipeline. It does not add candidates or alter the existing default order. The UI exposes a score badge, \`Kell >=60\` filter, score sort, and full per-criterion breakdown.
+`scripts/kell_scoring.py` scores only candidates already present in the deduplicated Unified Bottom / Next / Ryan universe. It never expands candidate membership and does not alter the production Unified pipeline.
 
-See \`docs/KELL_SCORING.md\` for exact v1 thresholds, weights and methodology.
+The browser keeps **Universe** as the parent filter and then applies one secondary Screen / Stage / Setup / Context filter inside that universe.
+
+The v5 ranking deliberately separates:
+
+- **Quality** — institutional demand, leadership, liquidity/name quality and higher-timeframe trend;
+- **Readiness / Actionability** — current Kell price-cycle stage, active setup quality and structural-risk proxy;
+- **Context** — growth and benchmark-relative evidence;
+- **Evidence coverage** — how much supporting data was actually available.
+
+`Kell Focus` is the final 0–100 ranking:
+
+`35% Quality + 50% Readiness + 15% Context`
+
+with stage caps so late-cycle `Exhaustion Extension`, `Wedge Drop` and repair states cannot rank like clean low-risk entries merely because they also have strong RVOL, gap or momentum signals.
+
+The old additive v4 score is retained only as `legacy_v4_score` for reproducible BEFORE/AFTER diagnostics. The UI shows Focus, Quality, Readiness, Context, evidence coverage, stage and current setups separately.
 
 ### Unified-wide Kell filters
 
-Kell filters scan the deduplicated union of all published Bottom, Next and Ryan candidates, not only the normal top Review Grid rows. Separate filters are available for 52W/New High, unusual volume, RVOL >=3x, Bull Snort, Doublers, Gappers, Strength on Down Day, EMA readiness, Wedge Pop, EMA Crossback, Base n' Break, Tightening and Near Breakout. The normal All/Bottom/Next/Ryan review board is unchanged.
+Discovery filters remain independent of ranking and continue to scan the deduplicated Unified candidate union: 52W/New High, unusual volume, RVOL >=3x, Bull Snort, 3M momentum, Doublers YTD, Gappers, Strength on Down Day and RS Leader.
 
+Stage remains a separate single structural classification, while setup filters include Buyable Gap proxy, Wedge Pop, EMA Crossback, Base n' Break, Tightening and Near Breakout. Supporting-context filters remain separate as well.
 
-### Kell v2 PDF-grounded workflow
+The boolean `kell_focus` research shortlist is labelled **Kell Shortlist** in the UI so it is not confused with the numerical **Kell Focus score**.
 
-The Kell lab now follows a v2 workflow grounded in *Victory in Stock Trading*. All published Unified candidates are still scanned, but 3M +50% momentum and true 6M +100% Doublers are separate lists. Wedge Pop, EMA Crossback and Base n' Break are sequence-aware, not generic EMA/breakout flags. Additional filters expose RS divergence, weekly 10EMA context, growth context, RS rank >=90 and a stricter Buyable Gap proxy.
-
-`Kell Focus` is the compact research shortlist that combines liquidity/price, leadership or growth evidence, and a core Kell entry setup. It does not replace the individual full-Unified filters. The ordinary All/Bottom/Next/Ryan Review Grid remains unchanged.
+See `docs/KELL_SCORING.md` for the exact v5 formulas, explicit proxy thresholds and source-grounding notes.
