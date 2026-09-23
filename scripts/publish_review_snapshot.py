@@ -28,6 +28,9 @@ def validate(snapshot: dict) -> tuple[str, str]:
     run = source["runId"]
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,119}", run):
         raise ValueError("Invalid runId")
+    unified_sha = str(source.get("unifiedManifestSha256") or "")
+    if not re.fullmatch(r"[a-f0-9]{64}", unified_sha):
+        raise ValueError("Invalid or missing Unified manifest SHA256")
     candidates = snapshot["candidates"]
     tickers = [item["ticker"] for item in candidates]
     if len(tickers) != len(set(tickers)) or any(not ticker for ticker in tickers):
@@ -75,6 +78,7 @@ def publish(snapshot: dict, directory: Path) -> dict:
         "sha256": digest,
         "runId": run,
         "sessionDate": session,
+        "unifiedManifestSha256": snapshot["source"]["unifiedManifestSha256"],
         "candidateCount": snapshot["candidateCount"],
         "chartCount": snapshot["chartCount"],
     }

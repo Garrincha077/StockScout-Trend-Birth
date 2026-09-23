@@ -16,6 +16,7 @@ class KellCompactTests(unittest.TestCase):
             "source": {
                 "runId": "r1",
                 "sessionDate": "2026-09-21",
+                "unifiedManifestSha256": "b" * 64,
                 "modeUniverseCounts": {
                     "bottom-fishing": 2045,
                     "next": 1989,
@@ -23,6 +24,11 @@ class KellCompactTests(unittest.TestCase):
                 },
             },
             "kellScoring": {},
+            "unifiedCandidateIndexCount": 2,
+            "unifiedCandidateIndex": [
+                {"ticker": "AAA", "sources": ["next"], "unifiedSources": ["next"], "metrics": {"price": 12}},
+                {"ticker": "BBB", "sources": ["bottom-fishing"], "unifiedSources": ["bottom-fishing"], "metrics": {"price": 8}},
+            ],
             "kellCandidateCount": 0,
             "kellCandidates": [],
         }
@@ -43,6 +49,10 @@ class KellCompactTests(unittest.TestCase):
             out = json.loads(output_path.read_text())
             self.assertEqual(out["schemaVersion"], "kell-compact-v5")
             self.assertEqual(out["source"]["modeUniverseCounts"]["bottom-fishing"], 2045)
+            self.assertEqual(out["source"]["unifiedManifestSha256"], "b" * 64)
+            self.assertEqual(out["unifiedCandidateIndexCount"], 2)
+            self.assertEqual([item["ticker"] for item in out["unifiedCandidateIndex"]], ["AAA", "BBB"])
+            self.assertEqual(out["unifiedCandidateIndex"][0]["unifiedSources"], ["next"])
 
     def test_compact_bar_handles_array_and_object_rows(self):
         self.assertEqual(
@@ -110,7 +120,7 @@ class KellCompactTests(unittest.TestCase):
             meta = compact.write_chart_shards(
                 candidates,
                 pathlib.Path(tmp),
-                {"runId": "r1", "sessionDate": "2026-09-21"},
+                {"runId": "r1", "sessionDate": "2026-09-21", "unifiedManifestSha256": "c" * 64},
                 2,
             )
             self.assertEqual(meta["shardCount"], 3)
@@ -126,6 +136,7 @@ class KellCompactTests(unittest.TestCase):
             self.assertEqual(tickers, {"T0", "T1", "T2", "T3", "T4"})
             first_payload = json.loads(files[0].read_text())
             self.assertEqual(first_payload["schemaVersion"], "kell-chart-shard-v2")
+            self.assertEqual(first_payload["source"]["unifiedManifestSha256"], "c" * 64)
             self.assertEqual(len(first_payload["charts"]["T0"]["daily"]), 2)
             self.assertEqual(len(first_payload["charts"]["T0"]["weekly"]), 2)
             item = compact.compact_candidate(candidates[0], chart_shard=0)

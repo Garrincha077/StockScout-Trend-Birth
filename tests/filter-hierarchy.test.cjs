@@ -26,6 +26,7 @@ test('secondary filtering intersects the selected universe',()=>{
 test('universe and filter active states are updated independently',()=>{
   assert.match(app,/button\[data-universe\]/);
   assert.match(app,/button\[data-filter\]/);
-  assert.match(app,/state\.universe=universeButton\.dataset\.universe/);
+  assert.match(app,/const nextUniverse=universeButton\.dataset\.universe/);
+  assert.match(app,/state\.universe=nextUniverse/);
   assert.match(app,/state\.filter=filterButton\.dataset\.filter/);
 });
