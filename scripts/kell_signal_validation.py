@@ -235,28 +235,40 @@ def _audit_wedge_pop(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[
     prior_upper = max(float(e10[-2]), float(e20[-2]))
     crossed = closes[-1] > upper and closes[-2] <= prior_upper
     ema_gap = abs(float(e10[-1]) / float(e20[-1]) - 1.0) * 100.0
-    pretrend = (closes[-2] / closes[-11] - 1.0) * 100.0 if closes[-11] > 0 else None
-    row = bars[-1]
-    span = float(row["high"]) - float(row["low"])
-    close_location = (
-        (float(row["close"]) - float(row["low"])) / span * 100.0 if span > 0 else 50.0
-    )
 
     reasons: list[str] = []
     if not crossed:
         reasons.append("not_current_10_20_ema_recapture")
     if ema_gap > 1.5:
         reasons.append("ema_cluster_not_tight")
-    if pretrend is not None and pretrend > 3.0:
-        reasons.append("pre_pop_price_not_working_lower_or_sideways")
-    if close_location < 55.0:
-        reasons.append("weak_pop_close_location")
 
     if not crossed or ema_gap > 2.0:
         return "contradiction", reasons
     if reasons:
         return "borderline", reasons
     return "strong", []
+
+
+def _wedge_pop_soft_quality_flags(bars: list[dict[str, Any]]) -> tuple[list[str], dict]:
+    """Non-canonical quality observations that must not redefine Wedge Pop."""
+    if len(bars) < 30:
+        return [], {}
+    closes = [float(row["close"]) for row in bars]
+    pretrend = (closes[-2] / closes[-11] - 1.0) * 100.0 if closes[-11] > 0 else None
+    row = bars[-1]
+    span = float(row["high"]) - float(row["low"])
+    close_location = (
+        (float(row["close"]) - float(row["low"])) / span * 100.0 if span > 0 else 50.0
+    )
+    flags: list[str] = []
+    if pretrend is not None and pretrend > 3.0:
+        flags.append("pre_pop_drift_up_gt_3pct")
+    if close_location < 55.0:
+        flags.append("weak_pop_close_location")
+    return flags, {
+        "prePop9dPct": round(pretrend, 2) if pretrend is not None else None,
+        "closeLocationPct": round(close_location, 1),
+    }
 
 
 def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[str]]:
@@ -368,11 +380,6 @@ def _audit_buyable_gap(item: dict, bars: list[dict[str, Any]]) -> tuple[str, lis
         reasons.append("open_not_above_prior20d_high")
     if rvol is None or rvol < 1.5:
         reasons.append("rvol_below_1_5x")
-    if gap_held is not None and gap_held < 50.0:
-        reasons.append("weak_gap_hold")
-    if close_location < 50.0:
-        reasons.append("weak_gap_close")
-
     hard = (
         gap is None or gap <= 3.0 or not unfilled or not breakout
         or rvol is None or rvol < 1.5
@@ -382,6 +389,32 @@ def _audit_buyable_gap(item: dict, bars: list[dict[str, Any]]) -> tuple[str, lis
     if reasons:
         return "borderline", reasons
     return "strong", []
+
+
+def _buyable_gap_soft_quality_flags(item: dict, bars: list[dict[str, Any]]) -> tuple[list[str], dict]:
+    """Execution-quality observations kept separate from the gap proxy definition."""
+    if len(bars) < 22:
+        return [], {}
+    prev_close = float(bars[-2]["close"])
+    row = bars[-1]
+    span = float(row["high"]) - float(row["low"])
+    close_location = (
+        (float(row["close"]) - float(row["low"])) / span * 100.0 if span > 0 else 50.0
+    )
+    gap_size = float(row["open"]) - prev_close
+    gap_held = (
+        (float(row["close"]) - prev_close) / gap_size * 100.0
+        if gap_size > 0 else None
+    )
+    flags: list[str] = []
+    if gap_held is not None and gap_held < 50.0:
+        flags.append("weak_gap_hold")
+    if close_location < 50.0:
+        flags.append("weak_gap_close")
+    return flags, {
+        "gapHeldPct": round(gap_held, 1) if gap_held is not None else None,
+        "closeLocationPct": round(close_location, 1),
+    }
 
 
 SETUP_AUDITORS = {
@@ -425,6 +458,8 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
         "failed_hold": 0,
     }
     crossback_support_rows: list[dict] = []
+    soft_quality_flag_counts: dict[str, int] = {}
+    soft_quality_examples: list[dict] = []
     overlap_errors: list[dict] = []
 
     for item in candidates:
@@ -522,6 +557,24 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
                     ),
                 })
 
+            soft_flags: list[str] = []
+            soft_evidence: dict = {}
+            if field == "kell_wedge_pop":
+                soft_flags, soft_evidence = _wedge_pop_soft_quality_flags(bars)
+            elif field == "kell_buyable_gap_proxy":
+                soft_flags, soft_evidence = _buyable_gap_soft_quality_flags(item, bars)
+            for flag in soft_flags:
+                key = f"{field}:{flag}"
+                soft_quality_flag_counts[key] = soft_quality_flag_counts.get(key, 0) + 1
+            if soft_flags and len(soft_quality_examples) < sample_limit:
+                soft_quality_examples.append({
+                    "ticker": ticker,
+                    "setup": field,
+                    "flags": soft_flags,
+                    "evidence": soft_evidence,
+                    "stage": primary,
+                })
+
             if grade != "strong" and len(setup_examples[field]) < sample_limit:
                 example = {
                     "ticker": ticker,
@@ -588,6 +641,14 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
                         "Wick depth is normalized by 14-session average true-range percent. "
                         "Undercuts <=1 ATR that recover/hold the EMA cluster are not penalized "
                         "solely because their raw percentage wick exceeds a fixed threshold."
+                    ),
+                },
+                "softQualityFlags": {
+                    "counts": soft_quality_flag_counts,
+                    "examples": soft_quality_examples,
+                    "note": (
+                        "These are non-canonical execution-quality observations. They do not "
+                        "downgrade an otherwise structurally valid Kell setup."
                     ),
                 },
                 "note": (
