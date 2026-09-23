@@ -1,10 +1,10 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filter:'none',query:'',sort:'default',chartPeriod:'1y'};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filter:'none',query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage)};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
-const universeLabels={'all':'All','bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan'};
+const universeLabels={'all':'All','bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','watchlist':'Watchlist'};
 const label=s=>labels[s]||s;
 const kellScreenLabels={
   'kell_52w_high':'52W / New High',
@@ -56,6 +56,46 @@ const kellFilterLabels={
 const kellFilters=new Set(Object.keys(kellFilterLabels));
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
+const isWatched=ticker=>WatchlistStore.has(state.watchlist,ticker);
+function toggleWatchlist(ticker){
+  state.watchlist=WatchlistStore.toggle(state.watchlist,ticker,{
+    addedSession:state.data?.source?.sessionDate||null
+  });
+  state.watchlist=WatchlistStore.save(window.localStorage,state.watchlist);
+  render();
+}
+function watchlistItems(){
+  const review=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
+  const kell=new Map((state.kellData?.kellCandidates||state.data?.kellCandidates||[]).map(item=>[item.ticker,item]));
+  return(state.watchlist||[]).map(saved=>{
+    const base=review.get(saved.ticker);
+    const overlay=kell.get(saved.ticker);
+    if(!base&&!overlay){
+      return{ticker:saved.ticker,sources:[],unifiedSources:[],metrics:{},watchlistSaved:saved,watchlistMissing:true};
+    }
+    if(base&&overlay&&base!==overlay){
+      return{
+        ...base,
+        ...overlay,
+        ticker:saved.ticker,
+        sources:[...new Set([...(base.sources||[]),...(overlay.sources||[])])],
+        unifiedSources:[...new Set([...(base.unifiedSources||[]),...(overlay.unifiedSources||[])])],
+        metrics:{...(base.metrics||{}),...(overlay.metrics||{})},
+        chartBars:base.chartBars?.length?base.chartBars:overlay.chartBars,
+        weeklyChartBars:base.weeklyChartBars?.length?base.weeklyChartBars:overlay.weeklyChartBars,
+        analysis:base.analysis||overlay.analysis,
+        watchlistSaved:saved
+      };
+    }
+    return{...(overlay||base),ticker:saved.ticker,watchlistSaved:saved};
+  });
+}
+function updateWatchlistButton(){
+  const button=$('#watchlistUniverse');
+  if(!button)return;
+  button.textContent='★ Watchlist ('+(state.watchlist?.length||0)+')';
+}
+
 
 function normalizeBars(rows){
   return(rows||[]).map(r=>Array.isArray(r)
@@ -194,7 +234,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
   }
 }
 function badges(item){
-  const sources=item.sources.map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
+  const sources=(item.sources||[]).map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
   const score=Number(item.kell_score);
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   return sources+kell;
@@ -271,6 +311,7 @@ function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analy
 function isKellView(filter=state.filter){return kellFilters.has(filter)}
 function universeMatch(item,universe=state.universe){
   if(universe==='all')return true;
+  if(universe==='watchlist')return isWatched(item?.ticker);
   const sources=item?.unifiedSources||item?.sources||[];
   return sources.includes(universe);
 }
@@ -285,6 +326,7 @@ function matchesFilter(item,filter=state.filter){
   return true;
 }
 function sourceItems(filter=state.filter){
+  if(state.universe==='watchlist')return watchlistItems();
   return isKellView(filter)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
@@ -377,13 +419,17 @@ function visible(item){
   return matchesFilter(item);
 }
 function card(item){
-  const m=item.metrics||{},a=analysisFor(item),status=String(a.status||'REVIEW').toUpperCase();
+  const m=item.metrics||{},a=analysisFor(item),missing=item.watchlistMissing===true;
+  const status=missing?'SAVED':String(a.status||'REVIEW').toUpperCase();
   const gap=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const stage=stageName(primaryStage(item));
   const setups=kellSetupsText(item);
-  return '<article class="card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
-    '<div class="card-head"><div class="ticker">'+esc(item.ticker)+'</div><div class="badges">'+badges(item)+'</div></div>'+
-    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(item.sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
+  const watched=isWatched(item.ticker);
+  const sources=item.sources||[];
+  return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
+    '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+
+    (missing?'<div class="watchlist-missing">Nije u današnjem scanu · ostaje spremljen dok ga ručno ne ukloniš</div>':'')+
+    '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Q / R / C <b>'+fmt(item.kell_quality_score,0)+' / '+fmt(item.kell_readiness_score,0)+' / '+fmt(item.kell_context_score,0)+'</b></span><span>Evidence <b>'+fmt(item.kell_evidence_coverage,0)+'%</b></span></div>'+
     '<div class="metrics kell-dimensions"><span>Setup <b>'+esc(setups)+'</b></span></div>'+
     '<canvas aria-label="'+esc(item.ticker)+' chart" title="Tap/click za analizu"></canvas>'+
@@ -394,6 +440,7 @@ function card(item){
 let observer;
 function render(){
   if(!state.data)return;
+  updateWatchlistButton();
   updateFilterCounts();
   const items=sourceItems().filter(visible);
   if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
@@ -401,9 +448,12 @@ function render(){
   const universeName=universeLabels[state.universe]||state.universe;
   const modeCounts=state.kellData?.source?.modeUniverseCounts||state.data?.source?.modeUniverseCounts||{};
   const unifiedCount=state.kellData?.kellScoring?.unifiedCandidateCount??state.data?.kellScoring?.unifiedCandidateCount;
-  const universeSize=state.universe==='all'?unifiedCount:modeCounts[state.universe];
+  const universeSize=state.universe==='watchlist'?state.watchlist.length:(state.universe==='all'?unifiedCount:modeCounts[state.universe]);
   const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
-  if(isKellView()){
+  if(state.universe==='watchlist'){
+    const missing=items.filter(item=>item.watchlistMissing).length;
+    $('#status').textContent=items.length+' prikazano · '+state.watchlist.length+' spremljeno na Watchlisti'+(missing?' · '+missing+' trenutno nije u današnjem scanu':'')+(state.filter!=='none'?' · filter '+(kellFilterLabels[state.filter]||state.filter):'');
+  }else if(isKellView()){
     $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+(kellFilterLabels[state.filter]||'Kell');
   }else if(state.filter!=='none'){
     $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+state.filter;
@@ -429,9 +479,11 @@ function render(){
     const item=lookup.get(cardEl.dataset.ticker),canvas=cardEl.querySelector('canvas');
     observer.observe(canvas);
     const open=()=>item&&show(item);
+    const star=cardEl.querySelector('[data-watch-ticker]');
+    star?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleWatchlist(star.dataset.watchTicker)});
     canvas.addEventListener('click',e=>{e.stopPropagation();open()});
-    cardEl.addEventListener('click',open);
-    cardEl.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
+    cardEl.addEventListener('click',e=>{if(e.target.closest('[data-watch-ticker]'))return;open()});
+    cardEl.addEventListener('keydown',e=>{if(e.target.closest('[data-watch-ticker]'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
   });
 }
 function fact(name,value){return '<div class="fact"><span>'+esc(name)+'</span>'+esc(value??'—')+'</div>'}
@@ -489,7 +541,12 @@ $('#filters').addEventListener('click',async e=>{
   if(!universeButton&&!filterButton)return;
 
   if(universeButton){
-    state.universe=universeButton.dataset.universe;
+    const nextUniverse=universeButton.dataset.universe;
+    if(nextUniverse==='watchlist'&&state.universe!=='watchlist'){
+      state.filter='none';
+      document.querySelectorAll('#filters button[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter==='none'));
+    }
+    state.universe=nextUniverse;
     document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x===universeButton));
   }
   if(filterButton){
@@ -502,6 +559,11 @@ $('#filters').addEventListener('click',async e=>{
     try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
   }
   render();
+});
+window.addEventListener('storage',event=>{
+  if(event.key!==WatchlistStore.STORAGE_KEY)return;
+  state.watchlist=WatchlistStore.load(window.localStorage);
+  if(state.data)render();
 });
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
