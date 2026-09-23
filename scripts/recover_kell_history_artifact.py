@@ -14,6 +14,7 @@ import argparse
 import gzip
 import json
 import math
+import re
 import shutil
 import sys
 import tarfile
@@ -235,7 +236,14 @@ def _archive_row(ticker: str, sources: list[str], scored: dict) -> list:
     ]
 
 
-def recover(artifact_zip: Path) -> dict:
+def _run_identity(run_id: str) -> tuple[int | None, int | None]:
+    match = re.search(r"-eod-(\d+)-(\d+)$", run_id)
+    if not match:
+        return None, None
+    return int(match.group(1)), int(match.group(2))
+
+
+def recover(artifact_zip: Path, provenance: dict | None = None) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         tar_path = Path(tmp) / "artifact.tar"
         _materialize_tar(artifact_zip, tar_path)
@@ -298,19 +306,45 @@ def recover(artifact_zip: Path) -> dict:
                     candidates.append(_archive_row(ticker, membership[ticker], scored))
 
             candidates.sort(key=lambda item: (-float(item[1] or 0), str(item[0])))
+            inferred_run, inferred_attempt = _run_identity(run_id)
+            provenance = dict(provenance or {})
+            provided_run = provenance.get("workflowRunId")
+            if provided_run is not None and inferred_run is not None and int(provided_run) != inferred_run:
+                raise ValueError("provenance workflowRunId does not match Unified runId")
+            provided_attempt = provenance.get("runAttempt")
+            if provided_attempt is not None and inferred_attempt is not None and int(provided_attempt) != inferred_attempt:
+                raise ValueError("provenance runAttempt does not match Unified runId")
+            source = {
+                "sessionDate": session_date,
+                "runId": run_id,
+                "recovered": True,
+                "recoveredFrom": "historical-unified-pages-artifact",
+                "recoveryMethod": "exact-github-pages-artifact",
+                "recoveryReliability": "exact-pages-artifact",
+                "artifactIdentityVerified": True,
+                "pointInTimeCandidateMembership": True,
+                "scoreSemantics": "current-model-recomputed-on-point-in-time-inputs",
+                "scoreObservedAtSession": False,
+                "unifiedCandidateCount": len(union),
+                "chartCoverageCount": len(charts),
+                "scoreCoverageCount": scored_count,
+            }
+            if inferred_run is not None:
+                source["workflowRunId"] = inferred_run
+            if inferred_attempt is not None:
+                source["runAttempt"] = inferred_attempt
+            for key in (
+                "sourceRepository", "workflowRunId", "workflowRunNumber", "runAttempt",
+                "headSha", "artifactId", "artifactName", "artifactDigest",
+                "artifactCreatedAt", "artifactExpiresAt", "sourcePath",
+            ):
+                value = provenance.get(key)
+                if value not in (None, ""):
+                    source[key] = value
             return {
                 "schemaVersion": "kell-score-history-v2",
                 "columns": list(HISTORY_COLUMNS),
-                "source": {
-                    "sessionDate": session_date,
-                    "runId": run_id,
-                    "recovered": True,
-                    "recoveredFrom": "historical-unified-pages-artifact",
-                    "pointInTimeCandidateMembership": True,
-                    "unifiedCandidateCount": len(union),
-                    "chartCoverageCount": len(charts),
-                    "scoreCoverageCount": scored_count,
-                },
+                "source": source,
                 "kellScoring": {"modelVersion": MODEL_VERSION},
                 "candidateCount": len(candidates),
                 "candidates": candidates,
@@ -325,7 +359,31 @@ def main() -> int:
     source.add_argument("--artifact")
     source.add_argument("--artifact-url")
     parser.add_argument("--output-dir", default="lab/data/kell-score-history")
+    parser.add_argument("--source-repository", default="Garrincha077/StockScout-Unified")
+    parser.add_argument("--workflow-run-id", type=int)
+    parser.add_argument("--workflow-run-number", type=int)
+    parser.add_argument("--run-attempt", type=int)
+    parser.add_argument("--head-sha")
+    parser.add_argument("--artifact-id", type=int)
+    parser.add_argument("--artifact-name", default="github-pages")
+    parser.add_argument("--artifact-digest")
+    parser.add_argument("--artifact-created-at")
+    parser.add_argument("--artifact-expires-at")
+    parser.add_argument("--source-path")
     args = parser.parse_args()
+    provenance = {
+        "sourceRepository": args.source_repository,
+        "workflowRunId": args.workflow_run_id,
+        "workflowRunNumber": args.workflow_run_number,
+        "runAttempt": args.run_attempt,
+        "headSha": args.head_sha,
+        "artifactId": args.artifact_id,
+        "artifactName": args.artifact_name,
+        "artifactDigest": args.artifact_digest,
+        "artifactCreatedAt": args.artifact_created_at,
+        "artifactExpiresAt": args.artifact_expires_at,
+        "sourcePath": args.source_path or args.artifact or args.artifact_url,
+    }
 
     with tempfile.TemporaryDirectory() as tmp:
         if args.artifact_url:
@@ -333,7 +391,7 @@ def main() -> int:
             _download(args.artifact_url, artifact_zip)
         else:
             artifact_zip = Path(args.artifact)
-        recovered = recover(artifact_zip)
+        recovered = recover(artifact_zip, provenance=provenance)
 
     session_date = recovered["source"]["sessionDate"]
     output = Path(args.output_dir) / f"{session_date}.json"
