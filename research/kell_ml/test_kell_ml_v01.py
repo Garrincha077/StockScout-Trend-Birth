@@ -13,6 +13,8 @@ from kell_ml_v01 import (
     assert_no_forward_features,
     build_dataset,
     compute_features,
+    generate_historical_events,
+    build_blind_gold_queue,
     load_stockscout_chart_shard,
     temporal_split,
     train_opportunity,
@@ -177,3 +179,47 @@ def test_stage_is_not_rewritten_by_setup_quality_or_price_floor():
     assert out.loc[0, "review_bucket_proxy"] == "STRUCTURE_ONLY"
     assert out.loc[1, "silver_stage"] == "EMA_CROSSBACK_PROXY"
     assert out.loc[1, "review_bucket_proxy"] == "PRICE_INELIGIBLE"
+
+
+def test_historical_event_queue_strips_future_outcomes():
+    raw = bars(periods=500, tickers=("AAA", "BBB", "CCC"))
+    qqq = benchmark(periods=500)
+    data = build_dataset(raw, qqq)
+    events = generate_historical_events(data)
+    if events.empty:
+        # Force one transparent event row without introducing future fields.
+        one = data.iloc[[250]].copy()
+        one["rvol_20"] = 3.0
+        events = generate_historical_events(one)
+    events["fwd_return_60d"] = 9.99
+    events["mfe_60d"] = 12.0
+    queue = build_blind_gold_queue(events, max_cases=50)
+    assert not any(
+        c.startswith(("fwd_", "mfe_", "mae_", "future_", "opportunity_"))
+        for c in queue.columns
+    )
+    assert queue["case_id"].is_unique
+
+
+def test_historical_event_miner_is_point_in_time_only():
+    raw = bars(periods=600, tickers=("AAA", "BBB"))
+    qqq = benchmark(periods=600)
+    cutoff = pd.Timestamp("2022-10-03")
+
+    left = compute_features(raw[raw["date"] <= cutoff], qqq[qqq["date"] <= cutoff])
+    left_events = generate_historical_events(left)
+
+    changed = raw.copy()
+    mask = changed["date"] > cutoff
+    changed.loc[mask, ["open", "high", "low", "close"]] *= 50
+    changed.loc[mask, "volume"] *= 100
+    right = compute_features(changed, qqq)
+    right = right[right["date"] <= cutoff]
+    right_events = generate_historical_events(right)
+
+    cols = ["ticker", "date", "event_reason"]
+    assert_frame_equal(
+        left_events[cols].reset_index(drop=True),
+        right_events[cols].reset_index(drop=True),
+        check_dtype=False,
+    )
