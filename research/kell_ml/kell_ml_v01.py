@@ -684,12 +684,20 @@ def build_blind_gold_queue(
     ]
     x = x.sort_values(["event_reason", "event_year", "_case_hash"])
     x = x.groupby(["event_reason", "event_year"], group_keys=False).head(max_per_reason_year)
-    x = x.sort_values("_case_hash").head(max_cases).copy()
+    # Round-robin across reason x year buckets. A final global hash cut would
+    # reintroduce prevalence bias (for example, over-sampling generic
+    # contraction events) even after per-bucket caps.
+    x["_bucket_rank"] = x.groupby(
+        ["event_reason", "event_year"], sort=True
+    ).cumcount()
+    x = x.sort_values(
+        ["_bucket_rank", "event_reason", "event_year", "_case_hash"]
+    ).head(max_cases).copy()
     x["case_id"] = [
         f"KELL-{pd.Timestamp(d).strftime('%Y%m%d')}-{t}-{h[:8]}"
         for t, d, h in zip(x["ticker"], x["date"], x["_case_hash"])
     ]
-    return x.drop(columns=["_case_hash"]).sort_values(
+    return x.drop(columns=["_case_hash", "_bucket_rank"]).sort_values(
         ["date", "ticker", "event_reason"]
     ).reset_index(drop=True)
 
