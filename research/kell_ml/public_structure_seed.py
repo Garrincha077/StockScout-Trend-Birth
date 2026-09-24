@@ -20,6 +20,9 @@ from kell_ml_v01 import (
     build_blind_gold_queue,
     compute_features,
     generate_historical_events,
+    save_model,
+    temporal_split,
+    train_structure,
 )
 
 SOURCE_COMMIT = "0c447c47b757ad74edecab31f0d72f849d2e67c2"
@@ -57,6 +60,22 @@ def main() -> None:
     events = generate_historical_events(labeled)
     queue = build_blind_gold_queue(events, max_cases=200, max_per_reason_year=12)
 
+    # Actual ML training smoke: chronological Silver-label classifier.
+    # Because Silver labels are deterministic proxies derived from these same
+    # features, the score measures pipeline reproducibility, NOT Kell skill.
+    split = temporal_split(
+        labeled,
+        train_end="2015-12-31",
+        validation_end="2016-12-31",
+    )
+    _, validation_metrics = train_structure(split.train, split.validation)
+    train_through_validation = pd.concat(
+        [split.train, split.validation], ignore_index=True
+    )
+    silver_model, test_metrics = train_structure(
+        train_through_validation, split.test
+    )
+
     if prices["ticker"].nunique() != 160:
         raise SystemExit("Unexpected public seed symbol count")
     if len(events) < 1_000:
@@ -67,6 +86,7 @@ def main() -> None:
     out = Path("artifacts/public-structure-seed")
     out.mkdir(parents=True, exist_ok=True)
     queue.to_csv(out / "blind_gold_queue.csv", index=False)
+    save_model(silver_model, out / "silver_structure_model.joblib")
 
     report = {
         "purpose": "historical structure-only seed; not opportunity validation",
@@ -82,6 +102,17 @@ def main() -> None:
         "last_date": str(pd.to_datetime(prices["date"]).max().date()),
         "event_rows": int(len(events)),
         "blind_gold_queue_rows": int(len(queue)),
+        "silver_structure_training": {
+            "interpretation": (
+                "pipeline smoke only; Silver targets are deterministic project "
+                "proxies derived from overlapping features"
+            ),
+            "train_rows": int(len(split.train)),
+            "validation_rows": int(len(split.validation)),
+            "test_rows": int(len(split.test)),
+            "validation_metrics": validation_metrics,
+            "test_metrics": test_metrics,
+        },
         "event_reason_counts": {
             str(k): int(v)
             for k, v in events["event_reason"].value_counts().sort_index().items()
