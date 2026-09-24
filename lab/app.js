@@ -474,7 +474,7 @@ function changeStrip(item){
   const risk=Number.isFinite(Number(change.structuralRiskAtr))
     ?'<span class="'+(change.riskTooWide?'risk-wide':'')+'">'+esc((change.riskTooWide?'Risk too wide: ':'Natural invalidation: ')+fmt(change.structuralRiskAtr,2)+' ATR')+'</span>'
     :'';
-  const regime=change.marketRegime?.defensive?'<span>DEFENSIVE REGIME</span>':'';
+  const regime=change.marketRegime?.defensive?'<span>'+esc(change.marketRegime.label||'DEFENSIVE REGIME')+'</span>':'';
   const support=(change.reasons||[]).filter(reason=>
     reason!==change.headline
     &&reason!==change.crossbackClass
