@@ -59,3 +59,23 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Caveat: the roughly 5 MB monolithic snapshot was slow to load in the local in-app browser (eventually successful), while hosted verification completed in seconds. Splitting grid metadata from chart history is a useful next UX optimization.
 - The scheduler-only PR has no `lab/` directory, so its Vercel preview failed with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`. The application branch deployment and both application CI checks passed; no hosting root setting was changed to accommodate an infrastructure-only branch.
 - This supersedes the earlier pre-activation notes. New production messages use immutable URLs; ambiguous sends require reconciliation. Real AI review, per-mode metric separation, exact Bottom Telegram parity and lifecycle tracking remain subsequent phases.
+
+
+## 2026-09-24 — Kell ML historical research lab v0.1
+
+- Branch: \`feature/kell-ml-lab-v01\`. Research-only; no production cutover.
+- Added \`research/kell_ml/kell_ml_v01.py\`: point-in-time feature extraction, benchmark-relative strength, conservative weekly context, EMA recapture/retest sequence proxies, Silver stage labels, forward outcome layer, chronological splits, baseline structure classifier, baseline opportunity classifier and candidate probability ranking.
+- Added methodology/data docs under \`research/kell_ml/docs/\` and isolated CI workflow \`.github/workflows/kell-ml-lab.yml\`.
+- Kell source discipline: Silver labels and every numeric threshold are explicitly StockScout project proxies, not published Oliver Kell rules. Gold human-reviewed frozen snapshots remain the intended structural ground truth.
+- Leakage control: forward return/MFE/MAE fields are never in \`MODEL_FEATURES\`; weekly context cannot use later same-week sessions; chronological splits replace random row splits.
+- Development bug found and fixed before PR: a first weekly aggregation approach treated a history truncated mid-week as if the partial week were complete. A future-mutation test caught the leak; v0.1 now uses conservative Friday closes pending an exchange-calendar adapter.
+- Local validation on the fuller modular prototype: 7/7 tests passed after the fix. End-to-end synthetic dataset build processed 8,000 snapshots. Synthetic opportunity smoke test ran on 6,520 train and 1,180 evaluation rows.
+- Important interpretation: near-perfect reproduction of deterministic Silver stage labels would be tautological and is **not** evidence that the model has learned Kell. Meaningful evaluation begins with Gold labels plus walk-forward/out-of-sample testing.
+- Behavior/ranking impact: none outside the isolated research branch. Unified EOD, Trend Birth publication, existing StockScout candidate selection and Telegram workflows are untouched.
+- Methodological caveats still open: survivorship-aware historical US universe, delisted symbols, point-in-time fundamentals, holiday-aware weekly bars, and Gold/hard-negative case creation.
+
+**Next logical step**
+- Connect a historical price + point-in-time universe source.
+- Generate broad event/control cohorts outside current StockScout scans.
+- Build the first 100–200 blind Gold/hard-negative snapshots.
+- Only then compare Silver baseline vs Gold-trained structure model and run walk-forward opportunity/ranking tests.
