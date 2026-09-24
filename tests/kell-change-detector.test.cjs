@@ -76,6 +76,39 @@ test('a repeated retest after a prior crossback is explicitly degraded',()=>{
   assert.ok(change.reasons.includes('LATE RETEST'));
 });
 
+test('chart-derived retest state wins over incomplete snapshot history',()=>{
+  const staleHistory=[
+    row({stage:'ema_crossback',setups:['kell_ema_crossback']}),
+    row({stage:'transition',setups:[]})
+  ];
+  const current=row({
+    stage:'ema_crossback',
+    setups:['kell_ema_crossback'],
+    kell_metrics:{ema_retest_state:'first_crossback'}
+  });
+  const change=KellChanges.classify(current,staleHistory);
+  assert.equal(change.crossbackClass,'FIRST CROSSBACK');
+  assert.equal(change.headline,'FIRST ACTIONABLE CROSSBACK');
+});
+
+test('late EMA retest is visible but lower priority than a first actionable Crossback',()=>{
+  const history=[row({stage:'trend_ema_support',setups:[]})];
+  const late=KellChanges.classify(row({
+    stage:'trend_ema_support',
+    setups:[],
+    kell_metrics:{ema_retest_state:'late_retest'}
+  }),history);
+  const first=KellChanges.classify(row({
+    stage:'ema_crossback',
+    setups:['kell_ema_crossback'],
+    kell_metrics:{ema_retest_state:'first_crossback'}
+  }),history);
+  assert.equal(late.changed,true);
+  assert.equal(late.priorityBand,'stage');
+  assert.equal(late.headline,'EMA RETEST · LATE');
+  assert.ok(first.priority>late.priority);
+});
+
 test("Base n' Break is early after the first Wedge/Crossback sequence and mature after a prior base",()=>{
   const earlyHistory=[
     row({stage:'wedge_pop',setups:['kell_wedge_pop']}),
@@ -132,6 +165,37 @@ test('wide natural invalidation and defensive regime reduce review priority but 
   assert.ok(wideDefensive.reasons.includes('RISK TOO WIDE 3.40 ATR'));
   assert.ok(wideDefensive.reasons.includes('DEFENSIVE REGIME'));
   assert.ok(tight.priority>wideDefensive.priority);
+});
+
+test('coarse Unified correction is a defensive fallback without pretending QQQ/20EMA is exact',()=>{
+  const history=[row({stage:'transition',setups:[]})];
+  const current=row({stage:'wedge_pop',setups:['kell_wedge_pop']});
+  const change=KellChanges.classify(current,history,{
+    qqqAboveEma20:null,
+    qqq20ExactAvailable:false,
+    regime:{state:'correction'}
+  });
+  assert.equal(change.marketRegime.defensive,true);
+  assert.equal(change.marketRegime.exactQqq20,false);
+  assert.match(change.marketRegime.label,/UNIFIED FALLBACK/);
+  assert.ok(change.reasons.includes('DEFENSIVE REGIME'));
+});
+
+test('columnar history archives are inflated for sequence tracking',()=>{
+  const payload={
+    source:{sessionDate:'2026-09-22'},
+    columns:['ticker','stage','setups','screens'],
+    candidates:[['AAA','wedge_pop',['kell_wedge_pop'],[]]]
+  };
+  const current=[row({
+    ticker:'AAA',
+    stage:'ema_crossback',
+    setups:['kell_ema_crossback'],
+    kell_metrics:{ema_retest_state:'first_crossback'}
+  })];
+  KellChanges.decorate(current,[payload],{});
+  assert.equal(current[0].kellChange.previousStage,'wedge_pop');
+  assert.equal(current[0].kellChange.crossbackClass,'FIRST CROSSBACK');
 });
 
 test('decorate uses multiple historical sessions and summary reports sequence events',()=>{
