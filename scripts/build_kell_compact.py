@@ -189,6 +189,7 @@ def main() -> int:
             "readOnly": True,
             "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
+        "marketContext": source.get("marketContext") or {},
         "kellScoring": source.get("kellScoring") or {},
         "unifiedCandidateIndexCount": source.get("unifiedCandidateIndexCount", 0),
         "unifiedCandidateIndex": [
