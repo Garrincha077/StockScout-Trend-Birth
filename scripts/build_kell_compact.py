@@ -92,6 +92,7 @@ def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
         "kellScreens": list(item.get("kellScreens") or item.get("kell_screens") or []),
         "kellSetups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "kellContext": list(item.get("kellContext") or []),
+        "trendBirth": item.get("trendBirth") or {},
         "chartBarsCount": len(bars),
         "weeklyChartBarsCount": len(item.get("weeklyChartBars") or []),
     }
@@ -189,6 +190,7 @@ def main() -> int:
             "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
         "kellScoring": source.get("kellScoring") or {},
+        "trendBirthRadar": source.get("trendBirthRadar") or {},
         "unifiedCandidateIndexCount": source.get("unifiedCandidateIndexCount", 0),
         "unifiedCandidateIndex": [
             compact_candidate(item)

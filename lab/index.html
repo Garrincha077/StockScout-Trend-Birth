@@ -21,6 +21,7 @@
         <option value="kell-score">Kell Focus ↓</option>
         <option value="readiness">Readiness ↓</option>
         <option value="quality">Quality ↓</option>
+        <option value="trend-birth">Trend Birth stage ↓</option>
         <option value="evidence">Evidence ↓</option>
         <option value="rvol">RVOL ↓</option>
       </select>
@@ -52,7 +53,12 @@
     <button data-filter="kell_gapper">Gappers</button>
     <button data-filter="kell_strength_on_down_day">Strength ↓Day</button>
 
-    <span class="filter-group-label">Stage</span>
+    <span class="filter-group-label">Trend Birth Radar</span>
+    <button data-filter="tb:2">2/4 Watch Closely</button>
+    <button data-filter="tb:3">3/4 Ready</button>
+    <button data-filter="tb:4">4/4 Trigger</button>
+
+    <span class="filter-group-label">Kell Cycle Stage</span>
     <button data-filter="stage:reversal_extension">Reversal Ext.</button>
     <button data-filter="stage:wedge_pop">Wedge Pop</button>
     <button data-filter="stage:ema_crossback">Crossback</button>
@@ -90,6 +96,8 @@
     <button type="button" data-quick-view="ready">Ready</button>
     <button type="button" data-quick-view="leaders">Leaders</button>
     <button type="button" data-quick-view="breakout">Breakout</button>
+    <button type="button" data-quick-view="tbready">TB Ready</button>
+    <button type="button" data-quick-view="tbtrigger">TB Trigger</button>
     <button type="button" data-quick-view="extended">Extended</button>
     <button type="button" data-quick-view="reset">Reset</button>
     <button type="button" id="mobileFiltersToggle" class="mobile-filter-toggle" aria-controls="filters" aria-expanded="false">Filters</button>
