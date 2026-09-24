@@ -6,6 +6,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'lab','index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'lab','app.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'lab','styles.css'),'utf8');
 
 test('quick views expose high-value review presets',()=>{
   for(const view of ['ready','leaders','breakout','extended','reset']){
@@ -44,4 +45,18 @@ test('detail dialog has previous and next controls plus keyboard arrows',()=>{
 
 test('legacy Action and Multi-hit do not become full Kell-universe filters',()=>{
   assert.match(app,/filter\(key=>!\['multi','action'\]\.includes\(key\)\)/);
+});
+
+test('mobile review keeps primary quick views and moves full filters into a drawer',()=>{
+  assert.match(html,/id="mobileFiltersToggle"[^>]+aria-controls="filters"[^>]+aria-expanded="false"/);
+  assert.match(html,/id="mobileFiltersClose"/);
+  assert.match(html,/id="mobileFilterBackdrop"[^>]+hidden/);
+  assert.match(app,/function setMobileFiltersOpen\(open,restoreFocus=false\)/);
+  assert.match(app,/button\.textContent=count\?'Filters \('\+count\+'\)'\:'Filters'/);
+  assert.match(app,/classList\.toggle\('mobile-open',open\)/);
+  assert.match(app,/e\.key==='Escape'&&\$\('#filters'\)\?\.classList\.contains\('mobile-open'\)/);
+  assert.match(css,/@media\(max-width:720px\)/);
+  assert.match(css,/\.filters\.mobile-open\{display:flex\}/);
+  assert.match(css,/\.quick-views button\[data-quick-view="extended"\],\.quick-views button\[data-quick-view="reset"\],\.quick-view-label\{display:none\}/);
+  assert.match(css,/\.active-filter-bar\{display:none!important\}/);
 });
