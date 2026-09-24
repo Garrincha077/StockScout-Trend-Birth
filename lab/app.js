@@ -4,6 +4,7 @@ const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
+const trendBirthLabels={0:'0/4 Invalidated',1:'1/4 Watch',2:'2/4 Watch Closely',3:'3/4 Ready',4:'4/4 Trigger'};
 const universeLabels={'all':'All','bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','watchlist':'Watchlist'};
 const label=s=>labels[s]||s;
 const kellScreenLabels={
@@ -63,6 +64,7 @@ const kellFilterLabels={
 const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
   changed:{filters:['kell-changed'],sort:'change'},
+  trendbirth:{filters:['trendbirth:2'],sort:'trendbirth'},
   ready:{filters:['kell-ready'],sort:'readiness'},
   leaders:{filters:['kell_rs_leader','kell_weekly_trend_ok'],sort:'quality'},
   breakout:{filters:['kell_breakout_proximity','kell_weekly_trend_ok'],sort:'readiness'},
@@ -548,8 +550,10 @@ function card(item){
   const setups=kellSetupsText(item);
   const watched=isWatched(item.ticker);
   const sources=item.sources||[];
+  const tbStage=Number(item?.trendBirth?.stage);
+  const tbBadge=Number.isFinite(tbStage)?'<span class="badge">TB '+esc(trendBirthLabels[tbStage]||tbStage+'/4')+'</span>':'';
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
-    '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
+    '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+tbBadge+badges(item)+'</div></div>'+changeStrip(item)+
     (missing?'<div class="watchlist-missing">Nije u današnjem Unified scanu · ostaje spremljen dok ga ručno ne ukloniš</div>':item.watchlistUnifiedOnly?'<div class="watchlist-current">U današnjem Unified scanu · trenutačno nema aktivni Review/Kell hit</div>':'')+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span><span>TB <b>'+trendBirthStage(item)+'/4</b></span>'+(sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Q / R / C <b>'+fmt(item.kell_quality_score,0)+' / '+fmt(item.kell_readiness_score,0)+' / '+fmt(item.kell_context_score,0)+'</b></span><span>Evidence <b>'+fmt(item.kell_evidence_coverage,0)+'%</b></span></div>'+
@@ -577,6 +581,7 @@ function render(){
     if(mode==='trend-birth')return trendBirthStage(item)*1000+Number(item.kell_score||0);
     if(mode==='evidence')return Number(item.kell_evidence_coverage);
     if(mode==='rvol')return Number(item.metrics?.rvol);
+    if(mode==='trendbirth')return Number(item?.trendBirth?.stage);
     return NaN;
   };
   if(sortMode!=='default')items.sort((a,b)=>{
@@ -657,6 +662,8 @@ function show(item){
     '<canvas class="detail-chart"></canvas>'+
     '<div class="detail-grid">'+
       fact('Review state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
+      fact('Trend Birth stage',Number.isFinite(Number(item?.trendBirth?.stage))?(trendBirthLabels[Number(item.trendBirth.stage)]||item.trendBirth.stage+'/4'):'—')+
+      fact('Missing for 4/4',(item?.trendBirth?.missingFor4||[]).join(' · ')||'—')+
       fact('Trend Birth',trendBirthLabel(item))+fact('TB missing for 4/4',(item?.trendBirth?.missingFor4||[]).join(' · ')||'Complete')+
       fact('Kell Focus',fmt(item.kell_score,1))+fact('Kell stage',stageName(primaryStage(item)))+
       fact('Quality',fmt(item.kell_quality_score,1))+fact('Readiness / Actionability',fmt(item.kell_readiness_score,1))+
