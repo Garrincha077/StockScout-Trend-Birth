@@ -67,6 +67,22 @@ class TrendBirthAlertTests(unittest.TestCase):
         self.assertEqual([m["kind"] for m in payload["messages"]], ["trigger", "trigger"])
         self.assertTrue(all("View dashboard: https://example.test/" in m["text"] for m in payload["messages"]))
 
+    def test_alerts_prefer_quality_screened_kell_candidates(self):
+        current = {
+            "source": {"sessionDate": "2026-09-24"},
+            "unifiedCandidateIndex": [item("NOISY", 4, 99), item("QUALITY", 4, 70)],
+            "kellCandidates": [item("QUALITY", 4, 70)],
+        }
+        previous = {
+            "source": {"sessionDate": "2026-09-23"},
+            "unifiedCandidateIndex": [item("NOISY", 3), item("QUALITY", 3)],
+            "kellCandidates": [item("QUALITY", 3)],
+        }
+        payload = build_alerts(current, previous, "https://example.test/")
+        self.assertEqual(payload["triggerCount"], 1)
+        self.assertEqual(payload["messages"][0]["ticker"], "QUALITY")
+        self.assertNotIn("NOISY", payload["messages"][0]["text"])
+
     def test_invalidation_only_after_ready_or_trigger(self):
         current = {
             "source": {"sessionDate": "2026-09-24"},
