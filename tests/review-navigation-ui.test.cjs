@@ -59,4 +59,5 @@ test('mobile review keeps primary quick views and moves full filters into a draw
   assert.match(css,/\.filters\.mobile-open\{display:flex\}/);
   assert.match(css,/\.quick-views button\[data-quick-view="extended"\],\.quick-views button\[data-quick-view="reset"\],\.quick-view-label\{display:none\}/);
   assert.match(css,/\.active-filter-bar\{display:none!important\}/);
+  assert.match(css,/\.mobile-filter-head\+\.filter-group-label\{margin-left:0;padding-left:0;border-left:0\}/);
 });
