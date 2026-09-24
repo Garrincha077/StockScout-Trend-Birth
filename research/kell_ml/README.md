@@ -57,3 +57,15 @@ From research/kell_ml:
 - No production integration is implied.
 
 See docs/KELL_ML_METHOD.md, docs/GOLD_LABEL_PROTOCOL.md, docs/PROXY_REGISTRY.md and docs/DATA_CONTRACT.md.
+
+
+## Real StockScout sanity check
+
+The first live-shard audit used 48 real Review Grid candidates dated 2026-09-23 plus QQQ context. It exposed two integration/design issues before production use:
+
+- chart shards mix ISO dates and Unix-second timestamps;
+- a structural label such as EMA Crossback must not be downgraded merely because RS/liquidity are weak.
+
+v0.1 therefore normalizes both date encodings and keeps silver_stage separate from review_bucket_proxy. The latter can mark a valid structure as STRUCTURE_ONLY, PRICE_INELIGIBLE, EXTENDED, REPAIR, or PRIORITY_REVIEW.
+
+The real-candidate audit is a regression/sanity check, not historical model validation.
