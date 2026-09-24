@@ -76,10 +76,17 @@ const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'una
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
 const trendBirthLabel=item=>{
   const radar=item?.trendBirth||{};
+  if(radar.available!==true){
+    const reason=String(radar.reason||'unavailable').replaceAll('_',' ');
+    return 'N/A · '+reason;
+  }
   return trendBirthStage(item)+'/4 '+String(radar.stageLabel||'NO SETUP');
 };
 function trendBirthChecklistText(item){
   const radar=item?.trendBirth||{},checks=radar.checks||{};
+  if(radar.available!==true){
+    return '⚪ Trend Birth unavailable — '+String(radar.reason||'unknown reason').replaceAll('_',' ');
+  }
   const labels=[
     ['sma50Rising','SMA50 rising'],
     ['sma30wRising','SMA30W rising'],
