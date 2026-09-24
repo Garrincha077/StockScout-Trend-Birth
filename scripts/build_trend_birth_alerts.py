@@ -22,7 +22,10 @@ def _stage(item: dict) -> int:
 
 
 def _candidate_map(data: dict) -> dict[str, dict]:
-    rows = data.get("unifiedCandidateIndex") or data.get("kellCandidates") or []
+    # Telegram is intentionally narrower than the full radar.  Use the
+    # quality-screened Kell candidate set when present so every alerted name is
+    # visible in the Kell/TB dashboard and low-value names do not create noise.
+    rows = data.get("kellCandidates") or data.get("unifiedCandidateIndex") or []
     return {
         str(item.get("ticker") or "").upper(): item
         for item in rows
