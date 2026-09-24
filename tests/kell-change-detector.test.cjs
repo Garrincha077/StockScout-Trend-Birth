@@ -35,6 +35,15 @@ test('discovery changes are tracked separately from stage and setup',()=>{
   assert.deepEqual(change.addedScreens,['kell_bull_snort']);
 });
 
+test('auxiliary repair/support flicker is not a cycle event',()=>{
+  const previous=row({stage:'transition'});
+  const current=row({stage:'trend_ema_support'});
+  const change=KellChanges.classify(current,[previous]);
+  assert.equal(change.changed,false);
+  assert.equal(change.stageChanged,false);
+  assert.equal(change.priorityBand,'none');
+});
+
 test('stage transition is a change even without score movement',()=>{
   const previous=row({stage:'transition'});
   const current=row({stage:'wedge_pop'});
