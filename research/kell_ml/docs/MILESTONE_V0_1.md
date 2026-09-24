@@ -32,3 +32,16 @@ Not yet solved:
 
 Interpretation guardrail:
 a model that reproduces deterministic Silver labels is not evidence that it has learned Oliver Kell. Gold labels and walk-forward validation are required.
+
+
+### Real-candidate integration audit
+
+Using the existing 2026-09-23 Review Grid chart shards:
+- audited 48 real StockScout candidates from the first shard;
+- found mixed ISO and Unix-second date encodings;
+- observed 13 structural EMA_CROSSBACK_PROXY cases, many with weak RS;
+- concluded that weak RS should reduce review priority rather than rewrite the structural stage;
+- added explicit name-selection/eligibility fields and a separate review_bucket_proxy;
+- kept under-$10 avoidance separate from structural classification.
+
+This is a current-candidate regression check, not a claim of historical predictive validity.
