@@ -39,6 +39,20 @@ class KellGoldSetTests(unittest.TestCase):
         self.assertTrue(any("duplicate" in x for x in errors))
         self.assertTrue(any("invalid label" in x for x in errors))
 
+    def test_validation_enforces_explicit_fp_fn_semantics(self):
+        payload = {
+            "schemaVersion": gold.GOLD_SCHEMA_VERSION,
+            "labels": [
+                label("AAA", "setup", "kell_wedge_pop", "FALSE_POSITIVE", baseline=False),
+                label("BBB", "setup", "kell_wedge_pop", "FALSE_NEGATIVE", baseline=True),
+                label("CCC", "setup", "kell_wedge_pop", "VALID", baseline=False),
+            ],
+        }
+        errors = gold.validate_gold_set(payload)
+        self.assertTrue(any("FALSE_POSITIVE requires" in x for x in errors))
+        self.assertTrue(any("FALSE_NEGATIVE requires" in x for x in errors))
+        self.assertTrue(any("must use FALSE_NEGATIVE" in x for x in errors))
+
     def test_before_after_metrics_distinguish_fix_and_regression(self):
         gold_set = {
             "schemaVersion": gold.GOLD_SCHEMA_VERSION,
@@ -126,6 +140,122 @@ class KellGoldSetTests(unittest.TestCase):
             report = gold.evaluate_gold_set(gold_set, scores_dir=Path(tmp))
         self.assertEqual(report["summary"]["evaluated"], 1)
         self.assertEqual(report["summary"]["unavailable"], 1)
+
+    def test_raw_snapshot_rescore_recovers_missing_setup_archive(self):
+        bars = [
+            [f"2026-08-{day:02d}", 100.0, 101.0, 99.0, 100.0, 1_000_000]
+            for day in range(1, 22)
+        ]
+        bars.append(["2026-09-21", 105.0, 110.0, 104.0, 109.0, 2_000_000])
+
+        gold_set = {
+            "schemaVersion": gold.GOLD_SCHEMA_VERSION,
+            "labels": [
+                dict(
+                    label("AAA", "setup", "kell_buyable_gap_proxy", "VALID"),
+                    sessionDate="2026-09-21",
+                )
+            ],
+        }
+        archive = {
+            "source": {"sessionDate": "2026-09-21"},
+            "kellScoring": {"modelVersion": "legacy-stage-only"},
+            "candidates": [{"ticker": "AAA", "stage": "transition"}],
+        }
+        snapshot = {
+            "source": {"sessionDate": "2026-09-21"},
+            "candidates": [{"ticker": "AAA", "chartBars": bars}],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scores = root / "scores"
+            snapshots = root / "snapshots"
+            scores.mkdir()
+            snapshots.mkdir()
+            (scores / "2026-09-21.json").write_text(
+                __import__("json").dumps(archive), encoding="utf-8"
+            )
+            (snapshots / "2026-09-21-eod.json").write_text(
+                __import__("json").dumps(snapshot), encoding="utf-8"
+            )
+            report = gold.evaluate_gold_set(
+                gold_set,
+                scores_dir=scores,
+                snapshots_dir=snapshots,
+            )
+
+        row = report["rows"][0]
+        self.assertIs(row["predictionNow"], True)
+        self.assertEqual(row["evaluationSource"], "raw_snapshot_rescore")
+        self.assertEqual(row["modelVersionNow"], "kell-overlay-v5-quality-readiness-context")
+        self.assertEqual(report["summary"]["rescoredRowCount"], 1)
+        self.assertEqual(report["summary"]["rawSnapshotSessionCount"], 1)
+
+    def test_false_negative_metrics_and_session_rollup(self):
+        gold_set = {
+            "schemaVersion": gold.GOLD_SCHEMA_VERSION,
+            "labels": [
+                dict(
+                    label("AAA", "setup", "kell_wedge_pop", "FALSE_NEGATIVE", baseline=False),
+                    sessionDate="2026-09-21",
+                ),
+                dict(
+                    label("BBB", "setup", "kell_buyable_gap_proxy", "FALSE_POSITIVE"),
+                    sessionDate="2026-09-21",
+                ),
+                dict(
+                    label("CCC", "setup", "kell_wedge_pop", "FALSE_NEGATIVE", baseline=False),
+                    sessionDate="2026-09-22",
+                ),
+            ],
+        }
+        archives = {
+            "2026-09-21": {
+                "source": {"sessionDate": "2026-09-21"},
+                "kellScoring": {"modelVersion": "v-test"},
+                "kellCandidates": [
+                    {"ticker": "AAA", "kellSetups": [], "kell_stage": {"primary": "transition"}},
+                    {
+                        "ticker": "BBB",
+                        "kellSetups": ["kell_buyable_gap_proxy"],
+                        "kell_stage": {"primary": "transition"},
+                    },
+                ],
+            },
+            "2026-09-22": {
+                "source": {"sessionDate": "2026-09-22"},
+                "kellScoring": {"modelVersion": "v-test"},
+                "kellCandidates": [
+                    {
+                        "ticker": "CCC",
+                        "kellSetups": ["kell_wedge_pop"],
+                        "kell_stage": {"primary": "wedge_pop"},
+                    }
+                ],
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            for session, archive in archives.items():
+                (Path(tmp) / f"{session}.json").write_text(
+                    __import__("json").dumps(archive), encoding="utf-8"
+                )
+            report = gold.evaluate_gold_set(gold_set, scores_dir=Path(tmp))
+
+        self.assertEqual(report["summary"]["observedFalsePositives"], 1)
+        self.assertEqual(report["summary"]["observedFalseNegatives"], 2)
+        self.assertEqual(report["summary"]["unresolvedFalsePositives"], 1)
+        self.assertEqual(report["summary"]["unresolvedFalseNegatives"], 1)
+        self.assertEqual(report["summary"]["fixedFalseNegatives"], 1)
+        self.assertEqual(report["summary"]["labeledSessionCount"], 2)
+        self.assertEqual(report["summary"]["sessionsWithFalsePositives"], 1)
+        self.assertEqual(report["summary"]["sessionsWithFalseNegatives"], 2)
+        self.assertEqual(set(report["sessions"]), {"2026-09-21", "2026-09-22"})
+
+        rows = {(row["sessionDate"], row["ticker"]): row for row in report["rows"]}
+        self.assertEqual(rows[("2026-09-21", "AAA")]["change"], "unresolved_false_negative")
+        self.assertEqual(rows[("2026-09-21", "BBB")]["change"], "unresolved_false_positive")
+        self.assertEqual(rows[("2026-09-22", "CCC")]["change"], "fixed_false_negative")
 
 
 if __name__ == "__main__":
