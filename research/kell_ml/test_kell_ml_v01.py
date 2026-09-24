@@ -258,7 +258,7 @@ def test_gold_label_ingestion_is_blind_and_detects_conflicts():
 
     labeled = template.head(2).copy()
     labeled["gold_stage"] = "REPAIR_OR_OTHER"
-    labeled["gold_setup_status"] = "WATCH"
+    labeled["gold_setup_status"] = "LEADER_WAIT"
     validated = validate_gold_labels(labeled)
     matched = merge_gold_labels(features, validated)
     assert set(matched["gold_stage"]) == {"REPAIR_OR_OTHER"}
