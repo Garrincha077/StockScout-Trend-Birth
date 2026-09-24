@@ -56,7 +56,7 @@ const kellFilterLabels={
   'multi':'Multi-hit',
   'action':'Action'
 };
-const kellFilters=new Set(Object.keys(kellFilterLabels));
+const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
   ready:{filters:['kell-ready'],sort:'readiness'},
   leaders:{filters:['kell_rs_leader','kell_weekly_trend_ok'],sort:'quality'},
