@@ -18,7 +18,11 @@
       </select>
       <select id="sort" aria-label="Sortiranje kandidata">
         <option value="default">Default sort</option>
-        <option value="kell-score">Kell score ↓</option>
+        <option value="kell-score">Kell Focus ↓</option>
+        <option value="readiness">Readiness ↓</option>
+        <option value="quality">Quality ↓</option>
+        <option value="evidence">Evidence ↓</option>
+        <option value="rvol">RVOL ↓</option>
       </select>
       <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
     </div>
@@ -32,7 +36,7 @@
     <button data-universe="watchlist" id="watchlistUniverse">★ Watchlist (0)</button>
 
     <span class="filter-group-label">Screens</span>
-    <button data-filter="none" class="active">No filter</button>
+    <button data-filter="none" class="active">Clear filters</button>
     <button data-filter="kell-any">Kell Hits</button>
     <button data-filter="kell_52w_high">52W</button>
     <button data-filter="kell_unusual_volume">Vol ≥2x</button>
@@ -74,6 +78,7 @@
     <button data-filter="multi">Multi-hit</button>
     <button data-filter="action">Action</button>
   </nav>
+  <div id="activeFilterBar" class="active-filter-bar" hidden aria-live="polite"></div>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
     <section id="grid" class="grid" aria-live="polite"></section>
