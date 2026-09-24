@@ -9,9 +9,10 @@ const app=fs.readFileSync(path.join(root,'lab','app.js'),'utf8');
 const css=fs.readFileSync(path.join(root,'lab','styles.css'),'utf8');
 
 test('quick views expose high-value review presets',()=>{
-  for(const view of ['ready','leaders','breakout','extended','reset']){
+  for(const view of ['changed','ready','leaders','breakout','extended','reset']){
     assert.match(html,new RegExp('data-quick-view="'+view+'"'));
   }
+  assert.match(app,/changed:\{filters:\['kell-changed'\],sort:'change'\}/);
   assert.match(app,/ready:\{filters:\['kell-ready'\],sort:'readiness'\}/);
   assert.match(app,/leaders:\{filters:\['kell_rs_leader','kell_weekly_trend_ok'\],sort:'quality'\}/);
   assert.match(app,/breakout:\{filters:\['kell_breakout_proximity','kell_weekly_trend_ok'\],sort:'readiness'\}/);
@@ -60,4 +61,17 @@ test('mobile review keeps primary quick views and moves full filters into a draw
   assert.match(css,/\.quick-views button\[data-quick-view="extended"\],\.quick-views button\[data-quick-view="reset"\],\.quick-view-label\{display:none\}/);
   assert.match(css,/\.active-filter-bar\{display:none!important\}/);
   assert.match(css,/\.mobile-filter-head\+\.filter-group-label\{margin-left:0;padding-left:0;border-left:0\}/);
+});
+
+
+test('What Changed Today loads prior Kell history and sorts material changes first',()=>{
+  assert.match(html,/data-quick-view="changed"/);
+  assert.match(html,/kell-change-detector\.js/);
+  assert.match(app,/function ensureKellChanges\(\)/);
+  assert.match(app,/KellChanges\.loadPrevious\(fetch,currentDate,10\)/);
+  assert.match(app,/KellChanges\.decorate\(state\.kellData\?\.kellCandidates\|\|\[\],previous\)/);
+  assert.match(app,/if\(filter==='kell-changed'\)return item\?\.kellChange\?\.changed===true/);
+  assert.match(app,/if\(mode==='change'\)return Number\(item\.kellChange\?\.priority\)/);
+  assert.match(app,/if\(name==='changed'\)/);
+  assert.match(css,/\.change-strip\{/);
 });

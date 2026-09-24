@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -53,11 +53,13 @@ const kellFilterLabels={
   ...kellContextLabels,
   'kell-score':'Kell Focus ≥60',
   'kell-ready':'Readiness ≥80',
+  'kell-changed':'Changed today',
   'multi':'Multi-hit',
   'action':'Action'
 };
 const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
+  changed:{filters:['kell-changed'],sort:'change'},
   ready:{filters:['kell-ready'],sort:'readiness'},
   leaders:{filters:['kell_rs_leader','kell_weekly_trend_ok'],sort:'quality'},
   breakout:{filters:['kell_breakout_proximity','kell_weekly_trend_ok'],sort:'readiness'},
@@ -343,6 +345,7 @@ function matchesFilter(item,filter){
   );
   if(filter==='kell-score')return Number(item.kell_score)>=60;
   if(filter==='kell-ready')return Number(item.kell_readiness_score)>=80;
+  if(filter==='kell-changed')return item?.kellChange?.changed===true;
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
   return true;
@@ -434,6 +437,33 @@ async function ensureKellData(){
     .catch(err=>{state.kellLoading=null;throw err});
   return state.kellLoading;
 }
+async function ensureKellChanges(){
+  await ensureKellData();
+  if(state.kellChangesPreviousDate)return state.kellChangesPreviousDate;
+  if(state.kellChangesLoading)return state.kellChangesLoading;
+  const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate;
+  state.kellChangesLoading=KellChanges.loadPrevious(fetch,currentDate,10)
+    .then(previous=>{
+      KellChanges.decorate(state.kellData?.kellCandidates||[],previous);
+      state.kellChangesPreviousDate=previous.source.sessionDate;
+      state.kellChangesLoading=null;
+      return state.kellChangesPreviousDate;
+    })
+    .catch(err=>{state.kellChangesLoading=null;throw err});
+  return state.kellChangesLoading;
+}
+function changeStrip(item){
+  const change=item?.kellChange;
+  if(!change?.changed)return '';
+  const stageMove=change.previousStage&&change.currentStage&&change.previousStage!==change.currentStage
+    ?'<span>'+esc(stageName(change.previousStage))+' → '+esc(stageName(change.currentStage))+'</span>'
+    :'';
+  const deltas=[
+    Number.isFinite(Number(change.readinessDelta))?'R '+(change.readinessDelta>=0?'+':'')+fmt(change.readinessDelta,1):'',
+    Number.isFinite(Number(change.scoreDelta))?'Kell '+(change.scoreDelta>=0?'+':'')+fmt(change.scoreDelta,1):''
+  ].filter(Boolean).join(' · ');
+  return '<div class="change-strip"><strong>↑ CHANGED</strong><span>'+esc((change.reasons||[]).join(' · '))+'</span>'+stageMove+(deltas?'<span>'+esc(deltas)+'</span>':'')+'</div>';
+}
 async function ensureChartData(item){
   if(rowsForPeriod(item).length>=2)return rowsForPeriod(item);
   const data=state.kellData;
@@ -491,7 +521,7 @@ function card(item){
   const watched=isWatched(item.ticker);
   const sources=item.sources||[];
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
-    '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+
+    '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
     (missing?'<div class="watchlist-missing">Nije u današnjem Unified scanu · ostaje spremljen dok ga ručno ne ukloniš</div>':item.watchlistUnifiedOnly?'<div class="watchlist-current">U današnjem Unified scanu · trenutačno nema aktivni Review/Kell hit</div>':'')+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span>'+(sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Q / R / C <b>'+fmt(item.kell_quality_score,0)+' / '+fmt(item.kell_readiness_score,0)+' / '+fmt(item.kell_context_score,0)+'</b></span><span>Evidence <b>'+fmt(item.kell_evidence_coverage,0)+'%</b></span></div>'+
@@ -513,6 +543,7 @@ function render(){
   const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
   const sortValue=(item,mode)=>{
     if(mode==='kell-score')return Number(item.kell_score);
+    if(mode==='change')return Number(item.kellChange?.priority);
     if(mode==='readiness')return Number(item.kell_readiness_score);
     if(mode==='quality')return Number(item.kell_quality_score);
     if(mode==='evidence')return Number(item.kell_evidence_coverage);
@@ -532,7 +563,11 @@ function render(){
   const universeSize=state.universe==='watchlist'?state.watchlist.length:(state.universe==='all'?unifiedCount:modeCounts[state.universe]);
   const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
   const filterSummary=activeFilterSummary();
-  if(state.universe==='watchlist'){
+  if(state.quickView==='changed'){
+    const changeSummary=KellChanges.summary(items);
+    const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate||'—';
+    $('#status').textContent=items.length+' important changes · '+(state.kellChangesPreviousDate||'prior')+' → '+currentDate+' · '+changeSummary.becameReady+' became Ready · '+changeSummary.newSetups+' new actionable setups · '+changeSummary.newCandidates+' new relevant names';
+  }else if(state.universe==='watchlist'){
     const missing=items.filter(item=>item.watchlistMissing).length;
     const unifiedOnly=items.filter(item=>item.watchlistUnifiedOnly).length;
     $('#status').textContent=items.length+' prikazano · '+state.watchlist.length+' spremljeno na Watchlisti'+(unifiedOnly?' · '+unifiedOnly+' još je u Unified universeu bez aktivnog hita':'')+(missing?' · '+missing+' više nije u današnjem Unified scanu':'')+(filterSummary?' · '+filterSummary:'');
@@ -688,6 +723,10 @@ $('#quickViews')?.addEventListener('click',async e=>{
   if(isKellView(state.filters)&&!state.kellData){
     $('#status').textContent='Učitavam Kell kandidate za Quick View…';
     try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
+  }
+  if(name==='changed'){
+    $('#status').textContent='Učitavam prethodni Kell snapshot i računam današnje promjene…';
+    try{await ensureKellChanges()}catch(err){$('#status').textContent='What Changed Today nije dostupan: '+err.message;return}
   }
   render();
 });
