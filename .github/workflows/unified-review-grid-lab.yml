@@ -296,9 +296,10 @@ jobs:
           cp -R lab/data/kell-charts /tmp/kell-charts
           rm -rf /tmp/kell-score-history
           cp -R lab/data/kell-score-history /tmp/kell-score-history
-          rm -rf /tmp/kell-snapshots /tmp/kell-chart-snapshots /tmp/kell-history
+          rm -rf /tmp/kell-snapshots /tmp/kell-chart-snapshots /tmp/kell-chart-runs /tmp/kell-history
           cp -R lab/data/kell-snapshots /tmp/kell-snapshots
           cp -R lab/data/kell-chart-snapshots /tmp/kell-chart-snapshots
+          if [ -d lab/data/kell-chart-runs ]; then cp -R lab/data/kell-chart-runs /tmp/kell-chart-runs; fi
           cp -R lab/data/kell-history /tmp/kell-history
           target_branch="$GITHUB_REF_NAME"
           git fetch origin "$target_branch"
@@ -324,9 +325,10 @@ jobs:
           cp -R /tmp/kell-charts lab/data/kell-charts
           rm -rf lab/data/kell-score-history
           cp -R /tmp/kell-score-history lab/data/kell-score-history
-          rm -rf lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-history
+          rm -rf lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           cp -R /tmp/kell-snapshots lab/data/kell-snapshots
           cp -R /tmp/kell-chart-snapshots lab/data/kell-chart-snapshots
+          if [ -d /tmp/kell-chart-runs ]; then cp -R /tmp/kell-chart-runs lab/data/kell-chart-runs; fi
           cp -R /tmp/kell-history lab/data/kell-history
           python - <<'PY'
           import json
@@ -347,7 +349,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-history
+          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
