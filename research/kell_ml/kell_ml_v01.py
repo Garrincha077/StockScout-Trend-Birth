@@ -243,7 +243,6 @@ def compute_features(
             g[f"ret_{h}d"] = g["close"].pct_change(h)
 
         g["avg_volume_20"] = g["volume"].rolling(20, min_periods=5).mean()
-        g["avg_dollar_volume_20"] = (g["close"] * g["volume"]).rolling(20, min_periods=5).mean()
         g["rvol_20"] = _safe_div(g["volume"], g["avg_volume_20"])
         g["rvol_50"] = _safe_div(g["volume"], g["volume"].rolling(50, min_periods=10).mean())
         g["volume_dryup_5_vs_20"] = _safe_div(
@@ -296,9 +295,22 @@ def compute_features(
             g["benchmark_above_ema20"] = np.nan
 
         # Source-backed Kell name-selection context kept separate from stage.
-        # Kell says he does not trade stocks under $10 and prefers roughly
-        # 1M shares/day or more; liquidity is a preference, not a stage rule.
-        g["kell_price_floor_pass"] = (g["close"] >= 10.0).astype(int)
+        # Absolute historical price levels must use as-traded/raw close.
+        raw_col = "close_raw" if "close_raw" in g.columns else (
+            "raw_close" if "raw_close" in g.columns else None
+        )
+        if raw_col is not None:
+            raw_close = pd.to_numeric(g[raw_col], errors="coerce")
+            g["kell_price_floor_pass"] = (raw_close >= 10.0).where(raw_close.notna()).astype(float)
+            g["avg_dollar_volume_20"] = (
+                raw_close * g["volume"]
+            ).rolling(20, min_periods=5).mean()
+            g["raw_price_level_available"] = 1
+        else:
+            # Do not use back-adjusted price levels for historical $10 gates.
+            g["kell_price_floor_pass"] = np.nan
+            g["avg_dollar_volume_20"] = np.nan
+            g["raw_price_level_available"] = 0
         g["kell_liquidity_pref_pass"] = (g["avg_volume_20"] >= 1_000_000).astype(int)
 
         outputs.append(_add_sequence_proxies(g))
@@ -384,7 +396,8 @@ def add_review_bucket_proxy(df: pd.DataFrame) -> pd.DataFrame:
         | (x["rvol_20"].fillna(0) >= 1.3)
     )
     liquid = x["kell_liquidity_pref_pass"].fillna(0).astype(bool)
-    price_ok = x["kell_price_floor_pass"].fillna(0).astype(bool)
+    price_known = x["kell_price_floor_pass"].notna()
+    price_ok = x["kell_price_floor_pass"].fillna(1).astype(bool)
 
     status[actionable.to_numpy()] = "STRUCTURE_ONLY"
     status[(actionable & confirmation & liquid & price_ok).to_numpy()] = "PRIORITY_REVIEW"
@@ -392,7 +405,7 @@ def add_review_bucket_proxy(df: pd.DataFrame) -> pd.DataFrame:
     status[(stage == "WEDGE_DROP_PROXY").to_numpy()] = "REPAIR"
     # Kell's stated under-$10 avoidance is a name-selection constraint, not
     # a reason to rewrite the chart's structural stage.
-    status[(~price_ok).to_numpy()] = "PRICE_INELIGIBLE"
+    status[(price_known & ~price_ok).to_numpy()] = "PRICE_INELIGIBLE"
 
     x["review_bucket_proxy"] = status
     return x
