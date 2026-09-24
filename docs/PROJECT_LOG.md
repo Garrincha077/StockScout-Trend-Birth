@@ -301,3 +301,26 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Expand the Gold Set across additional independent sessions and deliberately hunt for confirmed `FALSE_POSITIVE` / false-negative examples, especially Wedge Pop and Buyable Gap. Only after that evidence exists should a proxy threshold or ranking weight be changed.
+
+
+## 2026-09-24 — Kell Trend Birth 0/4–4/4 radar
+
+- Branch: `feature/kell-trend-birth-radar`, based on `feature/unified-review-grid-lab`. StockScout Unified candidate generation, rankings, production Telegram sender and broker behavior were not modified.
+- Added a transparent Trend Birth lifecycle overlay for the existing Unified/Kell candidate universe:
+  - **0/4** NO SETUP / INVALIDATED
+  - **1/4** WATCH: rising SMA50 + true rising SMA30W + valid/non-extended structure
+  - **2/4** WATCH CLOSELY: current price near SMA50 in ATR units + EMA10/20 compression
+  - **3/4** READY: short EMAs flatten/turn, with at least one positive normalized slope
+  - **4/4** TRIGGER: recent pullback/compression, EMA10 rising, EMA20 non-falling, EMA10 > EMA20, close above both and bullish re-expansion/fresh cross.
+- ATR14 uses Wilder/RMA. Price-location and compression thresholds are ATR-normalized; no fixed dollar price zone is used.
+- Decorated full `unifiedCandidateIndex`, Kell candidates and Review candidates with a `trendBirth` evidence object containing stage, every boolean check, key metrics and `missingFor4`.
+- Compact Kell data now preserves the radar and top-level stage counts. GridView adds TB 2/4, 3/4 and 4/4 filters, TB Ready / TB Trigger quick views, stage badges and the full ✅/❌ checklist in ticker detail.
+- Added `scripts/build_trend_birth_alerts.py` as a **no-send** alert exporter. It preserves the architecture boundary that Trend Birth owns data while Unified remains the Telegram sender.
+- Anti-noise alert contract: no 1/4 alert; no individual 2/4 alert; new 3/4 names are grouped and capped to top 5; every new 4/4 is represented; invalidation is emitted only for names previously at 3/4 or 4/4. When candidates are omitted, the exact `+N additional candidates — View dashboard: <URL>` link is always included.
+- First production day is baseline-only if the previous Kell archive has no `trendBirth` evidence, preventing a mass Telegram flood on rollout.
+- CI run **#305** / run id **36058522852** completed green end-to-end: Python tests, historical Kell smoke, browser tests, JavaScript syntax, live Unified snapshot rebuild, compact Kell + chart shards, no-send alert payload, source-identity validation, Kell signal validation, Gold Set, forward validator and artifact upload all passed.
+- Live validation session remained `2026-09-23`: 2,672 Unified candidates, 2,004 Kell matches, 2,004 chart-covered Kell candidates; Trend Birth compact validation passed across every Unified candidate entry.
+- The isolated branch deliberately skipped aligned-data publication; no production dataset or Telegram notification was changed by the validation run.
+
+**Next logical step**
+- Merge the tested radar into `feature/unified-review-grid-lab`, let the existing refresh/deploy chain publish it, then teach the existing Unified GridView Telegram sender to consume the verified no-send alert payload without changing candidate generation or creating a second Telegram owner.
