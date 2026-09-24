@@ -289,3 +289,27 @@ def test_gold_label_validation_rejects_unknown_stage():
         assert False, "Expected invalid Gold stage to fail"
     except ValueError as exc:
         assert "Invalid Gold stage values" in str(exc)
+
+
+def test_blind_gold_queue_round_robins_reason_year_buckets():
+    rows = []
+    reasons = ["A", "B", "C", "D"]
+    years = [2020, 2021, 2022]
+    for reason in reasons:
+        for year in years:
+            for i in range(20):
+                rows.append(
+                    {
+                        "ticker": f"{reason}{year}{i}",
+                        "date": pd.Timestamp(f"{year}-01-03") + pd.Timedelta(days=i),
+                        "event_reason": reason,
+                        "event_year": year,
+                    }
+                )
+    events = pd.DataFrame(rows)
+    queue = build_blind_gold_queue(events, max_cases=48, max_per_reason_year=10)
+    by_reason = queue["event_reason"].value_counts()
+    by_year = queue["event_year"].value_counts()
+    assert len(queue) == 48
+    assert by_reason.max() - by_reason.min() <= 1
+    assert by_year.max() - by_year.min() <= 1
