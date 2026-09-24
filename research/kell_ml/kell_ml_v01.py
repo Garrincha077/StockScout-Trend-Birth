@@ -70,11 +70,12 @@ GOLD_STAGE_VALUES = {
 }
 
 GOLD_SETUP_VALUES = {
-    "ACTIONABLE",
-    "WATCH",
-    "STRONG_BUT_EXTENDED",
-    "REPAIRING",
-    "NO_VALID_SETUP",
+    "READY",
+    "NEAR_READY",
+    "LEADER_WAIT",
+    "EXTENDED",
+    "REPAIR",
+    "REJECT",
 }
 
 
