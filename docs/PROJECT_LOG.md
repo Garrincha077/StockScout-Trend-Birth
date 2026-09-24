@@ -79,3 +79,26 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Generate broad event/control cohorts outside current StockScout scans.
 - Build the first 100–200 blind Gold/hard-negative snapshots.
 - Only then compare Silver baseline vs Gold-trained structure model and run walk-forward opportunity/ranking tests.
+
+
+## 2026-09-24 — Kell ML v0.1 historical seed + Gold-queue hardening
+
+- Draft PR: #18. Branch remains research-only; no production scanner/ranking/publication/Telegram path is imported or changed.
+- Added provider-neutral historical-panel CLI, historical event miner, deterministic blind Gold queue builder, retrospective winner/failure sampler (explicitly hindsight-only), Gold-label template/validation/merge path, and `train_structure(..., target_col="gold_stage")`.
+- Historical event discovery is independent of the current StockScout scan and includes EMA recaptures, first retests, 60D breakouts, unusual volume, 5% gaps, EMA10 extensions, benchmark-relative-strength cases when benchmark data exist, and contracting structures near EMA20.
+- Added a pinned public historical structure-only CI seed using `plotly/datasets` commit `0c447c47b757ad74edecab31f0d72f849d2e67c2`, blob `2a1f02e3675ad8bb6f3a8e536e15f601cfe32fbf`. CI deterministically samples 160 tickers by SHA-256 ticker order; selection does not use future performance.
+- Public seed result: 197,099 daily rows from 160 stocks spanning 2013-02-08 through 2018-02-07; 180,740 historical event rows; 200-case blind labeling queue.
+- Gold queue sampling bug found and fixed: the first global hash cut overrepresented generic contraction events despite per-bucket caps. Queue now round-robins across event-reason x year buckets. Verified balanced result: reasons 24-30 cases each; years 33-34 cases each.
+- Chronological Silver structure-model smoke: train 113,134 rows (through 2015), validation 39,878 rows (2016), test 44,087 rows (2017-2018). Validation macro-F1 0.8769 / balanced accuracy 0.8715; test macro-F1 0.8735 / balanced accuracy 0.8581.
+- Interpretation guardrail: those Silver scores measure reproducibility of deterministic StockScout/Kell proxy labels from overlapping features. They are **not** evidence of Kell skill, predictive edge, or opportunity-model validity.
+- Real StockScout integration audit on 48 Review Grid candidates dated 2026-09-23 found and fixed mixed ISO/Unix chart dates and reinforced strict separation of structural stage from review/setup quality. Current review buckets on that sample: 4 PRIORITY_REVIEW, 18 STRUCTURE_ONLY, 22 WATCH, 3 PRICE_INELIGIBLE, 1 EXTENDED.
+- Historical dollar-price leakage found and fixed: Kell's absolute $10 floor may not be applied to back-adjusted historical close. The feature now requires `close_raw`/`raw_close`; if absent, historical price-floor eligibility is unknown. The public structure seed therefore does not assert the $10 historical gate.
+- Empirical source check: the Plotly seed shows split-normalized AAPL levels around the June 2014 7:1 split, reducing split-discontinuity risk for technical structure. The seed is still explicitly not treated as a survivorship-clean opportunity universe.
+- Data-source audit: Alpha Vantage exposes historical listing/delisting status but the current free connection is rate-limited for bulk collection; Financial Datasets has no available credits; recent Alpaca IEX does not provide the needed deep-history bulk universe in this connection. QuantRocket's free 2007-2011 all-US learning bundle including later-delisted stocks is the preferred no-cost next broad survivorship-aware corpus if access is supplied.
+- Latest research artifacts include the blind Gold queue, report manifest and serialized Silver structure model. Gold setup taxonomy is aligned with Work: READY, NEAR_READY, LEADER_WAIT, EXTENDED, REPAIR, REJECT.
+
+**Next logical step**
+- Acquire/connect a survivorship-aware bulk historical universe (preferred first no-cost path: QuantRocket US Stock learning bundle 2007-2011, or an equivalent provider).
+- Run the existing provider-neutral corpus pipeline and generate the first 100-200 blind chart packets.
+- Review/lock `gold_stage` labels without forward outcomes, train the Gold structure model, then compare Silver-vs-Gold errors chronologically.
+- Only after that, build/evaluate the opportunity/ranking model on a survivorship-aware walk-forward dataset. Do not promote the current Silver model into production.
