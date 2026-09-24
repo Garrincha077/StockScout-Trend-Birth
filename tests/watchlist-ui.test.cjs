@@ -29,9 +29,9 @@ test('saved tickers survive disappearance from the current daily scan',()=>{
   assert.match(app,/if\(state\.universe==='watchlist'\)return watchlistItems\(\)/);
 });
 
-test('opening Watchlist defaults to all saved names rather than inheriting a stale daily filter',()=>{
+test('opening Watchlist defaults to all saved names rather than inheriting stale daily filters',()=>{
   assert.match(app,/nextUniverse==='watchlist'&&state\.universe!=='watchlist'/);
-  assert.match(app,/state\.filter='none'/);
+  assert.match(app,/state\.filters=\[\]/);
 });
 
 test('browser rejects Kell or chart data from another Unified activation',()=>{
