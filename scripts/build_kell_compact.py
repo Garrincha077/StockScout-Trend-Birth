@@ -19,7 +19,8 @@ METRIC_KEYS = (
 KELL_METRIC_KEYS = (
     "ret_3m_pct", "ret_6m_pct", "ret_ytd_pct", "gap_pct", "rvol20",
     "beta", "beta_source", "revenue_yoy_pct", "eps_yoy_pct", "rs_rank", "weekly_ema10",
-    "breakout_proximity_pct",
+    "breakout_proximity_pct", "recent_wedge_pop_sessions_ago", "ema_retest_state",
+    "recent_exhaustion_sessions_ago",
 )
 
 
@@ -188,6 +189,7 @@ def main() -> int:
             "readOnly": True,
             "modeUniverseCounts": src.get("modeUniverseCounts") or {},
         },
+        "marketContext": source.get("marketContext") or {},
         "kellScoring": source.get("kellScoring") or {},
         "unifiedCandidateIndexCount": source.get("unifiedCandidateIndexCount", 0),
         "unifiedCandidateIndex": [

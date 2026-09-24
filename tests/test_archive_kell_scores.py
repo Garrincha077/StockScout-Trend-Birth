@@ -22,11 +22,14 @@ class ArchiveKellScoresTests(unittest.TestCase):
                 "kell_context_score": 60.0,
                 "kell_evidence_coverage": 95.0,
                 "kell_stage_cap": 100.0,
-                "kell_stage": {"primary": "ema_crossback"},
+                "kell_stage": {"primary": "ema_crossback", "basis": ["first_retest_after_wedge_pop", "10_20_ema_support"]},
                 "kellScreens": ["kell_rs_leader"],
                 "kellSetups": ["kell_ema_crossback"],
                 "kellContext": ["kell_weekly_trend_ok"],
-                "score_breakdown": {"legacy_v4_score": 55.0},
+                "score_breakdown": {
+                    "legacy_v4_score": 55.0,
+                    "components": {"readiness": {"structural_risk_atr": 1.15}},
+                },
                 "chartBars": [["2026-09-22", 1, 2, 1, 2, 100]],
             }],
         }
@@ -36,6 +39,8 @@ class ArchiveKellScoresTests(unittest.TestCase):
         item = out["candidates"][0]
         self.assertEqual(item["legacy_v4_score"], 55.0)
         self.assertEqual(item["stage"], "ema_crossback")
+        self.assertEqual(item["stage_basis"], ["first_retest_after_wedge_pop", "10_20_ema_support"])
+        self.assertEqual(item["structural_risk_atr"], 1.15)
         self.assertEqual(item["screens"], ["kell_rs_leader"])
         self.assertEqual(item["setups"], ["kell_ema_crossback"])
         self.assertEqual(item["context"], ["kell_weekly_trend_ok"])

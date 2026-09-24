@@ -64,14 +64,17 @@ test('mobile review keeps primary quick views and moves full filters into a draw
 });
 
 
-test('What Changed Today loads prior Kell history and sorts material changes first',()=>{
+test('What Changed in the Cycle loads multi-session Kell history and sorts sequence events first',()=>{
   assert.match(html,/data-quick-view="changed"/);
   assert.match(html,/kell-change-detector\.js/);
   assert.match(app,/function ensureKellChanges\(\)/);
-  assert.match(app,/KellChanges\.loadPrevious\(fetch,currentDate,10\)/);
-  assert.match(app,/KellChanges\.decorate\(state\.kellData\?\.kellCandidates\|\|\[\],previous\)/);
+  assert.match(app,/KellChanges\.loadHistory\(fetch,currentDate,5,20\)/);
+  assert.match(app,/KellChanges\.decorate\(state\.kellData\?\.kellCandidates\|\|\[\],history,marketContext\)/);
   assert.match(app,/if\(filter==='kell-changed'\)return item\?\.kellChange\?\.changed===true/);
   assert.match(app,/if\(mode==='change'\)return Number\(item\.kellChange\?\.priority\)/);
+  assert.match(app,/change\.priorityBand/);
+  assert.match(app,/change\.structuralRiskAtr/);
+  assert.match(app,/change\.marketRegime\?\.defensive/);
   assert.match(app,/if\(name==='changed'\)/);
   assert.match(css,/\.change-strip\{/);
 });

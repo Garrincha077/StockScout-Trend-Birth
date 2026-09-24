@@ -549,11 +549,10 @@ def score_candidate(
                 prior_touch = True
                 break
         first_retest = not prior_touch
-    ema_crossback = (
-        recent_pop_index is not None
-        and first_retest and current_touch and current_support
-        and close_location >= 45.0
-    )
+    ema_retest_state = None
+    if recent_pop_index is not None and current_touch and current_support and close_location >= 45.0:
+        ema_retest_state = "first_crossback" if first_retest else "late_retest"
+    ema_crossback = ema_retest_state == "first_crossback"
 
     base_support_count = 0
     if len(bars) >= 31:
@@ -1090,6 +1089,7 @@ def score_candidate(
         "kell_buyable_gap_proxy": buyable_gap_proxy,
         "kell_wedge_pop": wedge_pop,
         "kell_ema_crossback": ema_crossback,
+        "kell_ema_retest_state": ema_retest_state,
         "kell_base_n_break": base_n_break,
         "kell_tightening": tightening if recent_tr5 is not None else None,
         "kell_breakout_proximity": breakout_proximity,
@@ -1188,6 +1188,7 @@ def score_candidate(
             "volume_dryup": volume_dryup,
             "base_support_count": base_support_count,
             "recent_wedge_pop_sessions_ago": (len(bars) - 1 - recent_pop_index) if recent_pop_index is not None else None,
+            "ema_retest_state": ema_retest_state,
             "breakout_proximity_pct": breakout_proximity_pct,
             "benchmark_ret_1d_pct": benchmark_ret,
             "relative_outperformance_pct": relative_outperformance,

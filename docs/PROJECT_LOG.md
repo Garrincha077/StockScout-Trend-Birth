@@ -301,3 +301,20 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Expand the Gold Set across additional independent sessions and deliberately hunt for confirmed `FALSE_POSITIVE` / false-negative examples, especially Wedge Pop and Buyable Gap. Only after that evidence exists should a proxy threshold or ranking weight be changed.
+
+## 2026-09-24 — Kell Sequence Engine / What Changed in the Cycle
+
+- Branch: `feature/kell-sequence-engine`; draft PR #16 targets `feature/what-changed-today`. Stable Unified EOD / Trend Birth publication, Telegram and broker behavior remain unchanged.
+- Replaced score-delta-centric “Changed” detection with a sequence/location review model. Large `kell_score` or readiness jumps remain diagnostics but no longer create a change by themselves.
+- Review changes are separated into **Discovery**, **Stage**, **Setup actionable**, plus explicit **risk/cycle-failure** priority. Setup events rank above discovery-only changes.
+- Added sequence-aware events: Wedge Pop appeared, FIRST actionable EMA Crossback, LATE EMA retest, Base n' Break with EARLY / MATURE / LATE-CYCLE context, first/repeated Exhaustion Extension, and Wedge Drop structure failure.
+- EMA Crossback now prefers the chart-derived `ema_retest_state` produced from the OHLCV Kell scorer. This prevents incomplete daily snapshot history from overriding the first-vs-late retest determination.
+- Auxiliary `transition / trend_ema_support / downtrend_repair` flicker no longer counts as a review-worthy Kell stage change unless price enters an explicit Cycle-of-Price-Action event.
+- Change cards now lead with cycle event and change layer, show stage transition / sequence trail, FIRST vs LATE retest, cycle maturity, and natural invalidation in ATR. A >=3 ATR “risk too wide” gate is a **StockScout review proxy**, not a Kell-published constant.
+- Point-in-time Kell archives now preserve stage basis and structural-risk ATR for future sequence validation. Browser history loading supports recent JSON archives and older columnar gzip/base64 archives.
+- Market context is carried read-only from the hash-verified Unified core. If upstream exposes exact QQQ-vs-20EMA, the UI uses it. Otherwise `under_pressure / correction` is labeled explicitly as **Unified fallback**, not presented as Kell’s exact QQQ/20EMA rule.
+- Real BEFORE -> AFTER check on the same 2026-09-22 -> 2026-09-23 Kell population: old score-centric detector flagged **63** names; sequence detector flagged **229** = **58 setup**, **18 risk**, **7 stage**, **146 discovery**. Sorting keeps actionable/risk events ahead of discovery.
+- Real examples demonstrate the intended change: WDC became FIRST ACTIONABLE CROSSBACK with only **+1.6 Kell / +6.4 readiness**; HBM did so with **0.0 Kell / +6.7 readiness**. Conversely FRO / CMPS / WIX surfaced as **STRUCTURE FAILED · WEDGE DROP**, and SNX / VKTX as **FIRST EXHAUSTION EXTENSION**, events the old positive-score-jump logic did not prioritize. Full 2026-09-23 chart data showed structural invalidation about **1.05 ATR WDC**, **0.42 ATR HBM**, and **1.01 ATR TRT**.
+- Old-only examples FRSH and ABSI were removed from the change view: they had large score/readiness increases but only auxiliary-stage movement and no new actionable Kell setup.
+- Validation: PR CI **Unified Review Grid Lab #299** completed green end-to-end; **Validate Trend Birth Review Snapshot #77** also completed green. Unit tests, historical Kell smoke, browser-model tests, JS syntax, live read-only snapshot build, compact validation, source-identity validation, signal validation, Gold Set evaluation, forward validator and existing Kell v5 BEFORE/AFTER smoke all passed. PR publication step was correctly skipped.
+

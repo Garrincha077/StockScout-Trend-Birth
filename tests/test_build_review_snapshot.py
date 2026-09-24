@@ -17,6 +17,36 @@ class BuilderTests(unittest.TestCase):
         self.assertIn("kell_wedge_pop", builder.KELL_SETUP_FIELDS)
         self.assertIn("kell_weekly_trend_ok", builder.KELL_CONTEXT_FIELDS)
 
+    def test_market_context_preserves_exact_qqq20_when_upstream_exposes_it(self):
+        payloads = {
+            "next": ("root", {}, {
+                "market": {
+                    "regime": {
+                        "state": "under_pressure",
+                        "summary": "test",
+                        "qqq": {"above_ema20": False},
+                    }
+                }
+            })
+        }
+        context = builder._unified_market_context(payloads)
+        self.assertEqual(context["source"], "unified-core")
+        self.assertEqual(context["sourceMode"], "next")
+        self.assertEqual(context["regime"]["state"], "under_pressure")
+        self.assertIs(context["qqqAboveEma20"], False)
+        self.assertTrue(context["qqq20ExactAvailable"])
+
+    def test_market_context_coarse_regime_does_not_fake_qqq20(self):
+        payloads = {
+            "bottom-fishing": ("root", {}, {
+                "market": {"regime": {"state": "correction"}}
+            })
+        }
+        context = builder._unified_market_context(payloads)
+        self.assertEqual(context["regime"]["state"], "correction")
+        self.assertIsNone(context["qqqAboveEma20"])
+        self.assertFalse(context["qqq20ExactAvailable"])
+
     def test_relative_volume_uses_strongest_available_field(self):
         row = {"rvolToday": 2.2, "currentThrustRelVolume": 3.4, "weeklyBreakoutRvol": 2.9}
         self.assertEqual(builder.relative_volume(row), 3.4)
