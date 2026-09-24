@@ -9,6 +9,7 @@
     'kell_momentum_3m_50','kell_doubler_ytd','kell_gapper',
     'kell_strength_on_down_day','kell_rs_leader'
   ]);
+  const CORE_CYCLE_STAGES=new Set(['reversal_extension','wedge_pop','ema_crossback','base_n_break','exhaustion_extension','wedge_drop']);
   const SETUP_LABELS={
     kell_wedge_pop:'Wedge Pop',
     kell_ema_crossback:'EMA Crossback',
@@ -118,7 +119,9 @@
     const addedSetups=setups(current).filter(name=>ACTION_SETUPS.has(name)&&!previousSetups.has(name));
     const addedScreens=screens(current).filter(name=>DISCOVERY_SCREENS.has(name)&&!previousScreens.has(name));
     const discoveryChanged=addedScreens.length>0;
-    const stageChanged=Boolean(previous&&previousStage!==currentStage);
+    // Auxiliary repair/support labels can flicker daily. A review-worthy stage change
+    // means entering one of Kell's explicit Cycle-of-Price-Action events.
+    const stageChanged=Boolean(previous&&previousStage!==currentStage&&CORE_CYCLE_STAGES.has(currentStage));
     const structureFailed=currentStage==='wedge_drop'&&previousStage!=='wedge_drop';
     const priorExhaustions=history.filter(row=>stage(row)==='exhaustion_extension').length;
     const exhaustionAppeared=currentStage==='exhaustion_extension'&&previousStage!=='exhaustion_extension';
@@ -351,7 +354,7 @@
   }
 
   return{
-    ACTION_SETUPS,DISCOVERY_SCREENS,SETUP_LABELS,SCREEN_LABELS,STAGE_LABELS,
+    ACTION_SETUPS,DISCOVERY_SCREENS,CORE_CYCLE_STAGES,SETUP_LABELS,SCREEN_LABELS,STAGE_LABELS,
     classify,decorate,loadHistory,loadPrevious,summary
   };
 });
