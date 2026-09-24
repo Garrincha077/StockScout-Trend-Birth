@@ -399,15 +399,15 @@ def add_review_bucket_proxy(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _future_extreme(s: pd.Series, horizon: int, kind: str) -> pd.Series:
-    values = s.to_numpy(dtype=float)
-    out = np.full(len(values), np.nan)
-    for i in range(len(values)):
-        end = min(len(values), i + horizon + 1)
-        window = values[i + 1:end]
-        if len(window) < horizon:
-            continue
-        out[i] = np.nanmax(window) if kind == "max" else np.nanmin(window)
-    return pd.Series(out, index=s.index)
+    """Vectorized max/min over the NEXT horizon rows, excluding current row."""
+    future = s.shift(-1).iloc[::-1]
+    if kind == "max":
+        out = future.rolling(horizon, min_periods=horizon).max()
+    elif kind == "min":
+        out = future.rolling(horizon, min_periods=horizon).min()
+    else:
+        raise ValueError("kind must be 'max' or 'min'")
+    return out.iloc[::-1].reindex(s.index)
 
 
 def compute_outcomes(ohlcv: pd.DataFrame) -> pd.DataFrame:
@@ -485,20 +485,30 @@ def _model(feature_cols: list[str]) -> Pipeline:
     return Pipeline([("prep", prep), ("model", clf)])
 
 
-def train_structure(train: pd.DataFrame, evaluation: pd.DataFrame):
-    if train["silver_stage"].nunique() < 2:
+def train_structure(
+    train: pd.DataFrame,
+    evaluation: pd.DataFrame,
+    target_col: str = "silver_stage",
+):
+    """Train structure classification on Silver bootstrap or reviewed Gold labels."""
+    if target_col not in train.columns or target_col not in evaluation.columns:
+        raise ValueError(f"Missing structure target column: {target_col}")
+    tr = train.dropna(subset=[target_col])
+    ev = evaluation.dropna(subset=[target_col])
+    if tr[target_col].nunique() < 2:
         raise ValueError("Need at least two stage classes")
-    if evaluation.empty:
+    if ev.empty:
         raise ValueError("No evaluation rows")
     pipe = _model(STRUCTURE_FEATURES)
-    pipe.fit(train[STRUCTURE_FEATURES], train["silver_stage"])
-    pred = pipe.predict(evaluation[STRUCTURE_FEATURES])
-    labels = sorted(set(train["silver_stage"]) | set(evaluation["silver_stage"]))
+    pipe.fit(tr[STRUCTURE_FEATURES], tr[target_col])
+    pred = pipe.predict(ev[STRUCTURE_FEATURES])
+    labels = sorted(set(tr[target_col]) | set(ev[target_col]))
     metrics = {
-        "macro_f1": float(f1_score(evaluation["silver_stage"], pred, average="macro", zero_division=0)),
-        "balanced_accuracy": float(balanced_accuracy_score(evaluation["silver_stage"], pred)),
+        "target_col": target_col,
+        "macro_f1": float(f1_score(ev[target_col], pred, average="macro", zero_division=0)),
+        "balanced_accuracy": float(balanced_accuracy_score(ev[target_col], pred)),
         "labels": labels,
-        "confusion_matrix": confusion_matrix(evaluation["silver_stage"], pred, labels=labels).tolist(),
+        "confusion_matrix": confusion_matrix(ev[target_col], pred, labels=labels).tolist(),
     }
     return pipe, metrics
 
