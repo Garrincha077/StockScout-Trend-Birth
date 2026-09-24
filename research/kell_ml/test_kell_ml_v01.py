@@ -223,3 +223,18 @@ def test_historical_event_miner_is_point_in_time_only():
         right_events[cols].reset_index(drop=True),
         check_dtype=False,
     )
+
+
+def test_historical_price_floor_requires_raw_close():
+    raw = bars(periods=300, tickers=("AAA",))
+    qqq = benchmark(periods=300)
+    no_raw = compute_features(raw, qqq)
+    assert no_raw["kell_price_floor_pass"].isna().all()
+    assert (no_raw["raw_price_level_available"] == 0).all()
+
+    with_raw = raw.copy()
+    with_raw["close_raw"] = with_raw["close"]
+    with_raw.loc[with_raw.index[-1], "close_raw"] = 9.0
+    got = compute_features(with_raw, qqq)
+    assert got["raw_price_level_available"].eq(1).all()
+    assert got.iloc[-1]["kell_price_floor_pass"] == 0.0
