@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
+from trend_birth_radar import candidate_priority, evaluate_trend_birth
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 MODES = ("bottom-fishing", "next", "ryan-original")
@@ -945,6 +946,8 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     kell_setup_counts = {field: 0 for field in KELL_SETUP_FIELDS}
     kell_context_counts = {field: 0 for field in KELL_CONTEXT_FIELDS}
     kell_stage_counts: dict[str, int] = {}
+    trend_birth_stage_counts = {str(stage): 0 for stage in range(5)}
+    trend_birth_unavailable_count = 0
     kell_candidates = []
     unified_candidate_index = []
     for ticker, pool_item in unified_kell_pool.items():
@@ -952,6 +955,11 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         raw = pool_item.get("raw") or {}
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
+        trend_birth = evaluate_trend_birth(rows)
+        if trend_birth.get("available") is True:
+            trend_birth_stage_counts[str(int(trend_birth.get("stage") or 0))] += 1
+        else:
+            trend_birth_unavailable_count += 1
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
         hit_context = [field for field in KELL_CONTEXT_FIELDS if scored.get(field) is True]
@@ -979,6 +987,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
             "kellContext": hit_context,
+            "trendBirth": trend_birth,
         })
         if not (hit_screens or hit_setups or hit_context):
             continue
@@ -994,6 +1003,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
             "kellContext": hit_context,
+            "trendBirth": trend_birth,
             **scored,
         })
     kell_candidates.sort(key=lambda item: (
@@ -1010,6 +1020,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["metrics"] = _summary(raw, rows)
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
+        item["trendBirth"] = evaluate_trend_birth(rows)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
         item.update(score_candidate(rows, benchmark_rows, raw))
@@ -1019,6 +1030,20 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         min(item["sourceRanks"].values()),
         item["ticker"],
     ))
+
+    trend_birth_ranked = sorted(unified_candidate_index, key=candidate_priority, reverse=True)
+    trend_birth_focus = [
+        {
+            "ticker": item["ticker"],
+            "stage": int((item.get("trendBirth") or {}).get("stage") or 0),
+            "stageLabel": (item.get("trendBirth") or {}).get("stageLabel"),
+            "kellScore": item.get("kell_score"),
+            "readiness": item.get("kell_readiness_score"),
+            "quality": item.get("kell_quality_score"),
+        }
+        for item in trend_birth_ranked
+        if int((item.get("trendBirth") or {}).get("stage") or 0) >= 2
+    ][:25]
 
     # Avoid publishing a scan assembled across two activations. Compare the
     # exact activated manifest bytes, not only parsed JSON, and carry the
@@ -1069,6 +1094,18 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "contextCounts": kell_context_counts,
             "stageCounts": kell_stage_counts,
             "method": "Kell v5 overlay over the deduplicated Unified candidate union. Discovery screens remain separate from stage/setup; ranking uses Quality + Readiness + Context with evidence coverage, structural-risk proxy and late-cycle stage caps. No new market-wide universe.",
+        },
+        "trendBirthRadar": {
+            "schemaVersion": "trend-birth-radar-v1",
+            "scope": "all-unified-candidates",
+            "stageCounts": trend_birth_stage_counts,
+            "evaluatedCount": sum(trend_birth_stage_counts.values()),
+            "unavailableCount": trend_birth_unavailable_count,
+            "watchCloselyCount": trend_birth_stage_counts["2"],
+            "readyCount": trend_birth_stage_counts["3"],
+            "triggerCount": trend_birth_stage_counts["4"],
+            "topCandidates": trend_birth_focus,
+            "method": "Transparent trend reset -> restart overlay. Stage is independent of Kell v5 score; Kell Quality/Readiness only order names within a stage.",
         },
         "unifiedCandidateIndexCount": len(unified_candidate_index),
         "unifiedCandidateIndex": unified_candidate_index,
