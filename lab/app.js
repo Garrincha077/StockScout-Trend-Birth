@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filter:'none',query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage)};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage)};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -310,15 +310,20 @@ function ruleAnalysis(item){
   return{status:'REVIEW',state:'DEVELOPING',preferredTrade:'Bez forsiranog ulaza; čekati spring, HL/reclaim ili trend pullback s jasnom invalidacijom.',summary:'Setup još nema dovoljno kombinirane potvrde za definirani entry.'};
 }
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
-function isKellView(filter=state.filter){return kellFilters.has(filter)}
+function activeFilters(){return Array.isArray(state.filters)?state.filters:[]}
+function activeFilterSummary(){return activeFilters().map(filter=>kellFilterLabels[filter]||filter).join(' + ')}
+function isKellView(filters=activeFilters()){
+  const list=Array.isArray(filters)?filters:[filters];
+  return list.some(filter=>kellFilters.has(filter));
+}
 function universeMatch(item,universe=state.universe){
   if(universe==='all')return true;
   if(universe==='watchlist')return isWatched(item?.ticker);
   const sources=item?.unifiedSources||item?.sources||[];
   return sources.includes(universe);
 }
-function matchesFilter(item,filter=state.filter){
-  if(filter==='none')return true;
+function matchesFilter(item,filter){
+  if(!filter||filter==='none')return true;
   if(filter==='action')return String(analysisFor(item).status||'').toUpperCase()==='ACTION';
   if(filter==='multi')return (item?.unifiedSources||item?.sources||[]).length>1;
   if(filter==='kell-any')return Boolean(
@@ -331,24 +336,49 @@ function matchesFilter(item,filter=state.filter){
   if(kellFilters.has(filter))return hasKell(item,filter);
   return true;
 }
-function sourceItems(filter=state.filter){
+function matchesFilters(item,filters=activeFilters()){
+  return !filters.length||filters.every(filter=>matchesFilter(item,filter));
+}
+function sourceItems(filters=activeFilters()){
   if(state.universe==='watchlist')return watchlistItems();
-  return isKellView(filter)
+  return isKellView(filters)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
+}
+function updateFilterBar(){
+  const filters=activeFilters();
+  document.querySelectorAll('#filters button[data-filter]').forEach(button=>{
+    const filter=button.dataset.filter;
+    const active=filter==='none'?filters.length===0:filters.includes(filter);
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',active?'true':'false');
+  });
+  const bar=$('#activeFilterBar');
+  if(!bar)return;
+  if(!filters.length){
+    bar.hidden=true;
+    bar.innerHTML='';
+    return;
+  }
+  bar.hidden=false;
+  bar.innerHTML='<span class="active-filter-label">Active '+filters.length+'</span>'+
+    filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(kellFilterLabels[filter]||filter)+' <span aria-hidden="true">×</span></button>').join('')+
+    '<button type="button" class="clear-active-filters" data-clear-filters>Clear all</button>';
 }
 function updateFilterCounts(){
   const kellItems=state.kellData?.kellCandidates||state.data?.kellCandidates||[];
   const reviewItems=state.data?.candidates||[];
+  const active=activeFilters();
   document.querySelectorAll('#filters button[data-filter]').forEach(button=>{
     const filter=button.dataset.filter;
-    if(!button.dataset.baseLabel)button.dataset.baseLabel=button.textContent;
+    if(!button.dataset.baseLabel)button.dataset.baseLabel=button.textContent.replace(/ \(\d+\)$/,'');
     if(filter==='none'){
       button.textContent=button.dataset.baseLabel;
       return;
     }
-    const source=isKellView(filter)?kellItems:reviewItems;
-    const count=source.filter(item=>universeMatch(item)&&matchesFilter(item,filter)).length;
+    const proposed=active.includes(filter)?active:[...active,filter];
+    const source=isKellView(proposed)?kellItems:reviewItems;
+    const count=source.filter(item=>universeMatch(item)&&matchesFilters(item,proposed)).length;
     button.textContent=button.dataset.baseLabel+' ('+count+')';
   });
 }
@@ -434,7 +464,7 @@ async function ensureChartData(item){
 function visible(item){
   if(state.query&&!item.ticker.includes(state.query))return false;
   if(!universeMatch(item))return false;
-  return matchesFilter(item);
+  return matchesFilters(item);
 }
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),missing=item.watchlistMissing===true;
@@ -459,25 +489,38 @@ let observer;
 function render(){
   if(!state.data)return;
   updateWatchlistButton();
+  updateFilterBar();
   updateFilterCounts();
   const items=sourceItems().filter(visible);
-  if(state.sort==='kell-score'||isKellView())items.sort((a,b)=>(Number(b.kell_score)||-1)-(Number(a.kell_score)||-1)||a.ticker.localeCompare(b.ticker));
+  const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
+  const sortValue=(item,mode)=>{
+    if(mode==='kell-score')return Number(item.kell_score);
+    if(mode==='readiness')return Number(item.kell_readiness_score);
+    if(mode==='quality')return Number(item.kell_quality_score);
+    if(mode==='evidence')return Number(item.kell_evidence_coverage);
+    if(mode==='rvol')return Number(item.metrics?.rvol);
+    return NaN;
+  };
+  if(sortMode!=='default')items.sort((a,b)=>{
+    const av=sortValue(a,sortMode),bv=sortValue(b,sortMode);
+    const an=Number.isFinite(av)?av:-Infinity,bn=Number.isFinite(bv)?bv:-Infinity;
+    return bn-an||a.ticker.localeCompare(b.ticker);
+  });
   $('#grid').innerHTML=items.map(card).join('');
   const universeName=universeLabels[state.universe]||state.universe;
   const modeCounts=state.kellData?.source?.modeUniverseCounts||state.data?.source?.modeUniverseCounts||{};
   const unifiedCount=state.kellData?.kellScoring?.unifiedCandidateCount??state.data?.kellScoring?.unifiedCandidateCount;
   const universeSize=state.universe==='watchlist'?state.watchlist.length:(state.universe==='all'?unifiedCount:modeCounts[state.universe]);
   const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
+  const filterSummary=activeFilterSummary();
   if(state.universe==='watchlist'){
     const missing=items.filter(item=>item.watchlistMissing).length;
     const unifiedOnly=items.filter(item=>item.watchlistUnifiedOnly).length;
-    $('#status').textContent=items.length+' prikazano · '+state.watchlist.length+' spremljeno na Watchlisti'+(unifiedOnly?' · '+unifiedOnly+' još je u Unified universeu bez aktivnog hita':'')+(missing?' · '+missing+' više nije u današnjem Unified scanu':'')+(state.filter!=='none'?' · filter '+(kellFilterLabels[state.filter]||state.filter):'');
-  }else if(isKellView()){
-    $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+(kellFilterLabels[state.filter]||'Kell');
-  }else if(state.filter!=='none'){
-    $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+state.filter;
+    $('#status').textContent=items.length+' prikazano · '+state.watchlist.length+' spremljeno na Watchlisti'+(unifiedOnly?' · '+unifiedOnly+' još je u Unified universeu bez aktivnog hita':'')+(missing?' · '+missing+' više nije u današnjem Unified scanu':'')+(filterSummary?' · '+filterSummary:'');
+  }else if(filterSummary){
+    $('#status').textContent=items.length+' pogodaka · '+universeText+' → '+filterSummary;
   }else{
-    $('#status').textContent=items.length+' review kandidata · Universe '+universeText+' · odaberi Screen / Stage / Setup za presjek tog universea';
+    $('#status').textContent=items.length+' review kandidata · Universe '+universeText+' · odaberi više Screen / Stage / Setup filtera za AND presjek';
   }
   observer?.disconnect();
   const lookup=new Map(items.map(item=>[item.ticker,item]));
@@ -561,22 +604,29 @@ $('#filters').addEventListener('click',async e=>{
 
   if(universeButton){
     const nextUniverse=universeButton.dataset.universe;
-    if(nextUniverse==='watchlist'&&state.universe!=='watchlist'){
-      state.filter='none';
-      document.querySelectorAll('#filters button[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter==='none'));
-    }
+    if(nextUniverse==='watchlist'&&state.universe!=='watchlist')state.filters=[];
     state.universe=nextUniverse;
     document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x===universeButton));
   }
   if(filterButton){
-    state.filter=filterButton.dataset.filter;
-    document.querySelectorAll('#filters button[data-filter]').forEach(x=>x.classList.toggle('active',x===filterButton));
+    const filter=filterButton.dataset.filter;
+    if(filter==='none')state.filters=[];
+    else if(activeFilters().includes(filter))state.filters=activeFilters().filter(value=>value!==filter);
+    else state.filters=[...activeFilters(),filter];
   }
 
   if(isKellView()&&!state.kellData){
     $('#status').textContent='Učitavam Kell kandidate za odabrani universe…';
     try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
   }
+  render();
+});
+$('#activeFilterBar')?.addEventListener('click',e=>{
+  const remove=e.target.closest('[data-remove-filter]');
+  const clear=e.target.closest('[data-clear-filters]');
+  if(!remove&&!clear)return;
+  if(clear)state.filters=[];
+  else state.filters=activeFilters().filter(filter=>filter!==remove.dataset.removeFilter);
   render();
 });
 window.addEventListener('storage',event=>{
