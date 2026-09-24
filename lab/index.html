@@ -79,12 +79,25 @@
     <button data-filter="action">Action</button>
   </nav>
   <div id="activeFilterBar" class="active-filter-bar" hidden aria-live="polite"></div>
+  <nav id="quickViews" class="quick-views" aria-label="Brzi pregledi">
+    <span class="quick-view-label">Quick</span>
+    <button type="button" data-quick-view="ready">Ready</button>
+    <button type="button" data-quick-view="leaders">Leaders</button>
+    <button type="button" data-quick-view="breakout">Breakout</button>
+    <button type="button" data-quick-view="extended">Extended</button>
+    <button type="button" data-quick-view="reset">Reset</button>
+  </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
     <section id="grid" class="grid" aria-live="polite"></section>
   </main>
   <dialog id="detail">
     <button id="closeDetail" class="close" aria-label="Zatvori">×</button>
+    <div class="detail-nav" aria-label="Navigacija kroz kandidate">
+      <button type="button" id="prevDetail" aria-label="Prethodni kandidat">← Prev</button>
+      <span id="detailPosition">—</span>
+      <button type="button" id="nextDetail" aria-label="Sljedeći kandidat">Next →</button>
+    </div>
     <div id="detailBody"></div>
   </dialog>
   <script src="watchlist-store.js"></script>
