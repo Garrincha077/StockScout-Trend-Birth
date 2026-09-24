@@ -13,6 +13,7 @@ Core contract:
 
 from dataclasses import dataclass
 from pathlib import Path
+import hashlib
 import json
 
 import joblib
@@ -551,6 +552,137 @@ def rank_candidates(model: Pipeline, candidates: pd.DataFrame) -> pd.DataFrame:
     out = candidates.copy()
     out["ml_opportunity_probability"] = p
     return out.sort_values("ml_opportunity_probability", ascending=False)
+
+
+
+def generate_historical_events(features: pd.DataFrame) -> pd.DataFrame:
+    """Create a broad point-in-time research cohort outside the live scan.
+
+    Event definitions are transparent discovery proxies only. They are meant
+    to over-sample interesting structure and hard negatives for labeling, not
+    to declare a Kell setup or predict future return.
+    """
+    x = features.copy()
+    reasons = []
+
+    def add_reason(mask: pd.Series, name: str) -> None:
+        idx = np.flatnonzero(mask.fillna(False).to_numpy())
+        for i in idx:
+            reasons.append((x.index[i], name))
+
+    add_reason(x["recapture_ema_cluster_proxy"] == 1, "EMA_RECAPTURE")
+    add_reason(x["first_retest_after_recapture_proxy"] == 1, "FIRST_RETEST")
+    add_reason(x["breakout_60d_proxy"] == 1, "BREAKOUT_60D")
+    add_reason(x["rvol_20"] >= 2.0, "UNUSUAL_VOLUME")
+    add_reason(x["gap_pct"].abs() >= 0.05, "GAP_5PCT")
+    add_reason(x["dist_ema10_atr"].abs() >= 2.6, "EMA10_EXTENSION")
+    add_reason(
+        (x["benchmark_above_ema20"] == 0)
+        & (x["rs_20d_vs_benchmark"] >= 0.08),
+        "RS_DURING_WEAK_BENCHMARK",
+    )
+    add_reason(
+        (x["range_contraction_20_vs_60"] <= 0.72)
+        & (x["price_vs_ema20_pct"].abs() <= 0.05),
+        "CONTRACTING_NEAR_EMA20",
+    )
+
+    if not reasons:
+        return pd.DataFrame(columns=["ticker", "date", "event_reason"])
+
+    reason_df = pd.DataFrame(reasons, columns=["_row_index", "event_reason"])
+    cols = [
+        "ticker", "date", "close", "volume",
+        "rvol_20", "rs_20d_vs_benchmark",
+        "price_vs_ema10_pct", "price_vs_ema20_pct",
+        "weekly_price_vs_ema10_pct", "dist_ema10_atr",
+        "range_contraction_20_vs_60", "gap_pct",
+        "recapture_ema_cluster_proxy", "first_retest_after_recapture_proxy",
+        "breakout_60d_proxy", "kell_price_floor_pass",
+        "kell_liquidity_pref_pass",
+    ]
+    available = [c for c in cols if c in x.columns]
+    base = x.loc[:, available].copy()
+    base["_row_index"] = base.index
+    out = reason_df.merge(base, on="_row_index", how="left", validate="many_to_one")
+    out["event_year"] = pd.to_datetime(out["date"]).dt.year
+    return out.drop(columns=["_row_index"]).sort_values(
+        ["date", "ticker", "event_reason"]
+    ).reset_index(drop=True)
+
+
+def _stable_case_hash(ticker: str, date, reason: str) -> str:
+    raw = f"{ticker}|{pd.Timestamp(date).date()}|{reason}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def build_blind_gold_queue(
+    events: pd.DataFrame,
+    max_cases: int = 200,
+    max_per_reason_year: int = 12,
+) -> pd.DataFrame:
+    """Build a deterministic, balanced label queue with no future columns.
+
+    This queue is safe to hand to a human/LLM structural reviewer because
+    forward outcomes are stripped even if they were accidentally joined into
+    the input table.
+    """
+    if events.empty:
+        return events.copy()
+    x = events.copy()
+    forbidden = [
+        c for c in x.columns
+        if c.startswith(("fwd_", "mfe_", "mae_", "future_", "opportunity_"))
+    ]
+    x = x.drop(columns=forbidden, errors="ignore")
+    if "event_year" not in x.columns:
+        x["event_year"] = pd.to_datetime(x["date"]).dt.year
+    x["_case_hash"] = [
+        _stable_case_hash(t, d, r)
+        for t, d, r in zip(x["ticker"], x["date"], x["event_reason"])
+    ]
+    x = x.sort_values(["event_reason", "event_year", "_case_hash"])
+    x = x.groupby(["event_reason", "event_year"], group_keys=False).head(max_per_reason_year)
+    x = x.sort_values("_case_hash").head(max_cases).copy()
+    x["case_id"] = [
+        f"KELL-{pd.Timestamp(d).strftime('%Y%m%d')}-{t}-{h[:8]}"
+        for t, d, h in zip(x["ticker"], x["date"], x["_case_hash"])
+    ]
+    return x.drop(columns=["_case_hash"]).sort_values(
+        ["date", "ticker", "event_reason"]
+    ).reset_index(drop=True)
+
+
+def mine_retrospective_structure_cases(
+    dataset: pd.DataFrame,
+    horizon: int = 60,
+    winner_return: float = 0.50,
+    failure_return: float = -0.20,
+) -> pd.DataFrame:
+    """Mine educational winner/failure cases using future outcomes.
+
+    IMPORTANT: this function intentionally uses hindsight to FIND examples.
+    Its output is for blind structure-label calibration only and must never be
+    used as an unbiased opportunity-model evaluation cohort.
+    """
+    ret = f"fwd_return_{horizon}d"
+    if ret not in dataset.columns:
+        raise ValueError(f"Missing required retrospective outcome column: {ret}")
+    events = generate_historical_events(dataset)
+    if events.empty:
+        return events
+    joined = events.merge(
+        dataset[["ticker", "date", ret]],
+        on=["ticker", "date"],
+        how="left",
+        validate="many_to_one",
+    )
+    picked = joined[(joined[ret] >= winner_return) | (joined[ret] <= failure_return)].copy()
+    picked["retrospective_case_type"] = np.where(
+        picked[ret] >= winner_return, "FUTURE_WINNER", "FUTURE_FAILURE"
+    )
+    picked["retrospective_sampling_only"] = True
+    return picked.sort_values(["date", "ticker", "event_reason"]).reset_index(drop=True)
 
 
 def save_model(model: Pipeline, path: str | Path) -> None:
