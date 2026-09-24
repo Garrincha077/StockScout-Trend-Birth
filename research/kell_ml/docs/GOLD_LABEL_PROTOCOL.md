@@ -50,3 +50,17 @@ Silver = deterministic project proxy.
 Unlabeled = features/outcomes only.
 
 Never silently promote Silver to Gold.
+
+
+## Setup status
+
+Use exactly one project review status:
+
+- READY
+- NEAR_READY
+- LEADER_WAIT
+- EXTENDED
+- REPAIR
+- REJECT
+
+These are StockScout/Work review labels, not terminology published by Oliver Kell. Keep them separate from the primary structural stage.
