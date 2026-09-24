@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChangesHistoryDates:[],kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -53,7 +53,7 @@ const kellFilterLabels={
   ...kellContextLabels,
   'kell-score':'Kell Focus ≥60',
   'kell-ready':'Readiness ≥80',
-  'kell-changed':'Changed today',
+  'kell-changed':'Cycle changed',
   'multi':'Multi-hit',
   'action':'Action'
 };
@@ -442,10 +442,11 @@ async function ensureKellChanges(){
   if(state.kellChangesPreviousDate)return state.kellChangesPreviousDate;
   if(state.kellChangesLoading)return state.kellChangesLoading;
   const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate;
-  state.kellChangesLoading=KellChanges.loadPrevious(fetch,currentDate,10)
-    .then(previous=>{
-      KellChanges.decorate(state.kellData?.kellCandidates||[],previous);
-      state.kellChangesPreviousDate=previous.source.sessionDate;
+  state.kellChangesLoading=KellChanges.loadHistory(fetch,currentDate,14,5)
+    .then(history=>{
+      KellChanges.decorate(state.kellData?.kellCandidates||[],history);
+      state.kellChangesHistoryDates=history.map(payload=>payload?.source?.sessionDate).filter(Boolean);
+      state.kellChangesPreviousDate=state.kellChangesHistoryDates[state.kellChangesHistoryDates.length-1]||null;
       state.kellChangesLoading=null;
       return state.kellChangesPreviousDate;
     })
@@ -455,14 +456,18 @@ async function ensureKellChanges(){
 function changeStrip(item){
   const change=item?.kellChange;
   if(!change?.changed)return '';
+  const icon=change.direction==='risk'?'⚠':'↗';
+  const headline=change.headline||'CYCLE CHANGED';
   const stageMove=change.previousStage&&change.currentStage&&change.previousStage!==change.currentStage
-    ?'<span>'+esc(stageName(change.previousStage))+' → '+esc(stageName(change.currentStage))+'</span>'
+    ?'<span>Stage: '+esc(stageName(change.previousStage))+' → '+esc(stageName(change.currentStage))+'</span>'
     :'';
+  const sequence=change.sequenceText?'<span>Cycle: '+esc(change.sequenceText)+'</span>':'';
+  const risk=change.riskLabel?'<span>'+esc(change.riskLabel)+'</span>':'';
   const deltas=[
     Number.isFinite(Number(change.readinessDelta))?'R '+(change.readinessDelta>=0?'+':'')+fmt(change.readinessDelta,1):'',
     Number.isFinite(Number(change.scoreDelta))?'Kell '+(change.scoreDelta>=0?'+':'')+fmt(change.scoreDelta,1):''
   ].filter(Boolean).join(' · ');
-  return '<div class="change-strip"><strong>↑ CHANGED</strong><span>'+esc((change.reasons||[]).join(' · '))+'</span>'+stageMove+(deltas?'<span>'+esc(deltas)+'</span>':'')+'</div>';
+  return '<div class="change-strip"><strong>'+icon+' '+esc(headline)+'</strong><span>'+esc((change.reasons||[]).join(' · '))+'</span>'+stageMove+sequence+risk+(deltas?'<span class="change-delta">'+esc(deltas)+'</span>':'')+'</div>';
 }
 async function ensureChartData(item){
   if(rowsForPeriod(item).length>=2)return rowsForPeriod(item);
@@ -566,7 +571,8 @@ function render(){
   if(state.quickView==='changed'){
     const changeSummary=KellChanges.summary(items);
     const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate||'—';
-    $('#status').textContent=items.length+' important changes · '+(state.kellChangesPreviousDate||'prior')+' → '+currentDate+' · '+changeSummary.becameReady+' became Ready · '+changeSummary.newSetups+' new actionable setups · '+changeSummary.newCandidates+' new relevant names';
+    const depth=state.kellChangesHistoryDates.length;
+    $('#status').textContent=items.length+' cycle changes · '+(state.kellChangesPreviousDate||'prior')+' → '+currentDate+' · '+changeSummary.actionableSetups+' actionable setups · '+changeSummary.stageChanges+' stage changes · '+changeSummary.discoveryChanges+' discovery changes · '+changeSummary.structureFailures+' failures · history '+depth+' sessions';
   }else if(state.universe==='watchlist'){
     const missing=items.filter(item=>item.watchlistMissing).length;
     const unifiedOnly=items.filter(item=>item.watchlistUnifiedOnly).length;
@@ -725,8 +731,8 @@ $('#quickViews')?.addEventListener('click',async e=>{
     try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
   }
   if(name==='changed'){
-    $('#status').textContent='Učitavam prethodni Kell snapshot i računam današnje promjene…';
-    try{await ensureKellChanges()}catch(err){$('#status').textContent='What Changed Today nije dostupan: '+err.message;return}
+    $('#status').textContent='Učitavam Kell povijest i računam promjene u Cycle of Price Action…';
+    try{await ensureKellChanges()}catch(err){$('#status').textContent='What Changed in the Cycle nije dostupan: '+err.message;return}
   }
   render();
 });
