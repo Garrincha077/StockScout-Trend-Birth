@@ -221,6 +221,7 @@
       previousStage,
       currentStage,
       sequence,
+      sequenceTrail:sequence,
       sequenceText:sequence.map(labelStage).join(' → '),
       crossbackClass:crossback,
       emaRetestState:explicitRetestState(current),
