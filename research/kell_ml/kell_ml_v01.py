@@ -59,6 +59,24 @@ NAME_SELECTION_FEATURES = [
 MODEL_FEATURES = STRUCTURE_FEATURES
 OPPORTUNITY_FEATURES = STRUCTURE_FEATURES + NAME_SELECTION_FEATURES
 
+GOLD_STAGE_VALUES = {
+    "REVERSAL_EXTENSION",
+    "WEDGE_POP",
+    "EMA_CROSSBACK",
+    "BASE_N_BREAK",
+    "EXHAUSTION_EXTENSION",
+    "WEDGE_DROP",
+    "REPAIR_OR_OTHER",
+}
+
+GOLD_SETUP_VALUES = {
+    "ACTIONABLE",
+    "WATCH",
+    "STRONG_BUT_EXTENDED",
+    "REPAIRING",
+    "NO_VALID_SETUP",
+}
+
 
 def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.replace(0, np.nan)
@@ -674,6 +692,85 @@ def build_blind_gold_queue(
     return x.drop(columns=["_case_hash"]).sort_values(
         ["date", "ticker", "event_reason"]
     ).reset_index(drop=True)
+
+
+def export_gold_label_template(queue: pd.DataFrame) -> pd.DataFrame:
+    """Create a blind review sheet with explicit empty human-label fields."""
+    forbidden = [
+        c for c in queue.columns
+        if c.startswith(("fwd_", "mfe_", "mae_", "future_", "opportunity_"))
+    ]
+    if forbidden:
+        raise ValueError(f"Blind Gold queue contains future fields: {forbidden}")
+    required = {"case_id", "ticker", "date", "event_reason"}
+    missing = required - set(queue.columns)
+    if missing:
+        raise ValueError(f"Gold queue missing fields: {sorted(missing)}")
+    out = queue.copy()
+    out["snapshot_date"] = pd.to_datetime(out["date"]).dt.strftime("%Y-%m-%d")
+    out["gold_stage"] = ""
+    out["gold_setup_status"] = ""
+    out["sequence_evidence"] = ""
+    out["weekly_context"] = ""
+    out["relative_strength_context"] = ""
+    out["volume_context"] = ""
+    out["extension_state"] = ""
+    out["logical_invalidation"] = ""
+    out["reviewer_confidence"] = ""
+    out["source_notes"] = ""
+    out["anti_case_reason"] = ""
+    return out
+
+
+def validate_gold_labels(labels: pd.DataFrame) -> pd.DataFrame:
+    """Validate locked human-reviewed structural labels."""
+    required = {"case_id", "ticker", "snapshot_date", "gold_stage"}
+    missing = required - set(labels.columns)
+    if missing:
+        raise ValueError(f"Gold labels missing fields: {sorted(missing)}")
+    x = labels.copy()
+    if x["case_id"].duplicated().any():
+        dupes = x.loc[x["case_id"].duplicated(keep=False), "case_id"].tolist()
+        raise ValueError(f"Duplicate Gold case_id values: {dupes[:10]}")
+    x["snapshot_date"] = pd.to_datetime(x["snapshot_date"], errors="raise")
+    bad_stage = sorted(set(x["gold_stage"].dropna()) - GOLD_STAGE_VALUES)
+    if bad_stage:
+        raise ValueError(f"Invalid Gold stage values: {bad_stage}")
+    if "gold_setup_status" in x.columns:
+        nonblank = x["gold_setup_status"].replace("", np.nan).dropna()
+        bad_setup = sorted(set(nonblank) - GOLD_SETUP_VALUES)
+        if bad_setup:
+            raise ValueError(f"Invalid Gold setup values: {bad_setup}")
+
+    # Multiple event reasons may create multiple cases on the same ticker/date.
+    # They may repeat the same structural label, but may not contradict it.
+    per_snapshot = (
+        x.dropna(subset=["gold_stage"])
+        .groupby(["ticker", "snapshot_date"])["gold_stage"]
+        .nunique()
+    )
+    conflicts = per_snapshot[per_snapshot > 1]
+    if not conflicts.empty:
+        sample = list(conflicts.index[:10])
+        raise ValueError(f"Conflicting Gold stage labels on same snapshot: {sample}")
+    return x
+
+
+def merge_gold_labels(features: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
+    """Attach one reviewed Gold stage per ticker/date to point-in-time features."""
+    lab = validate_gold_labels(labels)
+    lab = (
+        lab.sort_values("case_id")
+        .drop_duplicates(["ticker", "snapshot_date"])
+        [["ticker", "snapshot_date", "gold_stage"]]
+        .rename(columns={"snapshot_date": "date"})
+    )
+    feat = features.copy()
+    feat["date"] = pd.to_datetime(feat["date"])
+    out = feat.merge(lab, on=["ticker", "date"], how="inner", validate="one_to_one")
+    if out.empty:
+        raise ValueError("No Gold labels matched feature snapshots")
+    return out
 
 
 def mine_retrospective_structure_cases(
