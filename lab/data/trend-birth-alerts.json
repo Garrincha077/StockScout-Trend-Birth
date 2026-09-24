@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "trend-birth-alerts-v1",
+  "sessionDate": "2026-09-23",
+  "baselineOnly": true,
+  "readyCount": 0,
+  "triggerCount": 0,
+  "invalidatedCount": 0,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-09-23-eod-35935482043-1--ecce14f3660a8965e69cc08d6dd822376376de2b99940332cd69784c7cac300a",
+  "messages": [],
+  "previousSessionDate": null,
+  "previousPath": null
+}
