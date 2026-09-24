@@ -4,11 +4,19 @@ Minimum daily input:
 
 ticker, date, open, high, low, close, volume
 
+Recommended historical level fields:
+
+close_raw
+
+Use close/open/high/low for split-normalized technical structure. Use close_raw (as-traded historical close) for absolute price-level rules such as Kell's $10 floor. If close_raw/raw_close is absent, v0.1 marks the historical price-floor result unknown rather than applying the rule to a back-adjusted level.
+
+Volume should represent the historical shares traded on that date; document any vendor volume adjustments.
+
 Benchmark input:
 
 date, close
 
-Price data should be split-adjusted.
+Technical price data should be split-normalized so moving averages and patterns remain continuous across splits. Do not use back-adjusted historical levels for absolute dollar-price gates. Dividend adjustment policy must be documented.
 
 ## Point-in-time requirements
 
