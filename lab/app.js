@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage)};
+const state={data:null,kellData:null,kellLoading:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -51,9 +51,19 @@ const kellFilterLabels={
   ...kellStageLabels,
   ...kellSetupLabels,
   ...kellContextLabels,
-  'kell-score':'Kell Focus ≥60'
+  'kell-score':'Kell Focus ≥60',
+  'kell-ready':'Readiness ≥80',
+  'multi':'Multi-hit',
+  'action':'Action'
 };
 const kellFilters=new Set(Object.keys(kellFilterLabels));
+const quickViews={
+  ready:{filters:['kell-ready'],sort:'readiness'},
+  leaders:{filters:['kell_rs_leader','kell_weekly_trend_ok'],sort:'quality'},
+  breakout:{filters:['kell_breakout_proximity','kell_weekly_trend_ok'],sort:'readiness'},
+  extended:{filters:['stage:exhaustion_extension'],sort:'kell-score'},
+  reset:{filters:[],sort:'default'}
+};
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const isWatched=ticker=>WatchlistStore.has(state.watchlist,ticker);
@@ -332,6 +342,7 @@ function matchesFilter(item,filter){
     ||(item?.kellContext||[]).length
   );
   if(filter==='kell-score')return Number(item.kell_score)>=60;
+  if(filter==='kell-ready')return Number(item.kell_readiness_score)>=80;
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
   return true;
@@ -364,6 +375,11 @@ function updateFilterBar(){
   bar.innerHTML='<span class="active-filter-label">Active '+filters.length+'</span>'+
     filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(kellFilterLabels[filter]||filter)+' <span aria-hidden="true">×</span></button>').join('')+
     '<button type="button" class="clear-active-filters" data-clear-filters>Clear all</button>';
+}
+function updateQuickViews(){
+  document.querySelectorAll('#quickViews [data-quick-view]').forEach(button=>{
+    button.classList.toggle('active',button.dataset.quickView===state.quickView);
+  });
 }
 function updateFilterCounts(){
   const kellItems=state.kellData?.kellCandidates||state.data?.kellCandidates||[];
@@ -474,6 +490,7 @@ function render(){
   if(!state.data)return;
   updateWatchlistButton();
   updateFilterBar();
+  updateQuickViews();
   updateFilterCounts();
   const items=sourceItems().filter(visible);
   const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
@@ -490,6 +507,7 @@ function render(){
     const an=Number.isFinite(av)?av:-Infinity,bn=Number.isFinite(bv)?bv:-Infinity;
     return bn-an||a.ticker.localeCompare(b.ticker);
   });
+  state.renderedItems=items.slice();
   $('#grid').innerHTML=items.map(card).join('');
   const universeName=universeLabels[state.universe]||state.universe;
   const modeCounts=state.kellData?.source?.modeUniverseCounts||state.data?.source?.modeUniverseCounts||{};
@@ -533,9 +551,26 @@ function render(){
   });
 }
 function fact(name,value){return '<div class="fact"><span>'+esc(name)+'</span>'+esc(value??'—')+'</div>'}
+function updateDetailNav(item){
+  const items=state.renderedItems||[];
+  const index=items.findIndex(candidate=>candidate.ticker===item?.ticker);
+  state.detailTicker=item?.ticker||null;
+  const pos=$('#detailPosition'),prev=$('#prevDetail'),next=$('#nextDetail');
+  if(pos)pos.textContent=index>=0?(index+1)+' / '+items.length:'—';
+  if(prev)prev.disabled=index<=0;
+  if(next)next.disabled=index<0||index>=items.length-1;
+}
+function navigateDetail(delta){
+  const items=state.renderedItems||[];
+  const index=items.findIndex(item=>item.ticker===state.detailTicker);
+  const nextIndex=index+delta;
+  if(index<0||nextIndex<0||nextIndex>=items.length)return;
+  show(items[nextIndex]);
+}
 function show(item){
   const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
+  updateDetailNav(item);
   $('#detailBody').innerHTML=
     '<div class="detail-head"><h2>'+esc(item.ticker)+'</h2><div class="badges">'+badges(item)+'</div></div>'+
     '<canvas class="detail-chart"></canvas>'+
@@ -561,7 +596,7 @@ function show(item){
     '\n\n<b>Fundamenti QoQ</b>\n'+esc(fundamentals)+
     (ai.riskNote?'\n\n<b>Risk note</b>\n'+esc(ai.riskNote):'')+
     '</div>';
-  $('#detail').showModal();
+  if(!$('#detail').open)$('#detail').showModal();
   requestAnimationFrame(()=>{
     const canvas=$('#detailBody canvas');
     const ready=rowsForPeriod(item);
@@ -573,7 +608,14 @@ function show(item){
   });
 }
 $('#closeDetail').addEventListener('click',()=>$('#detail').close());
+$('#prevDetail')?.addEventListener('click',()=>navigateDetail(-1));
+$('#nextDetail')?.addEventListener('click',()=>navigateDetail(1));
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
+document.addEventListener('keydown',e=>{
+  if(!$('#detail')?.open)return;
+  if(e.key==='ArrowLeft'){e.preventDefault();navigateDetail(-1)}
+  if(e.key==='ArrowRight'){e.preventDefault();navigateDetail(1)}
+});
 $('#search').addEventListener('input',e=>{state.query=e.target.value.trim().toUpperCase();render()});
 $('#sort')?.addEventListener('change',e=>{state.sort=e.target.value;render()});
 $('#chartPeriod')?.addEventListener('change',e=>{
@@ -587,12 +629,14 @@ $('#filters').addEventListener('click',async e=>{
   if(!universeButton&&!filterButton)return;
 
   if(universeButton){
+    state.quickView=null;
     const nextUniverse=universeButton.dataset.universe;
     if(nextUniverse==='watchlist'&&state.universe!=='watchlist')state.filters=[];
     state.universe=nextUniverse;
     document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x===universeButton));
   }
   if(filterButton){
+    state.quickView=null;
     const filter=filterButton.dataset.filter;
     if(filter==='none')state.filters=[];
     else if(activeFilters().includes(filter))state.filters=activeFilters().filter(value=>value!==filter);
@@ -605,10 +649,28 @@ $('#filters').addEventListener('click',async e=>{
   }
   render();
 });
+$('#quickViews')?.addEventListener('click',async e=>{
+  const button=e.target.closest('[data-quick-view]');
+  if(!button)return;
+  const name=button.dataset.quickView;
+  const config=quickViews[name];
+  if(!config)return;
+  state.quickView=name==='reset'?null:name;
+  state.filters=[...config.filters];
+  state.sort=config.sort;
+  const sort=$('#sort');
+  if(sort)sort.value=state.sort;
+  if(isKellView(state.filters)&&!state.kellData){
+    $('#status').textContent='Učitavam Kell kandidate za Quick View…';
+    try{await ensureKellData()}catch(err){$('#status').textContent='Kell podaci nisu dostupni: '+err.message;return}
+  }
+  render();
+});
 $('#activeFilterBar')?.addEventListener('click',e=>{
   const remove=e.target.closest('[data-remove-filter]');
   const clear=e.target.closest('[data-clear-filters]');
   if(!remove&&!clear)return;
+  state.quickView=null;
   if(clear)state.filters=[];
   else state.filters=activeFilters().filter(filter=>filter!==remove.dataset.removeFilter);
   render();
