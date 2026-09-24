@@ -484,7 +484,7 @@ def assert_no_forward_features() -> None:
 
 def _model(feature_cols: list[str]) -> Pipeline:
     prep = ColumnTransformer(
-        [("numeric", SimpleImputer(strategy="median"), feature_cols)],
+        [("numeric", SimpleImputer(strategy="median", keep_empty_features=True), feature_cols)],
         remainder="drop",
         verbose_feature_names_out=False,
     )
