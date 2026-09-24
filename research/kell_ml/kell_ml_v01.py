@@ -13,6 +13,7 @@ Core contract:
 
 from dataclasses import dataclass
 from pathlib import Path
+import json
 
 import joblib
 import numpy as np
@@ -26,7 +27,7 @@ from sklearn.pipeline import Pipeline
 
 REQUIRED = ("ticker", "date", "open", "high", "low", "close", "volume")
 
-MODEL_FEATURES = [
+STRUCTURE_FEATURES = [
     "ret_5d", "ret_20d", "ret_60d", "ret_120d",
     "price_vs_ema10_pct", "price_vs_ema20_pct",
     "price_vs_sma50_pct", "price_vs_sma200_pct",
@@ -45,9 +46,33 @@ MODEL_FEATURES = [
     "breakout_60d_proxy", "reversal_bar_proxy",
 ]
 
+NAME_SELECTION_FEATURES = [
+    "avg_volume_20",
+    "avg_dollar_volume_20",
+    "kell_price_floor_pass",
+    "kell_liquidity_pref_pass",
+]
+
+# Backward-compatible alias: structure classification must not be taught
+# name-selection preferences such as price/liquidity.
+MODEL_FEATURES = STRUCTURE_FEATURES
+OPPORTUNITY_FEATURES = STRUCTURE_FEATURES + NAME_SELECTION_FEATURES
+
 
 def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.replace(0, np.nan)
+
+
+def _parse_date(value):
+    """Parse ISO-like dates and StockScout Unix-second timestamps safely."""
+    if isinstance(value, (int, float, np.integer, np.floating)) and not pd.isna(value):
+        # StockScout chart shards sometimes serialize dates as Unix seconds.
+        if abs(float(value)) >= 10_000_000:
+            return pd.to_datetime(value, unit="s", utc=False)
+    if isinstance(value, str) and value.isdigit() and len(value) in (10, 13):
+        unit = "s" if len(value) == 10 else "ms"
+        return pd.to_datetime(int(value), unit=unit, utc=False)
+    return pd.to_datetime(value, utc=False)
 
 
 def _validate(df: pd.DataFrame) -> pd.DataFrame:
@@ -55,11 +80,43 @@ def _validate(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing OHLCV columns: {missing}")
     out = df.copy()
-    out["date"] = pd.to_datetime(out["date"], utc=False)
+    out["date"] = out["date"].map(_parse_date)
     out = out.sort_values(["ticker", "date"]).reset_index(drop=True)
     if out.duplicated(["ticker", "date"]).any():
         raise ValueError("Duplicate ticker/date rows")
     return out
+
+
+def load_stockscout_chart_shard(source: dict | str | Path) -> pd.DataFrame:
+    """Load the existing Review Grid/Kell chart-shard format into OHLCV rows.
+
+    Expected daily bar layout: [date, open, high, low, close, volume].
+    Date may be ISO text or Unix seconds.
+    """
+    if isinstance(source, (str, Path)):
+        payload = json.loads(Path(source).read_text(encoding="utf-8"))
+    else:
+        payload = source
+    charts = payload.get("charts", payload)
+    rows = []
+    for ticker, chart in charts.items():
+        for bar in chart.get("daily", []):
+            if len(bar) < 6:
+                continue
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "date": bar[0],
+                    "open": bar[1],
+                    "high": bar[2],
+                    "low": bar[3],
+                    "close": bar[4],
+                    "volume": bar[5],
+                }
+            )
+    if not rows:
+        raise ValueError("No daily chart rows found in StockScout shard")
+    return _validate(pd.DataFrame(rows))
 
 
 def _weekly_context(g: pd.DataFrame) -> pd.DataFrame:
@@ -184,7 +241,9 @@ def compute_features(
         for h in (5, 20, 60, 120):
             g[f"ret_{h}d"] = g["close"].pct_change(h)
 
-        g["rvol_20"] = _safe_div(g["volume"], g["volume"].rolling(20, min_periods=5).mean())
+        g["avg_volume_20"] = g["volume"].rolling(20, min_periods=5).mean()
+        g["avg_dollar_volume_20"] = (g["close"] * g["volume"]).rolling(20, min_periods=5).mean()
+        g["rvol_20"] = _safe_div(g["volume"], g["avg_volume_20"])
         g["rvol_50"] = _safe_div(g["volume"], g["volume"].rolling(50, min_periods=10).mean())
         g["volume_dryup_5_vs_20"] = _safe_div(
             g["volume"].rolling(5, min_periods=3).mean(),
@@ -235,10 +294,16 @@ def compute_features(
             g["rs_120d_vs_benchmark"] = np.nan
             g["benchmark_above_ema20"] = np.nan
 
+        # Source-backed Kell name-selection context kept separate from stage.
+        # Kell says he does not trade stocks under $10 and prefers roughly
+        # 1M shares/day or more; liquidity is a preference, not a stage rule.
+        g["kell_price_floor_pass"] = (g["close"] >= 10.0).astype(int)
+        g["kell_liquidity_pref_pass"] = (g["avg_volume_20"] >= 1_000_000).astype(int)
+
         outputs.append(_add_sequence_proxies(g))
 
     out = pd.concat(outputs, ignore_index=True)
-    missing = [c for c in MODEL_FEATURES if c not in out.columns]
+    missing = [c for c in OPPORTUNITY_FEATURES if c not in out.columns]
     if missing:
         raise AssertionError(f"Feature implementation incomplete: {missing}")
     return out.sort_values(["ticker", "date"]).reset_index(drop=True)
@@ -300,6 +365,38 @@ def apply_silver_labels(features: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_review_bucket_proxy(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep structural stage separate from Kell-style selection quality.
+
+    This is a transparent project review bucket, not a Kell-published formula.
+    A structurally valid Crossback can therefore remain a Crossback while
+    being low priority because RS/liquidity/name-selection evidence is weak.
+    """
+    x = df.copy()
+    status = np.full(len(x), "WATCH", dtype=object)
+    stage = x["silver_stage"].astype(str)
+    actionable = stage.isin(
+        ["WEDGE_POP_PROXY", "EMA_CROSSBACK_PROXY", "BASE_N_BREAK_PROXY"]
+    )
+    confirmation = (
+        (x["rs_20d_vs_benchmark"].fillna(-np.inf) > 0)
+        | (x["rvol_20"].fillna(0) >= 1.3)
+    )
+    liquid = x["kell_liquidity_pref_pass"].fillna(0).astype(bool)
+    price_ok = x["kell_price_floor_pass"].fillna(0).astype(bool)
+
+    status[actionable.to_numpy()] = "STRUCTURE_ONLY"
+    status[(actionable & confirmation & liquid & price_ok).to_numpy()] = "PRIORITY_REVIEW"
+    status[(stage == "EXHAUSTION_EXTENSION_PROXY").to_numpy()] = "EXTENDED"
+    status[(stage == "WEDGE_DROP_PROXY").to_numpy()] = "REPAIR"
+    # Kell's stated under-$10 avoidance is a name-selection constraint, not
+    # a reason to rewrite the chart's structural stage.
+    status[(~price_ok).to_numpy()] = "PRICE_INELIGIBLE"
+
+    x["review_bucket_proxy"] = status
+    return x
+
+
 def _future_extreme(s: pd.Series, horizon: int, kind: str) -> pd.Series:
     values = s.to_numpy(dtype=float)
     out = np.full(len(values), np.nan)
@@ -337,7 +434,7 @@ def build_dataset(
     ohlcv: pd.DataFrame,
     benchmark: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    features = apply_silver_labels(compute_features(ohlcv, benchmark))
+    features = add_review_bucket_proxy(apply_silver_labels(compute_features(ohlcv, benchmark)))
     outcomes = compute_outcomes(ohlcv)
     return features.merge(outcomes, on=["ticker", "date"], how="left", validate="one_to_one")
 
@@ -366,14 +463,14 @@ def temporal_split(df: pd.DataFrame, train_end: str, validation_end: str) -> Tem
 
 
 def assert_no_forward_features() -> None:
-    bad = [c for c in MODEL_FEATURES if c.startswith(("fwd_", "mfe_", "mae_", "future_"))]
+    bad = [c for c in OPPORTUNITY_FEATURES if c.startswith(("fwd_", "mfe_", "mae_", "future_"))]
     if bad:
         raise AssertionError(f"Forward-looking model features: {bad}")
 
 
-def _model() -> Pipeline:
+def _model(feature_cols: list[str]) -> Pipeline:
     prep = ColumnTransformer(
-        [("numeric", SimpleImputer(strategy="median"), MODEL_FEATURES)],
+        [("numeric", SimpleImputer(strategy="median"), feature_cols)],
         remainder="drop",
         verbose_feature_names_out=False,
     )
@@ -392,9 +489,9 @@ def train_structure(train: pd.DataFrame, evaluation: pd.DataFrame):
         raise ValueError("Need at least two stage classes")
     if evaluation.empty:
         raise ValueError("No evaluation rows")
-    pipe = _model()
-    pipe.fit(train[MODEL_FEATURES], train["silver_stage"])
-    pred = pipe.predict(evaluation[MODEL_FEATURES])
+    pipe = _model(STRUCTURE_FEATURES)
+    pipe.fit(train[STRUCTURE_FEATURES], train["silver_stage"])
+    pred = pipe.predict(evaluation[STRUCTURE_FEATURES])
     labels = sorted(set(train["silver_stage"]) | set(evaluation["silver_stage"]))
     metrics = {
         "macro_f1": float(f1_score(evaluation["silver_stage"], pred, average="macro", zero_division=0)),
@@ -435,9 +532,9 @@ def train_opportunity(
         raise ValueError(
             "No complete opportunity targets in evaluation; move holdout earlier or provide more future history"
         )
-    pipe = _model()
-    pipe.fit(tr[MODEL_FEATURES], tr[target_col].astype(int))
-    pred = pipe.predict(ev[MODEL_FEATURES])
+    pipe = _model(OPPORTUNITY_FEATURES)
+    pipe.fit(tr[OPPORTUNITY_FEATURES], tr[target_col].astype(int))
+    pred = pipe.predict(ev[OPPORTUNITY_FEATURES])
     metrics = {
         "macro_f1": float(f1_score(ev[target_col].astype(int), pred, average="macro", zero_division=0)),
         "balanced_accuracy": float(balanced_accuracy_score(ev[target_col].astype(int), pred)),
@@ -450,7 +547,7 @@ def rank_candidates(model: Pipeline, candidates: pd.DataFrame) -> pd.DataFrame:
     classes = list(model[-1].classes_)
     if 1 not in classes:
         raise ValueError("Opportunity model has no positive class")
-    p = model.predict_proba(candidates[MODEL_FEATURES])[:, classes.index(1)]
+    p = model.predict_proba(candidates)[:, classes.index(1)]
     out = candidates.copy()
     out["ml_opportunity_probability"] = p
     return out.sort_values("ml_opportunity_probability", ascending=False)
