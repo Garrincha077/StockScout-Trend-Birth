@@ -8,6 +8,7 @@ opportunity claims. Its purpose is to exercise historical Kell structure/event
 mining on real, non-current-scan stock histories.
 """
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -40,14 +41,24 @@ def main() -> None:
         ["ticker", "date", "open", "high", "low", "close", "volume"]
     ].copy()
 
+    # Keep PR CI deterministic and bounded while spanning the alphabet/universe.
+    # The full downloaded panel is still the source; 160 symbols are selected
+    # by stable SHA-256 order, never by future performance.
+    symbols = sorted(
+        prices["ticker"].dropna().astype(str).unique(),
+        key=lambda t: hashlib.sha256(t.encode("utf-8")).hexdigest(),
+    )
+    seed_symbols = set(symbols[:160])
+    prices = prices[prices["ticker"].astype(str).isin(seed_symbols)].copy()
+
     # No benchmark and no raw/as-traded-price assertion: structure-only seed.
     features = compute_features(prices, benchmark=None)
     labeled = add_review_bucket_proxy(apply_silver_labels(features))
     events = generate_historical_events(labeled)
     queue = build_blind_gold_queue(events, max_cases=200, max_per_reason_year=12)
 
-    if prices["ticker"].nunique() < 400:
-        raise SystemExit("Unexpectedly small public seed universe")
+    if prices["ticker"].nunique() != 160:
+        raise SystemExit("Unexpected public seed symbol count")
     if len(events) < 1_000:
         raise SystemExit("Unexpectedly few historical event candidates")
     if len(queue) < 100:
@@ -66,6 +77,7 @@ def main() -> None:
         "benchmark_used": False,
         "price_rows": int(len(prices)),
         "symbols": int(prices["ticker"].nunique()),
+        "symbol_sampling": "first 160 by SHA256(ticker) stable order; not outcome-selected",
         "first_date": str(pd.to_datetime(prices["date"]).min().date()),
         "last_date": str(pd.to_datetime(prices["date"]).max().date()),
         "event_rows": int(len(events)),
