@@ -385,25 +385,9 @@ function updateFilterCounts(){
 async function ensureKellData(){
   if(state.kellData)return state.kellData;
   if(state.kellLoading)return state.kellLoading;
-  state.kellLoading=fetch('data/kell-latest.json',{cache:'no-store'})
-    .then(response=>{
-      if(!response.ok)throw new Error('Kell dataset nije dostupan (HTTP '+response.status+').');
-      return response.json();
-    })
+  const reviewSource=state.data?.source||{};
+  state.kellLoading=KellDatasets.load(fetch,location.search,reviewSource)
     .then(data=>{
-      const reviewSource=state.data?.source||{};
-      const kellSource=data?.source||{};
-      const mainDate=reviewSource.sessionDate;
-      const kellDate=kellSource.sessionDate;
-      if(mainDate&&kellDate&&mainDate!==kellDate){
-        throw new Error('Kell dataset je za '+kellDate+', a Review Grid za '+mainDate+'.');
-      }
-      if(reviewSource.runId&&kellSource.runId&&reviewSource.runId!==kellSource.runId){
-        throw new Error('Kell i Review Grid nisu iz istog Unified runa.');
-      }
-      if(reviewSource.unifiedManifestSha256&&reviewSource.unifiedManifestSha256!==kellSource.unifiedManifestSha256){
-        throw new Error('Kell i Review Grid nisu iz iste aktivirane Unified objave.');
-      }
       const normal=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
       for(const item of data.kellCandidates||[]){
         const base=normal.get(item.ticker);

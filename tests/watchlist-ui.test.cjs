@@ -6,6 +6,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'lab','index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'lab','app.js'),'utf8');
+const kellLoader=fs.readFileSync(path.join(root,'lab','kell-dataset-loader.js'),'utf8');
 
 test('grid exposes a persistent Watchlist universe and loads its store before app code',()=>{
   assert.match(html,/data-universe="watchlist" id="watchlistUniverse"/);
@@ -35,8 +36,9 @@ test('opening Watchlist defaults to all saved names rather than inheriting stale
 });
 
 test('browser rejects Kell or chart data from another Unified activation',()=>{
-  assert.match(app,/reviewSource\.runId&&kellSource\.runId&&reviewSource\.runId!==kellSource\.runId/);
-  assert.match(app,/reviewSource\.unifiedManifestSha256&&reviewSource\.unifiedManifestSha256!==kellSource\.unifiedManifestSha256/);
+  assert.ok(html.indexOf('kell-dataset-loader.js')<html.indexOf('app.js'));
+  assert.match(kellLoader,/review\.runId&&kell\.runId&&review\.runId!==kell\.runId/);
+  assert.match(kellLoader,/review\.unifiedManifestSha256&&kell\.unifiedManifestSha256&&review\.unifiedManifestSha256!==kell\.unifiedManifestSha256/);
   assert.match(app,/result\?\.source\?\.runId!==data\?\.source\?\.runId/);
   assert.match(app,/chart shard Unified activation mismatch/);
 });
