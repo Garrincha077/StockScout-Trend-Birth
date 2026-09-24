@@ -4,6 +4,11 @@
   root.KellChanges=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   const ACTION_SETUPS=new Set(['kell_wedge_pop','kell_ema_crossback','kell_base_n_break','kell_buyable_gap_proxy']);
+  const DISCOVERY_SCREENS=new Set([
+    'kell_52w_high','kell_unusual_volume','kell_rvol_3x','kell_bull_snort',
+    'kell_momentum_3m_50','kell_doubler_ytd','kell_gapper',
+    'kell_strength_on_down_day','kell_rs_leader'
+  ]);
   const SETUP_LABELS={
     kell_wedge_pop:'Wedge Pop',
     kell_ema_crossback:'EMA Crossback',
@@ -11,276 +16,208 @@
     kell_buyable_gap_proxy:'Buyable Gap'
   };
   const SCREEN_LABELS={
-    kell_52w_high:'52W / New High',
+    kell_52w_high:'52W/New High',
     kell_unusual_volume:'Unusual Volume',
-    kell_rvol_3x:'RVOL >=3x',
+    kell_rvol_3x:'RVOL 3x',
     kell_bull_snort:'Bull Snort',
-    kell_momentum_3m_50:'3M +50%',
+    kell_momentum_3m_50:'3M Momentum',
     kell_doubler_ytd:'Doubler YTD',
     kell_gapper:'Gapper',
     kell_strength_on_down_day:'Strength on Down Day',
     kell_rs_leader:'RS Leader'
   };
-  const BULLISH_STRUCTURE=new Set(['wedge_pop','ema_crossback','base_n_break','trend_ema_support']);
-  const RISK_WIDE_ATR=3.0; // StockScout review proxy, not a Kell-published constant.
-
+  const STAGE_LABELS={
+    reversal_extension:'Reversal Extension',
+    wedge_pop:'Wedge Pop',
+    ema_crossback:'EMA Crossback',
+    base_n_break:"Base n' Break",
+    exhaustion_extension:'Exhaustion Extension',
+    wedge_drop:'Wedge Drop',
+    trend_ema_support:'Trend / EMA Support',
+    downtrend_repair:'Downtrend / Repair',
+    transition:'Transition',
+    unavailable:'Unavailable'
+  };
   const n=value=>Number.isFinite(Number(value))?Number(value):null;
   const round1=value=>Math.round(value*10)/10;
   const stage=item=>item?.stage||item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
-  const stageBasis=item=>item?.kell_stage?.basis||[];
   const setups=item=>item?.setups||item?.kellSetups||item?.kell_setups||[];
   const screens=item=>item?.screens||item?.kellScreens||item?.kell_screens||[];
-  const context=item=>item?.context||item?.kellContext||item?.kell_context||[];
-  const structuralRiskAtr=item=>n(
-    item?.structural_risk_atr
-    ??item?.kell_structural_risk_atr
-    ??item?.score_breakdown?.components?.readiness?.structural_risk_atr
-  );
-  const hasStageOrSetup=(item,name)=>stage(item)===name||setups(item).includes('kell_'+name);
-  const unique=values=>[...new Set(values.filter(Boolean))];
+  const labelStage=value=>STAGE_LABELS[value]||String(value||'Unavailable').replaceAll('_',' ');
+  const riskAtr=item=>{
+    const direct=n(item?.kell_structural_risk_atr);
+    if(direct!=null)return direct;
+    return n(item?.score_breakdown?.components?.readiness?.structural_risk_atr);
+  };
+  const retestState=item=>item?.kell_metrics?.ema_retest_state||item?.kell_ema_retest_state||null;
 
-  function archiveCandidates(payload){
-    const rows=payload?.kellCandidates||payload?.candidates||[];
-    if(!rows.length)return[];
-    if(rows.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))return rows;
-    const columns=payload?.columns||[];
-    if(columns.length&&rows.every(Array.isArray)){
-      return rows.map(row=>Object.fromEntries(
-        row.slice(0,columns.length).map((value,index)=>[String(columns[index]),value])
-      ));
+  function payloadRows(payload){
+    return Array.isArray(payload?.candidates)?payload.candidates:[];
+  }
+
+  function tickerHistory(ticker,current,historyPayloads){
+    const points=[];
+    for(const payload of historyPayloads||[]){
+      const row=payloadRows(payload).find(item=>item?.ticker===ticker);
+      if(row)points.push({date:payload?.source?.sessionDate||null,row});
     }
-    return[];
+    points.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    points.push({date:null,row:current,current:true});
+    return points;
   }
 
-  function marketState(marketContext){
-    const qqqAbove20=marketContext?.qqqAboveEma20
-      ??marketContext?.qqq?.aboveEma20
-      ??marketContext?.qqq?.above_ema20;
-    const coarse=String(
-      marketContext?.regime?.state
-      ??marketContext?.state
-      ??marketContext?.marketRegime
-      ??''
-    ).toLowerCase();
-    const defensive=qqqAbove20===false||['under_pressure','correction','defensive'].includes(coarse);
-    return{
-      qqqAbove20:typeof qqqAbove20==='boolean'?qqqAbove20:null,
-      coarse:coarse||null,
-      defensive,
-      label:defensive?'DEFENSIVE REGIME':qqqAbove20===true?'QQQ > 20EMA':'REGIME NEUTRAL/UNKNOWN'
-    };
-  }
-
-  function compressedStages(rows){
+  function compactSequence(points){
     const out=[];
-    for(const row of rows){
-      const value=stage(row);
-      if(value&&value!=='unavailable'&&out[out.length-1]!==value)out.push(value);
+    for(const point of points||[]){
+      const value=stage(point.row);
+      if(!out.length||out[out.length-1]!==value)out.push(value);
     }
-    return out;
+    return out.slice(-5);
   }
 
-  function sequenceInfo(current,priorRows=[]){
-    const previous=priorRows.length?priorRows[priorRows.length-1]:null;
-    const currentStage=stage(current);
-    const previousStage=previous?stage(previous):null;
-    const currentSetups=setups(current);
-    const previousSetups=new Set(previous?setups(previous):[]);
-    const addedSetups=currentSetups.filter(name=>ACTION_SETUPS.has(name)&&!previousSetups.has(name));
-    const currentScreens=screens(current);
-    const previousScreens=new Set(previous?screens(previous):[]);
-    const addedScreens=currentScreens.filter(name=>!previousScreens.has(name));
-
-    const priorWedgeIndexes=[];
-    const priorCrossbackIndexes=[];
-    const priorBaseIndexes=[];
-    const priorExhaustionIndexes=[];
-    priorRows.forEach((row,index)=>{
-      if(hasStageOrSetup(row,'wedge_pop'))priorWedgeIndexes.push(index);
-      if(hasStageOrSetup(row,'ema_crossback'))priorCrossbackIndexes.push(index);
-      if(hasStageOrSetup(row,'base_n_break'))priorBaseIndexes.push(index);
-      if(stage(row)==='exhaustion_extension')priorExhaustionIndexes.push(index);
-    });
-
-    const lastWedge=priorWedgeIndexes.length?priorWedgeIndexes[priorWedgeIndexes.length-1]:-1;
-    const priorCrossbacksAfterWedge=priorCrossbackIndexes.filter(index=>index>lastWedge);
-    const crossbackActive=currentSetups.includes('kell_ema_crossback')||currentStage==='ema_crossback';
-    const crossbackNew=addedSetups.includes('kell_ema_crossback')||(!previous&&crossbackActive);
-    const crossbackBasisConfirmed=stageBasis(current).includes('first_retest_after_wedge_pop');
-    let crossbackClass=null;
-    if(crossbackActive){
-      if(previous&&hasStageOrSetup(previous,'ema_crossback')){
-        crossbackClass='ONGOING CROSSBACK';
-      }else if(crossbackNew&&(crossbackBasisConfirmed||(lastWedge>=0&&priorCrossbacksAfterWedge.length===0))){
-        crossbackClass='FIRST CROSSBACK';
-      }else if(crossbackNew&&lastWedge>=0&&priorCrossbacksAfterWedge.length>0){
-        crossbackClass='LATE RETEST';
-      }else{
-        crossbackClass='CROSSBACK · SEQUENCE UNCONFIRMED';
-      }
+  function baseMaturity(points,currentStage){
+    if(currentStage!=='base_n_break')return null;
+    const prior=(points||[]).slice(0,-1);
+    let lastPop=-1;
+    for(let i=0;i<prior.length;i++){
+      if(stage(prior[i].row)==='wedge_pop'||setups(prior[i].row).includes('kell_wedge_pop'))lastPop=i;
     }
-
-    const baseActive=currentSetups.includes('kell_base_n_break')||currentStage==='base_n_break';
-    const baseNew=addedSetups.includes('kell_base_n_break')||(!previous&&baseActive);
-    let cycleMaturity=null;
-    if(baseActive){
-      if(priorExhaustionIndexes.length||priorRows.some(row=>stage(row)==='wedge_drop')){
-        cycleMaturity='LATE';
-      }else if(priorBaseIndexes.length){
-        cycleMaturity='MATURE';
-      }else if(priorRows.some(row=>hasStageOrSetup(row,'ema_crossback')||hasStageOrSetup(row,'wedge_pop'))){
-        cycleMaturity='EARLY';
-      }else{
-        cycleMaturity='UNCONFIRMED';
-      }
-    }
-
-    const firstExhaustion=currentStage==='exhaustion_extension'&&!priorExhaustionIndexes.length;
-    const exhaustionCount=currentStage==='exhaustion_extension'?priorExhaustionIndexes.length+1:null;
-    const structureFailed=currentStage==='wedge_drop'&&previousStage!=='wedge_drop';
-    const structureDeteriorated=currentStage==='downtrend_repair'
-      &&previousStage!=null
-      &&BULLISH_STRUCTURE.has(previousStage);
-    const stageChanged=Boolean(previous&&currentStage!==previousStage);
-    const setupActionable=addedSetups.length>0;
-    const trail=compressedStages([...priorRows,current]).slice(-6);
-
-    return{
-      previous,
-      previousStage,
-      currentStage,
-      addedSetups,
-      addedScreens,
-      stageChanged,
-      setupActionable,
-      crossbackClass,
-      baseNew,
-      cycleMaturity,
-      firstExhaustion,
-      exhaustionCount,
-      structureFailed,
-      structureDeteriorated,
-      trail
-    };
+    const cycle=lastPop>=0?prior.slice(lastPop):prior;
+    const priorBases=cycle.filter(point=>stage(point.row)==='base_n_break'||setups(point.row).includes('kell_base_n_break')).length;
+    const sawCrossback=cycle.some(point=>stage(point.row)==='ema_crossback'||setups(point.row).includes('kell_ema_crossback'));
+    const sawExhaustion=cycle.some(point=>stage(point.row)==='exhaustion_extension');
+    if(sawExhaustion||priorBases>=2)return'LATE-CYCLE';
+    if(priorBases===1)return'MATURE';
+    if(lastPop>=0||sawCrossback)return'EARLY';
+    return'UNRESOLVED';
   }
 
-  function headlineFor(seq){
-    if(seq.structureFailed)return'STRUCTURE FAILED · WEDGE DROP';
-    if(seq.structureDeteriorated)return'STRUCTURE DETERIORATED';
-    if(seq.crossbackClass==='FIRST CROSSBACK'&&seq.setupActionable)return'FIRST ACTIONABLE CROSSBACK';
-    if(seq.addedSetups.includes('kell_base_n_break')){
-      return"BASE N' BREAK · "+(seq.cycleMaturity||'UNCONFIRMED');
-    }
-    if(seq.addedSetups.includes('kell_wedge_pop'))return'WEDGE POP APPEARED';
-    if(seq.addedSetups.includes('kell_buyable_gap_proxy'))return'BUYABLE GAP APPEARED';
-    if(seq.firstExhaustion)return'FIRST EXHAUSTION EXTENSION';
-    if(seq.currentStage==='exhaustion_extension'&&seq.stageChanged)return'EXHAUSTION EXTENSION #'+seq.exhaustionCount;
-    if(seq.stageChanged)return'STAGE CHANGED';
-    if(seq.addedScreens.length)return'DISCOVERY CHANGED';
-    return null;
+  function riskLabel(value){
+    if(value==null)return null;
+    if(value<=1.5)return'Natural invalidation '+value.toFixed(1)+' ATR';
+    if(value>=3.0)return'Risk too wide '+value.toFixed(1)+' ATR';
+    return'Natural invalidation '+value.toFixed(1)+' ATR';
   }
 
-  function classify(current,history=[],marketContext=null){
-    const priorRows=Array.isArray(history)?history.filter(Boolean):(history?[history]:[]);
-    const seq=sequenceInfo(current,priorRows);
-    const previous=seq.previous;
+  function classify(current,previous,historyPayloads=[]){
     const score=n(current?.kell_score),readiness=n(current?.kell_readiness_score);
     const previousScore=n(previous?.kell_score),previousReadiness=n(previous?.kell_readiness_score);
     const scoreDelta=score!=null&&previousScore!=null?round1(score-previousScore):null;
     const readinessDelta=readiness!=null&&previousReadiness!=null?round1(readiness-previousReadiness):null;
-    const riskAtr=structuralRiskAtr(current);
-    const riskTooWide=riskAtr!=null&&riskAtr>=RISK_WIDE_ATR;
-    const regime=marketState(marketContext);
+    const currentStage=stage(current);
+    const previousStage=previous?stage(previous):null;
+    const previousSetups=new Set(setups(previous));
+    const previousScreens=new Set(screens(previous));
+    const addedSetups=setups(current).filter(name=>ACTION_SETUPS.has(name)&&!previousSetups.has(name));
+    const addedScreens=screens(current).filter(name=>DISCOVERY_SCREENS.has(name)&&!previousScreens.has(name));
+    const points=tickerHistory(current?.ticker,current,historyPayloads);
+    const sequence=compactSequence(points);
+    const maturity=baseMaturity(points,currentStage);
+    const retest=retestState(current);
+
+    const structureFailed=currentStage==='wedge_drop'&&previousStage!=='wedge_drop';
+    const firstExhaustion=currentStage==='exhaustion_extension'&&previousStage!=='exhaustion_extension';
+    const stageChanged=Boolean(previous&&previousStage!==currentStage);
+    const actionable=addedSetups.length>0;
+    const lateRetest=retest==='late_retest';
+    const discoveryChanged=addedScreens.length>0||(!previous&&screens(current).some(name=>DISCOVERY_SCREENS.has(name)));
 
     const changeTypes=[];
-    if(seq.setupActionable)changeTypes.push('setup');
-    if(seq.structureFailed||seq.structureDeteriorated||seq.firstExhaustion)changeTypes.push('risk');
-    if(seq.stageChanged||seq.firstExhaustion||seq.structureFailed||seq.structureDeteriorated)changeTypes.push('stage');
-    if(seq.addedScreens.length)changeTypes.push('discovery');
-
-    const headline=headlineFor(seq);
-    const changed=Boolean(headline);
-    let priorityBand='none';
-    let priority=0;
-    if(changed){
-      if(seq.setupActionable){
-        priorityBand='setup';
-        priority=4000;
-        if(seq.crossbackClass==='FIRST CROSSBACK')priority+=900;
-        else if(seq.crossbackClass==='LATE RETEST')priority+=250;
-        if(seq.addedSetups.includes('kell_base_n_break'))priority+=seq.cycleMaturity==='EARLY'?800:seq.cycleMaturity==='MATURE'?450:200;
-        if(seq.addedSetups.includes('kell_wedge_pop'))priority+=650;
-        if(seq.addedSetups.includes('kell_buyable_gap_proxy'))priority+=500;
-      }else if(seq.structureFailed||seq.structureDeteriorated||seq.firstExhaustion){
-        priorityBand='risk';
-        priority=3900+(seq.structureFailed?800:seq.structureDeteriorated?600:500);
-      }else if(seq.stageChanged){
-        priorityBand='stage';
-        priority=3000;
-      }else if(seq.addedScreens.length){
-        priorityBand='discovery';
-        priority=2000;
-      }
-      if(riskAtr!=null)priority+=Math.max(0,300-Math.min(300,riskAtr*75));
-      if(riskTooWide)priority-=500;
-      if(regime.defensive&&priorityBand==='setup')priority-=250;
-    }
+    if(discoveryChanged)changeTypes.push('discovery');
+    if(stageChanged||structureFailed||firstExhaustion||lateRetest)changeTypes.push('stage');
+    if(actionable)changeTypes.push('setup');
 
     const reasons=[];
-    if(headline)reasons.push(headline);
-    if(seq.crossbackClass&&seq.crossbackClass!=='FIRST CROSSBACK')reasons.push(seq.crossbackClass);
-    if(seq.addedScreens.length&&priorityBand!=='discovery'){
-      reasons.push('Discovery +'+seq.addedScreens.length);
+    let headline='';
+    if(structureFailed){
+      headline='STRUCTURE FAILED';
+      reasons.push('WEDGE DROP');
+    }else if(actionable){
+      if(addedSetups.includes('kell_ema_crossback')){
+        headline='SETUP BECAME ACTIONABLE';
+        reasons.push('FIRST CROSSBACK');
+      }else if(addedSetups.includes('kell_base_n_break')){
+        headline='SETUP BECAME ACTIONABLE';
+        reasons.push("BASE N' BREAK"+(maturity?' · '+maturity:''));
+      }else if(addedSetups.includes('kell_wedge_pop')){
+        headline='SETUP BECAME ACTIONABLE';
+        reasons.push('WEDGE POP');
+      }else{
+        headline='SETUP BECAME ACTIONABLE';
+      }
+      for(const name of addedSetups){
+        const label=SETUP_LABELS[name]||name.replace(/^kell_/,'').replaceAll('_',' ');
+        if(!reasons.some(reason=>reason.includes(label.toUpperCase())))reasons.push('NEW '+label);
+      }
+    }else if(lateRetest){
+      headline='STAGE CHANGED';
+      reasons.push('LATE RETEST');
+    }else if(firstExhaustion){
+      headline='STAGE CHANGED';
+      reasons.push('FIRST EXHAUSTION EXTENSION');
+    }else if(stageChanged){
+      headline='STAGE CHANGED';
+      reasons.push(labelStage(previousStage)+' → '+labelStage(currentStage));
+    }else if(discoveryChanged){
+      headline='DISCOVERY CHANGED';
     }
-    if(riskAtr!=null)reasons.push((riskTooWide?'RISK TOO WIDE ':'Natural invalidation ')+riskAtr.toFixed(2)+' ATR');
-    if(regime.defensive)reasons.push(regime.label);
 
+    if(discoveryChanged){
+      for(const name of addedScreens.slice(0,3))reasons.push('NEW '+(SCREEN_LABELS[name]||name.replace(/^kell_/,'').replaceAll('_',' ')));
+    }
+
+    const risk=riskAtr(current);
+    let priority=0;
+    if(actionable)priority=400;
+    else if(structureFailed)priority=360;
+    else if(firstExhaustion)priority=320;
+    else if(stageChanged)priority=250;
+    else if(lateRetest)priority=210;
+    else if(discoveryChanged)priority=100;
+    if(actionable&&risk!=null){
+      if(risk<=1.5)priority+=25;
+      else if(risk>=3.0)priority-=45;
+      else if(risk>=2.5)priority-=20;
+    }
+    if(addedSetups.includes('kell_ema_crossback'))priority+=20;
+    if(addedSetups.includes('kell_wedge_pop'))priority+=10;
+
+    const changed=changeTypes.length>0;
     return{
       changed,
-      direction:seq.structureFailed||seq.structureDeteriorated||seq.firstExhaustion?'risk':seq.setupActionable?'actionable':changed?'changed':'none',
+      direction:structureFailed||firstExhaustion?'risk':changed?'changed':'none',
       priority:changed?round1(priority):0,
-      priorityBand,
       headline,
-      changeTypes:unique(changeTypes),
+      changeTypes,
       reasons,
-      newCandidate:!previous&&changed,
-      addedScreens:seq.addedScreens,
-      addedSetups:seq.addedSetups,
-      previousStage:seq.previousStage,
-      currentStage:seq.currentStage,
-      stageChanged:seq.stageChanged,
-      setupActionable:seq.setupActionable,
-      crossbackClass:seq.crossbackClass,
-      cycleMaturity:seq.cycleMaturity,
-      firstExhaustion:seq.firstExhaustion,
-      exhaustionCount:seq.exhaustionCount,
-      structureFailed:seq.structureFailed,
-      structureDeteriorated:seq.structureDeteriorated,
-      sequenceTrail:seq.trail,
-      structuralRiskAtr:riskAtr,
-      riskTooWide,
-      marketRegime:regime,
+      newCandidate:!previous,
+      discoveryChanged,
+      stageChanged,
+      setupBecameActionable:actionable,
+      addedScreens,
+      addedSetups,
+      previousStage,
+      currentStage,
+      sequence,
+      sequenceText:sequence.map(labelStage).join(' → '),
+      baseMaturity:maturity,
+      emaRetestState:retest,
+      structuralRiskAtr:risk,
+      riskLabel:riskLabel(risk),
+      structureFailed,
+      firstExhaustion,
       scoreDelta,
-      readinessDelta
+      readinessDelta,
+      becameReady:false
     };
   }
 
-  function decorate(candidates,historyInput,marketContext=null){
-    const payloads=(Array.isArray(historyInput)?historyInput:(historyInput?[historyInput]:[]))
-      .filter(Boolean)
-      .slice()
-      .sort((a,b)=>String(a?.source?.sessionDate||'').localeCompare(String(b?.source?.sessionDate||'')));
-    const dates=payloads.map(payload=>payload?.source?.sessionDate).filter(Boolean);
-    const indexes=payloads.map(payload=>new Map(
-      archiveCandidates(payload).map(item=>[item.ticker,item])
-    ));
+  function decorate(candidates,historyPayloads){
+    const ordered=(historyPayloads||[]).slice().sort((a,b)=>String(a?.source?.sessionDate||'').localeCompare(String(b?.source?.sessionDate||'')));
+    const latest=ordered[ordered.length-1]||null;
+    const latestByTicker=new Map(payloadRows(latest).map(item=>[item.ticker,item]));
     for(const item of candidates||[]){
-      const rows=indexes.map(index=>index.get(item.ticker)).filter(Boolean);
-      item.kellChange={
-        ...classify(item,rows,marketContext),
-        previousDate:dates.length?dates[dates.length-1]:null,
-        historyDates:dates
-      };
+      item.kellChange={...classify(item,latestByTicker.get(item.ticker),ordered),previousDate:latest?.source?.sessionDate||null,historyDates:ordered.map(payload=>payload?.source?.sessionDate).filter(Boolean)};
     }
     return candidates;
   }
@@ -292,72 +229,45 @@
     return date.toISOString().slice(0,10);
   }
 
-  async function gunzipBase64(text){
-    if(typeof DecompressionStream!=='function'||typeof atob!=='function')throw new Error('gzip history unsupported in this browser');
-    const binary=atob(String(text||'').replace(/\s+/g,''));
-    const bytes=Uint8Array.from(binary,char=>char.charCodeAt(0));
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return JSON.parse(await new Response(stream).text());
-  }
-
-  async function fetchHistoryPayload(fetchImpl,date){
-    let response=await fetchImpl('data/kell-score-history/'+date+'.json',{cache:'no-store'});
-    if(response.status!==404){
-      if(!response.ok)throw new Error('Kell history '+date+' HTTP '+response.status);
-      return await response.json();
-    }
-    response=await fetchImpl('data/kell-score-history/'+date+'.json.gz.b64',{cache:'no-store'});
-    if(response.status===404)return null;
-    if(!response.ok)throw new Error('Kell compressed history '+date+' HTTP '+response.status);
-    try{
-      return await gunzipBase64(await response.text());
-    }catch(_err){
-      return null;
-    }
-  }
-
-  function normalizeArchive(payload,date){
-    if(!payload)return null;
-    const session=payload?.source?.sessionDate;
-    if(session!==date)throw new Error('Kell history date mismatch for '+date);
-    const candidates=archiveCandidates(payload);
-    return{...payload,candidates};
-  }
-
-  async function loadHistory(fetchImpl,currentDate,maxSessions=5,maxLookback=20){
+  async function loadHistory(fetchImpl,currentDate,maxLookback=14,maxSessions=5){
     if(!currentDate)throw new Error('current Kell session date missing');
     const payloads=[];
     for(let days=1;days<=maxLookback&&payloads.length<maxSessions;days++){
       const date=isoDateOffset(currentDate,-days);
-      const payload=normalizeArchive(await fetchHistoryPayload(fetchImpl,date),date);
-      if(payload)payloads.push(payload);
+      const response=await fetchImpl('data/kell-score-history/'+date+'.json',{cache:'no-store'});
+      if(response.status===404)continue;
+      if(!response.ok)throw new Error('Kell history '+date+' HTTP '+response.status);
+      const payload=await response.json();
+      if(payload?.schemaVersion!=='kell-score-history-v1')throw new Error('invalid Kell history schema for '+date);
+      if(payload?.source?.sessionDate!==date)throw new Error('Kell history date mismatch for '+date);
+      payloads.push(payload);
     }
-    if(!payloads.length)throw new Error('no prior Kell score snapshot within '+maxLookback+' days');
+    if(!payloads.length)throw new Error('no prior uncompressed Kell score snapshot within '+maxLookback+' days');
     return payloads.sort((a,b)=>String(a.source.sessionDate).localeCompare(String(b.source.sessionDate)));
   }
 
   async function loadPrevious(fetchImpl,currentDate,maxLookback=10){
-    const history=await loadHistory(fetchImpl,currentDate,1,maxLookback);
-    return history[history.length-1];
+    const rows=await loadHistory(fetchImpl,currentDate,maxLookback,1);
+    return rows[0];
   }
 
   function summary(candidates){
     const changed=(candidates||[]).filter(item=>item?.kellChange?.changed);
     return{
       total:changed.length,
-      actionable:changed.filter(item=>item.kellChange.priorityBand==='setup').length,
-      risk:changed.filter(item=>item.kellChange.priorityBand==='risk').length,
-      stage:changed.filter(item=>item.kellChange.priorityBand==='stage').length,
-      discovery:changed.filter(item=>item.kellChange.priorityBand==='discovery').length,
-      firstCrossbacks:changed.filter(item=>item.kellChange.crossbackClass==='FIRST CROSSBACK').length,
-      earlyBases:changed.filter(item=>item.kellChange.cycleMaturity==='EARLY'&&item.kellChange.addedSetups?.includes('kell_base_n_break')).length,
-      defensive:changed.filter(item=>item.kellChange.marketRegime?.defensive).length
+      discoveryChanges:changed.filter(item=>item.kellChange.discoveryChanged).length,
+      stageChanges:changed.filter(item=>item.kellChange.stageChanged||item.kellChange.structureFailed||item.kellChange.firstExhaustion).length,
+      actionableSetups:changed.filter(item=>item.kellChange.setupBecameActionable).length,
+      firstCrossbacks:changed.filter(item=>item.kellChange.reasons?.includes('FIRST CROSSBACK')).length,
+      structureFailures:changed.filter(item=>item.kellChange.structureFailed).length,
+      newCandidates:changed.filter(item=>item.kellChange.newCandidate).length,
+      becameReady:0,
+      newSetups:changed.filter(item=>item.kellChange.addedSetups?.length).length
     };
   }
 
   return{
-    ACTION_SETUPS,SETUP_LABELS,SCREEN_LABELS,RISK_WIDE_ATR,
-    archiveCandidates,marketState,sequenceInfo,classify,decorate,
-    loadHistory,loadPrevious,summary
+    ACTION_SETUPS,DISCOVERY_SCREENS,SETUP_LABELS,SCREEN_LABELS,STAGE_LABELS,
+    classify,decorate,loadHistory,loadPrevious,summary
   };
 });
