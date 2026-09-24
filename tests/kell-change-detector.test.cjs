@@ -154,6 +154,28 @@ test('first Exhaustion Extension and Wedge Drop are cycle-risk changes',()=>{
   assert.equal(drop.headline,'STRUCTURE FAILED · WEDGE DROP');
 });
 
+test('later Exhaustion Extensions escalate review priority',()=>{
+  const base=row({stage:'base_n_break',setups:['kell_base_n_break']});
+  const first=KellChanges.classify(row({stage:'exhaustion_extension'}),[base]);
+  const second=KellChanges.classify(row({stage:'exhaustion_extension'}),[
+    base,
+    row({stage:'exhaustion_extension'}),
+    row({stage:'trend_ema_support'})
+  ]);
+  const third=KellChanges.classify(row({stage:'exhaustion_extension'}),[
+    base,
+    row({stage:'exhaustion_extension'}),
+    row({stage:'trend_ema_support'}),
+    row({stage:'exhaustion_extension'}),
+    row({stage:'trend_ema_support'})
+  ]);
+  assert.equal(first.exhaustionCount,1);
+  assert.equal(second.exhaustionCount,2);
+  assert.equal(third.exhaustionCount,3);
+  assert.ok(second.priority>first.priority);
+  assert.ok(third.priority>second.priority);
+});
+
 test('wide natural invalidation and defensive regime reduce review priority but do not hide setup',()=>{
   const history=[row({stage:'wedge_pop',setups:['kell_wedge_pop']})];
   const tight=KellChanges.classify(row({
