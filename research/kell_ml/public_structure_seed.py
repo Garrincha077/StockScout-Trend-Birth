@@ -102,6 +102,14 @@ def main() -> None:
         "last_date": str(pd.to_datetime(prices["date"]).max().date()),
         "event_rows": int(len(events)),
         "blind_gold_queue_rows": int(len(queue)),
+        "blind_gold_queue_reason_counts": {
+            str(k): int(v)
+            for k, v in queue["event_reason"].value_counts().sort_index().items()
+        },
+        "blind_gold_queue_year_counts": {
+            str(k): int(v)
+            for k, v in pd.to_datetime(queue["date"]).dt.year.value_counts().sort_index().items()
+        },
         "silver_structure_training": {
             "interpretation": (
                 "pipeline smoke only; Silver targets are deterministic project "
