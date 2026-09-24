@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Publish an immutable Kell companion for an immutable Review snapshot.
+"""Publish immutable Kell companions for immutable Review snapshots.
 
-The latest Kell payload remains a moving pointer for the latest UI. Historical
-Telegram links use a snapshot-specific companion and chart directory, so they
-never mix an archived Review snapshot with a newer Kell dataset.
+The moving kell-latest payload is only for the latest UI. Every archived Review
+snapshot for the same Unified run gets a compact Kell companion. All companions
+for one run share one immutable chart archive, preventing both mixed-run reads
+and duplicate chart storage.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -45,19 +47,111 @@ def validate_identity(publication: dict, kell: dict) -> None:
         raise ValueError("Kell chart metadata has no shards")
 
 
-def validate_existing(snapshot_path: Path, chart_dir: Path, publication: dict) -> None:
+def chart_dir_from_payload(payload: dict, directory: Path) -> Path:
+    base = str((payload.get("kellChartData") or {}).get("basePath") or "")
+    if not base.startswith("data/"):
+        raise ValueError("Immutable Kell snapshot has invalid chart basePath")
+    return directory / base.removeprefix("data/")
+
+
+def validate_existing(
+    snapshot_path: Path,
+    publication: dict,
+    expected_snapshot_id: str,
+    directory: Path,
+) -> dict:
     existing = load_json(snapshot_path)
     source = existing.get("source") or {}
     for key in ("runId", "sessionDate", "unifiedManifestSha256"):
         if source.get(key) != publication.get(key):
             raise ValueError(f"Existing immutable Kell snapshot identity mismatch for {key}")
-    if source.get("reviewSnapshotId") != publication.get("snapshotId"):
+    if source.get("reviewSnapshotId") != expected_snapshot_id:
         raise ValueError("Existing immutable Kell snapshot points at another Review snapshot")
     meta = existing.get("kellChartData") or {}
     expected = int(meta.get("shardCount") or 0)
+    chart_dir = chart_dir_from_payload(existing, directory)
     files = sorted(chart_dir.glob("shard-*.json")) if chart_dir.exists() else []
     if expected < 1 or len(files) != expected:
         raise ValueError("Existing immutable Kell chart archive is incomplete")
+    return existing
+
+
+def matching_review_snapshot_ids(directory: Path, run_id: str, current_snapshot_id: str) -> list[str]:
+    ids = {current_snapshot_id}
+    snapshots_dir = directory / "snapshots"
+    if snapshots_dir.exists():
+        for path in snapshots_dir.glob(f"{run_id}--*.json"):
+            snapshot_id = path.stem
+            if SNAPSHOT_ID_RE.fullmatch(snapshot_id):
+                ids.add(snapshot_id)
+    return sorted(ids)
+
+
+def ensure_shared_chart_archive(
+    publication: dict,
+    kell: dict,
+    charts_dir: Path,
+    directory: Path,
+) -> str:
+    snapshot_dir = directory / "kell-snapshots"
+    current_path = snapshot_dir / f"{publication['snapshotId']}.json"
+
+    # Reuse the already-published chart archive when upgrading an existing snapshot.
+    if current_path.exists():
+        existing = validate_existing(
+            current_path,
+            publication,
+            publication["snapshotId"],
+            directory,
+        )
+        return str((existing.get("kellChartData") or {})["basePath"])
+
+    meta = kell.get("kellChartData") or {}
+    expected = int(meta.get("shardCount") or 0)
+    chart_files = sorted(charts_dir.glob("shard-*.json"))
+    if len(chart_files) != expected:
+        raise ValueError(
+            f"Kell chart shard count mismatch: expected {expected}, found {len(chart_files)}"
+        )
+
+    run_key = f"{publication['runId']}--{publication['unifiedManifestSha256']}"
+    chart_root = directory / "kell-chart-runs"
+    immutable_chart_dir = chart_root / run_key
+    if not immutable_chart_dir.exists():
+        chart_root.mkdir(parents=True, exist_ok=True)
+        temp_chart_dir = chart_root / f".{run_key}.tmp"
+        if temp_chart_dir.exists():
+            shutil.rmtree(temp_chart_dir)
+        shutil.copytree(charts_dir, temp_chart_dir)
+        temp_chart_dir.rename(immutable_chart_dir)
+    else:
+        files = sorted(immutable_chart_dir.glob("shard-*.json"))
+        if len(files) != expected:
+            raise ValueError("Existing shared Kell chart archive is incomplete")
+    return f"data/kell-chart-runs/{run_key}"
+
+
+def companion_payload(kell: dict, snapshot_id: str, chart_base_path: str) -> dict:
+    pinned = json.loads(json.dumps(kell))
+    pinned.setdefault("source", {})["reviewSnapshotId"] = snapshot_id
+    pinned["kellChartData"]["basePath"] = chart_base_path
+    return pinned
+
+
+def date_snapshot_id(directory: Path, publication: dict) -> str | None:
+    history_path = directory / "history" / f"{publication['sessionDate']}.json"
+    if not history_path.exists():
+        return None
+    raw = history_path.read_bytes()
+    try:
+        source = json.loads(raw).get("source") or {}
+    except json.JSONDecodeError:
+        return None
+    if source.get("runId") != publication.get("runId"):
+        return None
+    digest = hashlib.sha256(raw).hexdigest()
+    snapshot_id = f"{publication['runId']}--{digest}"
+    return snapshot_id if SNAPSHOT_ID_RE.fullmatch(snapshot_id) else None
 
 
 def publish(
@@ -70,57 +164,48 @@ def publish(
     kell = load_json(kell_path)
     validate_identity(publication, kell)
 
-    snapshot_id = publication["snapshotId"]
-    session = publication["sessionDate"]
     snapshot_dir = directory / "kell-snapshots"
-    chart_root = directory / "kell-chart-snapshots"
     history_dir = directory / "kell-history"
-    snapshot_path = snapshot_dir / f"{snapshot_id}.json"
-    immutable_chart_dir = chart_root / snapshot_id
-
-    if snapshot_path.exists():
-        validate_existing(snapshot_path, immutable_chart_dir, publication)
-        if not (history_dir / f"{session}.json").exists():
-            history_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(snapshot_path, history_dir / f"{session}.json")
-        return {
-            "status": "reused",
-            "snapshotId": snapshot_id,
-            "sessionDate": session,
-            "kellSnapshotPath": str(snapshot_path.relative_to(directory)),
-        }
-
-    meta = kell.get("kellChartData") or {}
-    expected = int(meta.get("shardCount") or 0)
-    chart_files = sorted(charts_dir.glob("shard-*.json"))
-    if len(chart_files) != expected:
-        raise ValueError(
-            f"Kell chart shard count mismatch: expected {expected}, found {len(chart_files)}"
-        )
-
-    pinned = json.loads(json.dumps(kell))
-    pinned.setdefault("source", {})["reviewSnapshotId"] = snapshot_id
-    pinned["kellChartData"]["basePath"] = f"data/kell-chart-snapshots/{snapshot_id}"
-
     snapshot_dir.mkdir(parents=True, exist_ok=True)
-    chart_root.mkdir(parents=True, exist_ok=True)
-    temp_chart_dir = chart_root / f".{snapshot_id}.tmp"
-    if temp_chart_dir.exists():
-        shutil.rmtree(temp_chart_dir)
-    shutil.copytree(charts_dir, temp_chart_dir)
-    temp_chart_dir.rename(immutable_chart_dir)
+    history_dir.mkdir(parents=True, exist_ok=True)
 
-    write_json(snapshot_path, pinned)
-    history_path = history_dir / f"{session}.json"
+    chart_base_path = ensure_shared_chart_archive(publication, kell, charts_dir, directory)
+    snapshot_ids = matching_review_snapshot_ids(
+        directory,
+        publication["runId"],
+        publication["snapshotId"],
+    )
+
+    created: list[str] = []
+    reused: list[str] = []
+    for snapshot_id in snapshot_ids:
+        target = snapshot_dir / f"{snapshot_id}.json"
+        if target.exists():
+            validate_existing(target, publication, snapshot_id, directory)
+            reused.append(snapshot_id)
+            continue
+        write_json(target, companion_payload(kell, snapshot_id, chart_base_path))
+        created.append(snapshot_id)
+
+    history_path = history_dir / f"{publication['sessionDate']}.json"
     if not history_path.exists():
-        write_json(history_path, pinned)
+        preferred_id = date_snapshot_id(directory, publication)
+        if preferred_id and (snapshot_dir / f"{preferred_id}.json").exists():
+            shutil.copy2(snapshot_dir / f"{preferred_id}.json", history_path)
+        else:
+            shutil.copy2(
+                snapshot_dir / f"{publication['snapshotId']}.json",
+                history_path,
+            )
 
     return {
-        "status": "created",
-        "snapshotId": snapshot_id,
-        "sessionDate": session,
-        "kellSnapshotPath": str(snapshot_path.relative_to(directory)),
-        "chartPath": str(immutable_chart_dir.relative_to(directory)),
+        "status": "created" if created else "reused",
+        "snapshotId": publication["snapshotId"],
+        "sessionDate": publication["sessionDate"],
+        "chartBasePath": chart_base_path,
+        "companionsCreated": created,
+        "companionsReused": reused,
+        "companionCount": len(snapshot_ids),
     }
 
 
