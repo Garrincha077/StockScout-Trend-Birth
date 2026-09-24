@@ -9,6 +9,7 @@ on:
       - "fix/kell-review-date-alignment"
       - "feature/persistent-watchlist"
       - "feature/unified-watchlist-integration"
+      - "feature/kell-trend-birth-radar"
     paths:
       - "lab/**"
       - "scripts/**"
@@ -133,6 +134,15 @@ jobs:
         run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory lab/data
       - name: Build compact Kell preview dataset
         run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
+      - name: Build no-send Trend Birth alert payload
+        run: |
+          python scripts/build_trend_birth_alerts.py \
+            --current lab/data/kell-latest.json \
+            --history-dir lab/data/kell-history \
+            --publication lab/data/publication.json \
+            --output lab/data/trend-birth-alerts.json \
+            --dashboard-url https://stockscout-trend-birth-review-lab.vercel.app/
+
       - name: Validate compact Kell dataset
         run: |
           python - <<'PY'
@@ -166,6 +176,12 @@ jobs:
           assert "kell_wedge_pop" in data["kellScoring"]["setupCounts"]
           assert "kell_focus" in data["kellScoring"]["contextCounts"]
           assert data["kellScoring"]["stageCounts"]
+          radar = data["trendBirthRadar"]
+          assert radar["schemaVersion"] == "trend-birth-radar-v1"
+          assert sum(radar["stageCounts"].values()) == radar["evaluatedCount"]
+          for item in data["unifiedCandidateIndex"]:
+              assert "trendBirth" in item
+              assert 0 <= int(item["trendBirth"].get("stage") or 0) <= 4
           for item in data["kellCandidates"]:
               screens = set(item.get("kellScreens", []))
               setups = set(item.get("kellSetups", []))
@@ -291,6 +307,7 @@ jobs:
           cp lab/data/kell-forward-validation.json /tmp/kell-forward-validation.json
           cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
           cp lab/data/kell-gold-set-eval.json /tmp/kell-gold-set-eval.json
+          cp lab/data/trend-birth-alerts.json /tmp/trend-birth-alerts.json
           cp lab/kell-calibration.html /tmp/kell-calibration.html
           rm -rf /tmp/kell-charts
           cp -R lab/data/kell-charts /tmp/kell-charts
@@ -320,6 +337,7 @@ jobs:
           cp /tmp/kell-forward-validation.json lab/data/kell-forward-validation.json
           cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
           cp /tmp/kell-gold-set-eval.json lab/data/kell-gold-set-eval.json
+          cp /tmp/trend-birth-alerts.json lab/data/trend-birth-alerts.json
           cp /tmp/kell-calibration.html lab/kell-calibration.html
           rm -rf lab/data/kell-charts
           cp -R /tmp/kell-charts lab/data/kell-charts
@@ -349,7 +367,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
