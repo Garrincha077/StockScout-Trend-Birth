@@ -6,11 +6,14 @@ from pandas.testing import assert_frame_equal
 
 from kell_ml_v01 import (
     MODEL_FEATURES,
+    OPPORTUNITY_FEATURES,
     add_opportunity_target,
+    add_review_bucket_proxy,
     apply_silver_labels,
     assert_no_forward_features,
     build_dataset,
     compute_features,
+    load_stockscout_chart_shard,
     temporal_split,
     train_opportunity,
 )
@@ -66,7 +69,7 @@ def test_future_mutation_cannot_change_past_features():
     right = compute_features(changed, qqq)
     right = right[right["date"] <= cutoff]
 
-    cols = ["ticker", "date"] + MODEL_FEATURES
+    cols = ["ticker", "date"] + OPPORTUNITY_FEATURES
     assert_frame_equal(
         left[cols].reset_index(drop=True),
         right[cols].reset_index(drop=True),
@@ -131,3 +134,46 @@ def test_end_to_end_opportunity_model_smoke():
     if train[target].dropna().nunique() >= 2 and split.test[target].notna().any():
         _, metrics = train_opportunity(train, split.test, target)
         assert "balanced_accuracy" in metrics
+
+
+def test_stockscout_shard_loader_normalizes_iso_and_unix_seconds():
+    payload = {
+        "charts": {
+            "AAA": {
+                "daily": [
+                    ["2026-09-21", 10, 11, 9, 10.5, 1_100_000],
+                    [1790121600, 10.5, 12, 10, 11.5, 1_200_000],
+                ]
+            }
+        }
+    }
+    out = load_stockscout_chart_shard(payload)
+    assert out["date"].dt.year.tolist() == [2026, 2026]
+    assert out["date"].dt.month.tolist() == [9, 9]
+    assert out["date"].dt.day.tolist() == [21, 23]
+
+
+def test_stage_is_not_rewritten_by_setup_quality_or_price_floor():
+    base = pd.DataFrame(
+        [
+            {
+                "silver_stage": "EMA_CROSSBACK_PROXY",
+                "rs_20d_vs_benchmark": -0.08,
+                "rvol_20": 0.7,
+                "kell_price_floor_pass": 1,
+                "kell_liquidity_pref_pass": 1,
+            },
+            {
+                "silver_stage": "EMA_CROSSBACK_PROXY",
+                "rs_20d_vs_benchmark": 0.06,
+                "rvol_20": 1.5,
+                "kell_price_floor_pass": 0,
+                "kell_liquidity_pref_pass": 1,
+            },
+        ]
+    )
+    out = add_review_bucket_proxy(base)
+    assert out.loc[0, "silver_stage"] == "EMA_CROSSBACK_PROXY"
+    assert out.loc[0, "review_bucket_proxy"] == "STRUCTURE_ONLY"
+    assert out.loc[1, "silver_stage"] == "EMA_CROSSBACK_PROXY"
+    assert out.loc[1, "review_bucket_proxy"] == "PRICE_INELIGIBLE"
