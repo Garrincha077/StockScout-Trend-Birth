@@ -1,0 +1,4 @@
+research/kell_ml/artifacts/
+research/kell_ml/__pycache__/
+research/kell_ml/.pytest_cache/
+research/kell_ml/*.joblib

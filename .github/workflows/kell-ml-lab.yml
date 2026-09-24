@@ -1,0 +1,46 @@
+name: Kell ML Lab
+
+on:
+  pull_request:
+    paths:
+      - "research/kell_ml/**"
+      - ".github/workflows/kell-ml-lab.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: research/kell_ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: research/kell_ml/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: pytest -q
+
+
+  public-structure-seed:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: research/kell_ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: research/kell_ml/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - name: Run pinned public historical structure seed
+        run: python public_structure_seed.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kell-public-structure-seed
+          path: research/kell_ml/artifacts/public-structure-seed/
+          if-no-files-found: error
