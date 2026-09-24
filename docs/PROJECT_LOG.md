@@ -301,3 +301,28 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Expand the Gold Set across additional independent sessions and deliberately hunt for confirmed `FALSE_POSITIVE` / false-negative examples, especially Wedge Pop and Buyable Gap. Only after that evidence exists should a proxy threshold or ranking weight be changed.
+
+## 2026-09-24 — Kell Sequence Engine / What Changed in the Cycle
+
+- Clean experimental branch: `feature/kell-sequence-cycle-clean`, based directly on the current `feature/unified-review-grid-lab` baseline. Production Unified EOD / Trend Birth, Telegram and broker behavior remain unchanged.
+- Replaced score-delta-centric daily change detection with a sequence/location-first Kell review layer. Raw `kell_score` and Readiness deltas remain diagnostic context but **do not create a change event by themselves**.
+- Change semantics are now separated into **Discovery changed**, **Stage changed**, and **Setup became actionable**, with actionable low-risk setups ranked first.
+- Added multi-session Cycle tracking across recent Kell archives. Browser history loader supports both current dictionary `kell-score-history-v1` JSON and recovered columnar `kell-score-history-v2` `.json.gz.b64` archives.
+- EMA Crossback is explicitly classified as **FIRST CROSSBACK** versus **LATE RETEST**. The scorer now publishes `ema_retest_state`; the browser preserves historical inference when that explicit field is unavailable.
+- Base n' Break is location-aware: **EARLY / MATURE / LATE-CYCLE / UNRESOLVED**, based on observed Wedge Pop / Crossback / prior-base / exhaustion sequence. Unobserved history is not guessed.
+- Structural risk is surfaced directly on the change card through natural invalidation in ATR. >=3.0 ATR is labeled `RISK TOO WIDE` and de-prioritized; numerical cutoffs remain StockScout proxies, not Kell-published constants.
+- Market regime path is wired end-to-end from already-published Unified market context. Exact QQQ-vs-20EMA is used only when upstream exposes it; otherwise a coarse Unified correction/under-pressure state can lower priority but is explicitly labeled **UNIFIED FALLBACK**, never presented as an exact Kell QQQ/20EMA rule.
+- Stage-change noise was tightened: transitions among auxiliary `transition / trend_ema_support / downtrend_repair` states do not count as Cycle events unless a real discovery/setup event also occurs. On the real 2026-09-22 -> 2026-09-23 replay this excluded **324** auxiliary stage flips.
+- Exhaustion is sequence-aware: first, second and third+ Exhaustion Extensions receive escalating review priority (**300 / 340 / 360**), consistent with later extensions carrying more mature-trend risk.
+- Real 2026-09-22 -> 2026-09-23 replay over **2,004** current candidates produced **229** Cycle changes: **58 actionable setups**, **19 first Crossbacks**, **72 meaningful stage/risk changes**, **163 discovery changes**, and **6 structure failures**. Categories can overlap.
+- Real candidate checks:
+  - **WDC**: Wedge Pop -> EMA Crossback, `FIRST ACTIONABLE CROSSBACK`, despite only +1.6 Kell / +6.4 Readiness.
+  - **FRO**: Transition -> Wedge Drop, `STRUCTURE FAILED`, despite -15.2 Kell / -28.0 Readiness; the former positive-delta logic would miss this risk event.
+  - **CRWD**: Transition -> Base n' Break; current short observed history correctly labels cycle maturity `UNRESOLVED` rather than inventing EARLY/MATURE status.
+  - **FRSH**: +22.1 Kell / +35.6 Readiness but only Downtrend/Repair -> Trend/EMA Support; no Cycle/setup/discovery event, so it is correctly excluded from Changed.
+- Regression validation on PR #17 / Grid workflow run **#303**: Python unit tests, historical Kell smoke, browser model tests, JavaScript syntax, live Unified snapshot build, compact validation, Unified -> Review -> Kell source identity, signal contracts, calibration report, Gold Set, forward validator, BEFORE/AFTER spot check and artifact upload all passed. Separate Review Snapshot validation run **#81** also passed.
+- Draft PR: #17 `Kell Sequence Engine: What Changed in the Cycle`; branch is mergeable into `feature/unified-review-grid-lab`.
+
+**Next logical step**
+- Run the Cycle view across several newly accumulated EOD sessions and visually review the highest-priority FIRST CROSSBACK / EARLY Base n' Break / Wedge Drop cases. Only after that calibration should Discovery-change breadth or priority weights be tightened further.
+

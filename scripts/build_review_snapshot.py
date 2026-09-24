@@ -288,6 +288,49 @@ def _asset_json(mode_root: str, manifest: dict, name: str):
     return json.loads(content)
 
 
+def _unified_market_context(mode_payloads: dict[str, tuple[str, dict, dict]]) -> dict:
+    """Project already-published Unified market context without a new data dependency.
+
+    Exact QQQ-vs-20EMA is carried only when the upstream public contract exposes
+    it. Otherwise the Kell review may use Unified's coarse regime state as a
+    defensive-priority fallback; it must not pretend that fallback is the
+    book-specific QQQ/20EMA rule.
+    """
+    for mode in ("next", "bottom-fishing", "ryan-original"):
+        payload = mode_payloads.get(mode)
+        if not payload:
+            continue
+        market = payload[2].get("market") or {}
+        if not isinstance(market, dict) or not market:
+            continue
+        regime = market.get("regime") or {}
+        if not isinstance(regime, dict):
+            regime = {}
+        qqq = regime.get("qqq") or market.get("qqq") or {}
+        if not isinstance(qqq, dict):
+            qqq = {}
+        exact = qqq.get("above_ema20")
+        if exact is None:
+            exact = qqq.get("aboveEma20")
+        return {
+            "source": "unified-core",
+            "sourceMode": mode,
+            "regime": {
+                "state": regime.get("state"),
+                "summary": regime.get("summary"),
+            },
+            "qqqAboveEma20": exact if isinstance(exact, bool) else None,
+            "qqq20ExactAvailable": isinstance(exact, bool),
+        }
+    return {
+        "source": "unavailable",
+        "sourceMode": None,
+        "regime": {"state": None, "summary": None},
+        "qqqAboveEma20": None,
+        "qqq20ExactAvailable": False,
+    }
+
+
 def _rows_for_mode(mode_root: str, mode: str, manifest: dict, core: dict) -> list[dict]:
     core_rows = [row for row in core.get("universe") or [] if isinstance(row, dict)]
     if mode != "bottom-fishing":
@@ -1056,6 +1099,7 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
             "probeCount": len(gap_probe_tickers),
             "method": "Full public pool -> liquid positive-close probe -> exact chart verification of Kell Gappers -> quality-ranked daily best",
         },
+        "marketContext": _unified_market_context(mode_payloads),
         "kellScoring": {
             "modelVersion": KELL_SCORE_MODEL_VERSION,
             "scope": "all-unified-candidates",

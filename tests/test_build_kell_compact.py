@@ -23,6 +23,12 @@ class KellCompactTests(unittest.TestCase):
                     "ryan-original": 1989,
                 },
             },
+            "marketContext": {
+                "source": "unified-core",
+                "regime": {"state": "under_pressure"},
+                "qqqAboveEma20": None,
+                "qqq20ExactAvailable": False,
+            },
             "kellScoring": {},
             "unifiedCandidateIndexCount": 2,
             "unifiedCandidateIndex": [
@@ -50,6 +56,8 @@ class KellCompactTests(unittest.TestCase):
             self.assertEqual(out["schemaVersion"], "kell-compact-v5")
             self.assertEqual(out["source"]["modeUniverseCounts"]["bottom-fishing"], 2045)
             self.assertEqual(out["source"]["unifiedManifestSha256"], "b" * 64)
+            self.assertEqual(out["marketContext"]["regime"]["state"], "under_pressure")
+            self.assertFalse(out["marketContext"]["qqq20ExactAvailable"])
             self.assertEqual(out["unifiedCandidateIndexCount"], 2)
             self.assertEqual([item["ticker"] for item in out["unifiedCandidateIndex"]], ["AAA", "BBB"])
             self.assertEqual(out["unifiedCandidateIndex"][0]["unifiedSources"], ["next"])
