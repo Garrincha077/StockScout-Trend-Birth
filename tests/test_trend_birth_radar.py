@@ -1,5 +1,5 @@
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from scripts.trend_birth_radar import evaluate_trend_birth
 
@@ -73,6 +73,16 @@ class TrendBirthRadarTests(unittest.TestCase):
         self.assertTrue(result["checks"]["closeAboveShortEmas"])
         self.assertTrue(result["checks"]["bullishReexpansion"])
         self.assertEqual(result["missingFor4"], [])
+
+
+    def test_epoch_second_timestamps_keep_weekly_history_available(self):
+        rows = rows_from_closes(staged_closes(0.0))
+        for row in rows:
+            day = datetime.strptime(row["time"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            row["time"] = int(day.timestamp())
+        result = evaluate_trend_birth(rows)
+        self.assertTrue(result["available"])
+        self.assertNotEqual(result.get("reason"), "insufficient_weekly_history")
 
     def test_downtrend_is_invalidated(self):
         closes = [120.0 - index * 0.20 for index in range(210)]
