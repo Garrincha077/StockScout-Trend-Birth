@@ -204,6 +204,7 @@ jobs:
             --gold-set lab/data/kell-gold-set.json \
             --current lab/data/kell-latest.json \
             --scores-dir lab/data/kell-score-history \
+            --snapshots-dir lab/data/snapshots \
             --output lab/data/kell-gold-set-eval.json \
             --strict
       - name: Run point-in-time Kell forward validator

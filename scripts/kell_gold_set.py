@@ -11,14 +11,15 @@ from __future__ import annotations
 import argparse
 import base64
 import gzip
+import importlib.util
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-GOLD_SCHEMA_VERSION = "kell-gold-set-v1"
-REPORT_SCHEMA_VERSION = "kell-gold-set-eval-v1"
-VALID_LABELS = {"VALID", "BORDERLINE", "FALSE_POSITIVE"}
+GOLD_SCHEMA_VERSION = "kell-gold-set-v2"
+REPORT_SCHEMA_VERSION = "kell-gold-set-eval-v2"
+VALID_LABELS = {"VALID", "BORDERLINE", "FALSE_POSITIVE", "FALSE_NEGATIVE"}
 VALID_LAYERS = {"screen", "stage", "setup", "context"}
 
 
@@ -53,6 +54,14 @@ def validate_gold_set(gold: dict) -> list[str]:
             errors.append(f"{prefix}: invalid label {label!r}")
         if not isinstance(row.get("predictionAtReview"), bool):
             errors.append(f"{prefix}: predictionAtReview must be boolean")
+        elif label == "FALSE_POSITIVE" and row.get("predictionAtReview") is not True:
+            errors.append(f"{prefix}: FALSE_POSITIVE requires predictionAtReview=true")
+        elif label == "FALSE_NEGATIVE" and row.get("predictionAtReview") is not False:
+            errors.append(f"{prefix}: FALSE_NEGATIVE requires predictionAtReview=false")
+        elif label in {"VALID", "BORDERLINE"} and row.get("predictionAtReview") is False:
+            errors.append(
+                f"{prefix}: reviewed positive missed by the model must use FALSE_NEGATIVE"
+            )
         reasons = row.get("reasonCodes")
         if not isinstance(reasons, list) or not all(isinstance(x, str) and x for x in reasons):
             errors.append(f"{prefix}: reasonCodes must be a non-empty string list")
@@ -144,14 +153,89 @@ def _load_session_payloads(current: dict | None, scores_dir: Path | None) -> dic
     return payloads
 
 
+def _load_raw_snapshots(snapshots_dir: Path | None) -> dict[str, dict]:
+    snapshots: dict[str, dict] = {}
+    if not snapshots_dir or not snapshots_dir.exists():
+        return snapshots
+    for path in sorted(snapshots_dir.glob("*.json")):
+        try:
+            snapshot = _load_json(path)
+        except Exception:
+            continue
+        session = _session(snapshot)
+        if session:
+            # Filenames include the run id; sorted order makes the last snapshot for
+            # a session win deterministically when multiple immutable runs exist.
+            snapshots[session] = snapshot
+    return snapshots
+
+
+_SCORING_MODULE = None
+
+
+def _scoring_module():
+    global _SCORING_MODULE
+    if _SCORING_MODULE is not None:
+        return _SCORING_MODULE
+    path = Path(__file__).with_name("kell_scoring.py")
+    spec = importlib.util.spec_from_file_location("_kell_gold_set_scoring", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load Kell scoring module from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _SCORING_MODULE = module
+    return module
+
+
+def _rescore_raw_candidate(
+    snapshot: dict | None,
+    ticker: str,
+    layer: str,
+    signal: str,
+) -> tuple[bool | None, str | None, str | None]:
+    if not snapshot:
+        return None, "raw_snapshot_unavailable", None
+    raw_item = next(
+        (
+            item for item in _candidates(snapshot)
+            if str(item.get("ticker") or "") == ticker
+        ),
+        None,
+    )
+    if raw_item is None:
+        return False, None, None
+    chart_bars = raw_item.get("chartBars") or []
+    if not chart_bars:
+        return None, "chart_bars_unavailable", None
+
+    scoring = _scoring_module()
+    rescored = dict(raw_item)
+    rescored.update(
+        scoring.score_candidate(
+            chart_bars,
+            benchmark_rows=None,
+            candidate_context=raw_item,
+        )
+    )
+    prediction, reason = _prediction(rescored, layer, signal)
+    return prediction, reason, str(getattr(scoring, "MODEL_VERSION", "") or "") or None
+
+
 def _bucket_metrics(rows: list[dict]) -> dict:
     evaluated = [row for row in rows if row["predictionNow"] is not None]
     current_predicted = [row for row in evaluated if row["predictionNow"] is True]
     baseline_predicted = [row for row in rows if row["predictionAtReview"] is True]
-    expected_positive = [row for row in evaluated if row["label"] in {"VALID", "BORDERLINE"}]
-    valid_current = [row for row in current_predicted if row["label"] == "VALID"]
+    expected_positive = [
+        row for row in evaluated
+        if row["label"] in {"VALID", "BORDERLINE", "FALSE_NEGATIVE"}
+    ]
+    valid_current = [
+        row for row in current_predicted
+        if row["label"] in {"VALID", "FALSE_NEGATIVE"}
+    ]
     accepted_current = [
-        row for row in current_predicted if row["label"] in {"VALID", "BORDERLINE"}
+        row for row in current_predicted
+        if row["label"] in {"VALID", "BORDERLINE", "FALSE_NEGATIVE"}
     ]
 
     def pct(num: int, den: int) -> float | None:
@@ -159,7 +243,7 @@ def _bucket_metrics(rows: list[dict]) -> dict:
 
     weighted = (
         sum(
-            1.0 if row["label"] == "VALID"
+            1.0 if row["label"] in {"VALID", "FALSE_NEGATIVE"}
             else 0.5 if row["label"] == "BORDERLINE"
             else 0.0
             for row in current_predicted
@@ -189,6 +273,12 @@ def _bucket_metrics(rows: list[dict]) -> dict:
             len(expected_positive),
         ),
         "weightedQualityPct": round(weighted, 1) if weighted is not None else None,
+        "observedFalsePositives": sum(
+            row["label"] == "FALSE_POSITIVE" for row in rows
+        ),
+        "observedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" for row in rows
+        ),
         "fixedFalsePositives": sum(
             row["label"] == "FALSE_POSITIVE"
             and row["predictionAtReview"] is True
@@ -197,6 +287,14 @@ def _bucket_metrics(rows: list[dict]) -> dict:
         ),
         "unresolvedFalsePositives": sum(
             row["label"] == "FALSE_POSITIVE" and row["predictionNow"] is True
+            for row in evaluated
+        ),
+        "fixedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" and row["predictionNow"] is True
+            for row in evaluated
+        ),
+        "unresolvedFalseNegatives": sum(
+            row["label"] == "FALSE_NEGATIVE" and row["predictionNow"] is False
             for row in evaluated
         ),
         "hardRegressions": sum(
@@ -208,9 +306,15 @@ def _bucket_metrics(rows: list[dict]) -> dict:
     }
 
 
-def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path | None = None) -> dict:
+def evaluate_gold_set(
+    gold: dict,
+    current: dict | None = None,
+    scores_dir: Path | None = None,
+    snapshots_dir: Path | None = None,
+) -> dict:
     errors = validate_gold_set(gold)
     payloads = _load_session_payloads(current, scores_dir)
+    raw_snapshots = _load_raw_snapshots(snapshots_dir)
     indexes = {
         session: {str(item.get("ticker") or ""): item for item in _candidates(payload)}
         for session, payload in payloads.items()
@@ -222,6 +326,7 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
         ticker = str(label["ticker"])
         payload = payloads.get(session)
         item = indexes.get(session, {}).get(ticker) if payload else None
+        evaluation_source = "archive"
         if payload is None:
             prediction = None
             unavailable_reason = "session_snapshot_unavailable"
@@ -232,23 +337,41 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
             )
             model_version = _model_version(payload)
 
+        # Older score archives intentionally omitted some setup/context fields.
+        # Re-score the immutable raw EOD candidate only when archived evidence is
+        # missing; this preserves point-in-time OHLCV while exercising current code.
+        if prediction is None:
+            rescored, rescore_reason, rescore_model = _rescore_raw_candidate(
+                raw_snapshots.get(session),
+                ticker,
+                str(label["layer"]),
+                str(label["signal"]),
+            )
+            if rescored is not None:
+                prediction = rescored
+                unavailable_reason = rescore_reason
+                model_version = rescore_model
+                evaluation_source = "raw_snapshot_rescore"
+            elif raw_snapshots.get(session) is not None:
+                unavailable_reason = rescore_reason
+                evaluation_source = "raw_snapshot_rescore_unavailable"
+
         baseline = bool(label["predictionAtReview"])
         if prediction is None:
             change = "unavailable"
+        elif label["label"] == "FALSE_POSITIVE":
+            change = "unresolved_false_positive" if prediction else "fixed_false_positive"
+        elif label["label"] == "FALSE_NEGATIVE":
+            change = "fixed_false_negative" if prediction else "unresolved_false_negative"
         elif baseline == prediction:
             change = "unchanged"
         elif baseline and not prediction:
-            if label["label"] == "FALSE_POSITIVE":
-                change = "fixed_false_positive"
-            elif label["label"] == "VALID":
+            if label["label"] == "VALID":
                 change = "regression_valid_lost"
             else:
                 change = "borderline_removed"
         else:
-            if label["label"] == "FALSE_POSITIVE":
-                change = "new_false_positive"
-            else:
-                change = "recovered_positive"
+            change = "recovered_positive"
 
         rows.append({
             "sessionDate": session,
@@ -263,6 +386,7 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
             "unavailableReason": unavailable_reason,
             "modelVersionAtReview": label.get("modelVersionAtReview"),
             "modelVersionNow": model_version,
+            "evaluationSource": evaluation_source,
             "notes": label.get("notes"),
         })
 
@@ -286,7 +410,25 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
         for reason, count in fp_reasons.most_common(10)
     ]
     summary["availableSessionCount"] = len(payloads)
+    summary["rawSnapshotSessionCount"] = len(raw_snapshots)
+    summary["rescoredRowCount"] = sum(
+        row["evaluationSource"] == "raw_snapshot_rescore" for row in rows
+    )
     summary["labeledSessionCount"] = len({row["sessionDate"] for row in rows})
+    summary["sessionsWithFalsePositives"] = len({
+        row["sessionDate"] for row in rows if row["label"] == "FALSE_POSITIVE"
+    })
+    summary["sessionsWithFalseNegatives"] = len({
+        row["sessionDate"] for row in rows if row["label"] == "FALSE_NEGATIVE"
+    })
+
+    session_groups: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        session_groups[row["sessionDate"]].append(row)
+    sessions = {
+        session: _bucket_metrics(session_rows)
+        for session, session_rows in sorted(session_groups.items())
+    }
 
     return {
         "schemaVersion": REPORT_SCHEMA_VERSION,
@@ -294,6 +436,7 @@ def evaluate_gold_set(gold: dict, current: dict | None = None, scores_dir: Path 
         "validationErrors": errors,
         "summary": summary,
         "buckets": buckets,
+        "sessions": sessions,
         "rows": rows,
     }
 
@@ -303,6 +446,7 @@ def main() -> int:
     parser.add_argument("--gold-set", required=True)
     parser.add_argument("--current")
     parser.add_argument("--scores-dir")
+    parser.add_argument("--snapshots-dir")
     parser.add_argument("--output")
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
@@ -310,7 +454,13 @@ def main() -> int:
     gold = _load_json(Path(args.gold_set))
     current = _load_json(Path(args.current)) if args.current else None
     scores_dir = Path(args.scores_dir) if args.scores_dir else None
-    report = evaluate_gold_set(gold, current=current, scores_dir=scores_dir)
+    snapshots_dir = Path(args.snapshots_dir) if args.snapshots_dir else None
+    report = evaluate_gold_set(
+        gold,
+        current=current,
+        scores_dir=scores_dir,
+        snapshots_dir=snapshots_dir,
+    )
 
     if args.output:
         output = Path(args.output)
@@ -328,6 +478,12 @@ def main() -> int:
         "lostFromBaseline": report["summary"]["lostFromBaseline"],
         "addedFromBaseline": report["summary"]["addedFromBaseline"],
         "hardRegressions": report["summary"]["hardRegressions"],
+        "observedFalsePositives": report["summary"]["observedFalsePositives"],
+        "observedFalseNegatives": report["summary"]["observedFalseNegatives"],
+        "unresolvedFalsePositives": report["summary"]["unresolvedFalsePositives"],
+        "unresolvedFalseNegatives": report["summary"]["unresolvedFalseNegatives"],
+        "labeledSessionCount": report["summary"]["labeledSessionCount"],
+        "rescoredRowCount": report["summary"]["rescoredRowCount"],
         "acceptedPrecisionPct": report["summary"]["acceptedPrecisionPct"],
         "weightedQualityPct": report["summary"]["weightedQualityPct"],
     }, sort_keys=True))

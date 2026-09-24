@@ -1,42 +1,92 @@
 {
-  "schemaVersion": "kell-gold-set-v1",
-  "purpose": "Human-reviewed calibration labels for StockScout Kell overlay. Labels are independent review evidence and must never be generated automatically from the detector being tested.",
+  "schemaVersion": "kell-gold-set-v2",
+  "purpose": "Human-reviewed multi-session calibration labels for StockScout Kell overlay. Labels are independent review evidence and must never be generated automatically from the detector being tested.",
   "labelPolicy": {
     "VALID": "Structure matches the reviewed Kell concept closely enough to preserve as a positive example.",
     "BORDERLINE": "Core structure is plausible but execution quality/context is imperfect; keep separate from clean positives.",
-    "FALSE_POSITIVE": "The model published the signal, but manual review concludes the Kell concept is not actually present."
+    "FALSE_POSITIVE": "The model published the signal, but manual point-in-time review concludes the Kell concept is not actually present in the required structural/cycle context.",
+    "FALSE_NEGATIVE": "Manual point-in-time review concludes the Kell concept is present, but the model did not publish the signal."
   },
   "labels": [
     {
-      "sessionDate": "2026-09-21",
-      "ticker": "GRAL",
-      "layer": "stage",
-      "signal": "base_n_break",
+      "sessionDate": "2026-09-18",
+      "ticker": "AIN",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
       "label": "VALID",
       "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "reasonCodes": [
-        "multi_week_base",
-        "ema_supported",
-        "breakout_structure"
+        "prior_decline_and_repair",
+        "tight_ema_cluster",
+        "contracted_range",
+        "current_ema_recapture",
+        "strong_close"
       ],
-      "reviewMethod": "prior_project_real_candidate_spot_check",
-      "notes": "Previously spot-checked as Base n' Break while validating SCREEN/STAGE/SETUP separation."
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "After an August/early-September decline and repair, the 9/18 bar recaptured the tight 10/20 EMA area from a contracted range and closed at the session high. Added as an independent 9/18 positive Wedge Pop example."
     },
     {
       "sessionDate": "2026-09-21",
-      "ticker": "WBD",
+      "ticker": "AMD",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "FALSE_POSITIVE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "late_cycle_exhaustion",
+        "already_extended",
+        "gap_can_be_exhaustion",
+        "cycle_location_contradicts_buyable_context"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "The mechanical gap conditions are present, but AMD was independently reviewed in this same session as a VALID Exhaustion Extension. Kell explicitly distinguishes early-cycle constructive gaps from gaps occurring while already extended; therefore the buyable-gap label is misleading in cycle context."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "AMD",
       "layer": "stage",
-      "signal": "wedge_pop",
+      "signal": "exhaustion_extension",
       "label": "VALID",
       "predictionAtReview": true,
       "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
       "reasonCodes": [
-        "repair_then_recapture",
-        "tight_ema_cluster"
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
       ],
-      "reviewMethod": "prior_project_real_candidate_spot_check",
-      "notes": "Previously spot-checked as Wedge Pop during v4 real-candidate validation."
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "AMRX",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "ARM",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
     },
     {
       "sessionDate": "2026-09-21",
@@ -54,23 +104,7 @@
     },
     {
       "sessionDate": "2026-09-21",
-      "ticker": "VKTX",
-      "layer": "stage",
-      "signal": "reversal_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "downside_extension",
-        "higher_timeframe_support_proxy",
-        "bullish_reversal",
-        "elevated_volume"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
-      "ticker": "THO",
+      "ticker": "DNLI",
       "layer": "stage",
       "signal": "reversal_extension",
       "label": "VALID",
@@ -102,82 +136,6 @@
     },
     {
       "sessionDate": "2026-09-21",
-      "ticker": "DNLI",
-      "layer": "stage",
-      "signal": "reversal_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "downside_extension",
-        "higher_timeframe_support_proxy",
-        "bullish_reversal",
-        "elevated_volume"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
-      "ticker": "AMD",
-      "layer": "stage",
-      "signal": "exhaustion_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "established_uptrend",
-        "extended_from_10ema",
-        "blowoff_clue"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
-      "ticker": "ARM",
-      "layer": "stage",
-      "signal": "exhaustion_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "established_uptrend",
-        "extended_from_10ema",
-        "blowoff_clue"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
-      "ticker": "AMRX",
-      "layer": "stage",
-      "signal": "exhaustion_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "established_uptrend",
-        "extended_from_10ema",
-        "blowoff_clue"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
-      "ticker": "PRTH",
-      "layer": "stage",
-      "signal": "exhaustion_extension",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
-      "reasonCodes": [
-        "established_uptrend",
-        "extended_from_10ema",
-        "blowoff_clue"
-      ],
-      "reviewMethod": "prior_project_real_candidate_spot_check"
-    },
-    {
-      "sessionDate": "2026-09-21",
       "ticker": "FAC",
       "layer": "stage",
       "signal": "exhaustion_extension",
@@ -193,7 +151,40 @@
     },
     {
       "sessionDate": "2026-09-21",
-      "ticker": "VITL",
+      "ticker": "GRAL",
+      "layer": "stage",
+      "signal": "base_n_break",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "multi_week_base",
+        "ema_supported",
+        "breakout_structure"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check",
+      "notes": "Previously spot-checked as Base n' Break while validating SCREEN/STAGE/SETUP separation."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "MSTR",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "FALSE_NEGATIVE",
+      "predictionAtReview": false,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "gap_through_resistance",
+        "unfilled_gap",
+        "strong_close",
+        "rvol_1_49_vs_proxy_1_50"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/21 opened 164.58 above the prior 20-session high near 154.02, never filled the gap versus the 153.92 prior close, and closed 168.50 near the high. The current detector misses it only because point-in-time RVOL is about 1.49x versus the 1.50x StockScout proxy. Catalyst metadata is unavailable in stored OHLCV."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "PRTH",
       "layer": "stage",
       "signal": "exhaustion_extension",
       "label": "VALID",
@@ -221,6 +212,136 @@
       "reviewMethod": "prior_project_real_candidate_spot_check"
     },
     {
+      "sessionDate": "2026-09-21",
+      "ticker": "THO",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "VHC",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
+      "label": "FALSE_NEGATIVE",
+      "predictionAtReview": false,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "prior_decline_and_repair",
+        "tight_ema_cluster",
+        "current_ema_recapture",
+        "contraction_ratio_0_72_vs_proxy_0_70"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "Declined from the August highs into a multi-week repair around 11-12, then 9/21 recaptured the tight EMA area with a strong close. It misses the StockScout contraction proxy by roughly 0.02 (about 0.72 versus <=0.70). Low liquidity is separate name-selection context, not evidence that the Wedge Pop structure is absent."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "VITL",
+      "layer": "stage",
+      "signal": "exhaustion_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "established_uptrend",
+        "extended_from_10ema",
+        "blowoff_clue"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "VKTX",
+      "layer": "stage",
+      "signal": "reversal_extension",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "downside_extension",
+        "higher_timeframe_support_proxy",
+        "bullish_reversal",
+        "elevated_volume"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check"
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "WBD",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "gap_through_resistance",
+        "unfilled_gap",
+        "heavy_volume",
+        "strong_close",
+        "early_cycle_wedge_pop_context"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/21 opened about 7.05% above the prior close and above the prior 20-session resistance area, held the gap, closed near the session high, and traded on extreme point-in-time relative volume. The same session was independently reviewed as a valid Wedge Pop, providing constructive early-cycle context rather than exhaustion."
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "ticker": "WBD",
+      "layer": "stage",
+      "signal": "wedge_pop",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v4-screen-stage-setup",
+      "reasonCodes": [
+        "repair_then_recapture",
+        "tight_ema_cluster"
+      ],
+      "reviewMethod": "prior_project_real_candidate_spot_check",
+      "notes": "Previously spot-checked as Wedge Pop during v4 real-candidate validation."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "CLOV",
+      "layer": "setup",
+      "signal": "kell_wedge_pop",
+      "label": "FALSE_POSITIVE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "repeated_recapture_not_first_wedge_pop",
+        "prior_wedge_pop_already_occurred",
+        "continuation_not_initial_repair"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "The 9/22 recapture passes the numerical Wedge Pop proxy, but the same point-in-time chart already contains earlier September recaptures and an intervening rally. This is a repeated continuation recapture rather than the first important recapture after decline/repair."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "GRMN",
+      "layer": "setup",
+      "signal": "kell_ema_crossback",
+      "label": "VALID",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "recent_wedge_pop",
+        "first_retest_sequence",
+        "ema_support",
+        "strong_reversal_close"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 undercut the EMA area intraday but recovered to close 284.67 near the high; ATR-normalized undercut remained below 1 ATR."
+    },
+    {
       "sessionDate": "2026-09-22",
       "ticker": "HALO",
       "layer": "setup",
@@ -237,22 +358,6 @@
       ],
       "reviewMethod": "manual_point_in_time_ohlcv_review",
       "notes": "9/22 closes 115.13 near the high after a multi-week 105-112 consolidation; RVOL20 about 2.08."
-    },
-    {
-      "sessionDate": "2026-09-22",
-      "ticker": "SEPN",
-      "layer": "setup",
-      "signal": "kell_wedge_pop",
-      "label": "VALID",
-      "predictionAtReview": true,
-      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
-      "reasonCodes": [
-        "prior_decline_and_repair",
-        "ema_recapture",
-        "strong_close"
-      ],
-      "reviewMethod": "manual_point_in_time_ohlcv_review",
-      "notes": "Declined from the August high into a multi-week repair, then 9/22 recaptured with a strong close."
     },
     {
       "sessionDate": "2026-09-22",
@@ -273,20 +378,19 @@
     },
     {
       "sessionDate": "2026-09-22",
-      "ticker": "GRMN",
+      "ticker": "NX",
       "layer": "setup",
-      "signal": "kell_ema_crossback",
-      "label": "VALID",
+      "signal": "kell_wedge_pop",
+      "label": "BORDERLINE",
       "predictionAtReview": true,
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "reasonCodes": [
-        "recent_wedge_pop",
-        "first_retest_sequence",
-        "ema_support",
-        "strong_reversal_close"
+        "repair_then_recapture",
+        "weak_close_location",
+        "low_relative_volume"
       ],
       "reviewMethod": "manual_point_in_time_ohlcv_review",
-      "notes": "9/22 undercut the EMA area intraday but recovered to close 284.67 near the high; ATR-normalized undercut remained below 1 ATR."
+      "notes": "Structurally plausible recapture after repair, but the 9/22 bar is not a high-conviction ignition move."
     },
     {
       "sessionDate": "2026-09-22",
@@ -308,19 +412,19 @@
     },
     {
       "sessionDate": "2026-09-22",
-      "ticker": "NX",
+      "ticker": "SEPN",
       "layer": "setup",
       "signal": "kell_wedge_pop",
-      "label": "BORDERLINE",
+      "label": "VALID",
       "predictionAtReview": true,
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "reasonCodes": [
-        "repair_then_recapture",
-        "weak_close_location",
-        "low_relative_volume"
+        "prior_decline_and_repair",
+        "ema_recapture",
+        "strong_close"
       ],
       "reviewMethod": "manual_point_in_time_ohlcv_review",
-      "notes": "Structurally plausible recapture after repair, but the 9/22 bar is not a high-conviction ignition move."
+      "notes": "Declined from the August high into a multi-week repair, then 9/22 recaptured with a strong close."
     },
     {
       "sessionDate": "2026-09-22",
@@ -338,6 +442,23 @@
       ],
       "reviewMethod": "manual_point_in_time_ohlcv_review",
       "notes": "The structure is plausible after the September decline, but the pop bar closed weakly and volume confirmation was limited."
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "ticker": "VICR",
+      "layer": "setup",
+      "signal": "kell_buyable_gap_proxy",
+      "label": "FALSE_POSITIVE",
+      "predictionAtReview": true,
+      "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
+      "reasonCodes": [
+        "late_cycle_exhaustion",
+        "already_extended",
+        "gap_can_be_exhaustion",
+        "cycle_location_contradicts_buyable_context"
+      ],
+      "reviewMethod": "manual_point_in_time_ohlcv_review",
+      "notes": "9/22 opened 241.04 above the prior 20-session high near 232.74, held above the 223.90 prior close, printed about 2.54x point-in-time RVOL, and closed 268.34 near the high. The same v5 snapshot classifies VICR as Exhaustion Extension, so the mechanical gap proxy is not sufficient to call the event buyable in cycle context."
     }
   ]
 }
