@@ -15,6 +15,9 @@ from kell_ml_v01 import (
     compute_features,
     generate_historical_events,
     build_blind_gold_queue,
+    export_gold_label_template,
+    validate_gold_labels,
+    merge_gold_labels,
     load_stockscout_chart_shard,
     temporal_split,
     train_opportunity,
@@ -238,3 +241,51 @@ def test_historical_price_floor_requires_raw_close():
     got = compute_features(with_raw, qqq)
     assert got["raw_price_level_available"].eq(1).all()
     assert got.iloc[-1]["kell_price_floor_pass"] == 0.0
+
+
+def test_gold_label_ingestion_is_blind_and_detects_conflicts():
+    raw = bars(periods=450, tickers=("AAA", "BBB"))
+    qqq = benchmark(periods=450)
+    features = compute_features(raw, qqq)
+    events = generate_historical_events(features)
+    if events.empty:
+        one = features.iloc[[250]].copy()
+        one["rvol_20"] = 3.0
+        events = generate_historical_events(one)
+    queue = build_blind_gold_queue(events, max_cases=20)
+    template = export_gold_label_template(queue)
+    assert not any(c.startswith(("fwd_", "mfe_", "mae_", "future_")) for c in template.columns)
+
+    labeled = template.head(2).copy()
+    labeled["gold_stage"] = "REPAIR_OR_OTHER"
+    labeled["gold_setup_status"] = "WATCH"
+    validated = validate_gold_labels(labeled)
+    matched = merge_gold_labels(features, validated)
+    assert set(matched["gold_stage"]) == {"REPAIR_OR_OTHER"}
+
+    conflict = labeled.copy()
+    if len(conflict) >= 2:
+        conflict.loc[conflict.index[1], "ticker"] = conflict.loc[conflict.index[0], "ticker"]
+        conflict.loc[conflict.index[1], "snapshot_date"] = conflict.loc[conflict.index[0], "snapshot_date"]
+        conflict.loc[conflict.index[1], "gold_stage"] = "WEDGE_POP"
+        try:
+            validate_gold_labels(conflict)
+            assert False, "Expected conflicting Gold labels to fail"
+        except ValueError as exc:
+            assert "Conflicting Gold stage labels" in str(exc)
+
+
+def test_gold_label_validation_rejects_unknown_stage():
+    labels = pd.DataFrame(
+        [{
+            "case_id": "KELL-X",
+            "ticker": "AAA",
+            "snapshot_date": "2024-01-02",
+            "gold_stage": "MAGIC_BREAKOUT",
+        }]
+    )
+    try:
+        validate_gold_labels(labels)
+        assert False, "Expected invalid Gold stage to fail"
+    except ValueError as exc:
+        assert "Invalid Gold stage values" in str(exc)
