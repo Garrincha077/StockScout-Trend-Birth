@@ -82,8 +82,9 @@
   function crossbackClass(current,history){
     const currentCrossback=setups(current).includes('kell_ema_crossback')||stage(current)==='ema_crossback';
     const explicit=explicitRetestState(current);
+    if(explicit==='first_crossback')return'FIRST CROSSBACK';
     if(explicit==='late_retest')return'LATE RETEST';
-    if(!currentCrossback&&explicit!=='first_crossback')return null;
+    if(!currentCrossback)return null;
     const wedgeIndex=latestWedgeIndex(history);
     const cycle=wedgeIndex>=0?history.slice(wedgeIndex+1):history;
     const priorCrossback=cycle.some(row=>setups(row).includes('kell_ema_crossback')||stage(row)==='ema_crossback');
@@ -97,9 +98,10 @@
     const priorBases=cycle.filter(row=>stage(row)==='base_n_break'||setups(row).includes('kell_base_n_break')).length;
     const sawCrossback=cycle.some(row=>stage(row)==='ema_crossback'||setups(row).includes('kell_ema_crossback'));
     const sawExhaustion=cycle.some(row=>stage(row)==='exhaustion_extension');
+    const recentPop=n(current?.kell_metrics?.recent_wedge_pop_sessions_ago);
     if(sawExhaustion||priorBases>=2)return'LATE-CYCLE';
     if(priorBases===1)return'MATURE';
-    if(wedgeIndex>=0||sawCrossback)return'EARLY';
+    if(wedgeIndex>=0||sawCrossback||recentPop!=null)return'EARLY';
     return'UNRESOLVED';
   }
 
@@ -118,17 +120,29 @@
     const discoveryChanged=addedScreens.length>0;
     const stageChanged=Boolean(previous&&previousStage!==currentStage);
     const structureFailed=currentStage==='wedge_drop'&&previousStage!=='wedge_drop';
-    const firstExhaustion=currentStage==='exhaustion_extension'&&previousStage!=='exhaustion_extension';
+    const priorExhaustions=history.filter(row=>stage(row)==='exhaustion_extension').length;
+    const exhaustionAppeared=currentStage==='exhaustion_extension'&&previousStage!=='exhaustion_extension';
+    const firstExhaustion=exhaustionAppeared&&priorExhaustions===0;
+    const repeatedExhaustion=exhaustionAppeared&&priorExhaustions>0;
+    const exhaustionCount=currentStage==='exhaustion_extension'?priorExhaustions+1:null;
     const crossback=crossbackClass(current,history);
+    const lateRetest=crossback==='LATE RETEST'&&explicitRetestState(current)==='late_retest';
     const maturity=cycleMaturity(current,history);
     const actionable=addedSetups.length>0;
     const risk=riskAtr(current);
     const riskTooWide=risk!=null&&risk>=3.0;
-    const defensive=marketContext?.qqqAboveEma20===false;
+    const qqqAboveEma20=typeof marketContext?.qqqAboveEma20==='boolean'?marketContext.qqqAboveEma20:null;
+    const coarseRegime=String(marketContext?.regime?.state||marketContext?.state||'').toLowerCase();
+    const exactQqq20=qqqAboveEma20!==null;
+    const defensive=qqqAboveEma20===false||['under_pressure','correction','defensive'].includes(coarseRegime);
     const marketRegime={
-      qqqAboveEma20:marketContext?.qqqAboveEma20??null,
+      qqqAboveEma20,
+      exactQqq20,
+      coarseRegime:coarseRegime||null,
       defensive,
-      label:defensive?'DEFENSIVE REGIME':marketContext?.qqqAboveEma20===true?'FAVORABLE REGIME':'REGIME UNAVAILABLE'
+      label:defensive
+        ?(qqqAboveEma20===false?'DEFENSIVE REGIME · QQQ < 20EMA':'DEFENSIVE REGIME · UNIFIED FALLBACK')
+        :qqqAboveEma20===true?'FAVORABLE REGIME · QQQ > 20EMA':'REGIME NEUTRAL/UNKNOWN'
     };
 
     let priorityBand='none';
@@ -138,7 +152,7 @@
     const changeTypes=[];
 
     if(discoveryChanged)changeTypes.push('discovery');
-    if(stageChanged||structureFailed||firstExhaustion)changeTypes.push('stage');
+    if(stageChanged||structureFailed||firstExhaustion||repeatedExhaustion||lateRetest)changeTypes.push('stage');
     if(actionable)changeTypes.push('setup');
 
     if(structureFailed){
@@ -146,11 +160,11 @@
       headline='STRUCTURE FAILED · WEDGE DROP';
       priority=380;
       reasons.push('WEDGE DROP');
-    }else if(firstExhaustion){
+    }else if(firstExhaustion||repeatedExhaustion){
       priorityBand='risk';
-      headline='FIRST EXHAUSTION EXTENSION';
-      priority=340;
-      reasons.push('FIRST EXHAUSTION EXTENSION');
+      headline=firstExhaustion?'FIRST EXHAUSTION EXTENSION':'EXHAUSTION EXTENSION #'+exhaustionCount;
+      priority=firstExhaustion?340:300;
+      reasons.push(headline);
     }else if(actionable){
       priorityBand='setup';
       priority=400;
@@ -173,6 +187,11 @@
       }else{
         headline='SETUP BECAME ACTIONABLE';
       }
+    }else if(lateRetest){
+      priorityBand='stage';
+      headline='EMA RETEST · LATE';
+      priority=190;
+      reasons.push('LATE RETEST');
     }else if(stageChanged){
       priorityBand='stage';
       headline='STAGE CHANGED';
@@ -233,6 +252,8 @@
       marketRegime,
       structureFailed,
       firstExhaustion,
+      repeatedExhaustion,
+      exhaustionCount,
       scoreDelta,
       readinessDelta,
       becameReady:false
@@ -240,7 +261,16 @@
   }
 
   function payloadRows(payload){
-    return Array.isArray(payload?.candidates)?payload.candidates:[];
+    const rows=payload?.kellCandidates||payload?.candidates||[];
+    if(!Array.isArray(rows)||!rows.length)return[];
+    if(rows.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))return rows;
+    const columns=payload?.columns||[];
+    if(columns.length&&rows.every(Array.isArray)){
+      return rows.map(row=>Object.fromEntries(
+        row.slice(0,columns.length).map((value,index)=>[String(columns[index]),value])
+      ));
+    }
+    return[];
   }
 
   function decorate(candidates,historyPayloads,marketContext={}){
@@ -262,20 +292,39 @@
     return date.toISOString().slice(0,10);
   }
 
+  async function decodeCompressedHistory(response){
+    if(typeof DecompressionStream!=='function'||typeof atob!=='function')return null;
+    const encoded=String(await response.text()).replace(/\s+/g,'');
+    if(!encoded)return null;
+    const binary=atob(encoded);
+    const bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(stream).text());
+  }
+
   async function loadHistory(fetchImpl,currentDate,maxSessions=5,maxLookback=14){
     if(!currentDate)throw new Error('current Kell session date missing');
     const payloads=[];
     for(let days=1;days<=maxLookback&&payloads.length<maxSessions;days++){
       const date=isoDateOffset(currentDate,-days);
-      const response=await fetchImpl('data/kell-score-history/'+date+'.json',{cache:'no-store'});
-      if(response.status===404)continue;
-      if(!response.ok)throw new Error('Kell history '+date+' HTTP '+response.status);
-      const payload=await response.json();
-      if(payload?.schemaVersion!=='kell-score-history-v1')throw new Error('invalid Kell history schema for '+date);
+      let response=await fetchImpl('data/kell-score-history/'+date+'.json',{cache:'no-store'});
+      let payload=null;
+      if(response.status!==404){
+        if(!response.ok)throw new Error('Kell history '+date+' HTTP '+response.status);
+        payload=await response.json();
+      }else{
+        response=await fetchImpl('data/kell-score-history/'+date+'.json.gz.b64',{cache:'no-store'});
+        if(response.status!==404){
+          if(!response.ok)throw new Error('Kell compressed history '+date+' HTTP '+response.status);
+          payload=await decodeCompressedHistory(response);
+        }
+      }
+      if(!payload)continue;
       if(payload?.source?.sessionDate!==date)throw new Error('Kell history date mismatch for '+date);
-      payloads.push(payload);
+      const rows=payloadRows(payload);
+      payloads.push({...payload,candidates:rows});
     }
-    if(!payloads.length)throw new Error('no prior uncompressed Kell score snapshot within '+maxLookback+' days');
+    if(!payloads.length)throw new Error('no prior Kell score snapshot within '+maxLookback+' days');
     return payloads.sort((a,b)=>String(a.source.sessionDate).localeCompare(String(b.source.sessionDate)));
   }
 
