@@ -7,7 +7,7 @@ restart sequence?
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 from typing import Iterable
 
@@ -115,10 +115,31 @@ def _wilder_atr(bars: list[dict], length: int = 14) -> list[float | None]:
     return out
 
 
-def _parse_day(value: str):
-    text = str(value or "").strip()[:10]
+def _parse_day(value):
+    if isinstance(value, (int, float)):
+        stamp = float(value)
+        if stamp > 1_000_000_000_000:
+            stamp /= 1000.0
+        try:
+            return datetime.fromtimestamp(stamp, tz=timezone.utc).date()
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    text = str(value or "").strip()
     try:
-        return datetime.strptime(text, "%Y-%m-%d").date()
+        stamp = float(text)
+    except ValueError:
+        stamp = None
+    if stamp is not None:
+        if stamp > 1_000_000_000_000:
+            stamp /= 1000.0
+        try:
+            return datetime.fromtimestamp(stamp, tz=timezone.utc).date()
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    try:
+        return datetime.strptime(text[:10], "%Y-%m-%d").date()
     except ValueError:
         return None
 
