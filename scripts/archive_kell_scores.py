@@ -9,6 +9,8 @@ from pathlib import Path
 
 def compact_candidate(item: dict) -> dict:
     breakdown = item.get("score_breakdown") or {}
+    readiness = (breakdown.get("components") or {}).get("readiness") or {}
+    kell_stage = item.get("kell_stage") or {}
     return {
         "ticker": item.get("ticker"),
         "sources": list(item.get("unifiedSources") or item.get("sources") or []),
@@ -19,7 +21,9 @@ def compact_candidate(item: dict) -> dict:
         "kell_context_score": item.get("kell_context_score"),
         "kell_evidence_coverage": item.get("kell_evidence_coverage"),
         "kell_stage_cap": item.get("kell_stage_cap"),
-        "stage": (item.get("kell_stage") or {}).get("primary") or item.get("kell_cycle_stage"),
+        "stage": kell_stage.get("primary") or item.get("kell_cycle_stage"),
+        "stage_basis": list(kell_stage.get("basis") or []),
+        "structural_risk_atr": readiness.get("structural_risk_atr"),
         "screens": list(item.get("kellScreens") or item.get("kell_screens") or []),
         "setups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "context": list(item.get("kellContext") or item.get("kell_context") or []),
