@@ -166,7 +166,8 @@
     }else if(firstExhaustion||repeatedExhaustion){
       priorityBand='risk';
       headline=firstExhaustion?'FIRST EXHAUSTION EXTENSION':'EXHAUSTION EXTENSION #'+exhaustionCount;
-      priority=firstExhaustion?340:300;
+      // Kell treats later extensions as progressively more important profit/risk signals.
+      priority=firstExhaustion?300:(exhaustionCount>=3?360:340);
       reasons.push(headline);
     }else if(actionable){
       priorityBand='setup';
