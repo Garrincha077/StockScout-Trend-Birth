@@ -381,6 +381,22 @@ function updateQuickViews(){
     button.classList.toggle('active',button.dataset.quickView===state.quickView);
   });
 }
+function updateMobileFilterToggle(){
+  const button=$('#mobileFiltersToggle');
+  if(!button)return;
+  const count=activeFilters().length;
+  button.textContent=count?'Filters ('+count+')':'Filters';
+  button.setAttribute('aria-label',count?count+' active filters':'Open filters');
+}
+function setMobileFiltersOpen(open,restoreFocus=false){
+  const panel=$('#filters'),button=$('#mobileFiltersToggle'),backdrop=$('#mobileFilterBackdrop');
+  if(!panel||!button||!backdrop)return;
+  panel.classList.toggle('mobile-open',open);
+  button.setAttribute('aria-expanded',String(open));
+  backdrop.hidden=!open;
+  document.body.classList.toggle('mobile-filters-open',open);
+  if(!open&&restoreFocus)button.focus();
+}
 function updateFilterCounts(){
   const kellItems=state.kellData?.kellCandidates||state.data?.kellCandidates||[];
   const reviewItems=state.data?.candidates||[];
@@ -491,6 +507,7 @@ function render(){
   updateWatchlistButton();
   updateFilterBar();
   updateQuickViews();
+  updateMobileFilterToggle();
   updateFilterCounts();
   const items=sourceItems().filter(visible);
   const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
@@ -611,7 +628,15 @@ $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#prevDetail')?.addEventListener('click',()=>navigateDetail(-1));
 $('#nextDetail')?.addEventListener('click',()=>navigateDetail(1));
 $('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
+$('#mobileFiltersToggle')?.addEventListener('click',()=>setMobileFiltersOpen(!$('#filters')?.classList.contains('mobile-open')));
+$('#mobileFiltersClose')?.addEventListener('click',()=>setMobileFiltersOpen(false,true));
+$('#mobileFilterBackdrop')?.addEventListener('click',()=>setMobileFiltersOpen(false,true));
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('#filters')?.classList.contains('mobile-open')){
+    setMobileFiltersOpen(false,true);
+    return;
+  }
+
   if(!$('#detail')?.open)return;
   if(e.key==='ArrowLeft'){e.preventDefault();navigateDetail(-1)}
   if(e.key==='ArrowRight'){e.preventDefault();navigateDetail(1)}
