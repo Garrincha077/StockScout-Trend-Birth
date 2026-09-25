@@ -112,9 +112,10 @@ function toggleWatchlist(ticker){
 function watchlistItems(){
   const review=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
   const kell=new Map((state.kellData?.kellCandidates||state.data?.kellCandidates||[]).map(item=>[item.ticker,item]));
+  const tracked=new Map((state.kellData?.trendBirthCandidateIndex||state.data?.trendBirthCandidateIndex||[]).map(item=>[item.ticker,item]));
   const unified=new Map((state.kellData?.unifiedCandidateIndex||state.data?.unifiedCandidateIndex||[]).map(item=>[item.ticker,item]));
   return(state.watchlist||[]).map(saved=>{
-    const current=unified.get(saved.ticker);
+    const current=tracked.get(saved.ticker)||unified.get(saved.ticker);
     const base=review.get(saved.ticker);
     const overlay=kell.get(saved.ticker);
     if(!current&&!base&&!overlay){
