@@ -69,12 +69,18 @@ def compact_score_breakdown(item: dict) -> dict:
     } | {"components": components}
 
 
-def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
+def compact_candidate(
+    item: dict,
+    chart_shard: int | None = None,
+    include_bars: bool = False,
+) -> dict:
     bars = item.get("chartBars") or []
     out = {
         "ticker": item.get("ticker"),
         "sources": list(item.get("sources") or []),
         "unifiedSources": list(item.get("unifiedSources") or item.get("sources") or []),
+        "trackedWatchlist": bool(item.get("trackedWatchlist")),
+        "trackedOnly": bool(item.get("trackedOnly")),
         "metrics": pick(item.get("metrics") or {}, METRIC_KEYS),
         "kell_metrics": pick(item.get("kell_metrics") or {}, KELL_METRIC_KEYS),
         "kell_score": item.get("kell_score"),
@@ -98,6 +104,14 @@ def compact_candidate(item: dict, chart_shard: int | None = None) -> dict:
     }
     if chart_shard is not None:
         out["chartShard"] = chart_shard
+    if include_bars:
+        out["chartBars"] = [
+            bar for row in bars if (bar := compact_bar(row)) is not None
+        ]
+        out["weeklyChartBars"] = [
+            bar for row in (item.get("weeklyChartBars") or [])
+            if (bar := compact_bar(row)) is not None
+        ]
     return out
 
 
@@ -191,6 +205,11 @@ def main() -> int:
         },
         "kellScoring": source.get("kellScoring") or {},
         "trendBirthRadar": source.get("trendBirthRadar") or {},
+        "trendBirthCandidateIndexCount": source.get("trendBirthCandidateIndexCount", 0),
+        "trendBirthCandidateIndex": [
+            compact_candidate(item, include_bars=bool(item.get("trackedWatchlist")))
+            for item in (source.get("trendBirthCandidateIndex") or [])
+        ],
         "unifiedCandidateIndexCount": source.get("unifiedCandidateIndexCount", 0),
         "unifiedCandidateIndex": [
             compact_candidate(item)

@@ -112,9 +112,10 @@ function toggleWatchlist(ticker){
 function watchlistItems(){
   const review=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
   const kell=new Map((state.kellData?.kellCandidates||state.data?.kellCandidates||[]).map(item=>[item.ticker,item]));
+  const tracked=new Map((state.kellData?.trendBirthCandidateIndex||state.data?.trendBirthCandidateIndex||[]).map(item=>[item.ticker,item]));
   const unified=new Map((state.kellData?.unifiedCandidateIndex||state.data?.unifiedCandidateIndex||[]).map(item=>[item.ticker,item]));
   return(state.watchlist||[]).map(saved=>{
-    const current=unified.get(saved.ticker);
+    const current=tracked.get(saved.ticker)||unified.get(saved.ticker);
     const base=review.get(saved.ticker);
     const overlay=kell.get(saved.ticker);
     if(!current&&!base&&!overlay){
@@ -128,8 +129,9 @@ function watchlistItems(){
       sources:[...new Set([...(current?.sources||current?.unifiedSources||[]),...(base?.sources||[]),...(overlay?.sources||[])])],
       unifiedSources:[...new Set([...(current?.unifiedSources||current?.sources||[]),...(base?.unifiedSources||[]),...(overlay?.unifiedSources||[])])],
       metrics:{...(current?.metrics||{}),...(base?.metrics||{}),...(overlay?.metrics||{})},
-      chartBars:base?.chartBars?.length?base.chartBars:overlay?.chartBars,
-      weeklyChartBars:base?.weeklyChartBars?.length?base.weeklyChartBars:overlay?.weeklyChartBars,
+      trendBirth:current?.trackedWatchlist?current?.trendBirth:(overlay?.trendBirth||base?.trendBirth||current?.trendBirth||{}),
+      chartBars:current?.trackedWatchlist&&current?.chartBars?.length?current.chartBars:(base?.chartBars?.length?base.chartBars:overlay?.chartBars),
+      weeklyChartBars:current?.trackedWatchlist&&current?.weeklyChartBars?.length?current.weeklyChartBars:(base?.weeklyChartBars?.length?base.weeklyChartBars:overlay?.weeklyChartBars),
       analysis:base?.analysis||overlay?.analysis||{},
       watchlistSaved:saved
     };
