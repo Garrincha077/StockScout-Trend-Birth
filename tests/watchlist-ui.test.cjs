@@ -8,12 +8,18 @@ const html=fs.readFileSync(path.join(root,'lab','index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'lab','app.js'),'utf8');
 const kellLoader=fs.readFileSync(path.join(root,'lab','kell-dataset-loader.js'),'utf8');
 
-test('owner watchlist sync loads before app code and exposes sign-in controls',()=>{
+test('owner watchlist sync loads before app code and explains the magic-link flow',()=>{
   assert.ok(html.indexOf('@supabase/supabase-js@2.112.3')<html.indexOf('owner-watchlist-sync.js'));
   assert.ok(html.indexOf('owner-watchlist-sync.js')<html.indexOf('app.js'));
   assert.match(html,/id="ownerSyncSummary"/);
-  assert.match(html,/Google OAuth trenutno nije aktiviran/);
+  assert.match(html,/Prijava bez lozinke/);
+  assert.match(html,/Otvori najnoviji email/);
+  assert.match(html,/Dodirni magic link/);
   assert.match(html,/id="ownerMagicForm"/);
+  assert.match(html,/id="ownerMagicSubmit"/);
+  assert.match(html,/id="ownerMagicSent"/);
+  assert.match(app,/ownerMagicSending:true/);
+  assert.match(app,/Link je poslan\. Provjeri najnoviju Supabase poruku/);
   assert.match(app,/OwnerWatchlistSync\.create/);
   assert.match(app,/ownerSync\.setTicker\(ticker,present\)/);
   assert.match(app,/ownerSync\.migrate\(local\)/);
