@@ -18,7 +18,7 @@ test('owner watchlist sync loads before app code and explains the magic-link flo
   assert.match(html,/id="ownerMagicForm"/);
   assert.match(html,/id="ownerMagicSubmit"/);
   assert.match(html,/id="ownerMagicSent"/);
-  assert.match(app,/ownerMagicSending:true/);
+  assert.match(app,/state\.ownerMagicSending=true/);
   assert.match(app,/Link je poslan\. Provjeri najnoviju Supabase poruku/);
   assert.match(app,/OwnerWatchlistSync\.create/);
   assert.match(app,/ownerSync\.setTicker\(ticker,present\)/);
