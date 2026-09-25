@@ -203,6 +203,36 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(sum(counts.values()), 1)
         self.assertEqual(unavailable, 0)
 
+    def test_tracked_unified_name_reevaluates_from_final_chart_source(self):
+        start = date(2025, 9, 1)
+        rows = []
+        for index in range(300):
+            close = 20.0 + index * 0.03
+            rows.append({
+                "time": (start + timedelta(days=index)).isoformat(),
+                "open": close - 0.10,
+                "high": close + 0.25,
+                "low": close - 0.25,
+                "close": close,
+                "volume": 1_000_000,
+            })
+        stale = {
+            "ticker": "CLOV",
+            "sources": ["next"],
+            "unifiedSources": ["next"],
+            "metrics": {},
+            "trendBirth": {"available": False, "stage": 0},
+        }
+        union, _counts, unavailable = builder.build_trend_birth_union(
+            [stale],
+            {"CLOV": {"ticker": "CLOV"}},
+            {"CLOV"},
+            {"CLOV": rows},
+        )
+        self.assertFalse(union[0]["trackedOnly"])
+        self.assertTrue(union[0]["trendBirth"]["available"])
+        self.assertEqual(unavailable, 0)
+
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
         price = 10.0
