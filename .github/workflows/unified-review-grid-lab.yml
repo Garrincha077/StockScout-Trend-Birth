@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: unified-review-grid-lab-${{ github.ref }}
@@ -128,6 +129,10 @@ jobs:
         run: node --test tests/*.test.cjs
       - name: GridView JavaScript syntax
         run: node --check lab/app.js
+      - name: Sync owner watchlist into Trend Birth tracked input
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/unified-review-grid-lab'
+        run: python scripts/sync_owner_watchlist.py --output lab/data/tracked-watchlist.json
+
       - name: Build read-only snapshot from activated Unified public data
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Publish immutable review snapshot atomically

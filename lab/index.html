@@ -26,6 +26,19 @@
         <option value="rvol">RVOL ↓</option>
       </select>
       <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
+      <details id="ownerSync" class="owner-sync">
+        <summary id="ownerSyncSummary">☁ Watchlist: local</summary>
+        <div class="owner-sync-popover">
+          <strong>Owner Watchlist Sync</strong>
+          <p id="ownerSyncStatus">Lokalna zvjezdica radi i bez prijave.</p>
+          <button type="button" id="ownerGoogle">Continue with Google</button>
+          <form id="ownerMagicForm">
+            <input id="ownerEmail" type="email" autocomplete="email" placeholder="Email za magic link" aria-label="Owner email">
+            <button type="submit">Send magic link</button>
+          </form>
+          <button type="button" id="ownerSignOut" hidden>Sign out</button>
+        </div>
+      </details>
     </div>
   </header>
   <nav id="filters" class="filters" aria-label="Filter kandidata">
@@ -115,7 +128,9 @@
     </div>
     <div id="detailBody"></div>
   </dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
   <script src="watchlist-store.js"></script>
+  <script src="owner-watchlist-sync.js"></script>
   <script src="snapshot-loader.js"></script>
   <script src="kell-dataset-loader.js"></script>
   <script src="kell-change-detector.js"></script>

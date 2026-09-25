@@ -8,6 +8,17 @@ const html=fs.readFileSync(path.join(root,'lab','index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'lab','app.js'),'utf8');
 const kellLoader=fs.readFileSync(path.join(root,'lab','kell-dataset-loader.js'),'utf8');
 
+test('owner watchlist sync loads before app code and exposes sign-in controls',()=>{
+  assert.ok(html.indexOf('@supabase/supabase-js@2.112.3')<html.indexOf('owner-watchlist-sync.js'));
+  assert.ok(html.indexOf('owner-watchlist-sync.js')<html.indexOf('app.js'));
+  assert.match(html,/id="ownerSyncSummary"/);
+  assert.match(html,/id="ownerGoogle"/);
+  assert.match(html,/id="ownerMagicForm"/);
+  assert.match(app,/OwnerWatchlistSync\.create/);
+  assert.match(app,/ownerSync\.setTicker\(ticker,present\)/);
+  assert.match(app,/ownerSync\.migrate\(local\)/);
+});
+
 test('grid exposes a persistent Watchlist universe and loads its store before app code',()=>{
   assert.match(html,/data-universe="watchlist" id="watchlistUniverse"/);
   assert.ok(html.indexOf('watchlist-store.js')<html.indexOf('app.js'));
