@@ -9,6 +9,7 @@
   const WATCHLIST_NAME='Trend Birth';
   const MODE='next';
   const PRICE_BASIS='split_only';
+  const MAGIC_LINK_SITE_URL='https://garrincha077.github.io/StockScout-Unified/';
   const TICKER_PATTERN=/^[A-Z0-9._-]{1,20}$/;
 
   function normalizeTicker(value){
@@ -116,11 +117,11 @@
       if(error)throw error;
     }
 
-    async function sendMagicLink(email,locationLike=root.location){
+    async function sendMagicLink(email){
       if(!client)throw new Error('Owner sync is not initialized');
       const {error}=await client.auth.signInWithOtp({
         email:String(email||'').trim(),
-        options:{shouldCreateUser:false,emailRedirectTo:redirectUrl(locationLike)}
+        options:{shouldCreateUser:false,emailRedirectTo:MAGIC_LINK_SITE_URL}
       });
       if(error)throw error;
     }
@@ -138,7 +139,7 @@
     return{
       init,load,setTicker,migrate,signInWithGoogle,sendMagicLink,signOut,destroy,
       signedIn,user,normalizeTicker,normalizeTickers,
-      config:{url:SUPABASE_URL,schema:SCHEMA,name:WATCHLIST_NAME,mode:MODE,priceBasis:PRICE_BASIS}
+      config:{url:SUPABASE_URL,schema:SCHEMA,name:WATCHLIST_NAME,mode:MODE,priceBasis:PRICE_BASIS,magicLinkSiteUrl:MAGIC_LINK_SITE_URL}
     };
   }
 
