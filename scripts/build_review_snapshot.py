@@ -797,6 +797,7 @@ def build_trend_birth_union(
             item["trackedOnly"] = False
             if tracked:
                 item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
+                item["trendBirth"] = evaluate_trend_birth(rows)
                 item["chartBars"] = rows[-260:]
                 item["weeklyChartBars"] = _weekly_bars(rows, 260)
         else:
