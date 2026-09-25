@@ -1,12 +1,12 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-09-23",
+  "sessionDate": "2026-09-24",
   "baselineOnly": true,
   "readyCount": 0,
   "triggerCount": 0,
   "invalidatedCount": 0,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-09-23-eod-35935482043-1--4f57e7296d898641476001d0bff253299ab2a028c30c3cb60214e37fc1a1d665",
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-09-24-eod-36114232293-1--57b45007bb7712f0a8813b0b96950f4448bc4ce46572f7589d096d12e3d47848",
   "messages": [],
-  "previousSessionDate": null,
-  "previousPath": null
+  "previousSessionDate": "2026-09-23",
+  "previousPath": "lab/data/kell-history/2026-09-23.json"
 }
