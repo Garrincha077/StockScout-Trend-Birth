@@ -136,14 +136,18 @@
   </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
     <section id="grid" class="grid" aria-live="polite"></section>
   </main>
   <dialog id="detail">
-    <button id="closeDetail" class="close" aria-label="Zatvori">×</button>
-    <div class="detail-nav" aria-label="Navigacija kroz kandidate">
-      <button type="button" id="prevDetail" aria-label="Prethodni kandidat">← Prev</button>
-      <span id="detailPosition">—</span>
-      <button type="button" id="nextDetail" aria-label="Sljedeći kandidat">Next →</button>
+    <div class="detail-toolbar" aria-label="Navigacija kroz kandidate">
+      <button type="button" id="prevDetail" class="detail-arrow" aria-label="Prethodni kandidat">←</button>
+      <div class="detail-toolbar-center">
+        <strong id="detailToolbarTicker">—</strong>
+        <span id="detailPosition">—</span>
+      </div>
+      <button type="button" id="nextDetail" class="detail-arrow" aria-label="Sljedeći kandidat">→</button>
+      <button id="closeDetail" class="close" aria-label="Zatvori">×</button>
     </div>
     <div id="detailBody"></div>
   </dialog>

@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
@@ -704,6 +704,35 @@ function card(item){
     '</article>';
 }
 let observer;
+function renderChangeHighlights(items){
+  const box=$('#changeHighlights');
+  if(!box)return;
+  if(state.quickView!=='changed'){
+    box.hidden=true;
+    box.innerHTML='';
+    state.changeHighlightsExpanded=false;
+    return;
+  }
+  const fresh=(items||[])
+    .filter(item=>item?.kellChange?.newCandidate===true)
+    .sort((a,b)=>Number(b?.kellChange?.priority||0)-Number(a?.kellChange?.priority||0)||Number(b?.kell_score||0)-Number(a?.kell_score||0)||a.ticker.localeCompare(b.ticker));
+  if(!fresh.length){
+    box.hidden=true;
+    box.innerHTML='';
+    return;
+  }
+  const visible=state.changeHighlightsExpanded?fresh:fresh.slice(0,8);
+  const chips=visible.map(item=>{
+    const reason=(item?.kellChange?.reasons||[]).join(' · ');
+    const title=[reason,'Kell '+fmt(item.kell_score,0),'TB '+trendBirthStage(item)+'/4'].filter(Boolean).join(' · ');
+    return '<button type="button" class="new-relevant-chip" data-change-ticker="'+esc(item.ticker)+'" title="'+esc(title)+'"><strong>'+esc(item.ticker)+'</strong><span>K'+fmt(item.kell_score,0)+' · TB'+trendBirthStage(item)+'</span></button>';
+  }).join('');
+  const more=!state.changeHighlightsExpanded&&fresh.length>visible.length
+    ?'<button type="button" class="new-relevant-more" data-change-more>+'+(fresh.length-visible.length)+' više</button>'
+    :'';
+  box.hidden=false;
+  box.innerHTML='<div class="change-highlights-head"><strong>NEW RELEVANT · '+fresh.length+'</strong><span>Novi Kell-relevant kandidati u odnosu na prethodni snapshot</span></div><div class="change-highlight-chips">'+chips+more+'</div>';
+}
 function render(){
   if(!state.data)return;
   updateWatchlistButton();
@@ -729,6 +758,7 @@ function render(){
     return bn-an||a.ticker.localeCompare(b.ticker);
   });
   state.renderedItems=items.slice();
+  renderChangeHighlights(items);
   $('#grid').innerHTML=items.map(card).join('');
   const universeName=universeLabels[state.universe]||state.universe;
   const modeCounts=state.kellData?.source?.modeUniverseCounts||state.data?.source?.modeUniverseCounts||{};
@@ -780,7 +810,8 @@ function updateDetailNav(item){
   const items=state.renderedItems||[];
   const index=items.findIndex(candidate=>candidate.ticker===item?.ticker);
   state.detailTicker=item?.ticker||null;
-  const pos=$('#detailPosition'),prev=$('#prevDetail'),next=$('#nextDetail');
+  const pos=$('#detailPosition'),title=$('#detailToolbarTicker'),prev=$('#prevDetail'),next=$('#nextDetail');
+  if(title)title.textContent=item?.ticker||'—';
   if(pos)pos.textContent=index>=0?(index+1)+' / '+items.length:'—';
   if(prev)prev.disabled=index<=0;
   if(next)next.disabled=index<0||index>=items.length-1;
@@ -796,25 +827,32 @@ function show(item){
   const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
   updateDetailNav(item);
+  const reviewStatus=String(a.status||'REVIEW').toUpperCase();
+  const tbMissing=(item?.trendBirth?.missingFor4||[]).join(' · ')||'Complete';
   $('#detailBody').innerHTML=
-    '<div class="detail-head"><h2>'+esc(item.ticker)+'</h2><div class="badges">'+badges(item)+'</div></div>'+
+    '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
+    '<div class="detail-snapshot">'+
+      '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+
+      '<div><span>Trend Birth</span><strong>'+esc(trendBirthLabel(item))+'</strong></div>'+
+      '<div><span>Kell Focus</span><strong>'+fmt(item.kell_score,0)+'</strong></div>'+
+      '<div><span>Readiness</span><strong>'+fmt(item.kell_readiness_score,0)+'</strong></div>'+
+    '</div>'+
+    '<div class="detail-tb-note"><span>TB missing for 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
     '<canvas class="detail-chart"></canvas>'+
-    '<div class="detail-grid">'+
-      fact('Review state',a.state)+fact('Review status',String(a.status||'REVIEW').toUpperCase())+
-      fact('Trend Birth',trendBirthLabel(item))+fact('TB missing for 4/4',(item?.trendBirth?.missingFor4||[]).join(' · ')||'Complete')+
-      fact('Kell Focus',fmt(item.kell_score,1))+fact('Kell stage',stageName(primaryStage(item)))+
-      fact('Quality',fmt(item.kell_quality_score,1))+fact('Readiness / Actionability',fmt(item.kell_readiness_score,1))+
-      fact('Context score',fmt(item.kell_context_score,1))+fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+
-      fact('Structural risk',Number.isFinite(Number(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+fact('Stage cap',fmt(item.kell_stage_cap,0))+
+    '<details class="detail-more"><summary>More metrics & setup details</summary><div class="detail-grid">'+
+      fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
+      fact('Quality',fmt(item.kell_quality_score,1))+fact('Context score',fmt(item.kell_context_score,1))+
+      fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+fact('Structural risk',Number.isFinite(Number(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+
+      fact('Stage cap',fmt(item.kell_stage_cap,0))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
       fact('Discovery screens',kellScreensText(item))+fact('Setups',kellSetupsText(item))+
-      fact('Context flags',kellContextText(item))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
+      fact('Context flags',kellContextText(item))+fact('Actionability',m.actionability||'—')+
       fact('RVOL',fmt(m.rvol)+'x')+fact('RSI14',fmt(m.rsi14,1))+
       fact('EMA10 / EMA20',fmt(m.ema10)+' / '+fmt(m.ema20))+fact('EMA gap',pct(m.emaGapPct))+
       fact('50D slope',m.slope50||'—')+fact('30W slope',m.slope30w||'—')+
       fact('Swing',m.swingState||'—')+fact('20D / 40D range',pct(m.range20Pct)+' / '+pct(m.range40Pct))+
-      fact('Close location',pct(m.closeLocationPct))+fact('Actionability',m.actionability||'—')+
+      fact('Close location',pct(m.closeLocationPct))+
       (item.sources.includes('kell-gap')?fact('Gap / held',pct(g.gapPct)+' / '+pct(g.gapHeldPct))+fact('Avg Vol 20D',Number.isFinite(Number(g.avgVolume20d))?Intl.NumberFormat('en',{notation:'compact'}).format(g.avgVolume20d):'—'):'')+
-    '</div>'+
+    '</div></details>'+
     '<div class="analysis-text"><b>Sažetak</b>\n'+esc(a.summary||'—')+
     '\n\n<b>Preferred trade</b>\n'+esc(a.preferredTrade||'—')+
     (item.kell?.signals?.length?'\n\n<b>Kell confluence</b>\n'+esc(item.kell.signals.join(' · ')):'')+
@@ -834,6 +872,18 @@ function show(item){
       .catch(err=>{canvas.title='Chart load error: '+err.message;draw(canvas,[],true,'Chart load failed')});
   });
 }
+$('#changeHighlights')?.addEventListener('click',e=>{
+  const more=e.target.closest('[data-change-more]');
+  if(more){
+    state.changeHighlightsExpanded=true;
+    renderChangeHighlights(state.renderedItems);
+    return;
+  }
+  const chip=e.target.closest('[data-change-ticker]');
+  if(!chip)return;
+  const item=(state.renderedItems||[]).find(candidate=>candidate.ticker===chip.dataset.changeTicker);
+  if(item)show(item);
+});
 $('#closeDetail').addEventListener('click',()=>$('#detail').close());
 $('#prevDetail')?.addEventListener('click',()=>navigateDetail(-1));
 $('#nextDetail')?.addEventListener('click',()=>navigateDetail(1));
