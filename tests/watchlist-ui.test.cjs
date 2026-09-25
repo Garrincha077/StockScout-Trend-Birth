@@ -75,3 +75,24 @@ test('Kell Hits filter does not treat every saved Unified name as a Kell hit',()
   assert.match(app,/item\?\.kellSetups/);
   assert.match(app,/item\?\.kellContext/);
 });
+
+
+test('Changed view exposes clickable new relevant names above the grid',()=>{
+  assert.match(html,/id="changeHighlights"/);
+  assert.match(app,/newCandidate===true/);
+  assert.match(app,/class="new-relevant-chip"/);
+  assert.match(app,/data-change-ticker/);
+  assert.match(app,/data-change-more/);
+  assert.match(app,/renderChangeHighlights\(items\)/);
+  assert.match(app,/if\(item\)show\(item\)/);
+});
+
+test('ticker detail uses a compact toolbar, signal snapshot and collapsible metrics',()=>{
+  assert.match(html,/class="detail-toolbar"/);
+  assert.match(html,/id="detailToolbarTicker"/);
+  assert.match(app,/class="detail-snapshot"/);
+  assert.match(app,/class="detail-tb-note"/);
+  assert.match(app,/class="detail-more"/);
+  assert.match(app,/More metrics & setup details/);
+  assert.match(app,/title\.textContent=item\?\.ticker\|\|'—'/);
+});
