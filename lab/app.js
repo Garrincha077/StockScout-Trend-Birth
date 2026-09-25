@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:''};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -101,12 +101,84 @@ function trendBirthChecklistText(item){
   ];
   return labels.map(([key,label])=>(checks[key]?'✅ ':'❌ ')+label).join('\n');
 }
+function ownerWatchlistItems(tickers){
+  return WatchlistStore.normalizeItems((tickers||[]).map(ticker=>({
+    ticker,
+    addedAt:new Date().toISOString(),
+    addedSession:state.data?.source?.sessionDate||null
+  })));
+}
+function updateOwnerSyncUi(){
+  const summary=$('#ownerSyncSummary'),status=$('#ownerSyncStatus'),google=$('#ownerGoogle'),form=$('#ownerMagicForm'),signOut=$('#ownerSignOut');
+  if(!summary||!status)return;
+  const signedIn=Boolean(state.ownerSession?.user);
+  summary.textContent=signedIn?'☁ Watchlist: synced':'☁ Watchlist: local';
+  status.classList.toggle('sync-error',Boolean(state.ownerSyncError));
+  status.textContent=state.ownerSyncError
+    ?state.ownerSyncError
+    :signedIn
+      ?(state.ownerSyncMessage||('Sinkronizirano kao '+(state.ownerSession.user.email||'owner')+'.'))
+      :(state.ownerSyncMessage||'Lokalna zvjezdica radi i bez prijave.');
+  if(google)google.hidden=signedIn;
+  if(form)form.hidden=signedIn;
+  if(signOut)signOut.hidden=!signedIn;
+}
+async function reconcileOwnerWatchlist(){
+  if(!state.ownerSync?.signedIn()||state.ownerReconciling)return;
+  state.ownerReconciling=true;state.ownerSyncError='';
+  try{
+    const local=state.watchlist.map(item=>item.ticker);
+    const remote=await state.ownerSync.migrate(local);
+    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote));
+    state.ownerSyncMessage='Owner watchlist synced · '+remote.length+' tickera.';
+    if(state.data)render();
+  }catch(err){
+    state.ownerSyncError='Owner sync: '+(err?.message||String(err));
+  }finally{
+    state.ownerReconciling=false;updateOwnerSyncUi();
+  }
+}
+async function initOwnerWatchlistSync(){
+  if(!window.OwnerWatchlistSync){state.ownerSyncError='Owner sync client nije učitan.';updateOwnerSyncUi();return}
+  try{
+    state.ownerSync=OwnerWatchlistSync.create({
+      onSession:session=>{
+        state.ownerSession=session;
+        state.ownerSyncError='';
+        state.ownerSyncMessage=session?.user?'Owner session connected.':'';
+        updateOwnerSyncUi();
+        if(session?.user)queueMicrotask(()=>reconcileOwnerWatchlist());
+      }
+    });
+    const session=await state.ownerSync.init();
+    state.ownerSession=session;
+    updateOwnerSyncUi();
+    if(session?.user)await reconcileOwnerWatchlist();
+  }catch(err){
+    state.ownerSyncError='Owner sync: '+(err?.message||String(err));
+    updateOwnerSyncUi();
+  }
+}
 const isWatched=ticker=>WatchlistStore.has(state.watchlist,ticker);
-function toggleWatchlist(ticker){
-  state.watchlist=WatchlistStore.toggle(state.watchlist,ticker,{
+async function toggleWatchlist(ticker){
+  const before=state.watchlist.map(item=>({...item}));
+  const next=WatchlistStore.toggle(state.watchlist,ticker,{
     addedSession:state.data?.source?.sessionDate||null
   });
-  state.watchlist=WatchlistStore.save(window.localStorage,state.watchlist);
+  const present=WatchlistStore.has(next,ticker);
+  state.watchlist=WatchlistStore.save(window.localStorage,next);
+  state.ownerSyncError='';state.ownerSyncMessage='';
+  render();
+  if(!state.ownerSync?.signedIn()){updateOwnerSyncUi();return}
+  try{
+    const remote=await state.ownerSync.setTicker(ticker,present);
+    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote));
+    state.ownerSyncMessage=(present?'Dodano u':'Maknuto iz')+' synced Trend Birth watchliste.';
+  }catch(err){
+    state.watchlist=WatchlistStore.save(window.localStorage,before);
+    state.ownerSyncError='Watchlist sync nije uspio: '+(err?.message||String(err));
+  }
+  updateOwnerSyncUi();
   render();
 }
 function watchlistItems(){
@@ -634,7 +706,7 @@ function render(){
     observer.observe(canvas);
     const open=()=>item&&show(item);
     const star=cardEl.querySelector('[data-watch-ticker]');
-    star?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleWatchlist(star.dataset.watchTicker)});
+    star?.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();if(star.disabled)return;star.disabled=true;try{await toggleWatchlist(star.dataset.watchTicker)}finally{star.disabled=false}});
     canvas.addEventListener('click',e=>{e.stopPropagation();open()});
     cardEl.addEventListener('click',e=>{if(e.target.closest('[data-watch-ticker]'))return;open()});
     cardEl.addEventListener('keydown',e=>{if(e.target.closest('[data-watch-ticker]'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
@@ -784,6 +856,30 @@ window.addEventListener('storage',event=>{
   state.watchlist=WatchlistStore.load(window.localStorage);
   if(state.data)render();
 });
+$('#ownerGoogle')?.addEventListener('click',async()=>{
+  if(!state.ownerSync)return;
+  state.ownerSyncError='';state.ownerSyncMessage='Otvaram owner prijavu…';updateOwnerSyncUi();
+  try{await state.ownerSync.signInWithGoogle()}catch(err){state.ownerSyncError='Google prijava: '+(err?.message||String(err));updateOwnerSyncUi()}
+});
+$('#ownerMagicForm')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=$('#ownerEmail')?.value?.trim();
+  if(!email||!state.ownerSync)return;
+  state.ownerSyncError='';state.ownerSyncMessage='Šaljem magic link…';updateOwnerSyncUi();
+  try{
+    await state.ownerSync.sendMagicLink(email);
+    state.ownerSyncMessage='Magic link je poslan. Otvori najnoviji email na ovom uređaju.';
+  }catch(err){state.ownerSyncError='Magic link: '+(err?.message||String(err))}
+  updateOwnerSyncUi();
+});
+$('#ownerSignOut')?.addEventListener('click',async()=>{
+  if(!state.ownerSync)return;
+  try{await state.ownerSync.signOut();state.ownerSession=null;state.ownerSyncMessage='Owner sync odjavljen; watchlist ostaje lokalno spremljen.'}
+  catch(err){state.ownerSyncError='Odjava: '+(err?.message||String(err))}
+  updateOwnerSyncUi();
+});
+updateOwnerSyncUi();
+initOwnerWatchlistSync();
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
 ReviewSnapshots.load(fetch,location.search)
