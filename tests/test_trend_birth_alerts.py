@@ -83,6 +83,30 @@ class TrendBirthAlertTests(unittest.TestCase):
         self.assertEqual(payload["messages"][0]["ticker"], "QUALITY")
         self.assertNotIn("NOISY", payload["messages"][0]["text"])
 
+    def test_tracked_only_name_is_alert_eligible_without_widening_unified_noise(self):
+        current = {
+            "source": {"sessionDate": "2026-09-24"},
+            "unifiedCandidateIndex": [item("NOISY", 4, 99)],
+            "kellCandidates": [],
+            "trendBirthCandidateIndex": [
+                {**item("NOISY", 4, 99), "trackedWatchlist": False},
+                {**item("CLOV", 4, 0), "trackedWatchlist": True, "trackedOnly": True},
+            ],
+        }
+        previous = {
+            "source": {"sessionDate": "2026-09-23"},
+            "unifiedCandidateIndex": [item("NOISY", 3, 99)],
+            "kellCandidates": [],
+            "trendBirthCandidateIndex": [
+                {**item("NOISY", 3, 99), "trackedWatchlist": False},
+                {**item("CLOV", 3, 0), "trackedWatchlist": True, "trackedOnly": True},
+            ],
+        }
+        payload = build_alerts(current, previous, "https://example.test/")
+        self.assertEqual(payload["triggerCount"], 1)
+        self.assertEqual(payload["messages"][0]["ticker"], "CLOV")
+        self.assertNotIn("NOISY", payload["messages"][0]["text"])
+
     def test_invalidation_only_after_ready_or_trigger(self):
         current = {
             "source": {"sessionDate": "2026-09-24"},
