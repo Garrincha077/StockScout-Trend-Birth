@@ -7,9 +7,11 @@ import gzip
 import hashlib
 import json
 import math
+import re
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -17,6 +19,7 @@ from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candid
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
+DEFAULT_TRACKED_WATCHLIST = "lab/data/tracked-watchlist.json"
 MODES = ("bottom-fishing", "next", "ryan-original")
 KELL_SCREEN_FIELDS = (
     "kell_52w_high",
@@ -55,6 +58,89 @@ def _get_bytes(url: str) -> bytes:
 
 def _get_json(url: str):
     return json.loads(_get_bytes(url).decode("utf-8"))
+
+
+def load_tracked_watchlist(path: str | Path | None) -> list[str]:
+    """Load the small server-side ticker set that must survive Unified misses."""
+    if not path:
+        return []
+    source = Path(path)
+    if not source.exists():
+        return []
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    raw_items = payload if isinstance(payload, list) else payload.get("tickers") or payload.get("items") or []
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_items:
+        value = raw.get("ticker") if isinstance(raw, dict) else raw
+        ticker = str(value or "").strip().upper()
+        if not re.fullmatch(r"[A-Z0-9._-]{1,20}", ticker) or ticker in seen:
+            continue
+        seen.add(ticker)
+        tickers.append(ticker)
+    return tickers
+
+
+def fetch_tracked_chart(ticker: str) -> list[dict]:
+    """Fetch split-aware daily history for a tracked-only name.
+
+    Unified remains the preferred chart source.  This bounded fallback is used
+    only when a persistent tracked ticker has no chart in today's Unified union.
+    """
+    symbol = quote(ticker, safe="")
+    last_error: Exception | None = None
+    for host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com"):
+        url = (
+            f"https://{host}/v8/finance/chart/{symbol}"
+            "?range=2y&interval=1d&events=history&includeAdjustedClose=true"
+        )
+        try:
+            payload = _get_json(url)
+            chart = payload.get("chart") or {}
+            result = (chart.get("result") or [None])[0]
+            if not isinstance(result, dict):
+                raise ValueError(str((chart.get("error") or {}).get("description") or "no chart result"))
+            timestamps = result.get("timestamp") or []
+            quote_rows = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+            opens = quote_rows.get("open") or []
+            highs = quote_rows.get("high") or []
+            lows = quote_rows.get("low") or []
+            closes = quote_rows.get("close") or []
+            volumes = quote_rows.get("volume") or []
+            bars: list[dict] = []
+            for index, stamp in enumerate(timestamps):
+                try:
+                    values = (
+                        float(opens[index]),
+                        float(highs[index]),
+                        float(lows[index]),
+                        float(closes[index]),
+                    )
+                except (IndexError, TypeError, ValueError):
+                    continue
+                if not all(math.isfinite(value) for value in values):
+                    continue
+                volume = 0.0
+                try:
+                    volume = float(volumes[index] or 0.0)
+                except (IndexError, TypeError, ValueError):
+                    pass
+                bars.append({
+                    "time": datetime.fromtimestamp(int(stamp), tz=timezone.utc).date().isoformat(),
+                    "open": values[0],
+                    "high": values[1],
+                    "low": values[2],
+                    "close": values[3],
+                    "volume": volume if math.isfinite(volume) else 0.0,
+                })
+            if bars:
+                return bars[-520:]
+            raise ValueError("empty chart history")
+        except Exception as error:  # one tracked symbol must never abort the daily publication
+            last_error = error
+    if last_error:
+        return []
+    return []
 
 
 def verified_mode_manifest(base_url: str, unified: dict, mode: str) -> dict:
@@ -690,7 +776,15 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
     return metrics
 
 
-def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, kell_limit: int, kell_gap_limit: int = 5) -> dict:
+def build_snapshot(
+    base_url: str,
+    analysis: dict | None,
+    kell_min_rvol: float,
+    kell_limit: int,
+    kell_gap_limit: int = 5,
+    tracked_tickers: list[str] | None = None,
+    tracked_history_loader=None,
+) -> dict:
     base_url = base_url.rstrip("/") + "/"
     unified_manifest_url = urljoin(base_url, "data/manifest.json")
     unified_manifest_bytes = _get_bytes(unified_manifest_url)
@@ -845,6 +939,28 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
     # source order. This is intentionally independent of ordinary Review Grid
     # membership, which may have cached a Bottom chart first.
     kell_unified_charts = _load_preferred_kell_charts(mode_payloads, unified_kell_pool)
+
+    # Persistent tracked names are a first-class Trend Birth input.  Prefer the
+    # exact Unified chart whenever available and use a bounded market-history
+    # fallback only for tracked names missing from today's Unified chart union.
+    tracked_set = {
+        str(ticker or "").strip().upper()
+        for ticker in (tracked_tickers or [])
+        if re.fullmatch(r"[A-Z0-9._-]{1,20}", str(ticker or "").strip().upper())
+    }
+    tracked_history_loader = tracked_history_loader or fetch_tracked_chart
+    trend_birth_charts = dict(kell_unified_charts)
+    tracked_fallback_count = 0
+    for ticker in sorted(tracked_set):
+        if trend_birth_charts.get(ticker):
+            continue
+        try:
+            fallback_rows = tracked_history_loader(ticker) or []
+        except Exception:
+            fallback_rows = []
+        if fallback_rows:
+            trend_birth_charts[ticker] = fallback_rows
+            tracked_fallback_count += 1
 
     def kell_chart_quality(item: dict) -> bool:
         metrics = _summary(item.get("raw") or {}, charts.get(item["ticker"], []))
@@ -1031,7 +1147,51 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         item["ticker"],
     ))
 
-    trend_birth_ranked = sorted(unified_candidate_index, key=candidate_priority, reverse=True)
+    # Build a separate Trend Birth union so Kell/Unified contracts stay stable.
+    # A tracked ticker therefore remains evaluated even when it fails every
+    # Unified discovery screen on the current session.
+    unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
+    trend_birth_candidate_index = []
+    trend_birth_stage_counts = {str(stage): 0 for stage in range(5)}
+    trend_birth_unavailable_count = 0
+    for ticker in sorted(set(unified_kell_pool) | tracked_set):
+        rows = trend_birth_charts.get(ticker, [])
+        tracked = ticker in tracked_set
+        if ticker in unified_index_by_ticker:
+            item = dict(unified_index_by_ticker[ticker])
+            item["trackedWatchlist"] = tracked
+            item["trackedOnly"] = False
+            if tracked:
+                item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
+                item["chartBars"] = rows[-260:]
+                item["weeklyChartBars"] = _weekly_bars(rows, 260)
+        else:
+            trend_birth = evaluate_trend_birth(rows)
+            item = {
+                "ticker": ticker,
+                "sources": ["tracked-watchlist"],
+                "unifiedSources": [],
+                "trackedWatchlist": True,
+                "trackedOnly": True,
+                "metrics": _summary({}, rows),
+                "trendBirth": trend_birth,
+                "chartBars": rows[-260:],
+                "weeklyChartBars": _weekly_bars(rows, 260),
+                "kell_score": None,
+                "kell_readiness_score": None,
+                "kell_quality_score": None,
+                "kellScreens": [],
+                "kellSetups": [],
+                "kellContext": [],
+            }
+        trend_birth = item.get("trendBirth") or {}
+        if trend_birth.get("available") is True:
+            trend_birth_stage_counts[str(int(trend_birth.get("stage") or 0))] += 1
+        else:
+            trend_birth_unavailable_count += 1
+        trend_birth_candidate_index.append(item)
+
+    trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
     trend_birth_focus = [
         {
             "ticker": item["ticker"],
@@ -1097,16 +1257,22 @@ def build_snapshot(base_url: str, analysis: dict | None, kell_min_rvol: float, k
         },
         "trendBirthRadar": {
             "schemaVersion": "trend-birth-radar-v1",
-            "scope": "all-unified-candidates",
+            "scope": "unified-plus-tracked-watchlist",
             "stageCounts": trend_birth_stage_counts,
             "evaluatedCount": sum(trend_birth_stage_counts.values()),
             "unavailableCount": trend_birth_unavailable_count,
             "watchCloselyCount": trend_birth_stage_counts["2"],
             "readyCount": trend_birth_stage_counts["3"],
             "triggerCount": trend_birth_stage_counts["4"],
+            "trackedWatchlistCount": len(tracked_set),
+            "trackedOnlyCount": len(tracked_set - set(unified_kell_pool)),
+            "trackedChartFallbackCount": tracked_fallback_count,
+            "chartCoverageCount": sum(bool(trend_birth_charts.get(ticker)) for ticker in (set(unified_kell_pool) | tracked_set)),
             "topCandidates": trend_birth_focus,
-            "method": "Transparent trend reset -> restart overlay. Stage is independent of Kell v5 score; Kell Quality/Readiness only order names within a stage.",
+            "method": "Transparent trend reset -> restart overlay over Unified candidates plus the persistent tracked watchlist. Unified charts are preferred; tracked-only names use bounded daily-history fallback. Stage is independent of Kell v5 score.",
         },
+        "trendBirthCandidateIndexCount": len(trend_birth_candidate_index),
+        "trendBirthCandidateIndex": trend_birth_candidate_index,
         "unifiedCandidateIndexCount": len(unified_candidate_index),
         "unifiedCandidateIndex": unified_candidate_index,
         "kellCandidateCount": len(kell_candidates),
@@ -1122,6 +1288,7 @@ def main() -> int:
     parser.add_argument("--base-url", default=DEFAULT_BASE)
     parser.add_argument("--analysis")
     parser.add_argument("--output", default="lab/data/latest.json")
+    parser.add_argument("--tracked-watchlist", default=DEFAULT_TRACKED_WATCHLIST)
     parser.add_argument("--kell-min-rvol", type=float, default=3.0)
     parser.add_argument("--kell-limit", type=int, default=5)
     parser.add_argument("--kell-gap-limit", type=int, default=5)
@@ -1129,7 +1296,15 @@ def main() -> int:
     analysis = {}
     if args.analysis and Path(args.analysis).exists():
         analysis = json.loads(Path(args.analysis).read_text(encoding="utf-8"))
-    snapshot = build_snapshot(args.base_url, analysis, args.kell_min_rvol, args.kell_limit, args.kell_gap_limit)
+    tracked_tickers = load_tracked_watchlist(args.tracked_watchlist)
+    snapshot = build_snapshot(
+        args.base_url,
+        analysis,
+        args.kell_min_rvol,
+        args.kell_limit,
+        args.kell_gap_limit,
+        tracked_tickers=tracked_tickers,
+    )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
