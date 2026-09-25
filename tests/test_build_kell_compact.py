@@ -98,6 +98,27 @@ class KellCompactTests(unittest.TestCase):
         self.assertEqual(out["score_breakdown"]["legacy_v4_score"], 76.0)
         self.assertNotIn("criteria", out["score_breakdown"])
 
+    def test_tracked_candidate_can_embed_small_chart_history(self):
+        item = {
+            "ticker": "CLOV",
+            "sources": ["tracked-watchlist"],
+            "unifiedSources": [],
+            "trackedWatchlist": True,
+            "trackedOnly": True,
+            "chartBars": [
+                ["2026-09-23", 3, 3.2, 2.9, 3.1, 1000],
+                ["2026-09-24", 3.1, 3.3, 3.0, 3.2, 1100],
+            ],
+            "weeklyChartBars": [
+                ["2026-09-18", 2.9, 3.2, 2.8, 3.1, 5000],
+            ],
+        }
+        out = compact.compact_candidate(item, include_bars=True)
+        self.assertTrue(out["trackedWatchlist"])
+        self.assertTrue(out["trackedOnly"])
+        self.assertEqual(len(out["chartBars"]), 2)
+        self.assertEqual(len(out["weeklyChartBars"]), 1)
+
     def test_chart_shards_cover_candidates_without_embedding_bars(self):
         candidates = []
         for i in range(5):
