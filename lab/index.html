@@ -29,14 +29,33 @@
       <details id="ownerSync" class="owner-sync">
         <summary id="ownerSyncSummary">☁ Watchlist: local</summary>
         <div class="owner-sync-popover">
-          <strong>Owner Watchlist Sync</strong>
-          <p id="ownerSyncStatus">Lokalna zvjezdica radi i bez prijave.</p>
-          <p class="owner-auth-unavailable" role="status">Google OAuth trenutno nije aktiviran na ovom Supabase projektu. Koristi magic link.</p>
-          <form id="ownerMagicForm">
-            <input id="ownerEmail" type="email" autocomplete="email" placeholder="Email za magic link" aria-label="Owner email">
-            <button type="submit">Send magic link</button>
-          </form>
-          <button type="button" id="ownerSignOut" hidden>Sign out</button>
+          <div class="owner-sync-head">
+            <div>
+              <strong>Sinkroniziraj Watchlist</strong>
+              <small>Prijava bez lozinke</small>
+            </div>
+            <span class="owner-sync-badge">Magic link</span>
+          </div>
+          <p id="ownerSyncStatus" class="owner-sync-status" aria-live="polite">Lokalna zvjezdica radi i bez prijave.</p>
+          <div id="ownerMagicSteps" class="owner-magic-steps">
+            <div class="owner-magic-step"><span>1</span><div><b>Upiši email</b><small>Koristi owner email za ovaj Supabase projekt.</small></div></div>
+            <form id="ownerMagicForm">
+              <label for="ownerEmail">Email</label>
+              <div class="owner-magic-input-row">
+                <input id="ownerEmail" type="email" autocomplete="email" inputmode="email" placeholder="tvoj@email.com" aria-label="Owner email" required>
+                <button type="submit" id="ownerMagicSubmit">Pošalji link</button>
+              </div>
+            </form>
+            <div class="owner-magic-step"><span>2</span><div><b>Otvori najnoviji email</b><small>Poruka stiže od Supabasea. Ako pošalješ više linkova, vrijedi najnoviji.</small></div></div>
+            <div class="owner-magic-step"><span>3</span><div><b>Dodirni magic link</b><small>Vrati te na ovu stranicu i Watchlist se automatski sinkronizira.</small></div></div>
+          </div>
+          <div id="ownerMagicSent" class="owner-magic-sent" hidden>
+            <strong>✓ Link je poslan</strong>
+            <p>Otvori <b>najnoviju</b> Supabase poruku na ovom uređaju i dodirni magic link.</p>
+            <small id="ownerMagicSentTo"></small>
+          </div>
+          <p class="owner-auth-note">Google prijava je zasad isključena; magic link je aktivni način prijave.</p>
+          <button type="button" id="ownerSignOut" hidden>Odjavi sync</button>
         </div>
       </details>
     </div>
