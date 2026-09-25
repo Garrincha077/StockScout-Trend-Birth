@@ -1,6 +1,11 @@
 const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
+function ownerAuthBridgeUrl(){
+  const url=new URL(OWNER_AUTH_BRIDGE_URL);
+  url.searchParams.set('return',location.origin+'/');
+  return url.toString();
+}
 const OWNER_MAGIC_EMAIL_KEY='stockscout:trend-birth-owner-email';
 function ownerAuthPhase(){return new URLSearchParams(location.search).get('tb_auth')}
 function clearOwnerAuthPhase(){
@@ -929,7 +934,7 @@ $('#ownerMagicForm')?.addEventListener('submit',e=>{
   updateOwnerSyncUi();
   try{
     sessionStorage.setItem(OWNER_MAGIC_EMAIL_KEY,email);
-    location.assign(OWNER_AUTH_BRIDGE_URL);
+    location.assign(ownerAuthBridgeUrl());
   }catch(err){
     state.ownerMagicSending=false;
     state.ownerSyncError='Magic link priprema: '+(err?.message||String(err));
