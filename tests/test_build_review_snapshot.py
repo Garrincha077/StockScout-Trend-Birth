@@ -1,6 +1,9 @@
 import importlib.util
+import json
 import pathlib
+import tempfile
 import unittest
+from datetime import date, timedelta
 
 MODULE = pathlib.Path(__file__).parents[1] / "scripts" / "build_review_snapshot.py"
 spec = importlib.util.spec_from_file_location("builder", MODULE)
@@ -161,6 +164,44 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(weekly[0][4], 11.5)
         self.assertEqual(weekly[0][5], 250.0)
         self.assertEqual(weekly[1][4], 12.5)
+
+    def test_tracked_watchlist_loader_normalizes_and_deduplicates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "tracked.json"
+            path.write_text(json.dumps({
+                "tickers": [" clov ", {"ticker": "CLOV"}, "abc", "bad ticker"],
+            }))
+            self.assertEqual(builder.load_tracked_watchlist(path), ["CLOV", "ABC"])
+
+    def test_tracked_only_ticker_still_gets_trend_birth_enrichment(self):
+        start = date(2025, 9, 1)
+        rows = []
+        for index in range(300):
+            close = 20.0 + index * 0.03
+            rows.append({
+                "time": (start + timedelta(days=index)).isoformat(),
+                "open": close - 0.10,
+                "high": close + 0.25,
+                "low": close - 0.25,
+                "close": close,
+                "volume": 1_000_000,
+            })
+        union, counts, unavailable = builder.build_trend_birth_union(
+            [],
+            {},
+            {"CLOV"},
+            {"CLOV": rows},
+        )
+        self.assertEqual([item["ticker"] for item in union], ["CLOV"])
+        clov = union[0]
+        self.assertTrue(clov["trackedWatchlist"])
+        self.assertTrue(clov["trackedOnly"])
+        self.assertEqual(clov["unifiedSources"], [])
+        self.assertIn("tracked-watchlist", clov["sources"])
+        self.assertEqual(len(clov["chartBars"]), 260)
+        self.assertTrue(clov["trendBirth"]["available"])
+        self.assertEqual(sum(counts.values()), 1)
+        self.assertEqual(unavailable, 0)
 
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
