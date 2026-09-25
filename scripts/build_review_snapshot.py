@@ -776,6 +776,58 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
     return metrics
 
 
+def build_trend_birth_union(
+    unified_candidate_index: list[dict],
+    unified_kell_pool: dict[str, dict],
+    tracked_set: set[str],
+    charts: dict[str, list],
+) -> tuple[list[dict], dict[str, int], int]:
+    """Return the stable Unified + tracked Trend Birth evaluation layer."""
+    unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
+    candidate_index: list[dict] = []
+    stage_counts = {str(stage): 0 for stage in range(5)}
+    unavailable_count = 0
+
+    for ticker in sorted(set(unified_kell_pool) | tracked_set):
+        rows = charts.get(ticker, [])
+        tracked = ticker in tracked_set
+        if ticker in unified_index_by_ticker:
+            item = dict(unified_index_by_ticker[ticker])
+            item["trackedWatchlist"] = tracked
+            item["trackedOnly"] = False
+            if tracked:
+                item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
+                item["chartBars"] = rows[-260:]
+                item["weeklyChartBars"] = _weekly_bars(rows, 260)
+        else:
+            trend_birth = evaluate_trend_birth(rows)
+            item = {
+                "ticker": ticker,
+                "sources": ["tracked-watchlist"],
+                "unifiedSources": [],
+                "trackedWatchlist": True,
+                "trackedOnly": True,
+                "metrics": _summary({}, rows),
+                "trendBirth": trend_birth,
+                "chartBars": rows[-260:],
+                "weeklyChartBars": _weekly_bars(rows, 260),
+                "kell_score": None,
+                "kell_readiness_score": None,
+                "kell_quality_score": None,
+                "kellScreens": [],
+                "kellSetups": [],
+                "kellContext": [],
+            }
+        trend_birth = item.get("trendBirth") or {}
+        if trend_birth.get("available") is True:
+            stage_counts[str(int(trend_birth.get("stage") or 0))] += 1
+        else:
+            unavailable_count += 1
+        candidate_index.append(item)
+
+    return candidate_index, stage_counts, unavailable_count
+
+
 def build_snapshot(
     base_url: str,
     analysis: dict | None,
@@ -1062,8 +1114,6 @@ def build_snapshot(
     kell_setup_counts = {field: 0 for field in KELL_SETUP_FIELDS}
     kell_context_counts = {field: 0 for field in KELL_CONTEXT_FIELDS}
     kell_stage_counts: dict[str, int] = {}
-    trend_birth_stage_counts = {str(stage): 0 for stage in range(5)}
-    trend_birth_unavailable_count = 0
     kell_candidates = []
     unified_candidate_index = []
     for ticker, pool_item in unified_kell_pool.items():
@@ -1072,10 +1122,6 @@ def build_snapshot(
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows)
-        if trend_birth.get("available") is True:
-            trend_birth_stage_counts[str(int(trend_birth.get("stage") or 0))] += 1
-        else:
-            trend_birth_unavailable_count += 1
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
         hit_context = [field for field in KELL_CONTEXT_FIELDS if scored.get(field) is True]
@@ -1150,46 +1196,14 @@ def build_snapshot(
     # Build a separate Trend Birth union so Kell/Unified contracts stay stable.
     # A tracked ticker therefore remains evaluated even when it fails every
     # Unified discovery screen on the current session.
-    unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
-    trend_birth_candidate_index = []
-    trend_birth_stage_counts = {str(stage): 0 for stage in range(5)}
-    trend_birth_unavailable_count = 0
-    for ticker in sorted(set(unified_kell_pool) | tracked_set):
-        rows = trend_birth_charts.get(ticker, [])
-        tracked = ticker in tracked_set
-        if ticker in unified_index_by_ticker:
-            item = dict(unified_index_by_ticker[ticker])
-            item["trackedWatchlist"] = tracked
-            item["trackedOnly"] = False
-            if tracked:
-                item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
-                item["chartBars"] = rows[-260:]
-                item["weeklyChartBars"] = _weekly_bars(rows, 260)
-        else:
-            trend_birth = evaluate_trend_birth(rows)
-            item = {
-                "ticker": ticker,
-                "sources": ["tracked-watchlist"],
-                "unifiedSources": [],
-                "trackedWatchlist": True,
-                "trackedOnly": True,
-                "metrics": _summary({}, rows),
-                "trendBirth": trend_birth,
-                "chartBars": rows[-260:],
-                "weeklyChartBars": _weekly_bars(rows, 260),
-                "kell_score": None,
-                "kell_readiness_score": None,
-                "kell_quality_score": None,
-                "kellScreens": [],
-                "kellSetups": [],
-                "kellContext": [],
-            }
-        trend_birth = item.get("trendBirth") or {}
-        if trend_birth.get("available") is True:
-            trend_birth_stage_counts[str(int(trend_birth.get("stage") or 0))] += 1
-        else:
-            trend_birth_unavailable_count += 1
-        trend_birth_candidate_index.append(item)
+    trend_birth_candidate_index, trend_birth_stage_counts, trend_birth_unavailable_count = (
+        build_trend_birth_union(
+            unified_candidate_index,
+            unified_kell_pool,
+            tracked_set,
+            trend_birth_charts,
+        )
+    )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
     trend_birth_focus = [
