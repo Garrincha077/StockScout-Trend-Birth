@@ -1,4 +1,4 @@
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:''};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
@@ -109,18 +109,28 @@ function ownerWatchlistItems(tickers){
   })));
 }
 function updateOwnerSyncUi(){
-  const summary=$('#ownerSyncSummary'),status=$('#ownerSyncStatus'),google=$('#ownerGoogle'),form=$('#ownerMagicForm'),signOut=$('#ownerSignOut');
+  const summary=$('#ownerSyncSummary'),status=$('#ownerSyncStatus'),form=$('#ownerMagicForm'),steps=$('#ownerMagicSteps'),sent=$('#ownerMagicSent'),sentTo=$('#ownerMagicSentTo'),submit=$('#ownerMagicSubmit'),signOut=$('#ownerSignOut');
   if(!summary||!status)return;
   const signedIn=Boolean(state.ownerSession?.user);
   summary.textContent=signedIn?'☁ Watchlist: synced':'☁ Watchlist: local';
+  summary.classList.toggle('synced',signedIn);
   status.classList.toggle('sync-error',Boolean(state.ownerSyncError));
+  status.classList.toggle('sync-ok',signedIn&&!state.ownerSyncError);
   status.textContent=state.ownerSyncError
     ?state.ownerSyncError
     :signedIn
-      ?(state.ownerSyncMessage||('Sinkronizirano kao '+(state.ownerSession.user.email||'owner')+'.'))
-      :(state.ownerSyncMessage||'Lokalna zvjezdica radi i bez prijave.');
-  if(google)google.hidden=signedIn;
+      ?(state.ownerSyncMessage||('Prijavljen · '+(state.ownerSession.user.email||'owner')))
+      :state.ownerMagicSentTo
+        ?'Link je poslan. Dovrši prijavu iz najnovijeg emaila.'
+        :(state.ownerSyncMessage||'Lokalna zvjezdica radi i bez prijave.');
   if(form)form.hidden=signedIn;
+  if(steps)steps.hidden=signedIn;
+  if(sent)sent.hidden=signedIn||!state.ownerMagicSentTo;
+  if(sentTo)sentTo.textContent=state.ownerMagicSentTo?'Poslano na '+state.ownerMagicSentTo:'';
+  if(submit){
+    submit.disabled=state.ownerMagicSending;
+    submit.textContent=state.ownerMagicSending?'Šaljem…':state.ownerMagicSentTo?'Pošalji ponovno':'Pošalji link';
+  }
   if(signOut)signOut.hidden=!signedIn;
 }
 async function reconcileOwnerWatchlist(){
@@ -145,7 +155,8 @@ async function initOwnerWatchlistSync(){
       onSession:session=>{
         state.ownerSession=session;
         state.ownerSyncError='';
-        state.ownerSyncMessage=session?.user?'Owner session connected.':'';
+        state.ownerSyncMessage=session?.user?'Watchlist sync je aktivan.':'';
+        if(session?.user)state.ownerMagicSentTo='';
         updateOwnerSyncUi();
         if(session?.user)queueMicrotask(()=>reconcileOwnerWatchlist());
       }
@@ -864,17 +875,25 @@ $('#ownerGoogle')?.addEventListener('click',async()=>{
 $('#ownerMagicForm')?.addEventListener('submit',async e=>{
   e.preventDefault();
   const email=$('#ownerEmail')?.value?.trim();
-  if(!email||!state.ownerSync)return;
-  state.ownerSyncError='';state.ownerSyncMessage='Šaljem magic link…';updateOwnerSyncUi();
+  if(!email||!state.ownerSync||state.ownerMagicSending)return;
+  state.ownerSyncError='';
+  state.ownerSyncMessage='';
+  state.ownerMagicSending=true;
+  updateOwnerSyncUi();
   try{
     await state.ownerSync.sendMagicLink(email);
-    state.ownerSyncMessage='Magic link je poslan. Otvori najnoviji email na ovom uređaju.';
-  }catch(err){state.ownerSyncError='Magic link: '+(err?.message||String(err))}
-  updateOwnerSyncUi();
+    state.ownerMagicSentTo=email;
+    state.ownerSyncMessage='Link je poslan. Provjeri najnoviju Supabase poruku.';
+  }catch(err){
+    state.ownerSyncError='Magic link: '+(err?.message||String(err));
+  }finally{
+    state.ownerMagicSending=false;
+    updateOwnerSyncUi();
+  }
 });
 $('#ownerSignOut')?.addEventListener('click',async()=>{
   if(!state.ownerSync)return;
-  try{await state.ownerSync.signOut();state.ownerSession=null;state.ownerSyncMessage='Owner sync odjavljen; watchlist ostaje lokalno spremljen.'}
+  try{await state.ownerSync.signOut();state.ownerSession=null;state.ownerMagicSentTo='';state.ownerSyncMessage='Sync je odjavljen; Watchlist ostaje lokalno spremljen.'}
   catch(err){state.ownerSyncError='Odjava: '+(err?.message||String(err))}
   updateOwnerSyncUi();
 });
