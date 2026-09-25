@@ -107,6 +107,21 @@ class TrendBirthAlertTests(unittest.TestCase):
         self.assertEqual(payload["messages"][0]["ticker"], "CLOV")
         self.assertNotIn("NOISY", payload["messages"][0]["text"])
 
+    def test_new_tracked_name_establishes_baseline_without_alert(self):
+        current = {
+            "source": {"sessionDate": "2026-09-24"},
+            "trendBirthCandidateIndex": [
+                {**item("CLOV", 4, 0), "trackedWatchlist": True, "trackedOnly": True},
+            ],
+        }
+        previous = {
+            "source": {"sessionDate": "2026-09-23"},
+            "unifiedCandidateIndex": [item("AAA", 2)],
+        }
+        payload = build_alerts(current, previous, "https://example.test/")
+        self.assertEqual(payload["triggerCount"], 0)
+        self.assertEqual(payload["messages"], [])
+
     def test_invalidation_only_after_ready_or_trigger(self):
         current = {
             "source": {"sessionDate": "2026-09-24"},
