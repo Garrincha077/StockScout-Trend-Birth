@@ -102,6 +102,10 @@ def build_alerts(
 
     if prior_has_radar:
         for ticker, item in current_map.items():
+            # A newly added persistent tracked ticker establishes its baseline
+            # first; it must not look like a 0 -> READY/TRIGGER transition.
+            if item.get("trackedWatchlist") and ticker not in previous_map:
+                continue
             now = _stage(item)
             before = _stage(previous_map.get(ticker, {}))
             if now == 4 and before < 4:
