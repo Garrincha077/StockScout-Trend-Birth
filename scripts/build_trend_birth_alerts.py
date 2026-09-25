@@ -25,7 +25,11 @@ def _candidate_map(data: dict) -> dict[str, dict]:
     # Keep Telegram sparse: normal names still require the quality-screened
     # Kell set, while persistent tracked names are always eligible for Trend
     # Birth stage-change alerts even if today's Unified screener missed them.
-    quality_rows = data.get("kellCandidates") or data.get("unifiedCandidateIndex") or []
+    quality_rows = (
+        data.get("kellCandidates") or []
+        if "kellCandidates" in data
+        else data.get("unifiedCandidateIndex") or []
+    )
     selected = {
         str(item.get("ticker") or "").upper(): item
         for item in quality_rows
