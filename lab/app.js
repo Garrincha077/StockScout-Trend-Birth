@@ -129,8 +129,9 @@ function watchlistItems(){
       sources:[...new Set([...(current?.sources||current?.unifiedSources||[]),...(base?.sources||[]),...(overlay?.sources||[])])],
       unifiedSources:[...new Set([...(current?.unifiedSources||current?.sources||[]),...(base?.unifiedSources||[]),...(overlay?.unifiedSources||[])])],
       metrics:{...(current?.metrics||{}),...(base?.metrics||{}),...(overlay?.metrics||{})},
-      chartBars:base?.chartBars?.length?base.chartBars:overlay?.chartBars,
-      weeklyChartBars:base?.weeklyChartBars?.length?base.weeklyChartBars:overlay?.weeklyChartBars,
+      trendBirth:current?.trackedWatchlist?current?.trendBirth:(overlay?.trendBirth||base?.trendBirth||current?.trendBirth||{}),
+      chartBars:current?.trackedWatchlist&&current?.chartBars?.length?current.chartBars:(base?.chartBars?.length?base.chartBars:overlay?.chartBars),
+      weeklyChartBars:current?.trackedWatchlist&&current?.weeklyChartBars?.length?current.weeklyChartBars:(base?.weeklyChartBars?.length?base.weeklyChartBars:overlay?.weeklyChartBars),
       analysis:base?.analysis||overlay?.analysis||{},
       watchlistSaved:saved
     };
