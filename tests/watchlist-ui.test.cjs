@@ -12,7 +12,7 @@ test('owner watchlist sync loads before app code and exposes sign-in controls',(
   assert.ok(html.indexOf('@supabase/supabase-js@2.112.3')<html.indexOf('owner-watchlist-sync.js'));
   assert.ok(html.indexOf('owner-watchlist-sync.js')<html.indexOf('app.js'));
   assert.match(html,/id="ownerSyncSummary"/);
-  assert.match(html,/id="ownerGoogle"/);
+  assert.match(html,/Google OAuth trenutno nije aktiviran/);
   assert.match(html,/id="ownerMagicForm"/);
   assert.match(app,/OwnerWatchlistSync\.create/);
   assert.match(app,/ownerSync\.setTicker\(ticker,present\)/);
