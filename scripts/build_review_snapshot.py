@@ -1010,6 +1010,10 @@ def build_snapshot(
             fallback_rows = tracked_history_loader(ticker) or []
         except Exception:
             fallback_rows = []
+        fallback_rows = [
+            row for row in fallback_rows
+            if str((row.get("time") or row.get("date") or ""))[:10] <= session_date
+        ]
         if fallback_rows:
             trend_birth_charts[ticker] = fallback_rows
             tracked_fallback_count += 1
