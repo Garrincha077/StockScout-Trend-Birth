@@ -1,5 +1,19 @@
 const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
+const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
+function ownerAuthBridgeUrl(){
+  const url=new URL(OWNER_AUTH_BRIDGE_URL);
+  url.searchParams.set('return',location.origin+'/');
+  return url.toString();
+}
+const OWNER_MAGIC_EMAIL_KEY='stockscout:trend-birth-owner-email';
+function ownerAuthPhase(){return new URLSearchParams(location.search).get('tb_auth')}
+function clearOwnerAuthPhase(){
+  const url=new URL(location.href);
+  if(!url.searchParams.has('tb_auth'))return;
+  url.searchParams.delete('tb_auth');
+  history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
+}
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
 const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -149,6 +163,42 @@ async function reconcileOwnerWatchlist(){
     state.ownerReconciling=false;updateOwnerSyncUi();
   }
 }
+async function resumeOwnerMagicLinkBridge(){
+  const phase=ownerAuthPhase();
+  if(!phase)return;
+  if(phase==='complete'){
+    clearOwnerAuthPhase();
+    sessionStorage.removeItem(OWNER_MAGIC_EMAIL_KEY);
+    if(state.ownerSession?.user)state.ownerSyncMessage='Prijava uspješna · Watchlist sync je aktivan.';
+    return;
+  }
+  if(phase!=='prepared')return;
+  clearOwnerAuthPhase();
+  if(state.ownerSession?.user){
+    sessionStorage.removeItem(OWNER_MAGIC_EMAIL_KEY);
+    return;
+  }
+  const email=sessionStorage.getItem(OWNER_MAGIC_EMAIL_KEY)?.trim();
+  if(!email){
+    state.ownerSyncError='Nedostaje email za nastavak magic-link prijave. Upiši ga ponovno.';
+    return;
+  }
+  state.ownerSyncError='';
+  state.ownerMagicSending=true;
+  state.ownerSyncMessage='Sigurni povratak je pripremljen. Šaljem magic link…';
+  updateOwnerSyncUi();
+  try{
+    await state.ownerSync.sendMagicLink(email);
+    state.ownerMagicSentTo=email;
+    state.ownerSyncMessage='Link je poslan. Otvori najnoviju Supabase poruku.';
+    sessionStorage.removeItem(OWNER_MAGIC_EMAIL_KEY);
+  }catch(err){
+    state.ownerSyncError='Magic link: '+(err?.message||String(err));
+  }finally{
+    state.ownerMagicSending=false;
+    updateOwnerSyncUi();
+  }
+}
 async function initOwnerWatchlistSync(){
   if(!window.OwnerWatchlistSync){state.ownerSyncError='Owner sync client nije učitan.';updateOwnerSyncUi();return}
   try{
@@ -164,8 +214,9 @@ async function initOwnerWatchlistSync(){
     });
     const session=await state.ownerSync.init();
     state.ownerSession=session;
+    await resumeOwnerMagicLinkBridge();
     updateOwnerSyncUi();
-    if(session?.user)await reconcileOwnerWatchlist();
+    if(state.ownerSession?.user)await reconcileOwnerWatchlist();
   }catch(err){
     state.ownerSyncError='Owner sync: '+(err?.message||String(err));
     updateOwnerSyncUi();
@@ -873,22 +924,20 @@ $('#ownerGoogle')?.addEventListener('click',async()=>{
   state.ownerSyncError='';state.ownerSyncMessage='Otvaram owner prijavu…';updateOwnerSyncUi();
   try{await state.ownerSync.signInWithGoogle()}catch(err){state.ownerSyncError='Google prijava: '+(err?.message||String(err));updateOwnerSyncUi()}
 });
-$('#ownerMagicForm')?.addEventListener('submit',async e=>{
+$('#ownerMagicForm')?.addEventListener('submit',e=>{
   e.preventDefault();
   const email=$('#ownerEmail')?.value?.trim();
   if(!email||!state.ownerSync||state.ownerMagicSending)return;
   state.ownerSyncError='';
-  state.ownerSyncMessage='';
+  state.ownerSyncMessage='Pripremam sigurni povratak nakon klika na magic link…';
   state.ownerMagicSending=true;
   updateOwnerSyncUi();
   try{
-    await state.ownerSync.sendMagicLink(email);
-    state.ownerMagicSentTo=email;
-    state.ownerSyncMessage='Link je poslan. Provjeri najnoviju Supabase poruku.';
+    sessionStorage.setItem(OWNER_MAGIC_EMAIL_KEY,email);
+    location.assign(ownerAuthBridgeUrl());
   }catch(err){
-    state.ownerSyncError='Magic link: '+(err?.message||String(err));
-  }finally{
     state.ownerMagicSending=false;
+    state.ownerSyncError='Magic link priprema: '+(err?.message||String(err));
     updateOwnerSyncUi();
   }
 });

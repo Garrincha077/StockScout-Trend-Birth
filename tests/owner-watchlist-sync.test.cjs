@@ -51,3 +51,26 @@ test('owner sync uses dedicated Trend Birth row and existing RLS RPC',async()=>{
   assert.ok(rpcCalls.every(call=>call.p_mode==='next'));
   assert.ok(rpcCalls.every(call=>call.p_price_basis==='split_only'));
 });
+
+
+test('owner sync sends magic links through the allowed Unified Site URL',async()=>{
+  let otpPayload=null;
+  const client={
+    auth:{
+      async getSession(){return{data:{session:null},error:null}},
+      onAuthStateChange(){return{data:{subscription:{unsubscribe(){}}}}},
+      async signInWithOtp(payload){otpPayload=payload;return{error:null}},
+      async signOut(){return{error:null}}
+    }
+  };
+  const sync=OwnerWatchlistSync.create({supabaseLib:{createClient:()=>client}});
+  await sync.init();
+  await sync.sendMagicLink(' owner@example.test ');
+  assert.equal(otpPayload.email,'owner@example.test');
+  assert.equal(otpPayload.options.shouldCreateUser,false);
+  assert.equal(
+    otpPayload.options.emailRedirectTo,
+    'https://garrincha077.github.io/StockScout-Unified/'
+  );
+  assert.equal(sync.config.magicLinkSiteUrl,'https://garrincha077.github.io/StockScout-Unified/');
+});
