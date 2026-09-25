@@ -21,7 +21,8 @@ test('owner watchlist sync loads before app code and explains the magic-link flo
   assert.match(html,/id="ownerMagicSent"/);
   assert.match(app,/OWNER_AUTH_BRIDGE_URL/);
   assert.match(app,/sessionStorage\.setItem\(OWNER_MAGIC_EMAIL_KEY,email\)/);
-  assert.match(app,/location\.assign\(OWNER_AUTH_BRIDGE_URL\)/);
+  assert.match(app,/url\.searchParams\.set\('return',location\.origin\+'\/'\)/);
+  assert.match(app,/location\.assign\(ownerAuthBridgeUrl\(\)\)/);
   assert.match(app,/resumeOwnerMagicLinkBridge/);
   assert.match(app,/Sigurni povratak je pripremljen\. Šaljem magic link/);
   assert.match(app,/Link je poslan\. Otvori najnoviju Supabase poruku/);
