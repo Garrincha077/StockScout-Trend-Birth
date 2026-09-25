@@ -57,14 +57,21 @@ jobs:
         id: publish
         run: python scripts/publish_review_snapshot.py --input /tmp/review-candidate.json --directory lab/data
 
-      - name: Commit publication atomically to LAB branch
-        if: steps.publish.outputs.changed == 'true'
+      - name: Rebuild Trend Birth alert payload for published snapshot
+        run: |
+          python scripts/build_trend_birth_alerts.py \
+            --current /tmp/review-candidate.json \
+            --history-dir lab/data/kell-history \
+            --publication lab/data/publication.json \
+            --output lab/data/trend-birth-alerts.json
+
+      - name: Commit publication and alert payload atomically to LAB branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/snapshots/ lab/data/history/
+          git add lab/data/latest.json lab/data/publication.json lab/data/trend-birth-alerts.json lab/data/snapshots/ lab/data/history/
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "chore(lab): publish immutable review snapshot"
+          git commit -m "chore(lab): publish review snapshot and alert payload"
           git push origin HEAD:feature/unified-review-grid-lab
