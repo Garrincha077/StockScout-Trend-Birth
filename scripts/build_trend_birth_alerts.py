@@ -22,15 +22,20 @@ def _stage(item: dict) -> int:
 
 
 def _candidate_map(data: dict) -> dict[str, dict]:
-    # Telegram is intentionally narrower than the full radar.  Use the
-    # quality-screened Kell candidate set when present so every alerted name is
-    # visible in the Kell/TB dashboard and low-value names do not create noise.
-    rows = data.get("kellCandidates") or data.get("unifiedCandidateIndex") or []
-    return {
+    # Keep Telegram sparse: normal names still require the quality-screened
+    # Kell set, while persistent tracked names are always eligible for Trend
+    # Birth stage-change alerts even if today's Unified screener missed them.
+    quality_rows = data.get("kellCandidates") or data.get("unifiedCandidateIndex") or []
+    selected = {
         str(item.get("ticker") or "").upper(): item
-        for item in rows
+        for item in quality_rows
         if isinstance(item, dict) and item.get("ticker")
     }
+    for item in data.get("trendBirthCandidateIndex") or []:
+        if not isinstance(item, dict) or not item.get("ticker") or not item.get("trackedWatchlist"):
+            continue
+        selected[str(item["ticker"]).upper()] = item
+    return selected
 
 
 def _rank(item: dict) -> tuple:
