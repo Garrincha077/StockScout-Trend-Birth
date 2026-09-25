@@ -109,7 +109,7 @@ function ownerWatchlistItems(tickers){
   })));
 }
 function updateOwnerSyncUi(){
-  const summary=$('#ownerSyncSummary'),status=$('#ownerSyncStatus'),form=$('#ownerMagicForm'),steps=$('#ownerMagicSteps'),sent=$('#ownerMagicSent'),sentTo=$('#ownerMagicSentTo'),submit=$('#ownerMagicSubmit'),signOut=$('#ownerSignOut');
+  const summary=$('#ownerSyncSummary'),status=$('#ownerSyncStatus'),form=$('#ownerMagicForm'),steps=$('#ownerMagicSteps'),sent=$('#ownerMagicSent'),sentTo=$('#ownerMagicSentTo'),submit=$('#ownerMagicSubmit'),note=$('.owner-auth-note'),signOut=$('#ownerSignOut');
   if(!summary||!status)return;
   const signedIn=Boolean(state.ownerSession?.user);
   summary.textContent=signedIn?'☁ Watchlist: synced':'☁ Watchlist: local';
@@ -131,6 +131,7 @@ function updateOwnerSyncUi(){
     submit.disabled=state.ownerMagicSending;
     submit.textContent=state.ownerMagicSending?'Šaljem…':state.ownerMagicSentTo?'Pošalji ponovno':'Pošalji link';
   }
+  if(note)note.hidden=signedIn;
   if(signOut)signOut.hidden=!signedIn;
 }
 async function reconcileOwnerWatchlist(){
