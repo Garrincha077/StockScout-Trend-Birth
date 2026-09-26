@@ -341,3 +341,19 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Validate the agents from GitHub Copilot Agents on this branch and, after merge, enable/use repository custom instructions for Copilot code review. Automatic Copilot review assignment remains a repository setting rather than a file-level behavior.
+
+
+## 2026-09-26 — Trend Birth supporting-evidence ranking neutralized
+
+- PR: #31; merged into `feature/unified-review-grid-lab` as `1cbeff6428b8bd962672ccf697aa12b3c8dd135a`.
+- A post-merge audit of the Recovery -> Compression -> Ignition supporting-evidence layer from #30 found that `pathRank` and `birthEvidenceCount` had become hidden inputs to the explicit `trend-birth` sort.
+- BEFORE: within Trend Birth stage, ordering included Birth Path phase (Ignition > Compression > Recovery), then evidence count, then Kell score.
+- AFTER: Trend Birth ordering is restored to Trend Birth stage first, then the existing Kell score. Supporting evidence remains available as explicit Recovery / Compression / Ignition filters, badges and detail text.
+- Affected files: `lab/app.js` and `tests/filter-hierarchy.test.cjs`.
+- Candidate generation, detector thresholds, Trend Birth 0-4 stage logic, Kell score calculation, Unified EOD, production Telegram and broker behavior are unchanged.
+- Regression coverage prevents `pathRank` / evidence-count terms from re-entering the Trend Birth sort expression. This guard is source-shape based; a synthetic same-stage behavioral ordering test would provide stronger future protection but was not required for this narrow repair.
+- Validation: Unified Review Grid Lab run #349 passed end-to-end on the PR head; Vercel preview was Ready; manual review found no P0/P1/P2; the GitHub-native `merge-gate-reviewer` ran in GitHub Actions run `36246518896` and returned `MERGE GATE: CLEAN` with no final P0/P1/P2 findings.
+- Post-merge verification on `feature/unified-review-grid-lab` confirmed the active sort is `trendBirthStage(item) * 1000 + Number(item.kell_score || 0)` and all three GitHub review-agent profiles remain present.
+
+**Next logical step**
+- Keep Recovery / Compression / Ignition as explicit supporting evidence rather than an implicit ranking prior. Add a behavioral same-stage sort regression only when the UI sorting harness is next touched or if an equivalent ranking leak recurs.
