@@ -1,0 +1,83 @@
+name: One-shot merge gate review for PR 31
+
+on:
+  push:
+    branches:
+      - test/merge-gate-pr31
+
+permissions:
+  contents: read
+  pull-requests: write
+  copilot-requests: write
+
+jobs:
+  review-pr-31:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout review-agent branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Preserve custom review agents
+        run: |
+          mkdir -p /tmp/stockscout-review-agents
+          cp .github/agents/*.agent.md /tmp/stockscout-review-agents/
+
+      - name: Collect PR 31 context and checkout its exact head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p .review-context
+          gh pr view 31 --repo "${{ github.repository }}" \
+            --json number,title,body,state,mergeable,baseRefName,baseRefOid,headRefName,headRefOid,commits,reviews,comments \
+            > /tmp/pr-31.json
+          gh pr diff 31 --repo "${{ github.repository }}" --color=never > /tmp/pr-31.diff
+          gh pr checks 31 --repo "${{ github.repository }}" \
+            --json name,state,bucket,link,workflow > /tmp/pr-31-checks.json || true
+
+          BASE_SHA="$(jq -r '.baseRefOid' /tmp/pr-31.json)"
+          HEAD_SHA="$(jq -r '.headRefOid' /tmp/pr-31.json)"
+          git fetch origin "$BASE_SHA" "$HEAD_SHA"
+          git checkout --detach "$HEAD_SHA"
+
+          mkdir -p .github/agents .review-context
+          cp /tmp/stockscout-review-agents/*.agent.md .github/agents/
+          cp /tmp/pr-31.json .review-context/pr-31.json
+          cp /tmp/pr-31.diff .review-context/pr-31.diff
+          cp /tmp/pr-31-checks.json .review-context/pr-31-checks.json
+
+          git show "$BASE_SHA:lab/app.js" > .review-context/base-lab-app.js
+          git show "$BASE_SHA:tests/filter-hierarchy.test.cjs" > .review-context/base-filter-hierarchy.test.cjs
+          git show "$HEAD_SHA:lab/app.js" > .review-context/head-lab-app.js
+          git show "$HEAD_SHA:tests/filter-hierarchy.test.cjs" > .review-context/head-filter-hierarchy.test.cjs
+
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Run StockScout merge-gate-reviewer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          copilot --agent=merge-gate-reviewer --no-banner \
+            --deny-tool='write' \
+            --deny-tool='shell' \
+            --deny-tool='url' \
+            -p "Review existing pull request #31 in this repository. This is a review-only task: do not edit or create repository files and do not attempt to merge or approve. Read .review-context/pr-31.json, .review-context/pr-31.diff, .review-context/pr-31-checks.json, the saved BEFORE/AFTER files, AGENTS.md, and any relevant current repository files. Use the merge-gate-reviewer instructions and delegate independent methodology/regression passes when useful. Pay special attention to whether Recovery/Compression/Ignition supporting evidence can still affect default Trend Birth ranking. Report only genuine P0/P1/P2 findings and end with MERGE GATE CLEAN, BLOCKED, or INCOMPLETE." \
+            | tee /tmp/merge-gate-pr31.md
+
+      - name: Publish review to PR 31
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## GitHub custom agent: merge-gate-reviewer"
+            echo
+            echo "_One-shot read-only Copilot CLI review of this PR head. Agent profile: `.github/agents/merge-gate-reviewer.agent.md`._"
+            echo
+            cat /tmp/merge-gate-pr31.md
+          } > /tmp/pr-comment.md
+          gh pr comment 31 --repo "${{ github.repository }}" --body-file /tmp/pr-comment.md
