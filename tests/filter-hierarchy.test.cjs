@@ -20,7 +20,9 @@ test('universe and secondary filters remain separate controls',()=>{
 
 test('Crash Base remains a review filter and does not switch to the Kell dataset',()=>{
   assert.match(app,/if\(filter==='crash-base'\)return item\?\.metrics\?\.crashBaseTriggered===true;/);
-  assert.match(app,/!\['multi','action','crash-base'\]\.includes\(key\)/);
+  assert.match(app,/const reviewFilterLabels=\{'crash-base':'Crash Base'\};/);
+  assert.match(app,/const filterLabel=key=>reviewFilterLabels\[key\]\|\|kellFilterLabels\[key\]\|\|key;/);
+  assert.match(app,/filter\(key=>!\['multi','action'\]\.includes\(key\)\)/);
 });
 
 test('secondary filters are an AND intersection inside the selected universe',()=>{
