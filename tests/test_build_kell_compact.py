@@ -80,13 +80,13 @@ class KellCompactTests(unittest.TestCase):
                 "crashBaseAgeWeeks": 126,
             },
         }
-        compact = builder.compact_candidate(item)
-        self.assertTrue(compact["metrics"]["crashBaseTriggered"])
-        self.assertEqual(compact["metrics"]["crashBaseScore"], 74.0)
-        self.assertEqual(compact["metrics"]["crashBasePhase"], "forming")
-        self.assertEqual(compact["metrics"]["crashBaseAlertLevel"], "watch")
-        self.assertEqual(compact["metrics"]["crashBaseDrawdown5yPct"], 81.0)
-        self.assertEqual(compact["metrics"]["crashBaseAgeWeeks"], 126)
+        result = compact.compact_candidate(item)
+        self.assertTrue(result["metrics"]["crashBaseTriggered"])
+        self.assertEqual(result["metrics"]["crashBaseScore"], 74.0)
+        self.assertEqual(result["metrics"]["crashBasePhase"], "forming")
+        self.assertEqual(result["metrics"]["crashBaseAlertLevel"], "watch")
+        self.assertEqual(result["metrics"]["crashBaseDrawdown5yPct"], 81.0)
+        self.assertEqual(result["metrics"]["crashBaseAgeWeeks"], 126)
 
     def test_compact_candidate_preserves_v5_score_dimensions(self):
         item = {
