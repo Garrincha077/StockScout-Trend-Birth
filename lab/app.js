@@ -782,10 +782,7 @@ function render(){
     if(mode==='change')return Number(item.kellChange?.priority);
     if(mode==='readiness')return Number(item.kell_readiness_score);
     if(mode==='quality')return Number(item.kell_quality_score);
-    if(mode==='trend-birth'){
-      const pathRank={recovery:1,compression:2,ignition:3}[birthEvidencePhase(item)]||0;
-      return trendBirthStage(item)*100000+pathRank*1000+birthEvidenceCount(item)*100+Number(item.kell_score||0);
-    }
+    if(mode==='trend-birth')return trendBirthStage(item)*1000+Number(item.kell_score||0);
     if(mode==='evidence')return Number(item.kell_evidence_coverage);
     if(mode==='rvol')return Number(item.metrics?.rvol);
     return NaN;
