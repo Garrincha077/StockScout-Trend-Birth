@@ -71,11 +71,12 @@ const kellFilterLabels={
   'tb:2':'Trend Birth 2/4',
   'tb:3':'Trend Birth 3/4 READY',
   'tb:4':'Trend Birth 4/4 TRIGGER',
-  'crash-base':'Crash Base',
   'multi':'Multi-hit',
   'action':'Action'
 };
-const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action','crash-base'].includes(key)));
+const reviewFilterLabels={'crash-base':'Crash Base'};
+const filterLabel=key=>reviewFilterLabels[key]||kellFilterLabels[key]||key;
+const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
   changed:{filters:['kell-changed'],sort:'change'},
   ready:{filters:['kell-ready'],sort:'readiness'},
@@ -496,7 +497,7 @@ function ruleAnalysis(item){
 }
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
 function activeFilters(){return Array.isArray(state.filters)?state.filters:[]}
-function activeFilterSummary(){return activeFilters().map(filter=>kellFilterLabels[filter]||filter).join(' + ')}
+function activeFilterSummary(){return activeFilters().map(filterLabel).join(' + ')}
 function isKellView(filters=activeFilters()){
   const list=Array.isArray(filters)?filters:[filters];
   return list.some(filter=>kellFilters.has(filter));
@@ -551,7 +552,7 @@ function updateFilterBar(){
   }
   bar.hidden=false;
   bar.innerHTML='<span class="active-filter-label">Active '+filters.length+'</span>'+
-    filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(kellFilterLabels[filter]||filter)+' <span aria-hidden="true">×</span></button>').join('')+
+    filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(filterLabel(filter))+' <span aria-hidden="true">×</span></button>').join('')+
     '<button type="button" class="clear-active-filters" data-clear-filters>Clear all</button>';
 }
 function updateQuickViews(){
