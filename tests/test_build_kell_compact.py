@@ -67,6 +67,27 @@ class KellCompactTests(unittest.TestCase):
             ["2026-09-22", 10.0, 12.0, 9.5, 11.0, 1500.0],
         )
 
+    def test_compact_candidate_preserves_crash_base_filter_evidence(self):
+        item = {
+            "ticker": "AAA",
+            "metrics": {
+                "price": 12.5,
+                "crashBaseTriggered": True,
+                "crashBaseScore": 74.0,
+                "crashBasePhase": "forming",
+                "crashBaseAlertLevel": "watch",
+                "crashBaseDrawdown5yPct": 81.0,
+                "crashBaseAgeWeeks": 126,
+            },
+        }
+        compact = builder.compact_candidate(item)
+        self.assertTrue(compact["metrics"]["crashBaseTriggered"])
+        self.assertEqual(compact["metrics"]["crashBaseScore"], 74.0)
+        self.assertEqual(compact["metrics"]["crashBasePhase"], "forming")
+        self.assertEqual(compact["metrics"]["crashBaseAlertLevel"], "watch")
+        self.assertEqual(compact["metrics"]["crashBaseDrawdown5yPct"], 81.0)
+        self.assertEqual(compact["metrics"]["crashBaseAgeWeeks"], 126)
+
     def test_compact_candidate_preserves_v5_score_dimensions(self):
         item = {
             "ticker": "AAA",
