@@ -74,6 +74,8 @@ const kellFilterLabels={
   'multi':'Multi-hit',
   'action':'Action'
 };
+const reviewFilterLabels={'crash-base':'Crash Base'};
+const filterLabel=key=>reviewFilterLabels[key]||kellFilterLabels[key]||key;
 const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
   changed:{filters:['kell-changed'],sort:'change'},
@@ -422,7 +424,8 @@ function badges(item){
   const score=Number(item.kell_score);
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   const tb=trendBirthStage(item)>=2?'<span class="badge kell-score">TB '+trendBirthStage(item)+'/4</span>':'';
-  return sources+kell+tb;
+  const crash=item?.metrics?.crashBaseTriggered===true?'<span class="badge">Crash Base</span>':'';
+  return sources+kell+tb+crash;
 }
 function hasKell(item,field){
   return item?.[field]===true
@@ -494,7 +497,7 @@ function ruleAnalysis(item){
 }
 function analysisFor(item){return Object.assign({},ruleAnalysis(item),item.analysis||{})}
 function activeFilters(){return Array.isArray(state.filters)?state.filters:[]}
-function activeFilterSummary(){return activeFilters().map(filter=>kellFilterLabels[filter]||filter).join(' + ')}
+function activeFilterSummary(){return activeFilters().map(filterLabel).join(' + ')}
 function isKellView(filters=activeFilters()){
   const list=Array.isArray(filters)?filters:[filters];
   return list.some(filter=>kellFilters.has(filter));
@@ -517,6 +520,7 @@ function matchesFilter(item,filter){
   if(filter==='kell-score')return Number(item.kell_score)>=60;
   if(filter==='kell-ready')return Number(item.kell_readiness_score)>=80;
   if(filter==='kell-changed')return item?.kellChange?.changed===true;
+  if(filter==='crash-base')return item?.metrics?.crashBaseTriggered===true;
   if(filter.startsWith('tb:'))return trendBirthStage(item)===Number(filter.slice(3));
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
@@ -548,7 +552,7 @@ function updateFilterBar(){
   }
   bar.hidden=false;
   bar.innerHTML='<span class="active-filter-label">Active '+filters.length+'</span>'+
-    filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(kellFilterLabels[filter]||filter)+' <span aria-hidden="true">×</span></button>').join('')+
+    filters.map(filter=>'<button type="button" class="active-filter-chip" data-remove-filter="'+esc(filter)+'">'+esc(filterLabel(filter))+' <span aria-hidden="true">×</span></button>').join('')+
     '<button type="button" class="clear-active-filters" data-clear-filters>Clear all</button>';
 }
 function updateQuickViews(){

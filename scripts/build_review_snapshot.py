@@ -754,6 +754,21 @@ def _chart_metrics(rows: list) -> dict:
     }
 
 
+def _triggered_setup_names(row: dict) -> set[str]:
+    """Return setup names that Unified explicitly projected as triggered."""
+    names: set[str] = set()
+    for key in ("setupNames", "setup_names", "setupTags", "setup_tags"):
+        values = row.get(key)
+        if isinstance(values, list):
+            names.update(str(value).strip() for value in values if str(value).strip())
+    return names
+
+
+def is_crash_base_candidate(row: dict) -> bool:
+    """Reuse Bottom's existing Crash Base detector membership; do not rescore it here."""
+    return "crash_base_stage1" in _triggered_setup_names(row)
+
+
 def _summary(row: dict, chart_rows: list | None = None) -> dict:
     chart = _chart_metrics(chart_rows or [])
     metrics = {
@@ -766,6 +781,12 @@ def _summary(row: dict, chart_rows: list | None = None) -> dict:
         "slope30w": row.get("launch30wSlopeState") or row.get("launch_30w_slope_state") or chart.get("slope30w"),
         "setup": row.get("primarySetup") or row.get("primary_setup") or row.get("setup") or row.get("stageName"),
         "actionability": row.get("actionability") or row.get("tradeStatus") or row.get("trade_status"),
+        "crashBaseTriggered": is_crash_base_candidate(row),
+        "crashBaseScore": _number(row, "crashBaseScore", "crash_base_score"),
+        "crashBasePhase": row.get("crashBasePhase") or row.get("crash_base_phase"),
+        "crashBaseAlertLevel": row.get("specialAlertLevel") or row.get("special_alert_level"),
+        "crashBaseDrawdown5yPct": _number(row, "drawdown5yPct", "drawdown_5y_pct"),
+        "crashBaseAgeWeeks": _number(row, "baseAgeWeeks", "base_age_weeks"),
     }
     for name in (
         "ema10", "ema20", "emaGapPct", "range20Pct", "range40Pct", "baseLike",
