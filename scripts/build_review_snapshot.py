@@ -1480,6 +1480,7 @@ def main() -> int:
         "kellEligible": snapshot["kell"]["eligiblePublicPool"],
         "kellUnifiedCandidates": snapshot["kellScoring"]["unifiedCandidateCount"],
         "kellMatchedCandidates": snapshot["kellScoring"]["matchedCandidateCount"],
+        "trendBirthEvidence": snapshot["trendBirthRadar"]["evidenceCounts"],
     }))
     return 0
 
