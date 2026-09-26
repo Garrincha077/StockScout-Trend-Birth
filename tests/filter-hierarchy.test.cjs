@@ -67,7 +67,8 @@ test('filter counts preview the intersection after adding another filter',()=>{
 });
 
 test('supporting Birth Path evidence does not alter Trend Birth ranking',()=>{
-  assert.match(app,/if\\(mode==='trend-birth'\\)return trendBirthStage\\(item\\)\\*1000\\+Number\\(item\\.kell_score\\|\\|0\\);/);
+  assert.match(app,/if\(mode==='trend-birth'\)return trendBirthStage\(item\)\*1000\+Number\(item\.kell_score\|\|0\);/);
+  assert.doesNotMatch(app,/birthEvidenceCount\(item\)\*100/);
   assert.doesNotMatch(app,/const pathRank=/);
 });
 
