@@ -66,6 +66,11 @@ test('filter counts preview the intersection after adding another filter',()=>{
   assert.match(app,/matchesFilters\(item,proposed\)/);
 });
 
+test('supporting Birth Path evidence does not alter Trend Birth ranking',()=>{
+  assert.match(app,/if\\(mode==='trend-birth'\\)return trendBirthStage\\(item\\)\\*1000\\+Number\\(item\\.kell_score\\|\\|0\\);/);
+  assert.doesNotMatch(app,/const pathRank=/);
+});
+
 test('sorting exposes Kell dimensions and RVOL without changing scoring',()=>{
   for(const value of ['kell-score','readiness','quality','evidence','rvol']){
     assert.match(html,new RegExp('option value="'+value+'"'));
