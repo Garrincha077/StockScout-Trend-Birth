@@ -1,7 +1,7 @@
 ---
 name: stock-selection-reviewer
 description: Read-only specialist for StockScout candidate-generation, ranking, scoring, Trend Birth lifecycle, Kell semantics, and hidden methodology changes
-tools: ["read", "search", "execute", "github/*"]
+tools: ["read", "search", "github/*"]
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -21,7 +21,7 @@ Review procedure:
 6. Detect duplicate detector logic or thresholds that can drift from Unified.
 7. Check score-only promotion versus explicit triggered detector membership.
 8. Check whether watchlist/tracked names are enriched consistently with Unified candidates.
-9. Inspect focused tests and run safe read-only tests when useful.
+9. Inspect focused tests and their CI results; do not execute commands or mutate the workspace.
 10. Compare real candidates BEFORE/AFTER when repository data makes that possible.
 
 Severity:
