@@ -324,3 +324,20 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 **Next logical step**
 - Merge the tested radar into `feature/unified-review-grid-lab`, let the existing refresh/deploy chain publish it, then teach the existing Unified GridView Telegram sender to consume the verified no-send alert payload without changing candidate generation or creating a second Telegram owner.
+
+
+## 2026-09-26 — GitHub-native review agents
+
+- Branch: `chore/github-review-agents`, based on `feature/unified-review-grid-lab`; no production Unified EOD / Telegram / broker behavior changed.
+- Added repository-wide Copilot code-review instructions in `.github/copilot-instructions.md`.
+- Added three read-only GitHub Copilot custom agents:
+  - `stock-selection-reviewer` — detects hidden changes to candidate membership, ranking, scoring, Trend Birth/Kell semantics, filters and evidence provenance.
+  - `regression-reviewer` — checks CI, snapshot/source identity, compact/shard contracts, watchlist behavior, fallback paths, UI regressions and production isolation.
+  - `merge-gate-reviewer` — final P0/P1/P2 gate that can delegate independent methodology and regression passes before reconciling findings.
+- Agents intentionally omit edit/write tools and are instructed never to push, merge, close, approve or mutate repository state.
+- Review standard requires explicit BEFORE/AFTER semantics for methodology-sensitive PRs and treats descriptive evidence becoming a hidden gate/rank/weight as a review defect.
+- Copilot review instructions require high-signal P0/P1/P2 findings, distinguish behavioral tests from source-shape assertions, and preserve the Unified -> Review -> Kell architecture boundary.
+- This is review infrastructure only; candidate generation, detector thresholds, Trend Birth 0–4, Kell scoring/ranking, alerts and production data are unchanged.
+
+**Next logical step**
+- Validate the agents from GitHub Copilot Agents on this branch and, after merge, enable/use repository custom instructions for Copilot code review. Automatic Copilot review assignment remains a repository setting rather than a file-level behavior.
