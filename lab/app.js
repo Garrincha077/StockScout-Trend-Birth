@@ -71,10 +71,11 @@ const kellFilterLabels={
   'tb:2':'Trend Birth 2/4',
   'tb:3':'Trend Birth 3/4 READY',
   'tb:4':'Trend Birth 4/4 TRIGGER',
+  'crash-base':'Crash Base',
   'multi':'Multi-hit',
   'action':'Action'
 };
-const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
+const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action','crash-base'].includes(key)));
 const quickViews={
   changed:{filters:['kell-changed'],sort:'change'},
   ready:{filters:['kell-ready'],sort:'readiness'},
@@ -422,7 +423,8 @@ function badges(item){
   const score=Number(item.kell_score);
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   const tb=trendBirthStage(item)>=2?'<span class="badge kell-score">TB '+trendBirthStage(item)+'/4</span>':'';
-  return sources+kell+tb;
+  const crash=item?.metrics?.crashBaseTriggered===true?'<span class="badge">Crash Base</span>':'';
+  return sources+kell+tb+crash;
 }
 function hasKell(item,field){
   return item?.[field]===true
@@ -517,6 +519,7 @@ function matchesFilter(item,filter){
   if(filter==='kell-score')return Number(item.kell_score)>=60;
   if(filter==='kell-ready')return Number(item.kell_readiness_score)>=80;
   if(filter==='kell-changed')return item?.kellChange?.changed===true;
+  if(filter==='crash-base')return item?.metrics?.crashBaseTriggered===true;
   if(filter.startsWith('tb:'))return trendBirthStage(item)===Number(filter.slice(3));
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
