@@ -13,7 +13,14 @@ test('universe and secondary filters remain separate controls',()=>{
   }
   assert.match(html,/data-filter="none" class="active">Clear filters/);
   assert.match(html,/data-filter="kell_bull_snort"/);
+  assert.match(html,/data-filter="crash-base"/);
   assert.doesNotMatch(html,/data-filter="bottom-fishing"/);
+  assert.doesNotMatch(html,/data-universe="crash-base"/);
+});
+
+test('Crash Base remains a review filter and does not switch to the Kell dataset',()=>{
+  assert.match(app,/if\(filter==='crash-base'\)return item\?\.metrics\?\.crashBaseTriggered===true;/);
+  assert.match(app,/!\['multi','action','crash-base'\]\.includes\(key\)/);
 });
 
 test('secondary filters are an AND intersection inside the selected universe',()=>{
