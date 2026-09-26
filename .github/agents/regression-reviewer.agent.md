@@ -1,7 +1,7 @@
 ---
 name: regression-reviewer
 description: Read-only specialist for StockScout CI, snapshot identity, data contracts, watchlist behavior, UI regressions, workflows, and production isolation
-tools: ["read", "search", "execute", "github/*"]
+tools: ["read", "search", "github/*"]
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -20,7 +20,7 @@ Check:
 7. Telegram/noise behavior and production sender boundaries.
 8. Failure/fallback behavior: stale data, missing archives, expired artifacts, unavailable chart history, partial provider failures.
 9. Tests: distinguish behavioral coverage from regex/source-shape assertions.
-10. Run the smallest relevant safe tests, then broader existing CI commands if practical.
+10. Inspect the smallest relevant test results and broader existing CI evidence; if required evidence is missing, report the review as incomplete rather than executing commands.
 
 Severity:
 - P0 catastrophic production/data/action failure.
