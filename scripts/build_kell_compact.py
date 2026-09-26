@@ -101,6 +101,7 @@ def compact_candidate(
         "kellSetups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "kellContext": list(item.get("kellContext") or []),
         "trendBirth": item.get("trendBirth") or {},
+        "trendBirthEvidence": item.get("trendBirthEvidence") or {},
         "chartBarsCount": len(bars),
         "weeklyChartBarsCount": len(item.get("weeklyChartBars") or []),
     }

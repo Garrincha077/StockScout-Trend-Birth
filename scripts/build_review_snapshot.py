@@ -769,6 +769,117 @@ def is_crash_base_candidate(row: dict) -> bool:
     return "crash_base_stage1" in _triggered_setup_names(row)
 
 
+def _text(row: dict, *names: str) -> str:
+    for name in names:
+        value = row.get(name)
+        if value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+    return ""
+
+
+def is_stage1_to_2_recovery(row: dict) -> bool:
+    """Mirror Unified's existing Stage 1 -> 2 Recovery saved-screen recipe."""
+    stage = _number(row, "weinsteinStage", "weinstein_stage")
+    recovery_score = _number(row, "secularRecoveryScore", "secular_recovery_score")
+    return bool(
+        stage is not None
+        and int(stage) == 1
+        and _text(row, "weinsteinSubstage", "weinstein_substage") == "1C_pre_breakout"
+        and _text(row, "weinsteinStageOrigin", "weinstein_stage_origin") == "from_decline"
+        and _text(row, "longTermContext", "long_term_context") == "secular_recovery"
+        and recovery_score is not None
+        and recovery_score >= 55
+    )
+
+
+def trend_birth_supporting_evidence(row: dict) -> dict:
+    """Explain *why* a Trend Birth candidate is interesting without changing its 0-4 stage.
+
+    These are read-only projections of already-computed Unified detector states.
+    They deliberately remain separate from Trend Birth stage logic:
+      recovery -> compression -> ignition.
+    """
+    setup_names = _triggered_setup_names(row)
+    evidence = {"recovery": [], "compression": [], "ignition": []}
+
+    def add(bucket: str, label: str) -> None:
+        if label not in evidence[bucket]:
+            evidence[bucket].append(label)
+
+    if "crash_base_stage1" in setup_names:
+        add("recovery", "Crash Base")
+
+    if is_stage1_to_2_recovery(row):
+        add("recovery", "Stage 1 → 2 Recovery")
+
+    if "accumulation_base" in setup_names:
+        phase = _text(row, "accumulationPhase", "accumulation_phase")
+        if phase == "breakout_ready":
+            add("ignition", "Accumulation Breakout Ready")
+        elif phase in {"tightening", "transitioning"}:
+            add("compression", "Accumulation Tightening")
+        else:
+            add("recovery", "Accumulation Base")
+
+    if "long_base_launch" in setup_names:
+        phase = _text(row, "longBasePhase", "long_base_phase")
+        if phase == "launching":
+            add("ignition", "Long Base Launch")
+        elif phase in {"compression", "drying_up"}:
+            add("compression", "Long Base Compression")
+        else:
+            add("recovery", "Long Base")
+
+    if "ema_stack_launch" in setup_names:
+        phase = _text(row, "emaStackPhase", "ema_stack_phase")
+        if phase == "coil_watch":
+            add("compression", "EMA Stack Coil")
+        elif phase == "early_ignition":
+            add("ignition", "EMA Stack Early Ignition")
+        elif phase == "stack_thrust":
+            add("ignition", "EMA Stack Thrust")
+        elif phase == "follow_through":
+            add("ignition", "EMA Stack Follow Through")
+
+    if "rwb_squeeze_thrust" in setup_names:
+        phase = _text(row, "rwbSqueezePhase", "rwb_squeeze_phase")
+        if phase == "watch_squeeze":
+            add("compression", "RWB Squeeze")
+        elif phase == "thrusting":
+            add("ignition", "RWB Thrust")
+        elif phase == "trendline_breakout":
+            add("ignition", "RWB Trendline Breakout")
+        elif phase == "confirmed":
+            add("ignition", "RWB Confirmed")
+
+    if "ma_cluster_volume_breakout" in setup_names:
+        phase = _text(row, "maClusterPhase", "ma_cluster_phase")
+        if phase == "pre_breakout":
+            add("compression", "MA Cluster Ready")
+        elif phase == "one_day_thrust":
+            add("ignition", "MA Cluster Thrust")
+        elif phase == "follow_through":
+            add("ignition", "MA Cluster Follow Through")
+
+    if "tight_breakout" in setup_names:
+        add("compression", "Tight / VCP")
+
+    active_count = sum(len(evidence[bucket]) for bucket in ("recovery", "compression", "ignition"))
+    phase = next(
+        (bucket for bucket in ("ignition", "compression", "recovery") if evidence[bucket]),
+        None,
+    )
+    primary = evidence[phase][0] if phase else None
+    return {
+        "phase": phase,
+        "primary": primary,
+        "activeCount": active_count,
+        **evidence,
+    }
+
+
 def _summary(row: dict, chart_rows: list | None = None) -> dict:
     chart = _chart_metrics(chart_rows or [])
     metrics = {
@@ -831,6 +942,7 @@ def build_trend_birth_union(
                 "trackedOnly": True,
                 "metrics": _summary({}, rows),
                 "trendBirth": trend_birth,
+                "trendBirthEvidence": {"phase": None, "primary": None, "activeCount": 0, "recovery": [], "compression": [], "ignition": []},
                 "chartBars": rows[-260:],
                 "weeklyChartBars": _weekly_bars(rows, 260),
                 "kell_score": None,
@@ -1148,6 +1260,7 @@ def build_snapshot(
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows)
+        trend_birth_evidence = trend_birth_supporting_evidence(raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
         hit_context = [field for field in KELL_CONTEXT_FIELDS if scored.get(field) is True]
@@ -1176,6 +1289,7 @@ def build_snapshot(
             "kellSetups": hit_setups,
             "kellContext": hit_context,
             "trendBirth": trend_birth,
+            "trendBirthEvidence": trend_birth_evidence,
         })
         if not (hit_screens or hit_setups or hit_context):
             continue
@@ -1192,6 +1306,7 @@ def build_snapshot(
             "kellSetups": hit_setups,
             "kellContext": hit_context,
             "trendBirth": trend_birth,
+            "trendBirthEvidence": trend_birth_evidence,
             **scored,
         })
     kell_candidates.sort(key=lambda item: (
@@ -1209,6 +1324,7 @@ def build_snapshot(
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         item["trendBirth"] = evaluate_trend_birth(rows)
+        item["trendBirthEvidence"] = trend_birth_supporting_evidence(raw)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
         item.update(score_candidate(rows, benchmark_rows, raw))
@@ -1232,6 +1348,13 @@ def build_snapshot(
     )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
+    trend_birth_evidence_counts = {
+        bucket: sum(
+            bool((item.get("trendBirthEvidence") or {}).get(bucket))
+            for item in trend_birth_candidate_index
+        )
+        for bucket in ("recovery", "compression", "ignition")
+    }
     trend_birth_focus = [
         {
             "ticker": item["ticker"],
@@ -1304,6 +1427,7 @@ def build_snapshot(
             "watchCloselyCount": trend_birth_stage_counts["2"],
             "readyCount": trend_birth_stage_counts["3"],
             "triggerCount": trend_birth_stage_counts["4"],
+            "evidenceCounts": trend_birth_evidence_counts,
             "trackedWatchlistCount": len(tracked_set),
             "trackedOnlyCount": len(tracked_set - set(unified_kell_pool)),
             "trackedChartFallbackCount": tracked_fallback_count,
@@ -1356,6 +1480,7 @@ def main() -> int:
         "kellEligible": snapshot["kell"]["eligiblePublicPool"],
         "kellUnifiedCandidates": snapshot["kellScoring"]["unifiedCandidateCount"],
         "kellMatchedCandidates": snapshot["kellScoring"]["matchedCandidateCount"],
+        "trendBirthEvidence": snapshot["trendBirthRadar"]["evidenceCounts"],
     }))
     return 0
 

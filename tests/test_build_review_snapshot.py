@@ -261,6 +261,66 @@ class BuilderTests(unittest.TestCase):
         self.assertFalse(metrics["crashBaseTriggered"])
         self.assertEqual(metrics["crashBaseScore"], 91.0)
 
+    def test_trend_birth_supporting_evidence_groups_existing_unified_signals(self):
+        evidence = builder.trend_birth_supporting_evidence({
+            "ticker": "AAA",
+            "setupNames": [
+                "crash_base_stage1",
+                "accumulation_base",
+                "ema_stack_launch",
+                "rwb_squeeze_thrust",
+                "ma_cluster_volume_breakout",
+            ],
+            "accumulationPhase": "tightening",
+            "emaStackPhase": "stack_thrust",
+            "rwbSqueezePhase": "watch_squeeze",
+            "maClusterPhase": "pre_breakout",
+            "weinsteinStage": 1,
+            "weinsteinSubstage": "1C_pre_breakout",
+            "weinsteinStageOrigin": "from_decline",
+            "longTermContext": "secular_recovery",
+            "secularRecoveryScore": 72,
+        })
+        self.assertEqual(evidence["phase"], "ignition")
+        self.assertEqual(evidence["primary"], "EMA Stack Thrust")
+        self.assertIn("Crash Base", evidence["recovery"])
+        self.assertIn("Stage 1 → 2 Recovery", evidence["recovery"])
+        self.assertIn("Accumulation Tightening", evidence["compression"])
+        self.assertIn("RWB Squeeze", evidence["compression"])
+        self.assertIn("MA Cluster Ready", evidence["compression"])
+        self.assertIn("EMA Stack Thrust", evidence["ignition"])
+        self.assertEqual(evidence["activeCount"], 6)
+
+    def test_supporting_evidence_does_not_promote_score_only_detectors(self):
+        evidence = builder.trend_birth_supporting_evidence({
+            "ticker": "AAA",
+            "setupNames": [],
+            "crashBaseScore": 95,
+            "emaStackLaunchScore": 99,
+            "emaStackPhase": "stack_thrust",
+            "rwbSqueezeScore": 90,
+            "rwbSqueezePhase": "confirmed",
+            "maClusterScore": 88,
+            "maClusterPhase": "one_day_thrust",
+        })
+        self.assertEqual(evidence["activeCount"], 0)
+        self.assertIsNone(evidence["phase"])
+        self.assertEqual(evidence["recovery"], [])
+        self.assertEqual(evidence["compression"], [])
+        self.assertEqual(evidence["ignition"], [])
+
+    def test_stage1_to2_recovery_mirrors_unified_recipe(self):
+        row = {
+            "weinstein_stage": 1,
+            "weinstein_substage": "1C_pre_breakout",
+            "weinstein_stage_origin": "from_decline",
+            "long_term_context": "secular_recovery",
+            "secular_recovery_score": 55,
+        }
+        self.assertTrue(builder.is_stage1_to_2_recovery(row))
+        row["secular_recovery_score"] = 54.9
+        self.assertFalse(builder.is_stage1_to_2_recovery(row))
+
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
         price = 10.0

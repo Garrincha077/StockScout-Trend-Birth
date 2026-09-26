@@ -14,15 +14,28 @@ test('universe and secondary filters remain separate controls',()=>{
   assert.match(html,/data-filter="none" class="active">Clear filters/);
   assert.match(html,/data-filter="kell_bull_snort"/);
   assert.match(html,/data-filter="crash-base"/);
+  for(const filter of ['tb-path:recovery','tb-path:compression','tb-path:ignition']){
+    assert.match(html,new RegExp('data-filter="'+filter+'"'));
+  }
   assert.doesNotMatch(html,/data-filter="bottom-fishing"/);
   assert.doesNotMatch(html,/data-universe="crash-base"/);
 });
 
 test('Crash Base remains a review filter and does not switch to the Kell dataset',()=>{
   assert.match(app,/if\(filter==='crash-base'\)return item\?\.metrics\?\.crashBaseTriggered===true;/);
-  assert.match(app,/const reviewFilterLabels=\{'crash-base':'Crash Base'\};/);
+  assert.match(app,/'crash-base':'Crash Base'/);
+  assert.match(app,/'tb-path:recovery':'Recovery'/);
+  assert.match(app,/'tb-path:compression':'Compression'/);
+  assert.match(app,/'tb-path:ignition':'Ignition'/);
   assert.match(app,/const filterLabel=key=>reviewFilterLabels\[key\]\|\|kellFilterLabels\[key\]\|\|key;/);
   assert.match(app,/filter\(key=>!\['multi','action'\]\.includes\(key\)\)/);
+});
+
+test('Birth Path filters are supporting-evidence filters, not dataset switches',()=>{
+  assert.match(app,/if\(filter\.startsWith\('tb-path:'\)\)/);
+  assert.match(app,/trendBirthEvidence\(item\)\[bucket\]/);
+  assert.doesNotMatch(html,/data-universe="tb-path:/);
+  assert.match(app,/const kellFilters=new Set\(Object\.keys\(kellFilterLabels\)/);
 });
 
 test('secondary filters are an AND intersection inside the selected universe',()=>{

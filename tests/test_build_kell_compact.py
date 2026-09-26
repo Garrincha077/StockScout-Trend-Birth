@@ -88,6 +88,24 @@ class KellCompactTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["crashBaseDrawdown5yPct"], 81.0)
         self.assertEqual(result["metrics"]["crashBaseAgeWeeks"], 126)
 
+    def test_compact_candidate_preserves_trend_birth_supporting_evidence(self):
+        item = {
+            "ticker": "AAA",
+            "metrics": {"price": 12.5},
+            "trendBirthEvidence": {
+                "phase": "ignition",
+                "primary": "EMA Stack Thrust",
+                "activeCount": 3,
+                "recovery": ["Crash Base"],
+                "compression": ["EMA Stack Coil"],
+                "ignition": ["EMA Stack Thrust"],
+            },
+        }
+        result = compact.compact_candidate(item)
+        self.assertEqual(result["trendBirthEvidence"]["phase"], "ignition")
+        self.assertEqual(result["trendBirthEvidence"]["primary"], "EMA Stack Thrust")
+        self.assertEqual(result["trendBirthEvidence"]["activeCount"], 3)
+
     def test_compact_candidate_preserves_v5_score_dimensions(self):
         item = {
             "ticker": "AAA",
