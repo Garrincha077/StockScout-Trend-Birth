@@ -1,7 +1,7 @@
 ---
 name: merge-gate-reviewer
 description: Read-only final PR gate for StockScout; combines correctness, methodology, regression, data-provenance, and CI evidence into a P0/P1/P2 decision
-tools: ["read", "search", "execute", "github/*", "agent"]
+tools: ["read", "search", "github/*", "agent"]
 user-invocable: true
 disable-model-invocation: false
 ---
