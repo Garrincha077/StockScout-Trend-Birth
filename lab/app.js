@@ -74,7 +74,12 @@ const kellFilterLabels={
   'multi':'Multi-hit',
   'action':'Action'
 };
-const reviewFilterLabels={'crash-base':'Crash Base'};
+const reviewFilterLabels={
+  'crash-base':'Crash Base',
+  'tb-path:recovery':'Recovery',
+  'tb-path:compression':'Compression',
+  'tb-path:ignition':'Ignition'
+};
 const filterLabel=key=>reviewFilterLabels[key]||kellFilterLabels[key]||key;
 const kellFilters=new Set(Object.keys(kellFilterLabels).filter(key=>!['multi','action'].includes(key)));
 const quickViews={
@@ -116,6 +121,28 @@ function trendBirthChecklistText(item){
     ['bullishReexpansion','Bullish EMA re-expansion']
   ];
   return labels.map(([key,label])=>(checks[key]?'✅ ':'❌ ')+label).join('\n');
+}
+const birthPathOrder=['recovery','compression','ignition'];
+const birthPathLabels={recovery:'Recovery',compression:'Compression',ignition:'Ignition'};
+const trendBirthEvidence=item=>item?.trendBirthEvidence||{};
+const birthEvidencePhase=item=>String(trendBirthEvidence(item).phase||'');
+const birthEvidenceCount=item=>Number(trendBirthEvidence(item).activeCount||0);
+function birthPathText(item){
+  const evidence=trendBirthEvidence(item);
+  return birthPathOrder.map(key=>(Array.isArray(evidence[key])&&evidence[key].length?'✓ ':'○ ')+birthPathLabels[key]).join(' → ');
+}
+function birthEvidenceText(item){
+  const evidence=trendBirthEvidence(item);
+  const rows=birthPathOrder
+    .filter(key=>Array.isArray(evidence[key])&&evidence[key].length)
+    .map(key=>birthPathLabels[key]+': '+evidence[key].join(' · '));
+  return rows.join('\n')||'No supporting Bottom/Launch evidence';
+}
+function birthEvidenceBadge(item){
+  const evidence=trendBirthEvidence(item),phase=birthEvidencePhase(item),primary=String(evidence.primary||'');
+  if(!phase||!primary)return '';
+  const extra=Math.max(0,birthEvidenceCount(item)-1);
+  return '<span class="badge birth-evidence">'+esc(birthPathLabels[phase]||phase)+' · '+esc(primary)+(extra?' +'+extra:'')+'</span>';
 }
 function ownerWatchlistItems(tickers){
   return WatchlistStore.normalizeItems((tickers||[]).map(ticker=>({
@@ -424,8 +451,8 @@ function badges(item){
   const score=Number(item.kell_score);
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   const tb=trendBirthStage(item)>=2?'<span class="badge kell-score">TB '+trendBirthStage(item)+'/4</span>':'';
-  const crash=item?.metrics?.crashBaseTriggered===true?'<span class="badge">Crash Base</span>':'';
-  return sources+kell+tb+crash;
+  const evidence=birthEvidenceBadge(item);
+  return sources+kell+tb+evidence;
 }
 function hasKell(item,field){
   return item?.[field]===true
@@ -521,6 +548,10 @@ function matchesFilter(item,filter){
   if(filter==='kell-ready')return Number(item.kell_readiness_score)>=80;
   if(filter==='kell-changed')return item?.kellChange?.changed===true;
   if(filter==='crash-base')return item?.metrics?.crashBaseTriggered===true;
+  if(filter.startsWith('tb-path:')){
+    const bucket=filter.slice('tb-path:'.length);
+    return Array.isArray(trendBirthEvidence(item)[bucket])&&trendBirthEvidence(item)[bucket].length>0;
+  }
   if(filter.startsWith('tb:'))return trendBirthStage(item)===Number(filter.slice(3));
   if(filter.startsWith('stage:'))return primaryStage(item)===filter.slice(6);
   if(kellFilters.has(filter))return hasKell(item,filter);
@@ -751,7 +782,10 @@ function render(){
     if(mode==='change')return Number(item.kellChange?.priority);
     if(mode==='readiness')return Number(item.kell_readiness_score);
     if(mode==='quality')return Number(item.kell_quality_score);
-    if(mode==='trend-birth')return trendBirthStage(item)*1000+Number(item.kell_score||0);
+    if(mode==='trend-birth'){
+      const pathRank={recovery:1,compression:2,ignition:3}[birthEvidencePhase(item)]||0;
+      return trendBirthStage(item)*100000+pathRank*1000+birthEvidenceCount(item)*100+Number(item.kell_score||0);
+    }
     if(mode==='evidence')return Number(item.kell_evidence_coverage);
     if(mode==='rvol')return Number(item.metrics?.rvol);
     return NaN;
@@ -842,6 +876,7 @@ function show(item){
       '<div><span>Readiness</span><strong>'+fmt(item.kell_readiness_score,0)+'</strong></div>'+
     '</div>'+
     '<div class="detail-tb-note"><span>TB missing for 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
+    '<div class="detail-tb-note"><span>Birth path</span><strong>'+esc(birthPathText(item))+(trendBirthEvidence(item).primary?' · '+esc(trendBirthEvidence(item).primary):'')+'</strong></div>'+
     '<canvas class="detail-chart"></canvas>'+
     '<details class="detail-more"><summary>More metrics & setup details</summary><div class="detail-grid">'+
       fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
@@ -861,6 +896,7 @@ function show(item){
     '\n\n<b>Preferred trade</b>\n'+esc(a.preferredTrade||'—')+
     (item.kell?.signals?.length?'\n\n<b>Kell confluence</b>\n'+esc(item.kell.signals.join(' · ')):'')+
     '\n\n<b>Trend Birth checklist</b>\n'+esc(trendBirthChecklistText(item))+
+    '\n\n<b>Supporting evidence</b>\n'+esc(birthEvidenceText(item))+
     '\n\n<b>Kell score breakdown</b>\n'+esc(kellBreakdownText(item))+
     '\n\n<b>Fundamenti QoQ</b>\n'+esc(fundamentals)+
     (ai.riskNote?'\n\n<b>Risk note</b>\n'+esc(ai.riskNote):'')+
