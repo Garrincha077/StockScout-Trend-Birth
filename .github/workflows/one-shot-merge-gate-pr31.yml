@@ -62,11 +62,18 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          copilot --agent=merge-gate-reviewer --no-banner \
+          cat > /tmp/merge-gate-prompt.txt <<'PROMPT'
+Review existing pull request #31 in this repository.
+This is a review-only task: do not edit or create repository files and do not attempt to merge or approve.
+Read .review-context/pr-31.json, .review-context/pr-31.diff, .review-context/pr-31-checks.json, the saved BEFORE/AFTER files, AGENTS.md, and any relevant current repository files.
+Use the merge-gate-reviewer instructions and delegate independent methodology/regression passes when useful.
+Pay special attention to whether Recovery/Compression/Ignition supporting evidence can still affect default Trend Birth ranking.
+Report only genuine P0/P1/P2 findings and end with MERGE GATE CLEAN, BLOCKED, or INCOMPLETE.
+PROMPT
+          cat /tmp/merge-gate-prompt.txt | copilot --agent=merge-gate-reviewer --no-banner \
             --deny-tool='write' \
             --deny-tool='shell' \
             --deny-tool='url' \
-            -p "Review existing pull request #31 in this repository. This is a review-only task: do not edit or create repository files and do not attempt to merge or approve. Read .review-context/pr-31.json, .review-context/pr-31.diff, .review-context/pr-31-checks.json, the saved BEFORE/AFTER files, AGENTS.md, and any relevant current repository files. Use the merge-gate-reviewer instructions and delegate independent methodology/regression passes when useful. Pay special attention to whether Recovery/Compression/Ignition supporting evidence can still affect default Trend Birth ranking. Report only genuine P0/P1/P2 findings and end with MERGE GATE CLEAN, BLOCKED, or INCOMPLETE." \
             | tee /tmp/merge-gate-pr31.md
 
       - name: Publish review to PR 31
