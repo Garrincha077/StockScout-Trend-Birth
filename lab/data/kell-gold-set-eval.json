@@ -894,7 +894,7 @@
   "summary": {
     "acceptedPrecisionPct": 88.5,
     "addedFromBaseline": 0,
-    "availableSessionCount": 12,
+    "availableSessionCount": 13,
     "baselinePredicted": 26,
     "currentPredicted": 26,
     "evaluated": 28,
@@ -912,7 +912,7 @@
     "observedFalseNegatives": 2,
     "observedFalsePositives": 3,
     "positiveRecallPct": 92.0,
-    "rawSnapshotSessionCount": 5,
+    "rawSnapshotSessionCount": 6,
     "rescoredRowCount": 4,
     "reviewed": 28,
     "sessionsWithFalseNegatives": 1,
