@@ -15,6 +15,8 @@ from pathlib import Path
 METRIC_KEYS = (
     "price", "rvol", "rsi14", "emaGapPct", "slope50", "slope30w",
     "swingState", "baseLike", "setup", "actionability",
+    "crashBaseTriggered", "crashBaseScore", "crashBasePhase", "crashBaseAlertLevel",
+    "crashBaseDrawdown5yPct", "crashBaseAgeWeeks",
 )
 KELL_METRIC_KEYS = (
     "ret_3m_pct", "ret_6m_pct", "ret_ytd_pct", "gap_pct", "rvol20",
