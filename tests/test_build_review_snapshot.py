@@ -233,6 +233,34 @@ class BuilderTests(unittest.TestCase):
         self.assertTrue(union[0]["trendBirth"]["available"])
         self.assertEqual(unavailable, 0)
 
+    def test_summary_reuses_triggered_bottom_crash_base_setup(self):
+        metrics = builder._summary({
+            "ticker": "AAA",
+            "primarySetup": "ema_stack_launch",
+            "setupNames": ["ema_stack_launch", "crash_base_stage1"],
+            "crashBaseScore": 72.0,
+            "crashBasePhase": "forming",
+            "specialAlertLevel": "watch",
+            "drawdown5yPct": 78.0,
+            "baseAgeWeeks": 110,
+        }, [])
+        self.assertTrue(metrics["crashBaseTriggered"])
+        self.assertEqual(metrics["crashBaseScore"], 72.0)
+        self.assertEqual(metrics["crashBasePhase"], "forming")
+        self.assertEqual(metrics["crashBaseAlertLevel"], "watch")
+        self.assertEqual(metrics["crashBaseDrawdown5yPct"], 78.0)
+        self.assertEqual(metrics["crashBaseAgeWeeks"], 110.0)
+
+    def test_summary_does_not_promote_score_only_crash_base(self):
+        metrics = builder._summary({
+            "ticker": "AAA",
+            "setupNames": ["ema_stack_launch"],
+            "crashBaseScore": 91.0,
+            "crashBasePhase": "forming",
+        }, [])
+        self.assertFalse(metrics["crashBaseTriggered"])
+        self.assertEqual(metrics["crashBaseScore"], 91.0)
+
     def test_chart_metrics_expose_turning_structure(self):
         rows = []
         price = 10.0
