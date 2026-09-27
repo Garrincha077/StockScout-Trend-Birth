@@ -57,19 +57,35 @@ jobs:
         id: publish
         run: python scripts/publish_review_snapshot.py --input /tmp/review-candidate.json --directory lab/data
 
-      - name: Rebuild Trend Birth alert payload for published snapshot
+      - name: Build compact Kell and the two shortlists from this snapshot
+        run: |
+          python scripts/build_kell_compact.py \
+            --input lab/data/latest.json \
+            --output lab/data/kell-latest.json \
+            --charts-dir lab/data/kell-charts
+
+      - name: Validate one Unified activation across Review and Kell
+        run: python scripts/validate_unified_review_bundle.py --review lab/data/latest.json --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts
+
+      - name: Rebuild no-send Trend Birth alert payload for published snapshot
         run: |
           python scripts/build_trend_birth_alerts.py \
-            --current /tmp/review-candidate.json \
+            --current lab/data/kell-latest.json \
             --history-dir lab/data/kell-history \
             --publication lab/data/publication.json \
             --output lab/data/trend-birth-alerts.json
+
+      - name: Publish immutable Kell companion and chart archive
+        run: python scripts/publish_kell_snapshot.py --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts --directory lab/data
+
+      - name: Validate the complete aligned bundle before commit
+        run: python scripts/validate_unified_review_bundle.py --review lab/data/latest.json --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts
 
       - name: Commit publication and alert payload atomically to LAB branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/trend-birth-alerts.json lab/data/snapshots/ lab/data/history/
+          git add lab/data/latest.json lab/data/publication.json lab/data/trend-birth-alerts.json lab/data/snapshots/ lab/data/history/ lab/data/kell-latest.json lab/data/kell-charts/ lab/data/kell-snapshots/ lab/data/kell-chart-runs/ lab/data/kell-history/
           if git diff --cached --quiet; then
             exit 0
           fi
