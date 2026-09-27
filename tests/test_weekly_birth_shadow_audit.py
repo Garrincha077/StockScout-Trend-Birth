@@ -24,6 +24,7 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         self.assertFalse(report["manualChartReviewComplete"])
         self.assertEqual("BBB", report["nearMissReviewQueue"][0]["ticker"])
         self.assertEqual(["clearRunway"], report["nearMissReviewQueue"][0]["rejectReasons"])
+        self.assertEqual({"unavailable": 2}, report["chartSourceCounts"])
 
     def test_old_snapshot_cannot_claim_v2_shadow_session(self):
         with self.assertRaisesRegex(ValueError, "unavailable"):
@@ -42,6 +43,21 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         queue = build_report(snapshot)["nearMissReviewQueue"]
         self.assertEqual(["CHART", "NOCHART"], [item["ticker"] for item in queue])
         self.assertTrue(queue[0]["chartAvailable"])
+
+    def test_bottom_crash_evidence_is_counted_without_promoting_a_reject(self):
+        snapshot = {
+            "source": {"sessionDate": "2026-09-25"},
+            "shortlists": {"schemaVersion": "stockscout-shortlists-v2", "weeklyTrendBirth": []},
+            "trendBirthCandidateIndex": [{
+                "ticker": "CRASH", "metrics": {"crashBaseTriggered": True},
+                "weeklyBirth": {"eligible": False, "chartSource": "bottom-fishing",
+                                "rejectReasons": ["clearRunway"], "metrics": {}},
+            }],
+        }
+        report = build_report(snapshot)
+        self.assertEqual(1, report["bottomCrashTriggeredCount"])
+        self.assertEqual(0, report["bottomCrashEligibleCount"])
+        self.assertEqual({"bottom-fishing": 1}, report["chartSourceCounts"])
 
 
 if __name__ == "__main__":

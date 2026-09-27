@@ -22,6 +22,12 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         members.discard("")
     old_members = {str(item.get("ticker") or "") for item in (previous or {}).get("selected", [])}
     stages = Counter((item.get("weeklyBirth") or {}).get("stageLabel") or "Unknown" for item in selected)
+    crash_items = [
+        item for item in universe
+        if (item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is True
+        or (item.get("metrics") or {}).get("crashBaseTriggered") is True
+    ]
+    chart_sources = Counter((item.get("weeklyBirth") or {}).get("chartSource") or "unavailable" for item in universe)
     reasons = Counter(
         reason
         for item in universe
@@ -34,13 +40,17 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         detail.append({
             "ticker": item["ticker"],
             "stage": evidence.get("stageLabel"),
+            "chartSource": evidence.get("chartSource"),
             "score": evidence.get("score"),
+            "baseKind": metrics.get("baseKind"),
+            "bottomCrashBaseTriggered": metrics.get("bottomCrashBaseTriggered"),
             "baseWeeks": metrics.get("baseWeeks"),
             "baseDepthPct": metrics.get("baseDepthPct"),
             "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
             "recentBaseRangePct26w": metrics.get("recentBaseRangePct26w"),
             "recentBaseRangePct12w": metrics.get("recentBaseRangePct12w"),
             "runwayPct": metrics.get("runwayPct"),
+            "runwayFromPricePct": metrics.get("runwayFromPricePct"),
             "extensionPct": metrics.get("extensionPct"),
             "mansfieldRsPct": metrics.get("mansfieldRsPct"),
             "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
@@ -75,21 +85,25 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         review_queue.append({
             "ticker": item.get("ticker"),
             "stage": evidence.get("stageLabel"),
+            "chartSource": evidence.get("chartSource"),
             "score": evidence.get("score"),
             "chartAvailable": item.get("ticker") in chart_tickers,
             "rejectReasons": evidence.get("rejectReasons") or [],
             "baseWeeks": metrics.get("baseWeeks"),
+            "baseKind": metrics.get("baseKind"),
+            "bottomCrashBaseTriggered": metrics.get("bottomCrashBaseTriggered"),
             "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
             "mansfieldRsPct": metrics.get("mansfieldRsPct"),
             "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
             "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
             "runwayPct": metrics.get("runwayPct"),
+            "runwayFromPricePct": metrics.get("runwayFromPricePct"),
             "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
         })
     return {
         "schemaVersion": "weekly-birth-shadow-audit-v1",
-        "modelVersion": ((selected[0].get("weeklyBirth") or {}).get("modelVersion") if selected else "weinstein-stage2a-v3"),
+        "modelVersion": ((selected[0].get("weeklyBirth") or {}).get("modelVersion") if selected else "weinstein-stage2a-v4-bottom-crash"),
         "sessionDate": source.get("sessionDate"),
         "runId": source.get("runId"),
         "unifiedManifestSha256": source.get("unifiedManifestSha256"),
@@ -97,6 +111,10 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         "eligibleCount": sum((item.get("weeklyBirth") or {}).get("eligible") is True for item in universe),
         "selectedCount": len(selected),
         "stageCounts": dict(sorted(stages.items())),
+        "chartSourceCounts": dict(sorted(chart_sources.items())),
+        "bottomCrashTriggeredCount": len(crash_items),
+        "bottomCrashEligibleCount": sum((item.get("weeklyBirth") or {}).get("eligible") is True for item in crash_items),
+        "bottomCrashSelectedCount": sum((item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is True for item in selected),
         "rejectionReasonCounts": dict(sorted(reasons.items())),
         "added": sorted(members - old_members) if previous else [],
         "removed": sorted(old_members - members) if previous else [],

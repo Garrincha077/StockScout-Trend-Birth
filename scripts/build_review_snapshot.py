@@ -464,16 +464,19 @@ def load_charts(mode_root: str, manifest: dict, core: dict, tickers: set[str]) -
     return out
 
 
-def _load_preferred_kell_charts(
+def _load_preferred_charts(
     mode_payloads: dict[str, tuple[str, dict, dict]],
     unified_kell_pool: dict[str, dict],
-) -> dict[str, list]:
-    """Load full-union Kell charts with deterministic Next -> Ryan -> Bottom priority."""
+    priority: tuple[str, ...],
+) -> tuple[dict[str, list], dict[str, str]]:
     out: dict[str, list] = {}
+    sources: dict[str, str] = {}
     pending = set(unified_kell_pool)
-    for mode in ("next", "ryan-original", "bottom-fishing"):
-        if not pending or mode not in mode_payloads:
+    for mode in priority:
+        if not pending:
             break
+        if mode not in mode_payloads:
+            continue
         mode_root, manifest, core = mode_payloads[mode]
         mode_tickers = {
             ticker for ticker in pending
@@ -483,8 +486,49 @@ def _load_preferred_kell_charts(
             continue
         loaded = load_charts(mode_root, manifest, core, mode_tickers)
         out.update(loaded)
+        sources.update({ticker: mode for ticker in loaded})
         pending -= set(loaded)
-    return out
+    return out, sources
+
+
+def _load_preferred_kell_charts(
+    mode_payloads: dict[str, tuple[str, dict, dict]],
+    unified_kell_pool: dict[str, dict],
+) -> dict[str, list]:
+    """Keep Kell's adjusted Next -> Ryan -> Bottom chart priority unchanged."""
+    return _load_preferred_charts(
+        mode_payloads, unified_kell_pool, ("next", "ryan-original", "bottom-fishing")
+    )[0]
+
+
+def _load_preferred_weekly_charts(
+    mode_payloads: dict[str, tuple[str, dict, dict]],
+    unified_kell_pool: dict[str, dict],
+    fallback_charts: dict[str, list] | None = None,
+    fallback_sources: dict[str, str] | None = None,
+) -> tuple[dict[str, list], dict[str, str]]:
+    """Prefer Bottom's split-only chart for Weekly Birth, with a bounded fallback."""
+    if fallback_charts is None:
+        return _load_preferred_charts(
+            mode_payloads, unified_kell_pool, ("bottom-fishing", "next", "ryan-original")
+        )
+    bottom, bottom_sources = _load_preferred_charts(
+        mode_payloads, unified_kell_pool, ("bottom-fishing",)
+    )
+    for ticker in unified_kell_pool:
+        if ticker not in bottom and fallback_charts.get(ticker):
+            bottom[ticker] = fallback_charts[ticker]
+            bottom_sources[ticker] = (fallback_sources or {}).get(ticker, "next")
+    return bottom, bottom_sources
+
+
+def _bottom_weekly_evidence(pool_item: dict | None) -> dict:
+    row = (pool_item or {}).get("bottomRaw") or {}
+    return {
+        "crashBaseTriggered": is_crash_base_candidate(row),
+        "crashBaseAgeWeeks": _number(row, "baseAgeWeeks", "base_age_weeks"),
+        "crashBaseDrawdown5yPct": _number(row, "drawdown5yPct", "drawdown_5y_pct"),
+    }
 
 
 def _embedded_spy_benchmark(charts: dict[str, list], lookback: int = 260) -> list[dict]:
@@ -920,15 +964,22 @@ def build_trend_birth_union(
     tracked_set: set[str],
     charts: dict[str, list],
     weekly_benchmark_rows: list | None = None,
+    weekly_charts: dict[str, list] | None = None,
+    weekly_chart_sources: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict[str, int], int]:
     """Return the stable Unified + tracked Trend Birth evaluation layer."""
     unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
     candidate_index: list[dict] = []
     stage_counts = {str(stage): 0 for stage in range(5)}
     unavailable_count = 0
+    weekly_charts = weekly_charts if weekly_charts is not None else charts
+    weekly_chart_sources = weekly_chart_sources or {}
 
     for ticker in sorted(set(unified_kell_pool) | tracked_set):
         rows = charts.get(ticker, [])
+        weekly_rows = weekly_charts.get(ticker, [])
+        weekly_evidence = _bottom_weekly_evidence(unified_kell_pool.get(ticker))
+        weekly_source = weekly_chart_sources.get(ticker)
         tracked = ticker in tracked_set
         if ticker in unified_index_by_ticker:
             item = dict(unified_index_by_ticker[ticker])
@@ -937,9 +988,12 @@ def build_trend_birth_union(
             if tracked:
                 item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
                 item["trendBirth"] = evaluate_trend_birth(rows)
-                item["weeklyBirth"] = evaluate_weekly_birth(rows, weekly_benchmark_rows)
+                item["weeklyBirth"] = evaluate_weekly_birth(
+                    weekly_rows, weekly_benchmark_rows,
+                    bottom_evidence=weekly_evidence, chart_source=weekly_source,
+                )
                 item["chartBars"] = rows[-260:]
-                item["weeklyChartBars"] = _weekly_bars(rows, 260)
+                item["weeklyChartBars"] = _weekly_bars(weekly_rows, 260)
         else:
             trend_birth = evaluate_trend_birth(rows)
             item = {
@@ -950,10 +1004,13 @@ def build_trend_birth_union(
                 "trackedOnly": True,
                 "metrics": _summary({}, rows),
                 "trendBirth": trend_birth,
-                "weeklyBirth": evaluate_weekly_birth(rows, weekly_benchmark_rows),
+                "weeklyBirth": evaluate_weekly_birth(
+                    weekly_rows, weekly_benchmark_rows,
+                    chart_source=weekly_source,
+                ),
                 "trendBirthEvidence": {"phase": None, "primary": None, "activeCount": 0, "recovery": [], "compression": [], "ignition": []},
                 "chartBars": rows[-260:],
-                "weeklyChartBars": _weekly_bars(rows, 260),
+                "weeklyChartBars": _weekly_bars(weekly_rows, 260),
                 "kell_score": None,
                 "kell_readiness_score": None,
                 "kell_quality_score": None,
@@ -1022,6 +1079,7 @@ def build_snapshot(
             if mode == "next":
                 pool_item["raw"] = {**pool_item["raw"], **row}
             elif mode == "bottom-fishing":
+                pool_item["bottomRaw"] = row
                 pool_item["raw"] = {**row, **pool_item["raw"]}
             else:
                 pool_item["raw"] = {**row, **pool_item["raw"]}
@@ -1133,7 +1191,12 @@ def build_snapshot(
     # Score the complete Unified candidate union from a deterministic chart
     # source order. This is intentionally independent of ordinary Review Grid
     # membership, which may have cached a Bottom chart first.
-    kell_unified_charts = _load_preferred_kell_charts(mode_payloads, unified_kell_pool)
+    kell_unified_charts, kell_chart_sources = _load_preferred_charts(
+        mode_payloads, unified_kell_pool, ("next", "ryan-original", "bottom-fishing")
+    )
+    weekly_charts, weekly_chart_sources = _load_preferred_weekly_charts(
+        mode_payloads, unified_kell_pool, kell_unified_charts, kell_chart_sources
+    )
     # Weekly Mansfield RS needs a full year of completed weekly benchmark
     # observations; Kell's shorter benchmark remains unchanged.
     weekly_benchmark_rows = _embedded_spy_benchmark(kell_unified_charts, lookback=1265)
@@ -1162,6 +1225,8 @@ def build_snapshot(
         ]
         if fallback_rows:
             trend_birth_charts[ticker] = fallback_rows
+            weekly_charts[ticker] = fallback_rows
+            weekly_chart_sources[ticker] = "tracked-watchlist"
             tracked_fallback_count += 1
 
     def kell_chart_quality(item: dict) -> bool:
@@ -1272,7 +1337,11 @@ def build_snapshot(
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows)
-        weekly_birth = evaluate_weekly_birth(rows, weekly_benchmark_rows)
+        weekly_birth = evaluate_weekly_birth(
+            weekly_charts.get(ticker, []), weekly_benchmark_rows,
+            bottom_evidence=_bottom_weekly_evidence(pool_item),
+            chart_source=weekly_chart_sources.get(ticker),
+        )
         trend_birth_evidence = trend_birth_supporting_evidence(raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
@@ -1339,7 +1408,11 @@ def build_snapshot(
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         item["trendBirth"] = evaluate_trend_birth(rows)
-        item["weeklyBirth"] = evaluate_weekly_birth(rows, weekly_benchmark_rows)
+        item["weeklyBirth"] = evaluate_weekly_birth(
+            weekly_charts.get(ticker, []), weekly_benchmark_rows,
+            bottom_evidence=_bottom_weekly_evidence(unified_kell_pool.get(ticker)),
+            chart_source=weekly_chart_sources.get(ticker),
+        )
         item["trendBirthEvidence"] = trend_birth_supporting_evidence(raw)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
@@ -1361,13 +1434,15 @@ def build_snapshot(
             tracked_set,
             trend_birth_charts,
             weekly_benchmark_rows,
+            weekly_charts,
+            weekly_chart_sources,
         )
     )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
     weekly_selected = []
     for item in weekly_shortlist(trend_birth_candidate_index):
-        rows = trend_birth_charts.get(item["ticker"], [])
+        rows = weekly_charts.get(item["ticker"], [])
         weekly_selected.append({
             **item,
             "chartBars": rows[-260:],

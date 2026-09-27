@@ -11,7 +11,7 @@ from statistics import median
 from typing import Iterable
 
 LABELS = {0: "Rejected", 1: "Long Base", 2: "Compressed", 3: "Ready", 4: "Trigger"}
-MODEL_VERSION = "weinstein-stage2a-v3"
+MODEL_VERSION = "weinstein-stage2a-v4-bottom-crash"
 
 
 def _number(value):
@@ -131,16 +131,49 @@ def _base(weeks: list[dict]) -> tuple[int, float, float, int, float] | None:
 
 
 def _resistance(weeks: list[dict], pivot: float) -> float | None:
-    # The base ceiling itself is the entry pivot. Search earlier and recent
-    # swing highs above that pivot for the *next* supply zone.
+    # Nearby swing highs belong to the entry/pivot zone. Counting each one as
+    # a separate overhead wall made a dense base look like it had no runway.
+    # The next supply zone starts more than 6% beyond the pivot. Older highs
+    # still count, including those from before a crash.
     highs = [bar["high"] for bar in weeks[:-1]]
     # Local swing highs approximate overhead supply without asserting who traded.
     swings = [
         highs[index] for index in range(2, len(highs) - 2)
         if highs[index] >= max(highs[index - 2:index] + highs[index + 1:index + 3])
     ]
-    above = sorted(high for high in swings if high > pivot * 1.01)
+    # A five-year window can begin at the old crash peak; do not erase that
+    # supply level merely because the local-swing test lacks left neighbors.
+    swings.extend((max(highs[:2]), max(highs[-2:])))
+    above = sorted(high for high in swings if high > pivot * 1.06)
     return above[0] if above else None
+
+
+def _crash_base(weeks: list[dict], evidence: dict) -> tuple[int, float, float, int, float] | None:
+    """Use Bottom's detected secular age, but measure today's local launch shelf ourselves."""
+    if evidence.get("crashBaseTriggered") is not True:
+        return None
+    age = _number(evidence.get("crashBaseAgeWeeks"))
+    drawdown = _number(evidence.get("crashBaseDrawdown5yPct"))
+    if age is None or age < 52 or drawdown is None or drawdown < 35:
+        return None
+    shelf = weeks[-34:-8]
+    pivot = max(bar["high"] for bar in shelf)
+    floor = min(bar["low"] for bar in shelf)
+    depth = 100 * (pivot - floor) / pivot
+    closes = [bar["close"] for bar in shelf]
+    highs = [bar["high"] for bar in shelf]
+    new_high_weeks = sum(
+        high > max(highs[index - 13:index]) * 1.001
+        for index, high in enumerate(highs) if index >= 13
+    )
+    move = sum(abs(right - left) for left, right in zip(closes, closes[1:]))
+    efficiency = abs(closes[-1] - closes[0]) / move if move else 0
+    # The secular crash can be deep, but the current 26-week shelf must have
+    # stopped trending down. Its own depth is reported separately from the
+    # Bottom detector's full multi-year base.
+    if depth > 45 or efficiency > 0.5 or new_high_weeks > 3:
+        return None
+    return int(age), depth, pivot, new_high_weeks, efficiency
 
 
 def _mansfield_rs(weeks: list[dict]) -> tuple[float | None, float | None]:
@@ -154,17 +187,45 @@ def _mansfield_rs(weeks: list[dict]) -> tuple[float | None, float | None]:
     return latest, latest - reading(len(ratios) - 4)
 
 
-def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None) -> dict:
+def evaluate_weekly_birth(
+    rows: Iterable,
+    benchmark_rows: Iterable | None = None,
+    *,
+    bottom_evidence: dict | None = None,
+    chart_source: str | None = None,
+) -> dict:
     weeks = completed_weekly_bars(rows, benchmark_rows)
+    bottom_evidence = bottom_evidence or {}
+    crash_age = _number(bottom_evidence.get("crashBaseAgeWeeks"))
+    crash_drawdown = _number(bottom_evidence.get("crashBaseDrawdown5yPct"))
     rejected = {
         "modelVersion": MODEL_VERSION, "stage": 0, "stageLabel": LABELS[0], "eligible": False,
-        "score": 0, "checks": {}, "metrics": {}, "rejectReasons": [],
+        "score": 0, "checks": {},
+        "metrics": {
+            "bottomCrashBaseTriggered": bottom_evidence.get("crashBaseTriggered") is True,
+            "bottomCrashBaseAgeWeeks": crash_age,
+            "bottomCrashDrawdown5yPct": crash_drawdown,
+        },
+        "rejectReasons": [],
+        "chartSource": chart_source,
     }
     if len(weeks) < 156:
         return {**rejected, "rejectReasons": ["weekly_history_under_156_weeks"]}
     base = _base(weeks)
+    base_kind = "measured-range"
     if base is None:
-        return {**rejected, "rejectReasons": ["no_recent_39_to_130_week_base"]}
+        base = _crash_base(weeks, bottom_evidence)
+        base_kind = "bottom-crash-recovery"
+    if base is None:
+        if bottom_evidence.get("crashBaseTriggered") is True:
+            reason = (
+                "bottom_crash_age_under_52_weeks" if crash_age is None or crash_age < 52 else
+                "bottom_crash_drawdown_under_35_pct" if crash_drawdown is None or crash_drawdown < 35 else
+                "bottom_crash_no_current_shelf"
+            )
+        else:
+            reason = "no_recent_39_to_130_week_base"
+        return {**rejected, "rejectReasons": [reason]}
 
     base_weeks, depth, pivot, new_high_weeks, base_efficiency = base
     closes = [bar["close"] for bar in weeks]
@@ -183,9 +244,21 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
     rs, rs_change = _mansfield_rs(weeks)
     resistance = _resistance(weeks, pivot)
     runway = 100 * (resistance / max(price, pivot) - 1) if resistance else None
+    runway_from_price = 100 * (resistance / price - 1) if resistance else None
     # "Blue sky" is meaningful only at the prospective entry pivot. If price
     # sits far below an old base ceiling, intervening highs remain overhead.
-    blue_sky = resistance is None and len(weeks) >= 156 and price >= pivot * 0.95
+    blue_sky = resistance is None and len(weeks) >= 156 and price >= pivot * 0.92
+    crash_prebreakout_runway = (
+        bottom_evidence.get("crashBaseTriggered") is True
+        and -8 <= 100 * (price / pivot - 1) <= 0
+        and runway_from_price is not None and runway_from_price >= 12
+    )
+    runway_basis = (
+        "blue-sky" if blue_sky else
+        "pivot" if runway is not None and runway >= 12 else
+        "price-before-pivot" if crash_prebreakout_runway else
+        "insufficient"
+    )
     prior_volumes = [bar["volume"] for bar in weeks[-5:-1]]
     volume_ratio = (weeks[-1]["volume"] / (sum(prior_volumes) / 4)
                     if len(prior_volumes) == 4 and sum(prior_volumes) > 0 else None)
@@ -200,9 +273,11 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
     crossings = [index for index, close in enumerate(launch) if close > pivot and (index == 0 or launch[index - 1] <= pivot)]
     breakout_age = 7 - crossings[-1] if crossings else None
     near_pivot = -5 <= 100 * (price / pivot - 1) <= 0
+    crash_source = bottom_evidence.get("crashBaseTriggered") is True
     rs_improving = rs is not None and rs_change is not None and (
         (rs >= 0 and rs_change >= 0.25) or (rs >= -2 and rs_change >= 1)
     )
+    crash_rs_repair = crash_source and rs is not None and rs_change is not None and rs >= -5 and rs_change >= 0.25
     ma_turn = slope30 >= -0.25 and prior_slope30 <= 1 and (
         slope30 - prior_slope30 >= 0.15 or (abs(prior_slope30) <= 0.5 and slope30 >= 0)
     )
@@ -218,7 +293,7 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
         "aboveSma30w": price >= ma["sma30w"],
         "notExtended": -6 <= extension <= 10,
         "launchNotChased": launch_advance <= 10,
-        "clearRunway": blue_sky or (runway is not None and runway >= 12),
+        "clearRunway": runway_basis != "insufficient",
         "nearPivot": near_pivot,
         "freshBreakout": breakout_age is not None and breakout_age <= 2 and price > pivot,
     }
@@ -248,6 +323,14 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
         and rs >= -4 and rs_change >= 0.5
         and slope30 >= -0.5 and prior_slope30 <= 1
     )
+    checks["crashBaseWatch"] = (
+        crash_source and stage >= 1 and price <= pivot
+        and -8 <= 100 * (price / pivot - 1)
+        and ma_spread <= 8 and recent_range <= 14
+        and -6 <= extension <= 6 and checks["launchNotChased"]
+        and checks["aboveSma30w"] and crash_rs_repair
+        and -0.5 <= slope30 <= 1.5 and prior_slope30 <= 1.5
+    )
     score = round(
         min(base_weeks, 104) / 104 * 20
         + max(0, 1 - ma_spread / 8) * 20
@@ -257,12 +340,21 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
         + (10 if checks["nearPivot"] or checks["freshBreakout"] else 0)
         + (5 if checks["breakoutVolumeConfirmed"] else 0), 1,
     )
+    eligible = (
+        (stage >= 2 and checks["notExtended"] and checks["earlyBreakoutOrPrebreakout"])
+        or checks["stage1Watch"] or checks["crashBaseWatch"]
+    )
     return {
         "modelVersion": MODEL_VERSION, "stage": stage, "stageLabel": LABELS[stage],
-        "eligible": ((stage >= 2 and checks["notExtended"] and checks["earlyBreakoutOrPrebreakout"])
-                     or checks["stage1Watch"]),
+        "eligible": eligible,
         "score": score, "checks": checks,
+        "chartSource": chart_source,
         "metrics": {
+            "baseKind": base_kind,
+            "localShelfWeeks": 26 if base_kind == "bottom-crash-recovery" else None,
+            "bottomCrashBaseTriggered": crash_source,
+            "bottomCrashBaseAgeWeeks": crash_age,
+            "bottomCrashDrawdown5yPct": crash_drawdown,
             "baseWeeks": base_weeks, "baseDepthPct": round(depth, 2),
             "baseNewHighWeeks": new_high_weeks,
             "baseEfficiency": round(base_efficiency, 3),
@@ -278,11 +370,14 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
             "pivotPrice": round(pivot, 4), "resistancePrice": round(resistance, 4) if resistance else None,
             "pivotDistancePct": round(100 * (price / pivot - 1), 2),
             "runwayPct": round(runway, 2) if runway is not None else None,
+            "runwayFromPricePct": round(runway_from_price, 2) if runway_from_price is not None else None,
+            "runwayBasis": runway_basis,
+            "pivotZoneUpperPrice": round(pivot * 1.06, 4),
             "blueSkyConfirmed": blue_sky,
             "extensionPct": round(extension, 2), "weeksSinceBreakout": breakout_age,
             **{key: round(value, 4) for key, value in ma.items()},
         },
-        "rejectReasons": reasons,
+        "rejectReasons": [] if eligible else reasons,
     }
 
 
@@ -290,6 +385,8 @@ def weekly_shortlist(items: Iterable[dict], limit: int = 15) -> list[dict]:
     selected = [item for item in items if (item.get("weeklyBirth") or {}).get("eligible")]
     selected.sort(key=lambda item: (
         -(item["weeklyBirth"]["stage"]),
+        -(2 if (item["weeklyBirth"].get("metrics") or {}).get("bottomCrashBaseTriggered")
+          else 1 if item["weeklyBirth"].get("chartSource") == "bottom-fishing" else 0),
         -float(item["weeklyBirth"]["score"]),
         str(item.get("ticker") or ""),
     ))

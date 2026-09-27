@@ -1,7 +1,7 @@
 import unittest
 from datetime import date, timedelta
 
-from scripts.weekly_birth import completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist
+from scripts.weekly_birth import _crash_base, completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist
 
 
 def base_rows(count=180, *, breakout=False, older_resistance=None, breakout_volume=2_400_000):
@@ -74,11 +74,59 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertTrue(result["checks"]["stage1Watch"])
         self.assertTrue(result["eligible"])
 
-    def test_nearby_prior_resistance_excludes_shortlist(self):
-        result = evaluate(base_rows(older_resistance=108))
+    def test_next_resistance_zone_excludes_shortlist(self):
+        result = evaluate(base_rows(older_resistance=112))
         self.assertFalse(result["checks"]["clearRunway"])
         self.assertFalse(result["eligible"])
         self.assertIn("clearRunway", result["rejectReasons"])
+
+    def test_old_peak_at_start_of_history_still_counts_as_overhead(self):
+        rows = base_rows()
+        rows[0]["high"] = 112
+        result = evaluate(rows)
+        self.assertFalse(result["checks"]["clearRunway"])
+        self.assertEqual(112, result["metrics"]["resistancePrice"])
+
+    def test_nearby_high_is_part_of_pivot_zone(self):
+        result = evaluate(base_rows(older_resistance=108))
+        self.assertTrue(result["checks"]["clearRunway"])
+        self.assertTrue(result["eligible"])
+        self.assertIsNone(result["metrics"]["resistancePrice"])
+
+    def test_crash_watch_can_measure_runway_from_price_below_pivot(self):
+        rows = base_rows(older_resistance=112)
+        for row in rows[-5:]:
+            row.update(open=95, high=102, low=94, close=95)
+        benchmark = benchmark_rows(rows)
+        without_bottom = evaluate_weekly_birth(rows, benchmark)
+        with_bottom = evaluate_weekly_birth(
+            rows, benchmark,
+            bottom_evidence={"crashBaseTriggered": True, "crashBaseAgeWeeks": 90,
+                             "crashBaseDrawdown5yPct": 70},
+        )
+        self.assertFalse(without_bottom["checks"]["clearRunway"])
+        self.assertTrue(with_bottom["checks"]["clearRunway"])
+        self.assertEqual("price-before-pivot", with_bottom["metrics"]["runwayBasis"])
+        self.assertLess(with_bottom["metrics"]["runwayPct"], 12)
+        self.assertGreaterEqual(with_bottom["metrics"]["runwayFromPricePct"], 12)
+
+    def test_crash_evidence_requires_measured_weekly_repair(self):
+        evidence = {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 72}
+        result = evaluate_weekly_birth(base_rows(), benchmark_rows(base_rows()), bottom_evidence=evidence, chart_source="bottom-fishing")
+        self.assertTrue(result["eligible"])
+        self.assertEqual("bottom-fishing", result["chartSource"])
+        self.assertTrue(result["metrics"]["bottomCrashBaseTriggered"])
+        rows = base_rows()
+        for row in rows[-20:]:
+            row.update(open=140, high=142, low=138, close=140)
+        late = evaluate_weekly_birth(rows, benchmark_rows(rows), bottom_evidence=evidence, chart_source="bottom-fishing")
+        self.assertFalse(late["eligible"])
+
+    def test_crash_age_and_drawdown_do_not_replace_current_shelf(self):
+        weeks = completed_weekly_bars(base_rows())
+        self.assertIsNone(_crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 51, "crashBaseDrawdown5yPct": 70}))
+        self.assertIsNone(_crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 34}))
+        self.assertEqual(90, _crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 70})[0])
 
     def test_old_pivot_far_above_price_is_not_blue_sky(self):
         rows = base_rows()
@@ -100,6 +148,13 @@ class WeeklyBirthTests(unittest.TestCase):
         items = [{"ticker": f"T{index:02d}", "weeklyBirth": {"eligible": True, "stage": 2, "score": 90 - index}} for index in range(20)]
         self.assertEqual(15, len(weekly_shortlist(items)))
         self.assertEqual("T00", weekly_shortlist(items)[0]["ticker"])
+
+    def test_bottom_crash_wins_tie_with_next_only(self):
+        items = [
+            {"ticker": "NEXT", "weeklyBirth": {"eligible": True, "stage": 2, "score": 90, "chartSource": "next", "metrics": {}}},
+            {"ticker": "CRASH", "weeklyBirth": {"eligible": True, "stage": 2, "score": 75, "chartSource": "bottom-fishing", "metrics": {"bottomCrashBaseTriggered": True}}},
+        ]
+        self.assertEqual("CRASH", weekly_shortlist(items)[0]["ticker"])
 
     def test_steady_mature_uptrend_is_not_a_long_base(self):
         rows = base_rows()
