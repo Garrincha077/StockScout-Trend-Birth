@@ -150,6 +150,20 @@ class BuilderTests(unittest.TestCase):
         # Day 1 implies SPY=500; day 2 implies roughly SPY=490.2.
         self.assertLess(benchmark[-1]["close"], benchmark[-2]["close"])
 
+    def test_embedded_spy_benchmark_is_independent_of_chart_insertion_order(self):
+        aaa = [
+            ["2026-09-18", 100, 102, 99, 100, 1_000_000, 20.0],
+            ["2026-09-21", 101, 103, 100, 102, 1_100_000, 20.4],
+        ]
+        zzz = [
+            ["2026-09-18", 100, 102, 99, 100, 1_000_000, 10.0],
+            ["2026-09-21", 101, 103, 100, 102, 1_100_000, 10.2],
+        ]
+        first = builder._embedded_spy_benchmark({"ZZZ": zzz, "AAA": aaa})
+        second = builder._embedded_spy_benchmark({"AAA": aaa, "ZZZ": zzz})
+        self.assertEqual(first, second)
+        self.assertEqual(first[0]["close"], 500.0)
+
     def test_weekly_bars_aggregate_iso_and_epoch_dates(self):
         rows = [
             ["2026-09-14", 10.0, 11.0, 9.5, 10.5, 100],
