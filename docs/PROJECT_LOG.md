@@ -65,3 +65,9 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - The scheduled Refresh workflow now dispatches `Unified Review Grid Lab` on the production feature branch. That workflow is the sole publisher: it syncs the owner watchlist, builds Review and compact Kell from one activated Unified manifest, validates identity, records the Weekly Birth shadow audit, and commits the aligned immutable bundle.
 - The previous Refresh was a second publisher that updated only Review and the alert payload, leaving `kell-latest.json` and its companion on an older session and creating a race with the LAB publisher. The scheduler now has only `actions: write` permission and no checkout or data commit.
 - An explicit workflow dispatch to a non-production topic branch was accepted for a read-only test. After merge, manually dispatch Refresh once and verify its triggered LAB run publishes matching session, run ID and Unified manifest hash.
+
+## 2026-09-27 — Default-branch workflow watchdog
+
+- Branch: `codex/trend-watchdog-main`, based on controlled `main`.
+- Added a trusted `workflow_run` watchdog on the default branch so GitHub can observe failed Refresh, Review Grid Lab, and old/new PR validation workflows. It retries at most one initial transient Refresh or new validation failure, then records a deduplicated issue for persistent failures. It never checks out or executes failed PR code.
+- Tests cover transient retry, second-attempt deduplication, and a code failure with no retry. No scan, publication, deployment or Telegram behavior changes.
