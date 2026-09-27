@@ -59,3 +59,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Caveat: the roughly 5 MB monolithic snapshot was slow to load in the local in-app browser (eventually successful), while hosted verification completed in seconds. Splitting grid metadata from chart history is a useful next UX optimization.
 - The scheduler-only PR has no `lab/` directory, so its Vercel preview failed with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`. The application branch deployment and both application CI checks passed; no hosting root setting was changed to accommodate an infrastructure-only branch.
 - This supersedes the earlier pre-activation notes. New production messages use immutable URLs; ambiguous sends require reconciliation. Real AI review, per-mode metric separation, exact Bottom Telegram parity and lifecycle tracking remain subsequent phases.
+## 2026-09-27 — Default-branch workflow watchdog
+
+- Branch: `codex/trend-watchdog-main`, based on controlled `main`.
+- Added a trusted `workflow_run` watchdog on the default branch so GitHub can observe failed Refresh, Review Grid Lab, and old/new PR validation workflows. It retries at most one initial transient Refresh or new validation failure, then records a deduplicated issue for persistent failures. It never checks out or executes failed PR code.
+- Tests cover transient retry, second-attempt deduplication, and a code failure with no retry. No scan, publication, deployment or Telegram behavior changes.
