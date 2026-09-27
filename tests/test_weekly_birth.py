@@ -142,6 +142,19 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertFalse(result["checks"]["maPrior13wFlat"])
         self.assertGreater(result["metrics"]["maPriorSlope30wPct13w"], 4)
 
+    def test_quiet_new_shelf_after_prior_advance_is_not_first_base(self):
+        rows = base_rows(260)
+        for index, row in enumerate(rows):
+            close = 100 if index < 160 else 100 + (index - 160) * 0.5 if index < 212 else 126
+            row.update(open=close, high=close + 2, low=close - 2, close=close)
+        result = evaluate(rows)
+        self.assertTrue(result["checks"]["weeklyMaCompressed"])
+        self.assertTrue(result["checks"]["maPrior13wFlat"])
+        self.assertGreater(result["metrics"]["maPreBaseSlope30wPct26w"], 8)
+        self.assertFalse(result["checks"]["priorBaseTrendQuiet"])
+        self.assertFalse(result["eligible"])
+        self.assertIn("priorBaseTrendQuiet", result["rejectReasons"])
+
     def test_old_pivot_far_above_price_is_not_blue_sky(self):
         rows = base_rows()
         for row in rows[-6:]:

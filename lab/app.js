@@ -23,7 +23,7 @@ const optionalFmt=(n,d=1)=>n==null?'—':fmt(n,d);
 const weeklyRunway=(v,detail=false)=>{
   if(v.runwayBasis==='price-before-pivot'&&v.runwayFromPricePct!=null)
     return pct(v.runwayFromPricePct)+' from price'+(detail&&v.runwayPct!=null?' · '+pct(v.runwayPct)+' beyond pivot':'');
-  return v.runwayPct==null?(v.blueSkyConfirmed===true?'Blue sky':'Unverified'):pct(v.runwayPct)+(detail?' beyond pivot':'');
+  return v.runwayPct==null?(v.blueSkyConfirmed===true?'No higher swing mapped':'Unverified'):pct(v.runwayPct)+(detail?' beyond pivot':'');
 };
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
@@ -748,7 +748,7 @@ function card(item){
       '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">'+fmt(w.score,0)+'/100</span></div></div>'+
       '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Mansfield RS <b>'+optionalPct(v.mansfieldRsPct)+'</b></span><span>30W turn <b>'+optionalPct(v.maSlope30wPct4w)+'</b></span><span>4W volume <b>'+optionalFmt(v.breakoutVolumeRatio4w)+'x</b></span></div>'+
       '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
-      '<div class="analysis-strip"><span>'+(v.bottomCrashBaseTriggered===true?'Bottom Crash Base · ':'')+'Pivot '+fmt(v.pivotPrice)+' · Next resistance '+(v.resistancePrice==null?(v.blueSkyConfirmed===true?'no prior swing':'unverified'):fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
+      '<div class="analysis-strip"><span>'+(v.bottomCrashBaseTriggered===true?'Bottom Crash Base · ':'')+'Pivot '+fmt(v.pivotPrice)+' · Next resistance '+(v.resistancePrice==null?(v.blueSkyConfirmed===true?'no higher swing mapped':'unverified'):fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
   }
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
@@ -914,6 +914,7 @@ function show(item){
       fact('Weekly base',fmt(weeklyMetrics.baseWeeks,0)+'W · depth '+pct(weeklyMetrics.baseDepthPct))+
       fact('Weekly MA / runway',pct(weeklyMetrics.weeklyMaClusterPct)+' / '+weeklyRunway(weeklyMetrics,true))+
       fact('30W MA prior 13W',optionalPct(weeklyMetrics.maPriorSlope30wPct13w))+
+      fact('30W MA before base · 26W',optionalPct(weeklyMetrics.maPreBaseSlope30wPct26w))+
       fact('Weekly source',weeklyMetrics.bottomCrashBaseTriggered===true?'Bottom · Crash Base':weekly.chartSource?label(weekly.chartSource):'—')+
       fact('Weekly pivot / breakout age',fmt(weeklyMetrics.pivotPrice)+' / '+fmt(weeklyMetrics.weeksSinceBreakout,0)+'W')+
       fact('Quality',fmt(item.kell_quality_score,1))+fact('Context score',fmt(item.kell_context_score,1))+

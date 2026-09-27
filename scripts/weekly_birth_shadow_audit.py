@@ -58,6 +58,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
             "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
+            "maPreBaseSlope30wPct26w": metrics.get("maPreBaseSlope30wPct26w"),
             "blueSkyConfirmed": metrics.get("blueSkyConfirmed"),
         })
     # A zero-name shortlist still needs reviewable negatives. Prefer candidates
@@ -99,10 +100,35 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
             "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
+            "maPreBaseSlope30wPct26w": metrics.get("maPreBaseSlope30wPct26w"),
             "runwayPct": metrics.get("runwayPct"),
             "runwayFromPricePct": metrics.get("runwayFromPricePct"),
             "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
         })
+    crash_near_misses = sorted(
+        (item for item in crash_items if not (item.get("weeklyBirth") or {}).get("eligible")),
+        key=lambda item: (
+            -int((item.get("weeklyBirth") or {}).get("stage") or 0),
+            str(item.get("ticker") or "") not in chart_tickers,
+            len((item.get("weeklyBirth") or {}).get("rejectReasons") or []),
+            -float((item.get("weeklyBirth") or {}).get("score") or 0),
+            str(item.get("ticker") or ""),
+        ),
+    )[:25]
+    crash_review_queue = [{
+        "ticker": item.get("ticker"),
+        "stage": (item.get("weeklyBirth") or {}).get("stageLabel"),
+        "score": (item.get("weeklyBirth") or {}).get("score"),
+        "chartAvailable": item.get("ticker") in chart_tickers,
+        "rejectReasons": (item.get("weeklyBirth") or {}).get("rejectReasons") or [],
+        "baseKind": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("baseKind"),
+        "baseWeeks": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("baseWeeks"),
+        "weeklyMaClusterPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("weeklyMaClusterPct"),
+        "maPriorSlope30wPct13w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("maPriorSlope30wPct13w"),
+        "maPreBaseSlope30wPct26w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("maPreBaseSlope30wPct26w"),
+        "mansfieldRsPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("mansfieldRsPct"),
+        "runwayPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("runwayPct"),
+    } for item in crash_near_misses]
     return {
         "schemaVersion": "weekly-birth-shadow-audit-v1",
         "modelVersion": ((selected[0].get("weeklyBirth") or {}).get("modelVersion") if selected else "weinstein-stage2a-v4-bottom-crash"),
@@ -123,6 +149,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         "previousSessionDate": (previous or {}).get("sessionDate"),
         "selected": detail,
         "nearMissReviewQueue": review_queue,
+        "bottomCrashReviewQueue": crash_review_queue,
         "manualChartReviewComplete": False,
     }
 

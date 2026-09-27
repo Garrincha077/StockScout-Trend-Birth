@@ -58,6 +58,8 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         self.assertEqual(1, report["bottomCrashTriggeredCount"])
         self.assertEqual(0, report["bottomCrashEligibleCount"])
         self.assertEqual({"bottom-fishing": 1}, report["chartSourceCounts"])
+        self.assertEqual("CRASH", report["bottomCrashReviewQueue"][0]["ticker"])
+        self.assertEqual(["clearRunway"], report["bottomCrashReviewQueue"][0]["rejectReasons"])
 
 
 if __name__ == "__main__":
