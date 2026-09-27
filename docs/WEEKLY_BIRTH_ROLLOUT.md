@@ -8,10 +8,11 @@ remain available during the comparison period.
 
 ## Shadow gate
 
-Keep Unified repository variable `TREND_BIRTH_ALERT_MODE` unset while
-collecting five distinct market sessions. The GridView summary retains its
-legacy path; stage-change and hourly send jobs stay off. The Review Lab can
-show the new lists without sending them. For each session record source
+Keep Unified repository variable `TREND_BIRTH_ALERT_MODE` unset or set to
+`legacy` while collecting five distinct market sessions. The existing
+GridView, stage-change and hourly send paths stay on their legacy format; the
+new grouped v2 messages stay off. The Review Lab can show the new lists
+without sending them. For each session record source
 `sessionDate`, Unified manifest hash, publication hash, list counts, stage
 counts, rejected-reason counts, and the weekly membership diff versus the
 previous session. Inspect at least 25 distinct weekly charts across the five
