@@ -59,6 +59,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Caveat: the roughly 5 MB monolithic snapshot was slow to load in the local in-app browser (eventually successful), while hosted verification completed in seconds. Splitting grid metadata from chart history is a useful next UX optimization.
 - The scheduler-only PR has no `lab/` directory, so its Vercel preview failed with `NOW_SANDBOX_WORKER_ROOTDIR_NOT_EXIST`. The application branch deployment and both application CI checks passed; no hosting root setting was changed to accommodate an infrastructure-only branch.
 - This supersedes the earlier pre-activation notes. New production messages use immutable URLs; ambiguous sends require reconciliation. Real AI review, per-mode metric separation, exact Bottom Telegram parity and lifecycle tracking remain subsequent phases.
+## 2026-09-27 — One aligned LAB publisher for scheduled refresh
+
+- Branch: `codex/trend-refresh-aligned`, based on controlled `main`.
+- The scheduled Refresh workflow now dispatches `Unified Review Grid Lab` on the production feature branch. That workflow is the sole publisher: it syncs the owner watchlist, builds Review and compact Kell from one activated Unified manifest, validates identity, records the Weekly Birth shadow audit, and commits the aligned immutable bundle.
+- The previous Refresh was a second publisher that updated only Review and the alert payload, leaving `kell-latest.json` and its companion on an older session and creating a race with the LAB publisher. The scheduler now has only `actions: write` permission and no checkout or data commit.
+- An explicit workflow dispatch to a non-production topic branch was accepted for a read-only test. After merge, manually dispatch Refresh once and verify its triggered LAB run publishes matching session, run ID and Unified manifest hash.
+
 ## 2026-09-27 — Default-branch workflow watchdog
 
 - Branch: `codex/trend-watchdog-main`, based on controlled `main`.
