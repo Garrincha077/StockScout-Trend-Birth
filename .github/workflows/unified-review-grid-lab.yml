@@ -128,6 +128,9 @@ jobs:
 
       - name: Build read-only snapshot from activated Unified public data
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
+
+      - name: Record no-send Weekly Birth shadow audit
+        run: python scripts/weekly_birth_shadow_audit.py --snapshot lab/data/latest.json --history-dir lab/data/weekly-birth-shadow
       - name: Publish immutable review snapshot atomically
         run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory lab/data
       - name: Build compact Kell preview dataset
@@ -223,6 +226,7 @@ jobs:
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
           cp -R lab/data/history /tmp/review-publication/history
           cp -R lab/data/snapshots /tmp/review-publication/snapshots
+          cp -R lab/data/weekly-birth-shadow /tmp/review-publication/weekly-birth-shadow
           cp lab/data/kell-latest.json /tmp/kell-latest.json
           cp lab/data/kell-forward-validation.json /tmp/kell-forward-validation.json
           cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
@@ -253,6 +257,8 @@ jobs:
           rm -rf lab/data/history lab/data/snapshots
           cp -R /tmp/review-publication/history lab/data/history
           cp -R /tmp/review-publication/snapshots lab/data/snapshots
+          mkdir -p lab/data/weekly-birth-shadow
+          cp -R /tmp/review-publication/weekly-birth-shadow/. lab/data/weekly-birth-shadow/
           cp /tmp/kell-latest.json lab/data/kell-latest.json
           cp /tmp/kell-forward-validation.json lab/data/kell-forward-validation.json
           cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
@@ -287,7 +293,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0

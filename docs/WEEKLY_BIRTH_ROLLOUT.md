@@ -21,6 +21,12 @@ extension, and breakout age on each. Reject release if the rules routinely
 surface mature trends or resistance directly overhead. A short or empty list
 is valid; do not fill it to a quota.
 
+The scheduled publication writes one no-send audit file to
+`lab/data/weekly-birth-shadow/YYYY-MM-DD.json`. Count distinct session dates,
+not reruns. `manualChartReviewComplete` stays false until the separate chart
+review is recorded; the generated report never claims that charts were
+reviewed.
+
 `lab/config.js` selects the default GridView mode. `weekly-v2` opens Weekly
 Birth on a five-year weekly chart; Kell Daily and Research Universe are
 separate tabs. `?mode=legacy` previews the old default. Old snapshots without
