@@ -369,7 +369,7 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 ## 2026-09-27 — Weinstein Stage 1 → early Stage 2 Weekly Birth hypothesis
 
-- Branch: `codex/weinstein-weekly-birth`, based on feature-branch commit `37f29ac`. The code commit SHA is in this branch's Git history.
+- Branch: `codex/weinstein-weekly-birth`, based on feature-branch commit `37f29ac`; implementation commit `a3b77c5`.
 - Source: user-supplied 1988 Weinstein book, especially chapter 3 printed pp. 59–64 and chapter 5 printed pp. 150–155. Its selected historical winners are structural examples, not a training set or proof of forward performance.
 - BEFORE: Weekly Birth v2 used weekly base, MA density and overhead runway, but no Mansfield RS or volume confirmation. Its 8-week breakout window and pivot-only resistance measurement could label late or weak moves as fresh. Missing resistance was displayed as “Blue sky” without an explicit verification flag.
 - AFTER: a versioned `weinstein-stage2a-v3` evidence object measures 30W MA slope transition, 52W Mansfield RS and four-week change, prior-four-week volume ratio, recent 12W contraction, a two-week breakout window and overhead runway from the current price/pivot. Missing RS cannot qualify, and breakout without 2x volume or with stale timing cannot enter the shortlist. A 39–130W base permits post-crash recovery; Stage 1 watch remains a separate, lower-confidence path. The GridView and shadow report expose measurements; old snapshots still render with unavailable new fields rather than invented blue sky or RS.
