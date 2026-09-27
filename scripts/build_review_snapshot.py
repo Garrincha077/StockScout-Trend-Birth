@@ -487,7 +487,7 @@ def _load_preferred_kell_charts(
     return out
 
 
-def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
+def _embedded_spy_benchmark(charts: dict[str, list], lookback: int = 260) -> list[dict]:
     """Reconstruct point-in-time SPY history from Unified's RS=stock/SPY*100 field.
 
     Next/Ryan public chart rows already embed daily relative strength against SPY.
@@ -497,12 +497,13 @@ def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
     # Chart loading can insert tickers in a different order between identical
     # runs. Pick the same source ticker so benchmark-derived Kell fields and the
     # immutable Review snapshot hash stay stable for one Unified manifest.
-    for ticker in sorted(charts):
+    tickers = sorted(charts, key=lambda ticker: (-len(charts[ticker] or []), ticker)) if lookback > 260 else sorted(charts)
+    for ticker in tickers:
         rows = charts[ticker]
         if not isinstance(rows, list) or len(rows) < 2:
             continue
         derived = []
-        for row in rows[-260:]:
+        for row in rows[-lookback:]:
             try:
                 if isinstance(row, list) and len(row) >= 7:
                     stamp, close, rs = row[0], float(row[4]), float(row[6])
@@ -918,6 +919,7 @@ def build_trend_birth_union(
     unified_kell_pool: dict[str, dict],
     tracked_set: set[str],
     charts: dict[str, list],
+    weekly_benchmark_rows: list | None = None,
 ) -> tuple[list[dict], dict[str, int], int]:
     """Return the stable Unified + tracked Trend Birth evaluation layer."""
     unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
@@ -935,7 +937,7 @@ def build_trend_birth_union(
             if tracked:
                 item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
                 item["trendBirth"] = evaluate_trend_birth(rows)
-                item["weeklyBirth"] = evaluate_weekly_birth(rows)
+                item["weeklyBirth"] = evaluate_weekly_birth(rows, weekly_benchmark_rows)
                 item["chartBars"] = rows[-260:]
                 item["weeklyChartBars"] = _weekly_bars(rows, 260)
         else:
@@ -948,7 +950,7 @@ def build_trend_birth_union(
                 "trackedOnly": True,
                 "metrics": _summary({}, rows),
                 "trendBirth": trend_birth,
-                "weeklyBirth": evaluate_weekly_birth(rows),
+                "weeklyBirth": evaluate_weekly_birth(rows, weekly_benchmark_rows),
                 "trendBirthEvidence": {"phase": None, "primary": None, "activeCount": 0, "recovery": [], "compression": [], "ignition": []},
                 "chartBars": rows[-260:],
                 "weeklyChartBars": _weekly_bars(rows, 260),
@@ -1132,6 +1134,9 @@ def build_snapshot(
     # source order. This is intentionally independent of ordinary Review Grid
     # membership, which may have cached a Bottom chart first.
     kell_unified_charts = _load_preferred_kell_charts(mode_payloads, unified_kell_pool)
+    # Weekly Mansfield RS needs a full year of completed weekly benchmark
+    # observations; Kell's shorter benchmark remains unchanged.
+    weekly_benchmark_rows = _embedded_spy_benchmark(kell_unified_charts, lookback=1265)
 
     # Persistent tracked names are a first-class Trend Birth input.  Prefer the
     # exact Unified chart whenever available and use a bounded market-history
@@ -1267,7 +1272,7 @@ def build_snapshot(
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows)
-        weekly_birth = evaluate_weekly_birth(rows)
+        weekly_birth = evaluate_weekly_birth(rows, weekly_benchmark_rows)
         trend_birth_evidence = trend_birth_supporting_evidence(raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
@@ -1334,7 +1339,7 @@ def build_snapshot(
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         item["trendBirth"] = evaluate_trend_birth(rows)
-        item["weeklyBirth"] = evaluate_weekly_birth(rows)
+        item["weeklyBirth"] = evaluate_weekly_birth(rows, weekly_benchmark_rows)
         item["trendBirthEvidence"] = trend_birth_supporting_evidence(raw)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
@@ -1355,6 +1360,7 @@ def build_snapshot(
             unified_kell_pool,
             tracked_set,
             trend_birth_charts,
+            weekly_benchmark_rows,
         )
     )
 

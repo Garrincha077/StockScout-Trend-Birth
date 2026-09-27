@@ -150,6 +150,16 @@ class BuilderTests(unittest.TestCase):
         # Day 1 implies SPY=500; day 2 implies roughly SPY=490.2.
         self.assertLess(benchmark[-1]["close"], benchmark[-2]["close"])
 
+    def test_weekly_benchmark_keeps_full_history_without_changing_kell_default(self):
+        rows = [[f"2026-01-{day:02d}", 100, 101, 99, 100, 1000, 20]
+                for day in range(1, 32)]
+        charts = {"AAA": rows}
+        self.assertEqual(31, len(builder._embedded_spy_benchmark(charts, lookback=1265)))
+        self.assertEqual(10, len(builder._embedded_spy_benchmark(charts, lookback=10)))
+        charts["ZZZ"] = [*rows, ["2026-02-01", 100, 101, 99, 100, 1000, 20]]
+        self.assertEqual(32, len(builder._embedded_spy_benchmark(charts, lookback=1265)))
+        self.assertEqual(31, len(builder._embedded_spy_benchmark(charts)))
+
     def test_embedded_spy_benchmark_is_independent_of_chart_insertion_order(self):
         aaa = [
             ["2026-09-18", 100, 102, 99, 100, 1_000_000, 20.0],
