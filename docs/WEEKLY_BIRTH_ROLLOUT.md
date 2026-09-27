@@ -37,6 +37,12 @@ idempotency keys; the first v2 session is baseline-only. The scheduled hourly
 watch then only evaluates the current Kell Daily shortlist. Never run the
 legacy stage-change sender and v2 sender together.
 
+Pre-shadow known-good record (2026-09-27): production branch
+`feature/unified-review-grid-lab`, Vercel deployment
+`dpl_U9HGeewkxbz1vQmV3py7DF5fGvkV`, Ready at
+`https://stockscout-trend-birth-review-5nfsoqyrg-garrincha077s-projects.vercel.app`.
+Refresh this record if production changes before the v2 code merge.
+
 ## Roll back
 
 1. Set Unified `TREND_BIRTH_ALERT_MODE=legacy`. This switches future
