@@ -241,6 +241,7 @@ def evaluate_weekly_birth(
     extension = 100 * (price / ma_center - 1)
     slope30 = 100 * (_sma(closes, 30) / _sma(closes[:-4], 30) - 1)
     prior_slope30 = 100 * (_sma(closes[:-4], 30) / _sma(closes[:-8], 30) - 1)
+    prior_slope30_13w = 100 * (_sma(closes[:-4], 30) / _sma(closes[:-17], 30) - 1)
     rs, rs_change = _mansfield_rs(weeks)
     resistance = _resistance(weeks, pivot)
     runway = 100 * (resistance / max(price, pivot) - 1) if resistance else None
@@ -288,6 +289,7 @@ def evaluate_weekly_birth(
         "weeklyMaNear": ma_spread <= 8,
         "recentBaseTight": recent_range <= 14,
         "maSlopeTurn": ma_turn,
+        "maPrior13wFlat": prior_slope30_13w <= 4,
         "mansfieldRsImproving": rs_improving,
         "breakoutVolumeConfirmed": volume_ratio is not None and volume_ratio >= 2,
         "aboveSma30w": price >= ma["sma30w"],
@@ -302,13 +304,13 @@ def evaluate_weekly_birth(
     )
     reasons = [key for key in (
         "longBase", "baseDepthOk", "weeklyMaNear", "recentBaseTight",
-        "maSlopeTurn", "mansfieldRsImproving", "aboveSma30w", "notExtended", "launchNotChased", "clearRunway",
+        "maSlopeTurn", "maPrior13wFlat", "mansfieldRsImproving", "aboveSma30w", "notExtended", "launchNotChased", "clearRunway",
         "earlyBreakoutOrPrebreakout",
     ) if not checks[key]]
     stage = 0
     if checks["longBase"] and checks["baseDepthOk"] and checks["clearRunway"]:
         stage = 1
-        if all(checks[key] for key in ("weeklyMaCompressed", "recentBaseTight", "maSlopeTurn", "mansfieldRsImproving", "aboveSma30w", "notExtended", "launchNotChased")):
+        if all(checks[key] for key in ("weeklyMaCompressed", "recentBaseTight", "maSlopeTurn", "maPrior13wFlat", "mansfieldRsImproving", "aboveSma30w", "notExtended", "launchNotChased")):
             stage = 2
             if near_pivot:
                 stage = 3
@@ -322,6 +324,7 @@ def evaluate_weekly_birth(
         and rs is not None and rs_change is not None
         and rs >= -4 and rs_change >= 0.5
         and slope30 >= -0.5 and prior_slope30 <= 1
+        and checks["maPrior13wFlat"]
     )
     checks["crashBaseWatch"] = (
         crash_source and stage >= 1 and price <= pivot
@@ -329,7 +332,8 @@ def evaluate_weekly_birth(
         and ma_spread <= 8 and recent_range <= 14
         and -6 <= extension <= 6 and checks["launchNotChased"]
         and checks["aboveSma30w"] and crash_rs_repair
-        and -0.5 <= slope30 <= 1.5 and prior_slope30 <= 1.5
+        and -0.5 <= slope30 <= 1.5 and prior_slope30 <= 0.75
+        and checks["maPrior13wFlat"]
     )
     score = round(
         min(base_weeks, 104) / 104 * 20
@@ -364,6 +368,7 @@ def evaluate_weekly_birth(
             "weeklyMaClusterPct": round(ma_spread, 2),
             "maSlope30wPct4w": round(slope30, 2),
             "maPriorSlope30wPct4w": round(prior_slope30, 2),
+            "maPriorSlope30wPct13w": round(prior_slope30_13w, 2),
             "mansfieldRsPct": round(rs, 2) if rs is not None else None,
             "mansfieldRsChangePct4w": round(rs_change, 2) if rs_change is not None else None,
             "breakoutVolumeRatio4w": round(volume_ratio, 2) if volume_ratio is not None else None,

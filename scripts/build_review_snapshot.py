@@ -1383,7 +1383,7 @@ def build_snapshot(
             "unifiedSources": list(pool_item.get("unifiedSources") or []),
             "metrics": summary,
             "chartBars": rows[-260:],
-            "weeklyChartBars": _weekly_bars(rows, 260),
+            "weeklyChartBars": _weekly_bars(weekly_charts.get(ticker, []), 260),
             "analysis": analysis_by_ticker.get(ticker, {}),
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
@@ -1406,6 +1406,7 @@ def build_snapshot(
         rows = charts.get(ticker, [])
         item["metrics"] = _summary(raw, rows)
         item["chartBars"] = rows
+        item["weeklyChartBars"] = _weekly_bars(weekly_charts.get(ticker, []), 260)
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         item["trendBirth"] = evaluate_trend_birth(rows)
         item["weeklyBirth"] = evaluate_weekly_birth(

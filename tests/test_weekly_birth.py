@@ -128,6 +128,20 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertIsNone(_crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 34}))
         self.assertEqual(90, _crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 70})[0])
 
+    def test_late_rebase_does_not_pass_as_first_ma_turn(self):
+        rows = base_rows()
+        for index, row in enumerate(rows):
+            close = 100 + min(max(index - 130, 0), 40) * 0.4 + (1.5 if index % 2 else -1.5)
+            row.update(open=close, high=120, low=95, close=close)
+        result = evaluate_weekly_birth(
+            rows, benchmark_rows(rows),
+            bottom_evidence={"crashBaseTriggered": True, "crashBaseAgeWeeks": 130,
+                             "crashBaseDrawdown5yPct": 80},
+        )
+        self.assertFalse(result["eligible"])
+        self.assertFalse(result["checks"]["maPrior13wFlat"])
+        self.assertGreater(result["metrics"]["maPriorSlope30wPct13w"], 4)
+
     def test_old_pivot_far_above_price_is_not_blue_sky(self):
         rows = base_rows()
         for row in rows[-6:]:

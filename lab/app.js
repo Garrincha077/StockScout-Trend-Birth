@@ -913,6 +913,7 @@ function show(item){
       fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
       fact('Weekly base',fmt(weeklyMetrics.baseWeeks,0)+'W · depth '+pct(weeklyMetrics.baseDepthPct))+
       fact('Weekly MA / runway',pct(weeklyMetrics.weeklyMaClusterPct)+' / '+weeklyRunway(weeklyMetrics,true))+
+      fact('30W MA prior 13W',optionalPct(weeklyMetrics.maPriorSlope30wPct13w))+
       fact('Weekly source',weeklyMetrics.bottomCrashBaseTriggered===true?'Bottom · Crash Base':weekly.chartSource?label(weekly.chartSource):'—')+
       fact('Weekly pivot / breakout age',fmt(weeklyMetrics.pivotPrice)+' / '+fmt(weeklyMetrics.weeksSinceBreakout,0)+'W')+
       fact('Quality',fmt(item.kell_quality_score,1))+fact('Context score',fmt(item.kell_context_score,1))+

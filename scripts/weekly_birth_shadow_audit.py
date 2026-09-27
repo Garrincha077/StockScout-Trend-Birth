@@ -57,6 +57,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
             "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
+            "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
             "blueSkyConfirmed": metrics.get("blueSkyConfirmed"),
         })
     # A zero-name shortlist still needs reviewable negatives. Prefer candidates
@@ -97,6 +98,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
             "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
+            "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
             "runwayPct": metrics.get("runwayPct"),
             "runwayFromPricePct": metrics.get("runwayFromPricePct"),
             "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
