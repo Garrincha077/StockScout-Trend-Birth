@@ -17,6 +17,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
+from weekly_birth import evaluate_weekly_birth, weekly_shortlist
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 DEFAULT_TRACKED_WATCHLIST = "lab/data/tracked-watchlist.json"
@@ -930,6 +931,7 @@ def build_trend_birth_union(
             if tracked:
                 item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
                 item["trendBirth"] = evaluate_trend_birth(rows)
+                item["weeklyBirth"] = evaluate_weekly_birth(rows)
                 item["chartBars"] = rows[-260:]
                 item["weeklyChartBars"] = _weekly_bars(rows, 260)
         else:
@@ -942,6 +944,7 @@ def build_trend_birth_union(
                 "trackedOnly": True,
                 "metrics": _summary({}, rows),
                 "trendBirth": trend_birth,
+                "weeklyBirth": evaluate_weekly_birth(rows),
                 "trendBirthEvidence": {"phase": None, "primary": None, "activeCount": 0, "recovery": [], "compression": [], "ignition": []},
                 "chartBars": rows[-260:],
                 "weeklyChartBars": _weekly_bars(rows, 260),
@@ -1260,6 +1263,7 @@ def build_snapshot(
         scored = score_candidate(rows, benchmark_rows, raw)
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows)
+        weekly_birth = evaluate_weekly_birth(rows)
         trend_birth_evidence = trend_birth_supporting_evidence(raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
@@ -1289,6 +1293,7 @@ def build_snapshot(
             "kellSetups": hit_setups,
             "kellContext": hit_context,
             "trendBirth": trend_birth,
+            "weeklyBirth": weekly_birth,
             "trendBirthEvidence": trend_birth_evidence,
         })
         if not (hit_screens or hit_setups or hit_context):
@@ -1306,6 +1311,7 @@ def build_snapshot(
             "kellSetups": hit_setups,
             "kellContext": hit_context,
             "trendBirth": trend_birth,
+            "weeklyBirth": weekly_birth,
             "trendBirthEvidence": trend_birth_evidence,
             **scored,
         })
@@ -1324,6 +1330,7 @@ def build_snapshot(
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
         item["trendBirth"] = evaluate_trend_birth(rows)
+        item["weeklyBirth"] = evaluate_weekly_birth(rows)
         item["trendBirthEvidence"] = trend_birth_supporting_evidence(raw)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
@@ -1348,6 +1355,23 @@ def build_snapshot(
     )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
+    weekly_selected = []
+    for item in weekly_shortlist(trend_birth_candidate_index):
+        rows = trend_birth_charts.get(item["ticker"], [])
+        weekly_selected.append({
+            **item,
+            "chartBars": rows[-260:],
+            "weeklyChartBars": _weekly_bars(rows, 260),
+            "analysis": analysis_by_ticker.get(item["ticker"], {}),
+        })
+    kell_daily_selected = sorted(
+        kell_candidates,
+        key=lambda item: (
+            -float(item.get("kell_readiness_score") or 0),
+            -float(item.get("kell_score") or 0),
+            item["ticker"],
+        ),
+    )[:5]
     trend_birth_evidence_counts = {
         bucket: sum(
             bool((item.get("trendBirthEvidence") or {}).get(bucket))
@@ -1436,6 +1460,11 @@ def build_snapshot(
             "method": "Transparent trend reset -> restart overlay over Unified candidates plus the persistent tracked watchlist. Unified charts are preferred; tracked-only names use bounded daily-history fallback. Stage is independent of Kell v5 score.",
         },
         "trendBirthCandidateIndexCount": len(trend_birth_candidate_index),
+        "shortlists": {
+            "schemaVersion": "stockscout-shortlists-v2",
+            "weeklyTrendBirth": weekly_selected,
+            "kellDaily": kell_daily_selected,
+        },
         "trendBirthCandidateIndex": trend_birth_candidate_index,
         "unifiedCandidateIndexCount": len(unified_candidate_index),
         "unifiedCandidateIndex": unified_candidate_index,

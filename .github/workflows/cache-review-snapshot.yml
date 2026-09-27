@@ -3,16 +3,11 @@ name: Validate Trend Birth Review Snapshot
 on:
   pull_request:
     paths:
-      - "scripts/build_review_snapshot.py"
+      - "scripts/**"
+      - "lab/**"
+      - "tests/**"
       - ".github/workflows/cache-review-snapshot.yml"
-      - "lab/refresh-trigger.txt"
-  push:
-    branches:
-      - "feature/unified-review-grid-lab"
-    paths:
-      - "scripts/build_review_snapshot.py"
-      - ".github/workflows/cache-review-snapshot.yml"
-      - "lab/refresh-trigger.txt"
+      - ".github/workflows/unified-review-grid-lab.yml"
   workflow_dispatch:
 
 permissions:
@@ -27,17 +22,23 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Validate models and browser behavior
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/*.test.cjs
+          node --check lab/app.js
       - name: Build current read-only snapshot
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Validate immutable publication in temporary directory
         run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory /tmp/review-publication
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: review-publication-preview
           path: /tmp/review-publication

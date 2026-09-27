@@ -16,13 +16,6 @@ on:
       - "tests/**"
       - ".github/workflows/unified-review-grid-lab.yml"
       - "vercel.json"
-  pull_request:
-    paths:
-      - "lab/**"
-      - "scripts/**"
-      - "tests/**"
-      - ".github/workflows/unified-review-grid-lab.yml"
-      - "vercel.json"
 
 permissions:
   contents: write
@@ -36,8 +29,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Recover verified historical Kell archives
@@ -122,7 +115,7 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Historical Kell overlay smoke (2026-09-17)
         run: python scripts/kell_scoring.py --input lab/data/history/2026-09-17.json --output /tmp/kell-2026-09-17.json --validate
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
       - name: Browser model tests
@@ -221,84 +214,6 @@ jobs:
         run: python scripts/build_kell_calibration_report.py --snapshot lab/data/latest.json --validation lab/data/kell-signal-validation.json --output lab/kell-calibration.html
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
-      - name: Evaluate human-reviewed Kell Gold Set
-        run: |
-          python scripts/kell_gold_set.py \
-            --gold-set lab/data/kell-gold-set.json \
-            --current lab/data/kell-latest.json \
-            --scores-dir lab/data/kell-score-history \
-            --snapshots-dir lab/data/snapshots \
-            --output lab/data/kell-gold-set-eval.json \
-            --strict
-      - name: Run point-in-time Kell forward validator
-        run: |
-          python scripts/kell_forward_validation.py \
-            --scores-dir lab/data/kell-score-history \
-            --charts-dir lab/data/kell-charts \
-            --output lab/data/kell-forward-validation.json \
-            --horizons 5,10,20,40,60,120 \
-            --min-outcome-coverage-pct 99
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          report = json.loads(Path("lab/data/kell-forward-validation.json").read_text())
-          assert report["schemaVersion"] == "kell-forward-validation-v1"
-          assert report["source"]["scoreSnapshotCount"] >= 1
-          assert report["source"]["outcomeCoverageGuard"] is True
-          assert report["source"]["minOutcomeCoveragePct"] == 99.0
-          for horizon in report["horizons"]:
-              comparison = report["comparison"][str(horizon)]
-              if not comparison["eligibleForValidation"]:
-                  assert comparison["v5MinusV4TopDecileMeanReturnPct"] is None
-                  assert comparison["v5TopMinusBottomSpreadPct"] is None
-                  assert comparison["v4TopMinusBottomSpreadPct"] is None
-          print(json.dumps({
-              "status": "ok",
-              "scoreSnapshots": report["source"]["scoreSnapshotCount"],
-              "chartTickers": report["source"]["chartTickerCount"],
-              "coverage5D": report["models"]["v5"]["5"]["outcomeCoverage"],
-              "eligible5D": report["comparison"]["5"]["eligibleForValidation"],
-          }, sort_keys=True))
-          PY
-      - name: Kell v5 BEFORE/AFTER spot check
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          data = json.loads(Path("lab/data/kell-latest.json").read_text())
-          items = data["kellCandidates"]
-          by_ticker = {item["ticker"]: item for item in items}
-          watch = ["GRAL", "WBD", "DELL", "VKTX", "AMD", "TARS"]
-          print("KELL_V5_SPOT_CHECK")
-          for ticker in watch:
-              item = by_ticker[ticker]
-              breakdown = item.get("score_breakdown") or {}
-              print(json.dumps({
-                  "ticker": ticker,
-                  "legacyV4": breakdown.get("legacy_v4_score"),
-                  "focusV5": item.get("kell_score"),
-                  "quality": item.get("kell_quality_score"),
-                  "readiness": item.get("kell_readiness_score"),
-                  "context": item.get("kell_context_score"),
-                  "coverage": item.get("kell_evidence_coverage"),
-                  "stage": (item.get("kell_stage") or {}).get("primary"),
-                  "stageCap": item.get("kell_stage_cap"),
-              }, sort_keys=True))
-          print("KELL_V5_TOP10")
-          for item in sorted(items, key=lambda x: (-float(x.get("kell_score") or 0), x["ticker"]))[:10]:
-              breakdown = item.get("score_breakdown") or {}
-              print(json.dumps({
-                  "ticker": item["ticker"],
-                  "legacyV4": breakdown.get("legacy_v4_score"),
-                  "focusV5": item.get("kell_score"),
-                  "quality": item.get("kell_quality_score"),
-                  "readiness": item.get("kell_readiness_score"),
-                  "context": item.get("kell_context_score"),
-                  "coverage": item.get("kell_evidence_coverage"),
-                  "stage": (item.get("kell_stage") or {}).get("primary"),
-              }, sort_keys=True))
-          PY
       - name: Publish aligned Review + Kell data atomically
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment' || github.ref == 'refs/heads/feature/persistent-watchlist' || github.ref == 'refs/heads/feature/unified-watchlist-integration')
         run: |
@@ -380,7 +295,7 @@ jobs:
           git commit -m "chore(lab): publish aligned Review and Kell data"
           git push origin HEAD:"$target_branch"
       - name: Upload review lab artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trend-birth-review-grid-lab
           path: |
@@ -393,3 +308,110 @@ jobs:
             scripts/validate_unified_review_bundle.py
             scripts/publish_kell_snapshot.py
           retention-days: 7
+
+  historical_calibration:
+    needs: build
+    if: github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Calibrate the latest published Review and Kell bundle
+        run: python scripts/validate_unified_review_bundle.py --review lab/data/latest.json --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts
+      - name: Evaluate human-reviewed Kell Gold Set
+        run: |
+          python scripts/kell_gold_set.py \
+            --gold-set lab/data/kell-gold-set.json \
+            --current lab/data/kell-latest.json \
+            --scores-dir lab/data/kell-score-history \
+            --snapshots-dir lab/data/snapshots \
+            --output lab/data/kell-gold-set-eval.json \
+            --strict
+      - name: Run point-in-time Kell forward validator
+        run: |
+          python scripts/kell_forward_validation.py \
+            --scores-dir lab/data/kell-score-history \
+            --charts-dir lab/data/kell-charts \
+            --output lab/data/kell-forward-validation.json \
+            --horizons 5,10,20,40,60,120 \
+            --min-outcome-coverage-pct 99
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("lab/data/kell-forward-validation.json").read_text())
+          assert report["schemaVersion"] == "kell-forward-validation-v1"
+          assert report["source"]["scoreSnapshotCount"] >= 1
+          assert report["source"]["outcomeCoverageGuard"] is True
+          assert report["source"]["minOutcomeCoveragePct"] == 99.0
+          for horizon in report["horizons"]:
+              comparison = report["comparison"][str(horizon)]
+              if not comparison["eligibleForValidation"]:
+                  assert comparison["v5MinusV4TopDecileMeanReturnPct"] is None
+                  assert comparison["v5TopMinusBottomSpreadPct"] is None
+                  assert comparison["v4TopMinusBottomSpreadPct"] is None
+          print(json.dumps({
+              "status": "ok",
+              "scoreSnapshots": report["source"]["scoreSnapshotCount"],
+              "chartTickers": report["source"]["chartTickerCount"],
+              "coverage5D": report["models"]["v5"]["5"]["outcomeCoverage"],
+              "eligible5D": report["comparison"]["5"]["eligibleForValidation"],
+          }, sort_keys=True))
+          PY
+      - name: Kell v5 BEFORE/AFTER spot check
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("lab/data/kell-latest.json").read_text())
+          items = data["kellCandidates"]
+          by_ticker = {item["ticker"]: item for item in items}
+          reference = ["GRAL", "WBD", "DELL", "VKTX", "AMD", "TARS"]
+          watch = [ticker for ticker in reference if ticker in by_ticker]
+          watch.extend(
+              item["ticker"] for item in items
+              if item["ticker"] not in watch
+          )
+          watch = watch[:6]
+          print("KELL_V5_SPOT_CHECK")
+          for ticker in watch:
+              item = by_ticker[ticker]
+              breakdown = item.get("score_breakdown") or {}
+              print(json.dumps({
+                  "ticker": ticker,
+                  "legacyV4": breakdown.get("legacy_v4_score"),
+                  "focusV5": item.get("kell_score"),
+                  "quality": item.get("kell_quality_score"),
+                  "readiness": item.get("kell_readiness_score"),
+                  "context": item.get("kell_context_score"),
+                  "coverage": item.get("kell_evidence_coverage"),
+                  "stage": (item.get("kell_stage") or {}).get("primary"),
+                  "stageCap": item.get("kell_stage_cap"),
+              }, sort_keys=True))
+          print("KELL_V5_TOP10")
+          for item in sorted(items, key=lambda x: (-float(x.get("kell_score") or 0), x["ticker"]))[:10]:
+              breakdown = item.get("score_breakdown") or {}
+              print(json.dumps({
+                  "ticker": item["ticker"],
+                  "legacyV4": breakdown.get("legacy_v4_score"),
+                  "focusV5": item.get("kell_score"),
+                  "quality": item.get("kell_quality_score"),
+                  "readiness": item.get("kell_readiness_score"),
+                  "context": item.get("kell_context_score"),
+                  "coverage": item.get("kell_evidence_coverage"),
+                  "stage": (item.get("kell_stage") or {}).get("primary"),
+              }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kell-historical-calibration
+          path: |
+            lab/data/kell-gold-set-eval.json
+            lab/data/kell-forward-validation.json
+          retention-days: 30

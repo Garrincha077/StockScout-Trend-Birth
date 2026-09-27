@@ -101,6 +101,7 @@ def compact_candidate(
         "kellSetups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "kellContext": list(item.get("kellContext") or []),
         "trendBirth": item.get("trendBirth") or {},
+        "weeklyBirth": item.get("weeklyBirth") or {},
         "trendBirthEvidence": item.get("trendBirthEvidence") or {},
         "chartBarsCount": len(bars),
         "weeklyChartBarsCount": len(item.get("weeklyChartBars") or []),
@@ -208,6 +209,15 @@ def main() -> int:
         },
         "kellScoring": source.get("kellScoring") or {},
         "trendBirthRadar": source.get("trendBirthRadar") or {},
+        "shortlists": {
+            "schemaVersion": "stockscout-shortlists-v2",
+            "weeklyTrendBirth": [
+                compact_candidate(item) for item in (source.get("shortlists") or {}).get("weeklyTrendBirth") or []
+            ],
+            "kellDaily": [
+                compact_candidate(item) for item in (source.get("shortlists") or {}).get("kellDaily") or []
+            ],
+        },
         "trendBirthCandidateIndexCount": source.get("trendBirthCandidateIndexCount", 0),
         "trendBirthCandidateIndex": [
             compact_candidate(item, include_bars=bool(item.get("trackedWatchlist")))

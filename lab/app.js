@@ -1,4 +1,6 @@
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),universe:'all',filters:[],query:'',sort:'default',chartPeriod:'1y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
+const requestedMode=new URLSearchParams(location.search).get('mode');
+const defaultMode=requestedMode==='legacy'||requestedMode==='weekly-v2'?requestedMode:(window.StockScoutMode?.defaultMode||'weekly-v2');
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
@@ -422,7 +424,10 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     const yy=Math.min(y(b.open),y(b.close)),bh=Math.max(1,Math.abs(y(b.open)-y(b.close)));
     ctx.fillRect(xx-candleW/2,yy,candleW,bh);
   });
-  [[e10,'#e9bd62'],[e20,'#56a8ff'],[s50,'#a67cff']].forEach(([series,color])=>{
+  const maLines=period.weekly
+    ?[[e10,'#e9bd62'],[e20,'#56a8ff'],[avg(closes,30),'#a67cff'],[avg(closes,40),'#35d78b']]
+    :[[e10,'#e9bd62'],[e20,'#56a8ff'],[s50,'#a67cff']];
+  maLines.forEach(([series,color])=>{
     ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.beginPath();let started=false;
     series.forEach((v,i)=>{if(v==null)return;const xx=x(i),yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
     if(started)ctx.stroke();
@@ -441,7 +446,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
   ctx.fillText(period.label,left,14);
   if(large){
     ctx.textAlign='center';
-    ctx.fillText(period.weekly?'EMA10W / EMA20W / SMA50W':'EMA10 / EMA20 / SMA50',left+plotW/2,14);
+    ctx.fillText(period.weekly?'EMA10W / EMA20W / SMA30W / SMA40W':'EMA10 / EMA20 / SMA50',left+plotW/2,14);
     ctx.textAlign='right';
     ctx.fillText(bars.length+(period.weekly?' weeks':' sessions'),w-right,14);
   }
@@ -562,6 +567,8 @@ function matchesFilters(item,filters=activeFilters()){
 }
 function sourceItems(filters=activeFilters()){
   if(state.universe==='watchlist')return watchlistItems();
+  if(state.primaryView==='weekly')return state.data?.shortlists?.weeklyTrendBirth||[];
+  if(state.primaryView==='kell-daily')return state.data?.shortlists?.kellDaily||[];
   return isKellView(filters)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
@@ -727,6 +734,15 @@ function card(item){
   const setups=kellSetupsText(item);
   const watched=isWatched(item.ticker);
   const sources=item.sources||[];
+  if(state.primaryView==='weekly'){
+    const w=item.weeklyBirth||{},v=w.metrics||{};
+    const runway=v.runwayPct==null?'Blue sky':pct(v.runwayPct);
+    return '<article class="card weekly-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
+      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">'+fmt(w.score,0)+'/100</span></div></div>'+
+      '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Extension <b>'+pct(v.extensionPct)+'</b></span></div>'+
+      '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
+      '<div class="analysis-strip"><span>Pivot '+fmt(v.pivotPrice)+' · Resistance '+(v.resistancePrice==null?'no nearby swing':fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
+  }
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
     (missing?'<div class="watchlist-missing">Nije u današnjem Unified scanu · ostaje spremljen dok ga ručno ne ukloniš</div>':item.watchlistUnifiedOnly?'<div class="watchlist-current">U današnjem Unified scanu · trenutačno nema aktivni Review/Kell hit</div>':'')+
@@ -770,11 +786,16 @@ function renderChangeHighlights(items){
 }
 function render(){
   if(!state.data)return;
+  const researchControls=state.primaryView==='research';
+  $('#filters').hidden=!researchControls;
+  $('#quickViews').hidden=!researchControls;
+  $('#mobileFiltersToggle').hidden=!researchControls;
   updateWatchlistButton();
   updateFilterBar();
   updateQuickViews();
   updateMobileFilterToggle();
   updateFilterCounts();
+  document.querySelectorAll('#primaryViews [data-primary-view]').forEach(button=>button.classList.toggle('active',button.dataset.primaryView===state.primaryView));
   const items=sourceItems().filter(visible);
   const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
   const sortValue=(item,mode)=>{
@@ -801,7 +822,11 @@ function render(){
   const universeSize=state.universe==='watchlist'?state.watchlist.length:(state.universe==='all'?unifiedCount:modeCounts[state.universe]);
   const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
   const filterSummary=activeFilterSummary();
-  if(state.quickView==='changed'){
+  if(state.primaryView==='weekly'){
+    $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
+  }else if(state.primaryView==='kell-daily'){
+    $('#status').textContent=items.length+' Kell Daily kandidata · svježi dnevni setupovi, odvojeno od weekly izbora';
+  }else if(state.quickView==='changed'){
     const changeSummary=KellChanges.summary(items);
     const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate||'—';
     $('#status').textContent=items.length+' important changes · '+(state.kellChangesPreviousDate||'prior')+' → '+currentDate+' · '+changeSummary.becameReady+' became Ready · '+changeSummary.newSetups+' new actionable setups · '+changeSummary.newCandidates+' new relevant names';
@@ -864,6 +889,7 @@ function show(item){
   updateDetailNav(item);
   const reviewStatus=String(a.status||'REVIEW').toUpperCase();
   const tbMissing=(item?.trendBirth?.missingFor4||[]).join(' · ')||'Complete';
+  const weekly=item.weeklyBirth||{},weeklyMetrics=weekly.metrics||{};
   $('#detailBody').innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="detail-snapshot">'+
@@ -872,11 +898,15 @@ function show(item){
       '<div><span>Kell Focus</span><strong>'+fmt(item.kell_score,0)+'</strong></div>'+
       '<div><span>Readiness</span><strong>'+fmt(item.kell_readiness_score,0)+'</strong></div>'+
     '</div>'+
+    (weekly.stageLabel?'<div class="detail-tb-note"><span>Weekly Birth</span><strong>'+esc(weekly.stageLabel)+' · '+fmt(weeklyMetrics.baseWeeks,0)+'W base · '+pct(weeklyMetrics.weeklyMaClusterPct)+' MA cluster · '+(weeklyMetrics.runwayPct==null?'Blue sky':pct(weeklyMetrics.runwayPct)+' runway')+'</strong></div>':'')+
     '<div class="detail-tb-note"><span>TB missing for 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
     '<div class="detail-tb-note"><span>Birth path</span><strong>'+esc(birthPathText(item))+(trendBirthEvidence(item).primary?' · '+esc(trendBirthEvidence(item).primary):'')+'</strong></div>'+
     '<canvas class="detail-chart"></canvas>'+
     '<details class="detail-more"><summary>More metrics & setup details</summary><div class="detail-grid">'+
       fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
+      fact('Weekly base',fmt(weeklyMetrics.baseWeeks,0)+'W · depth '+pct(weeklyMetrics.baseDepthPct))+
+      fact('Weekly MA / runway',pct(weeklyMetrics.weeklyMaClusterPct)+' / '+(weeklyMetrics.runwayPct==null?'Blue sky':pct(weeklyMetrics.runwayPct)))+
+      fact('Weekly pivot / breakout age',fmt(weeklyMetrics.pivotPrice)+' / '+fmt(weeklyMetrics.weeksSinceBreakout,0)+'W')+
       fact('Quality',fmt(item.kell_quality_score,1))+fact('Context score',fmt(item.kell_context_score,1))+
       fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+fact('Structural risk',Number.isFinite(Number(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+
       fact('Stage cap',fmt(item.kell_stage_cap,0))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
@@ -949,6 +979,7 @@ $('#filters').addEventListener('click',async e=>{
   const universeButton=e.target.closest('button[data-universe]');
   const filterButton=e.target.closest('button[data-filter]');
   if(!universeButton&&!filterButton)return;
+  state.primaryView='research';
 
   if(universeButton){
     state.quickView=null;
@@ -977,6 +1008,7 @@ $('#quickViews')?.addEventListener('click',async e=>{
   const name=button.dataset.quickView;
   const config=quickViews[name];
   if(!config)return;
+  state.primaryView='research';
   state.quickView=name==='reset'?null:name;
   state.filters=[...config.filters];
   state.sort=config.sort;
@@ -1036,8 +1068,19 @@ $('#ownerSignOut')?.addEventListener('click',async()=>{
 });
 updateOwnerSyncUi();
 initOwnerWatchlistSync();
+$('#chartPeriod').value=state.chartPeriod;
+$('#primaryViews')?.addEventListener('click',e=>{
+  const button=e.target.closest('[data-primary-view]');
+  if(!button)return;
+  state.primaryView=button.dataset.primaryView;
+  state.filters=[];state.quickView=null;state.sort='default';state.universe='all';
+  state.chartPeriod=state.primaryView==='weekly'?'5y':'1y';
+  $('#chartPeriod').value=state.chartPeriod;$('#sort').value='default';
+  document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x.dataset.universe==='all'));
+  render();
+});
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
 ReviewSnapshots.load(fetch,location.search)
-  .then(data=>{state.data=data;$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
+  .then(data=>{state.data=data;if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});
