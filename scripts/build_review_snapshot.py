@@ -494,7 +494,11 @@ def _embedded_spy_benchmark(charts: dict[str, list]) -> list[dict]:
     Recovering the benchmark this way keeps Kell relative-strength tests aligned to
     the exact Unified session without adding SPY to the candidate universe.
     """
-    for rows in charts.values():
+    # Chart loading can insert tickers in a different order between identical
+    # runs. Pick the same source ticker so benchmark-derived Kell fields and the
+    # immutable Review snapshot hash stay stable for one Unified manifest.
+    for ticker in sorted(charts):
+        rows = charts[ticker]
         if not isinstance(rows, list) or len(rows) < 2:
             continue
         derived = []
