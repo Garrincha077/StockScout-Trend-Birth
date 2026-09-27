@@ -187,6 +187,11 @@ def evaluate_weekly_birth(rows: Iterable) -> dict:
                 stage = 3
             elif checks["freshBreakout"]:
                 stage = 4
+    checks["stage1Watch"] = (
+        stage == 1 and checks["weeklyMaCompressed"]
+        and recent_range <= 12 and -6 <= extension <= 6
+        and checks["launchNotChased"]
+    )
     score = round(
         min(base_weeks, 104) / 104 * 25
         + max(0, 1 - ma_spread / 8) * 25
@@ -195,7 +200,8 @@ def evaluate_weekly_birth(rows: Iterable) -> dict:
         + (15 if checks["nearPivot"] or checks["freshBreakout"] else 0), 1,
     )
     return {
-        "stage": stage, "stageLabel": LABELS[stage], "eligible": stage >= 2 and checks["notExtended"],
+        "stage": stage, "stageLabel": LABELS[stage],
+        "eligible": (stage >= 2 and checks["notExtended"]) or checks["stage1Watch"],
         "score": score, "checks": checks,
         "metrics": {
             "baseWeeks": base_weeks, "baseDepthPct": round(depth, 2),

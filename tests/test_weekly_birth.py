@@ -33,6 +33,15 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertEqual(4, result["stage"])
         self.assertEqual(0, result["metrics"]["weeksSinceBreakout"])
 
+    def test_dense_long_base_can_be_watched_before_sma30_turn(self):
+        rows = base_rows()
+        for row in rows[-6:]:
+            row["close"] = 99
+        result = evaluate_weekly_birth(rows)
+        self.assertEqual("Long Base", result["stageLabel"])
+        self.assertTrue(result["checks"]["stage1Watch"])
+        self.assertTrue(result["eligible"])
+
     def test_nearby_prior_resistance_excludes_shortlist(self):
         result = evaluate_weekly_birth(base_rows(older_resistance=108))
         self.assertFalse(result["checks"]["clearRunway"])
