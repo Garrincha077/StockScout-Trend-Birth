@@ -62,6 +62,6 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 ## 2026-09-27 — Aligned Review and Kell daily refresh
 
 - Branch: `codex/trend-refresh-aligned`, based on controlled `main`.
-- The scheduled Refresh workflow now builds the compact Kell dataset and chart shards from the same just-published Review snapshot, validates the common Unified activation, generates its no-send alert payload from that compact dataset, and commits the immutable Kell companion and chart archive alongside the Review pointer.
+- The scheduled Refresh workflow now builds the compact Kell dataset and chart shards from the same just-published Review snapshot, validates the common Unified activation, generates its no-send alert payload from that compact dataset, records one Weekly Birth shadow audit per session, and commits the immutable Kell companion and chart archive alongside the Review pointer.
 - The previous refresh updated only Review and the alert payload, leaving `kell-latest.json` and its immutable companion on an older session. This change closes that source-identity gap without sending Telegram or changing candidate generation.
 - Rollout: merge after the feature branch contains the shortlists implementation; verify the first refreshed publication and compact companion share session, run ID and Unified manifest hash.
