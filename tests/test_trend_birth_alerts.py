@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.build_trend_birth_alerts import build_alerts
+from scripts.build_trend_birth_alerts import build_alerts, build_v2_alerts
 
 
 def item(ticker, stage, score=70, missing=None):
@@ -31,6 +31,28 @@ def item(ticker, stage, score=70, missing=None):
 
 
 class TrendBirthAlertTests(unittest.TestCase):
+    def test_v2_baselines_then_groups_weekly_and_daily_changes(self):
+        weekly = [{
+            "ticker": "BASE",
+            "weeklyBirth": {"stage": 3, "stageLabel": "Ready", "metrics": {
+                "baseWeeks": 52, "weeklyMaClusterPct": 4.2, "runwayPct": 20,
+            }},
+        }]
+        daily = [{"ticker": "KELL", "kell_stage": {"primary": "base_n_break"}, "kell_readiness_score": 85}]
+        current = {"shortlists": {"schemaVersion": "stockscout-shortlists-v2", "weeklyTrendBirth": weekly, "kellDaily": daily}}
+        previous = {"shortlists": {"schemaVersion": "stockscout-shortlists-v2", "weeklyTrendBirth": [], "kellDaily": []}}
+        first = build_v2_alerts(current, None, "https://example.test/")
+        self.assertTrue(first["baselineOnly"])
+        self.assertEqual([], first["messages"])
+        changed = build_v2_alerts(current, previous, "https://example.test/")
+        self.assertEqual(["weekly", "kell-daily"], [message["kind"] for message in changed["messages"]])
+        self.assertIn("52W base", changed["messages"][0]["text"])
+        self.assertEqual([], build_v2_alerts(current, current, "https://example.test/")["messages"])
+        empty = {"shortlists": {"schemaVersion": "stockscout-shortlists-v2", "weeklyTrendBirth": [], "kellDaily": []}}
+        cleared = build_v2_alerts(empty, current, "https://example.test/")
+        self.assertEqual(["weekly"], [message["kind"] for message in cleared["messages"]])
+        self.assertIn("No qualified weekly setups", cleared["messages"][0]["text"])
+
     def test_first_radar_day_is_baseline_only(self):
         current = {"source": {"sessionDate": "2026-09-24"}, "unifiedCandidateIndex": [item("AAA", 4)]}
         previous = {"source": {"sessionDate": "2026-09-23"}, "unifiedCandidateIndex": [{"ticker": "AAA"}]}

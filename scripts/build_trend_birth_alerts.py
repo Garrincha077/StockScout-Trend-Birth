@@ -90,6 +90,68 @@ def _dashboard_url(base: str, publication: dict) -> str:
     return f"{base}?snapshot={snapshot}" if snapshot else base
 
 
+def _shortlist(data: dict, key: str) -> list[dict]:
+    rows = ((data.get("shortlists") or {}).get(key) or [])
+    return [item for item in rows if isinstance(item, dict) and item.get("ticker")]
+
+
+def build_v2_alerts(current: dict, previous: dict | None, dashboard_url: str) -> dict:
+    """Prepare two bounded, grouped messages without ever sending from this repo."""
+    weekly = _shortlist(current, "weeklyTrendBirth")[:15]
+    kell = _shortlist(current, "kellDaily")[:5]
+    prior_has_v2 = ((previous or {}).get("shortlists") or {}).get("schemaVersion") == "stockscout-shortlists-v2"
+    old_weekly = {item["ticker"]: item for item in _shortlist(previous or {}, "weeklyTrendBirth")}
+    old_kell = {item["ticker"]: item for item in _shortlist(previous or {}, "kellDaily")}
+    messages: list[dict] = []
+
+    if prior_has_v2:
+        weekly_changed = any(
+            item["ticker"] not in old_weekly
+            or (item.get("weeklyBirth") or {}).get("stage") != (old_weekly[item["ticker"]].get("weeklyBirth") or {}).get("stage")
+            for item in weekly
+        ) or set(old_weekly) != {item["ticker"] for item in weekly}
+        if weekly_changed:
+            lines = ["🌱 WEEKLY BIRTH — early trend shortlist", f"{len(weekly)} candidates", ""]
+            if not weekly:
+                lines.append("No qualified weekly setups in this session.")
+            for item in weekly:
+                birth = item.get("weeklyBirth") or {}
+                metrics = birth.get("metrics") or {}
+                runway = metrics.get("runwayPct")
+                runway_text = "blue sky" if runway is None else f"{runway:.0f}% runway"
+                lines.append(
+                    f"{item['ticker']} · {birth.get('stageLabel', 'Review')} · "
+                    f"{metrics.get('baseWeeks', '—')}W base · {metrics.get('weeklyMaClusterPct', '—')}% MA · {runway_text}"
+                )
+            lines.extend(["", f"View dashboard: {dashboard_url}"])
+            messages.append({"kind": "weekly", "text": "\n".join(lines)})
+
+        changed_kell = []
+        for item in kell:
+            before = old_kell.get(item["ticker"])
+            if (
+                before is None
+                or (item.get("kell_stage") or {}).get("primary") != (before.get("kell_stage") or {}).get("primary")
+                or float(item.get("kell_readiness_score") or 0) >= float(before.get("kell_readiness_score") or 0) + 10
+            ):
+                changed_kell.append(item)
+        if changed_kell:
+            lines = ["⚡ KELL DAILY — new or improved setups", ""]
+            for item in changed_kell[:5]:
+                stage = (item.get("kell_stage") or {}).get("primary") or "review"
+                lines.append(f"{item['ticker']} · {stage.replace('_', ' ')} · readiness {float(item.get('kell_readiness_score') or 0):.0f}")
+            lines.extend(["", f"View dashboard: {dashboard_url}"])
+            messages.append({"kind": "kell-daily", "text": "\n".join(lines)})
+
+    return {
+        "schemaVersion": "stockscout-alerts-v2",
+        "baselineOnly": not prior_has_v2,
+        "weeklyCount": len(weekly),
+        "kellDailyCount": len(kell),
+        "messages": messages,
+    }
+
+
 def build_alerts(
     current: dict,
     previous: dict | None,
@@ -182,6 +244,7 @@ def build_alerts(
         "invalidatedCount": len(invalidated),
         "dashboardUrl": dashboard_url,
         "messages": messages,
+        "v2": build_v2_alerts(current, previous, dashboard_url),
     }
 
 

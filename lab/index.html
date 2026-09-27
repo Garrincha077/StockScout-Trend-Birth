@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=weekly-v2-20260927">
 </head>
 <body>
   <header class="topbar">
@@ -13,8 +13,8 @@
       <select id="chartPeriod" aria-label="Razdoblje charta">
         <option value="3m">3M · Daily</option>
         <option value="6m">6M · Daily</option>
-        <option value="1y" selected>1Y · Daily</option>
-        <option value="5y">5Y · Weekly</option>
+        <option value="1y">1Y · Daily</option>
+        <option value="5y" selected>5Y · Weekly</option>
       </select>
       <select id="sort" aria-label="Sortiranje kandidata">
         <option value="default">Default sort</option>
@@ -60,6 +60,11 @@
       </details>
     </div>
   </header>
+  <nav id="primaryViews" class="primary-views" aria-label="Pregled kandidata">
+    <button type="button" data-primary-view="weekly" class="active">Weekly Birth</button>
+    <button type="button" data-primary-view="kell-daily">Kell Daily</button>
+    <button type="button" data-primary-view="research">Research Universe</button>
+  </nav>
   <nav id="filters" class="filters" aria-label="Filter kandidata">
     <div class="mobile-filter-head">
       <strong>Filters</strong>
@@ -163,6 +168,7 @@
   <script src="snapshot-loader.js"></script>
   <script src="kell-dataset-loader.js"></script>
   <script src="kell-change-detector.js"></script>
-<script src="app.js" defer></script>
+  <script src="config.js"></script>
+  <script src="app.js?v=weekly-v2-20260927" defer></script>
 </body>
 </html>
