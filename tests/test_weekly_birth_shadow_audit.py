@@ -12,7 +12,7 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
             ]},
             "trendBirthCandidateIndex": [
                 {"ticker": "AAA", "weeklyBirth": {"eligible": True, "rejectReasons": []}},
-                {"ticker": "BBB", "weeklyBirth": {"eligible": False, "rejectReasons": ["clearRunway"]}},
+                {"ticker": "BBB", "weeklyBirth": {"eligible": False, "stage": 1, "stageLabel": "Long Base", "score": 72, "rejectReasons": ["clearRunway"], "metrics": {"mansfieldRsPct": 1.2}}},
             ],
         }
         previous = {"sessionDate": "2026-09-24", "selected": [{"ticker": "CCC"}]}
@@ -22,10 +22,26 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         self.assertEqual(["AAA"], report["added"])
         self.assertEqual(["CCC"], report["removed"])
         self.assertFalse(report["manualChartReviewComplete"])
+        self.assertEqual("BBB", report["nearMissReviewQueue"][0]["ticker"])
+        self.assertEqual(["clearRunway"], report["nearMissReviewQueue"][0]["rejectReasons"])
 
     def test_old_snapshot_cannot_claim_v2_shadow_session(self):
         with self.assertRaisesRegex(ValueError, "unavailable"):
             build_report({"source": {"sessionDate": "2026-09-25"}})
+
+    def test_chart_review_queue_prefers_inspectable_near_miss(self):
+        snapshot = {
+            "source": {"sessionDate": "2026-09-25"},
+            "shortlists": {"schemaVersion": "stockscout-shortlists-v2", "weeklyTrendBirth": []},
+            "trendBirthCandidateIndex": [
+                {"ticker": "NOCHART", "weeklyBirth": {"stage": 1, "score": 90, "rejectReasons": ["mansfieldRsImproving"]}},
+                {"ticker": "CHART", "weeklyBirth": {"stage": 1, "score": 70, "rejectReasons": ["mansfieldRsImproving", "maSlopeTurn"]}},
+            ],
+            "kellCandidates": [{"ticker": "CHART", "weeklyChartBars": [["2026-09-25", 1, 1, 1, 1, 1]]}],
+        }
+        queue = build_report(snapshot)["nearMissReviewQueue"]
+        self.assertEqual(["CHART", "NOCHART"], [item["ticker"] for item in queue])
+        self.assertTrue(queue[0]["chartAvailable"])
 
 
 if __name__ == "__main__":

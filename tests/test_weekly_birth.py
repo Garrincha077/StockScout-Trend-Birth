@@ -80,6 +80,14 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertFalse(result["eligible"])
         self.assertIn("clearRunway", result["rejectReasons"])
 
+    def test_old_pivot_far_above_price_is_not_blue_sky(self):
+        rows = base_rows()
+        for row in rows[-6:]:
+            row.update(open=80, high=82, low=78, close=80)
+        result = evaluate(rows)
+        self.assertFalse(result["metrics"]["blueSkyConfirmed"])
+        self.assertFalse(result["checks"]["clearRunway"])
+
     def test_unfinished_week_does_not_create_trigger(self):
         rows = base_rows()
         monday = date.fromisoformat(rows[-1]["time"]) + timedelta(days=3)

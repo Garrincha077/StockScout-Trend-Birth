@@ -49,6 +49,44 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
             "blueSkyConfirmed": metrics.get("blueSkyConfirmed"),
         })
+    # A zero-name shortlist still needs reviewable negatives. Prefer candidates
+    # with a real base and few failed checks; never relabel them as selected.
+    chart_tickers = {
+        str(item.get("ticker") or "")
+        for collection in (snapshot.get("kellCandidates") or [], snapshot.get("candidates") or [])
+        for item in collection
+        if item.get("weeklyChartBars") or item.get("chartBars")
+    }
+    near_misses = sorted(
+        (item for item in universe
+         if not (item.get("weeklyBirth") or {}).get("eligible")
+         and (item.get("weeklyBirth") or {}).get("stage", 0) >= 1),
+        key=lambda item: (
+            str(item.get("ticker") or "") not in chart_tickers,
+            len((item.get("weeklyBirth") or {}).get("rejectReasons") or []),
+            -float((item.get("weeklyBirth") or {}).get("score") or 0),
+            str(item.get("ticker") or ""),
+        ),
+    )[:25]
+    review_queue = []
+    for item in near_misses:
+        evidence = item.get("weeklyBirth") or {}
+        metrics = evidence.get("metrics") or {}
+        review_queue.append({
+            "ticker": item.get("ticker"),
+            "stage": evidence.get("stageLabel"),
+            "score": evidence.get("score"),
+            "chartAvailable": item.get("ticker") in chart_tickers,
+            "rejectReasons": evidence.get("rejectReasons") or [],
+            "baseWeeks": metrics.get("baseWeeks"),
+            "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
+            "mansfieldRsPct": metrics.get("mansfieldRsPct"),
+            "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
+            "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
+            "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
+            "runwayPct": metrics.get("runwayPct"),
+            "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
+        })
     return {
         "schemaVersion": "weekly-birth-shadow-audit-v1",
         "modelVersion": ((selected[0].get("weeklyBirth") or {}).get("modelVersion") if selected else "weinstein-stage2a-v3"),
@@ -64,6 +102,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         "removed": sorted(old_members - members) if previous else [],
         "previousSessionDate": (previous or {}).get("sessionDate"),
         "selected": detail,
+        "nearMissReviewQueue": review_queue,
         "manualChartReviewComplete": False,
     }
 

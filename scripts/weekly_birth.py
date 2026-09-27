@@ -183,7 +183,9 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
     rs, rs_change = _mansfield_rs(weeks)
     resistance = _resistance(weeks, pivot)
     runway = 100 * (resistance / max(price, pivot) - 1) if resistance else None
-    blue_sky = resistance is None and len(weeks) >= 156
+    # "Blue sky" is meaningful only at the prospective entry pivot. If price
+    # sits far below an old base ceiling, intervening highs remain overhead.
+    blue_sky = resistance is None and len(weeks) >= 156 and price >= pivot * 0.95
     prior_volumes = [bar["volume"] for bar in weeks[-5:-1]]
     volume_ratio = (weeks[-1]["volume"] / (sum(prior_volumes) / 4)
                     if len(prior_volumes) == 4 and sum(prior_volumes) > 0 else None)
@@ -274,6 +276,7 @@ def evaluate_weekly_birth(rows: Iterable, benchmark_rows: Iterable | None = None
             "mansfieldRsChangePct4w": round(rs_change, 2) if rs_change is not None else None,
             "breakoutVolumeRatio4w": round(volume_ratio, 2) if volume_ratio is not None else None,
             "pivotPrice": round(pivot, 4), "resistancePrice": round(resistance, 4) if resistance else None,
+            "pivotDistancePct": round(100 * (price / pivot - 1), 2),
             "runwayPct": round(runway, 2) if runway is not None else None,
             "blueSkyConfirmed": blue_sky,
             "extensionPct": round(extension, 2), "weeksSinceBreakout": breakout_age,
