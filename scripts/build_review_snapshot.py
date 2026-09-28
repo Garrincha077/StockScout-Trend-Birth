@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
-from weekly_birth import evaluate_weekly_birth, weekly_shortlist
+from weekly_birth import evaluate_weekly_birth, weekly_research_watch, weekly_shortlist
 
 DEFAULT_BASE = "https://garrincha077.github.io/StockScout-Unified/"
 DEFAULT_TRACKED_WATCHLIST = "lab/data/tracked-watchlist.json"
@@ -1450,6 +1450,15 @@ def build_snapshot(
             "weeklyChartBars": _weekly_bars(rows, 260),
             "analysis": analysis_by_ticker.get(item["ticker"], {}),
         })
+    weekly_research = []
+    for item in weekly_research_watch(trend_birth_candidate_index):
+        rows = weekly_charts.get(item["ticker"], [])
+        weekly_research.append({
+            **item,
+            "chartBars": rows[-260:],
+            "weeklyChartBars": _weekly_bars(rows, 260),
+            "analysis": analysis_by_ticker.get(item["ticker"], {}),
+        })
     kell_daily_selected = sorted(
         kell_candidates,
         key=lambda item: (
@@ -1549,6 +1558,7 @@ def build_snapshot(
         "shortlists": {
             "schemaVersion": "stockscout-shortlists-v2",
             "weeklyTrendBirth": weekly_selected,
+            "weeklyResearchWatch": weekly_research,
             "kellDaily": kell_daily_selected,
         },
         "trendBirthCandidateIndex": trend_birth_candidate_index,

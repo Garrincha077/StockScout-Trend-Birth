@@ -61,6 +61,22 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         self.assertEqual("CRASH", report["bottomCrashReviewQueue"][0]["ticker"])
         self.assertEqual(["clearRunway"], report["bottomCrashReviewQueue"][0]["rejectReasons"])
 
+    def test_research_watch_is_reported_but_cannot_be_a_selection(self):
+        item = {"ticker": "BASE", "weeklyBirth": {"eligible": False,
+                "stageLabel": "Long Base", "rejectReasons": ["mansfieldRsImproving"],
+                "metrics": {"baseWeeks": 89, "weeklyMaClusterPct": 3}}}
+        snapshot = {"source": {"sessionDate": "2026-09-25"},
+                    "shortlists": {"schemaVersion": "stockscout-shortlists-v2",
+                                   "weeklyTrendBirth": [], "weeklyResearchWatch": [item]},
+                    "trendBirthCandidateIndex": [item]}
+        report = build_report(snapshot)
+        self.assertEqual(0, report["selectedCount"])
+        self.assertEqual(1, report["researchWatchCount"])
+        self.assertEqual("BASE", report["researchWatch"][0]["ticker"])
+        item["weeklyBirth"]["eligible"] = True
+        with self.assertRaisesRegex(ValueError, "cannot contain"):
+            build_report(snapshot)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -17,9 +17,14 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
     selected = shortlist.get("weeklyTrendBirth") or []
     if len(selected) > 15:
         raise ValueError("Weekly Birth shortlist exceeds 15")
+    research = shortlist.get("weeklyResearchWatch") or []
+    if len(research) > 5:
+        raise ValueError("Early Base Watch exceeds 5")
     members = {str(item.get("ticker") or "") for item in selected}
     if not members or "" in members:
         members.discard("")
+    if any((item.get("weeklyBirth") or {}).get("eligible") is True or item.get("ticker") in members for item in research):
+        raise ValueError("Early Base Watch cannot contain a Weekly Birth selection")
     old_members = {str(item.get("ticker") or "") for item in (previous or {}).get("selected", [])}
     stages = Counter((item.get("weeklyBirth") or {}).get("stageLabel") or "Unknown" for item in selected)
     crash_items = [
@@ -61,6 +66,17 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
             "maPreBaseSlope30wPct26w": metrics.get("maPreBaseSlope30wPct26w"),
             "blueSkyConfirmed": metrics.get("blueSkyConfirmed"),
         })
+    research_detail = [{
+        "ticker": item.get("ticker"),
+        "stage": (item.get("weeklyBirth") or {}).get("stageLabel"),
+        "rejectReasons": (item.get("weeklyBirth") or {}).get("rejectReasons") or [],
+        "baseWeeks": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("baseWeeks"),
+        "weeklyMaClusterPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("weeklyMaClusterPct"),
+        "recentBaseRangePct12w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("recentBaseRangePct12w"),
+        "pivotDistancePct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("pivotDistancePct"),
+        "mansfieldRsPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("mansfieldRsPct"),
+        "mansfieldRsChangePct4w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("mansfieldRsChangePct4w"),
+    } for item in research]
     # A zero-name shortlist still needs reviewable negatives. Prefer candidates
     # with a real base and few failed checks; never relabel them as selected.
     chart_tickers = {
@@ -138,6 +154,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         "evaluatedCount": len(universe),
         "eligibleCount": sum((item.get("weeklyBirth") or {}).get("eligible") is True for item in universe),
         "selectedCount": len(selected),
+        "researchWatchCount": len(research),
         "stageCounts": dict(sorted(stages.items())),
         "chartSourceCounts": dict(sorted(chart_sources.items())),
         "bottomCrashTriggeredCount": len(crash_items),
@@ -148,6 +165,7 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         "removed": sorted(old_members - members) if previous else [],
         "previousSessionDate": (previous or {}).get("sessionDate"),
         "selected": detail,
+        "researchWatch": research_detail,
         "nearMissReviewQueue": review_queue,
         "bottomCrashReviewQueue": crash_review_queue,
         "manualChartReviewComplete": False,

@@ -1,7 +1,7 @@
 import unittest
 from datetime import date, timedelta
 
-from scripts.weekly_birth import _crash_base, completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist
+from scripts.weekly_birth import _crash_base, completed_weekly_bars, evaluate_weekly_birth, weekly_research_watch, weekly_shortlist
 
 
 def base_rows(count=180, *, breakout=False, older_resistance=None, breakout_volume=2_400_000):
@@ -182,6 +182,29 @@ class WeeklyBirthTests(unittest.TestCase):
             {"ticker": "CRASH", "weeklyBirth": {"eligible": True, "stage": 2, "score": 75, "chartSource": "bottom-fishing", "metrics": {"bottomCrashBaseTriggered": True}}},
         ]
         self.assertEqual("CRASH", weekly_shortlist(items)[0]["ticker"])
+
+    def test_research_watch_keeps_early_crash_near_misses_separate(self):
+        def watch_item(ticker, **changes):
+            metrics = {
+                "bottomCrashBaseTriggered": True, "baseWeeks": 89, "weeklyMaClusterPct": 5,
+                "recentBaseRangePct12w": 15, "maPriorSlope30wPct13w": 0,
+                "maPreBaseSlope30wPct26w": -20, "mansfieldRsPct": -3,
+                "mansfieldRsChangePct4w": -1, "pivotDistancePct": -9,
+                "runwayPct": 18, "extensionPct": 0, "maSlope30wPct4w": 0,
+                "launchAdvancePct8w": 0,
+            }
+            metrics.update(changes)
+            return {"ticker": ticker, "weeklyBirth": {"eligible": False,
+                    "chartSource": "bottom-fishing", "metrics": metrics}}
+        quiet = watch_item("QUIET", recentBaseRangePct12w=8)
+        volatile = watch_item("VOLATILE", recentBaseRangePct12w=27)
+        mature = watch_item("MATURE", maPreBaseSlope30wPct26w=25)
+        weak = watch_item("WEAK", mansfieldRsPct=-12)
+        selected = watch_item("SELECTED")
+        selected["weeklyBirth"]["eligible"] = True
+        research = weekly_research_watch([volatile, weak, selected, mature, quiet])
+        self.assertEqual(["QUIET", "VOLATILE"], [item["ticker"] for item in research])
+        self.assertEqual(["QUIET"], [item["ticker"] for item in weekly_research_watch(research, limit=1)])
 
     def test_steady_mature_uptrend_is_not_a_long_base(self):
         rows = base_rows()

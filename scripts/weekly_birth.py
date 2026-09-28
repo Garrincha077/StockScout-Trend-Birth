@@ -406,3 +406,47 @@ def weekly_shortlist(items: Iterable[dict], limit: int = 15) -> list[dict]:
         str(item.get("ticker") or ""),
     ))
     return selected[:limit]
+
+
+def weekly_research_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
+    """Bottom Crash near-misses for chart review, never confirmed selections."""
+    watch = []
+    for item in items:
+        evidence = item.get("weeklyBirth") or {}
+        metrics = evidence.get("metrics") or {}
+        if evidence.get("eligible") or evidence.get("chartSource") != "bottom-fishing":
+            continue
+        if metrics.get("bottomCrashBaseTriggered") is not True:
+            continue
+        prebase = metrics.get("maPreBaseSlope30wPct26w")
+        rs = metrics.get("mansfieldRsPct")
+        rs_change = metrics.get("mansfieldRsChangePct4w")
+        pivot_distance = metrics.get("pivotDistancePct")
+        runway = metrics.get("runwayPct")
+        def measured(key: str, fallback: float) -> float:
+            value = metrics.get(key)
+            return float(value) if value is not None else fallback
+        if any(value is None for value in (prebase, rs, rs_change, pivot_distance)):
+            continue
+        if not (
+            measured("baseWeeks", 0) >= 52
+            and measured("weeklyMaClusterPct", 99) <= 8
+            and measured("recentBaseRangePct12w", 99) <= 30
+            and measured("maPriorSlope30wPct13w", 99) <= 4
+            and prebase <= 8
+            and -5 <= rs and rs_change >= -2
+            and -20 <= pivot_distance <= 4
+            and ((runway is not None and runway >= 12) or metrics.get("blueSkyConfirmed") is True)
+            and -6 <= measured("extensionPct", 99) <= 10
+            and -0.5 <= measured("maSlope30wPct4w", -99) <= 2
+            and measured("launchAdvancePct8w", 99) <= 15
+        ):
+            continue
+        watch.append(item)
+    watch.sort(key=lambda item: (
+        float(item["weeklyBirth"]["metrics"]["recentBaseRangePct12w"]),
+        abs(float(item["weeklyBirth"]["metrics"]["pivotDistancePct"])),
+        float(item["weeklyBirth"]["metrics"]["weeklyMaClusterPct"]),
+        str(item.get("ticker") or ""),
+    ))
+    return watch[:limit]
