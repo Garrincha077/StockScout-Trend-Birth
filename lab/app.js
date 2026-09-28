@@ -575,7 +575,10 @@ function matchesFilters(item,filters=activeFilters()){
 function sourceItems(filters=activeFilters()){
   if(state.universe==='watchlist')return watchlistItems();
   if(state.primaryView==='weekly')return state.data?.shortlists?.weeklyTrendBirth||[];
-  if(state.primaryView==='weekly-watch')return state.data?.shortlists?.weeklyResearchWatch||[];
+  if(state.primaryView==='weekly-watch')return [
+    ...(state.data?.shortlists?.weeklyResearchWatch||[]),
+    ...(state.data?.shortlists?.weeklyDiscoveryWatch||[]),
+  ];
   if(state.primaryView==='kell-daily')return state.data?.shortlists?.kellDaily||[];
   return isKellView(filters)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
@@ -735,7 +738,7 @@ function visible(item){
   return matchesFilters(item);
 }
 const weeklyWatchReasonLabels={recentBaseTight:'tighter shelf',maSlopeTurn:'30W turn',mansfieldRsImproving:'RS repair',launchNotChased:'less recent advance',maPrior13wFlat:'flatter 30W MA'};
-const weeklyWatchNeeds=weekly=>(weekly?.rejectReasons||[]).map(reason=>weeklyWatchReasonLabels[reason]||reason).join(' · ');
+const weeklyWatchNeeds=weekly=>(weekly?.rejectReasons||[]).map(reason=>weeklyWatchReasonLabels[reason]||reason).join(' · ')||'manual chart review';
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),missing=item.watchlistMissing===true;
   const status=missing?'SAVED':String(a.status||'REVIEW').toUpperCase();
@@ -749,11 +752,13 @@ function card(item){
     const runway=weeklyRunway(v);
     const research=state.primaryView==='weekly-watch';
     const needs=research?weeklyWatchNeeds(w):'';
+    const tier=w.tier||(research?'C':'—');
+    const weeklySource=v.bottomCrashBaseTriggered===true?'Bottom · Crash Base':(item.unifiedSources||item.sources||[]).includes('bottom-fishing')?'Bottom · other setup':label(w.chartSource||'—');
     return '<article class="card weekly-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
-      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">'+(research?'Research · no signal':fmt(w.score,0)+'/100')+'</span></div></div>'+
+      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">Tier '+esc(tier)+'</span><span class="badge">'+(research?'Research · no signal':fmt(w.score,0)+'/100')+'</span></div></div>'+
       '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Mansfield RS <b>'+optionalPct(v.mansfieldRsPct)+'</b></span><span>30W turn <b>'+optionalPct(v.maSlope30wPct4w)+'</b></span><span>4W volume <b>'+optionalFmt(v.breakoutVolumeRatio4w)+'x</b></span></div>'+
       '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
-      '<div class="analysis-strip"><span>'+(research?'Needs '+esc(needs):((v.bottomCrashBaseTriggered===true?'Bottom Crash Base · ':'')+'Pivot '+fmt(v.pivotPrice)+' · Next resistance '+(v.resistancePrice==null?(v.blueSkyConfirmed===true?'no higher swing mapped':'unverified'):fmt(v.resistancePrice))))+'</span><strong class="watch">'+(research?'WATCH ONLY':esc(w.stageLabel||'—'))+'</strong></div></article>';
+      '<div class="analysis-strip"><span>'+(research?esc(weeklySource)+' · Needs '+esc(needs):((v.bottomCrashBaseTriggered===true?'Bottom Crash Base · ':'')+'Pivot '+fmt(v.pivotPrice)+' · Next resistance '+(v.resistancePrice==null?(v.blueSkyConfirmed===true?'no higher swing mapped':'unverified'):fmt(v.resistancePrice))))+'</span><strong class="watch">'+(research?'WATCH ONLY':esc(w.stageLabel||'—'))+'</strong></div></article>';
   }
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
@@ -837,7 +842,7 @@ function render(){
   if(state.primaryView==='weekly'){
     $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
   }else if(state.primaryView==='weekly-watch'){
-    $('#status').textContent=items.length+' rane baze za ručni pregled · Bottom Crash Base · nisu Weekly Birth signali i ne šalju Telegram';
+    $('#status').textContent=items.length+' rane baze za ručni pregled · '+items.filter(item=>item.weeklyBirth?.tier==='C').length+' Tier C · '+items.filter(item=>item.weeklyBirth?.tier==='D').length+' Tier D · Bottom scan, uključujući non-Crash · bez Telegrama';
   }else if(state.primaryView==='kell-daily'){
     $('#status').textContent=items.length+' Kell Daily kandidata · svježi dnevni setupovi, odvojeno od weekly izbora';
   }else if(state.quickView==='changed'){
@@ -912,7 +917,7 @@ function show(item){
       '<div><span>Kell Focus</span><strong>'+fmt(item.kell_score,0)+'</strong></div>'+
       '<div><span>Readiness</span><strong>'+fmt(item.kell_readiness_score,0)+'</strong></div>'+
     '</div>'+
-    (state.primaryView==='weekly-watch'?'<div class="detail-tb-note"><span>Early Base Watch</span><strong>Research only · not a Weekly Birth signal · needs '+esc(weeklyWatchNeeds(weekly))+'</strong></div>':'')+
+    (state.primaryView==='weekly-watch'?'<div class="detail-tb-note"><span>Early Base · Tier '+esc(weekly.tier||'C')+'</span><strong>Research only · '+(weeklyMetrics.bottomCrashBaseTriggered===true?'Bottom Crash Base':'Bottom other setup')+' · not a Weekly Birth signal · needs '+esc(weeklyWatchNeeds(weekly))+'</strong></div>':'')+
     (weekly.stageLabel?'<div class="detail-tb-note"><span>Weekly Birth</span><strong>'+esc(weekly.stageLabel)+' · '+fmt(weeklyMetrics.baseWeeks,0)+'W base · '+pct(weeklyMetrics.weeklyMaClusterPct)+' MA cluster · '+weeklyRunway(weeklyMetrics,true)+' runway · MRS '+optionalPct(weeklyMetrics.mansfieldRsPct)+' · 4W vol '+optionalFmt(weeklyMetrics.breakoutVolumeRatio4w)+'x</strong></div>':'')+
     '<div class="detail-tb-note"><span>TB missing for 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
     '<div class="detail-tb-note"><span>Birth path</span><strong>'+esc(birthPathText(item))+(trendBirthEvidence(item).primary?' · '+esc(trendBirthEvidence(item).primary):'')+'</strong></div>'+

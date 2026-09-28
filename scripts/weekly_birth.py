@@ -408,45 +408,92 @@ def weekly_shortlist(items: Iterable[dict], limit: int = 15) -> list[dict]:
     return selected[:limit]
 
 
-def weekly_research_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
-    """Bottom Crash near-misses for chart review, never confirmed selections."""
-    watch = []
-    for item in items:
-        evidence = item.get("weeklyBirth") or {}
-        metrics = evidence.get("metrics") or {}
-        if evidence.get("eligible") or evidence.get("chartSource") != "bottom-fishing":
-            continue
-        if metrics.get("bottomCrashBaseTriggered") is not True:
-            continue
-        prebase = metrics.get("maPreBaseSlope30wPct26w")
-        rs = metrics.get("mansfieldRsPct")
-        rs_change = metrics.get("mansfieldRsChangePct4w")
-        pivot_distance = metrics.get("pivotDistancePct")
-        runway = metrics.get("runwayPct")
-        def measured(key: str, fallback: float) -> float:
-            value = metrics.get(key)
-            return float(value) if value is not None else fallback
-        if any(value is None for value in (prebase, rs, rs_change, pivot_distance)):
-            continue
-        if not (
-            measured("baseWeeks", 0) >= 52
-            and measured("weeklyMaClusterPct", 99) <= 8
-            and measured("recentBaseRangePct12w", 99) <= 30
-            and measured("maPriorSlope30wPct13w", 99) <= 4
-            and prebase <= 8
-            and -5 <= rs and rs_change >= -2
-            and -20 <= pivot_distance <= 4
-            and ((runway is not None and runway >= 12) or metrics.get("blueSkyConfirmed") is True)
-            and -6 <= measured("extensionPct", 99) <= 10
-            and -0.5 <= measured("maSlope30wPct4w", -99) <= 2
-            and measured("launchAdvancePct8w", 99) <= 15
-        ):
-            continue
-        watch.append(item)
-    watch.sort(key=lambda item: (
-        float(item["weeklyBirth"]["metrics"]["recentBaseRangePct12w"]),
-        abs(float(item["weeklyBirth"]["metrics"]["pivotDistancePct"])),
-        float(item["weeklyBirth"]["metrics"]["weeklyMaClusterPct"]),
+def _bottom_member(item: dict, evidence: dict) -> bool:
+    fields = (item.get("unifiedSources"), item.get("sources"), item.get("chartModes"))
+    if any(field is not None for field in fields):
+        return any("bottom-fishing" in (field or []) for field in fields)
+    return evidence.get("chartSource") == "bottom-fishing"
+
+
+def _research_metrics(item: dict) -> dict | None:
+    evidence = item.get("weeklyBirth") or {}
+    metrics = evidence.get("metrics") or {}
+    if evidence.get("eligible") or not _bottom_member(item, evidence):
+        return None
+    required = (
+        "baseWeeks", "weeklyMaClusterPct", "recentBaseRangePct12w",
+        "maPriorSlope30wPct13w", "maPreBaseSlope30wPct26w",
+        "mansfieldRsPct", "mansfieldRsChangePct4w", "pivotDistancePct",
+        "extensionPct", "maSlope30wPct4w", "launchAdvancePct8w",
+    )
+    return metrics if all(_number(metrics.get(key)) is not None for key in required) else None
+
+
+def _research_pass(metrics: dict, *, broad: bool) -> bool:
+    value = lambda key: float(metrics[key])
+    runway = _number(metrics.get("runwayPct"))
+    room = (runway is not None and runway >= 12) or metrics.get("blueSkyConfirmed") is True
+    return (
+        value("baseWeeks") >= 52
+        and value("weeklyMaClusterPct") <= (10 if broad else 8)
+        and value("recentBaseRangePct12w") <= (35 if broad else 30)
+        and value("maPriorSlope30wPct13w") <= 4
+        and value("maPreBaseSlope30wPct26w") <= 8
+        and value("mansfieldRsPct") >= (-10 if broad else -5)
+        and value("mansfieldRsChangePct4w") >= (-3 if broad else -2)
+        and (-25 if broad else -20) <= value("pivotDistancePct") <= (5 if broad else 4)
+        and room
+        and (-10 if broad else -6) <= value("extensionPct") <= (12 if broad else 10)
+        and (-1.5 if broad else -0.5) <= value("maSlope30wPct4w") <= 2
+        and value("launchAdvancePct8w") <= 15
+    )
+
+
+def _research_order(item: dict) -> tuple:
+    metrics = item["weeklyBirth"]["metrics"]
+    return (
+        float(metrics["recentBaseRangePct12w"]),
+        abs(float(metrics["pivotDistancePct"])),
+        float(metrics["weeklyMaClusterPct"]),
         str(item.get("ticker") or ""),
-    ))
+    )
+
+
+def weekly_research_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
+    """Tier C Bottom near-misses, with or without the Crash Base detector."""
+    watch = [item for item in items if (metrics := _research_metrics(item)) is not None
+             and _research_pass(metrics, broad=False)]
+    watch.sort(key=_research_order)
     return watch[:limit]
+
+
+def weekly_discovery_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
+    """Tier D: a separate, broader Bottom-only chart queue without alerts."""
+    watch = [item for item in items if (metrics := _research_metrics(item)) is not None
+             and not _research_pass(metrics, broad=False)
+             and _research_pass(metrics, broad=True)]
+    watch.sort(key=_research_order)
+    return watch[:limit]
+
+
+def weekly_confirmed_tier(item: dict) -> str:
+    """A/B quality label for an already eligible name; never changes eligibility."""
+    evidence = item.get("weeklyBirth") or {}
+    metrics = evidence.get("metrics") or {}
+    if evidence.get("eligible") is not True:
+        raise ValueError("Only confirmed Weekly Birth names can receive A/B")
+    runway = _number(metrics.get("runwayPct"))
+    checks = evidence.get("checks") or {}
+    strong = (
+        _number(metrics.get("baseWeeks")) is not None and metrics["baseWeeks"] >= 52
+        and _number(metrics.get("weeklyMaClusterPct")) is not None and metrics["weeklyMaClusterPct"] <= 6
+        and _number(metrics.get("recentBaseRangePct12w")) is not None and metrics["recentBaseRangePct12w"] <= 14
+        and ((runway is not None and runway >= 20) or metrics.get("blueSkyConfirmed") is True)
+        and _number(metrics.get("pivotDistancePct")) is not None and -5 <= metrics["pivotDistancePct"] <= 3
+        and _number(metrics.get("extensionPct")) is not None and -6 <= metrics["extensionPct"] <= 6
+        and checks.get("mansfieldRsImproving") is True
+        and checks.get("maSlopeTurn") is True
+        and checks.get("launchNotChased") is True
+        and checks.get("notExtended") is True
+    )
+    return "A" if strong else "B"

@@ -55,8 +55,10 @@ class TrendBirthAlertTests(unittest.TestCase):
 
     def test_research_watch_never_generates_weekly_alert(self):
         research = [{"ticker": "BASE", "weeklyBirth": {"eligible": False, "stage": 1}}]
+        discovery = [{"ticker": "BOTTOM", "weeklyBirth": {"eligible": False, "tier": "D"}}]
         current = {"shortlists": {"schemaVersion": "stockscout-shortlists-v2",
-                                  "weeklyTrendBirth": [], "weeklyResearchWatch": research, "kellDaily": []}}
+                                  "weeklyTrendBirth": [], "weeklyResearchWatch": research,
+                                  "weeklyDiscoveryWatch": discovery, "kellDaily": []}}
         previous = {"shortlists": {"schemaVersion": "stockscout-shortlists-v2",
                                    "weeklyTrendBirth": [], "weeklyResearchWatch": [], "kellDaily": []}}
         self.assertEqual([], build_v2_alerts(current, previous, "https://example.test/")["messages"])

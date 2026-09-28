@@ -77,6 +77,25 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot contain"):
             build_report(snapshot)
 
+    def test_c_and_d_are_disjoint_and_not_confirmed(self):
+        c = {"ticker": "C", "weeklyBirth": {"eligible": False, "tier": "C",
+             "metrics": {"bottomCrashBaseTriggered": True}}}
+        d = {"ticker": "D", "weeklyBirth": {"eligible": False, "tier": "D",
+             "metrics": {"bottomCrashBaseTriggered": False}}}
+        snapshot = {"source": {"sessionDate": "2026-09-25"},
+                    "shortlists": {"schemaVersion": "stockscout-shortlists-v2",
+                                   "weeklyTrendBirth": [], "weeklyResearchWatch": [c],
+                                   "weeklyDiscoveryWatch": [d]},
+                    "trendBirthCandidateIndex": [c, d]}
+        report = build_report(snapshot)
+        self.assertEqual(1, report["researchWatchCount"])
+        self.assertEqual(1, report["discoveryWatchCount"])
+        self.assertEqual(1, report["discoveryNonCrashCount"])
+        self.assertEqual("D", report["discoveryWatch"][0]["tier"])
+        d["ticker"] = "C"
+        with self.assertRaisesRegex(ValueError, "unique"):
+            build_report(snapshot)
+
 
 if __name__ == "__main__":
     unittest.main()
