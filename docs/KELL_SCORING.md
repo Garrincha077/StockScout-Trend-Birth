@@ -1,5 +1,23 @@
 # Oliver Kell Overlay Scoring v5 — Quality / Readiness / Context
 
+## v6 cycle calibration research branch (2026-09-28)
+
+`codex/kell-cycle-calibration` changes the cycle detector to `kell-overlay-v6-cycle-calibration-shadow`. It is a shadow/review change only; the checked-in 2026-09-25 `lab/data/latest.json`, deployed GridView and Telegram sender still carry v5. The v5 score composition, Unified candidate membership and published discovery-screen formulas are unchanged. Stage-dependent readiness can change when a candidate's stage changes.
+
+The seven user-annotated ELF, NVDA, TOL, WING, AFRM, KBH and PHM charts were compared with [TraderLion's Cycle of Price Action description](https://traderlion.com/technical-analysis/chart-patterns/cycle-of-price-action-by-oliver-kell/). The images identify qualitative phases, not exact machine-readable event dates. `research/kell_cycle_2023_replay.py` therefore tests short windows plus negative controls using daily adjusted OHLCV, truncating the bar series at each session before calling the detector. Its `yfinance` dependency is optional research tooling, not part of production or CI.
+
+Changes to the numerical lab proxies:
+
+- Wedge Pop allows a 2.5% 10/20 EMA gap and a five-day range up to 85% of the preceding 15-day range, but requires a prior flat/down context. A raw pop that has already advanced at least 5% in the preceding 40 sessions prevents another "first pop" label in the same cycle.
+- EMA Crossback must be at least three sessions after the pop. Retest proximity is volatility aware: 1–3% around the EMA cluster, scaled to recent median true range. This avoids next-day wicks masquerading as a separate retest.
+- Base n' Break has a seven-session event cooldown so a steady climb cannot fire the same base break on consecutive days.
+- Exhaustion Extension requires at least 27 of the preceding 30 sessions with 10EMA above 20EMA, then a fresh high at least the greater of 12% or two recent median true ranges above the 10EMA, plus a blowoff clue. A strong first launch is no longer automatically late-cycle. Exhaustion takes precedence over a simultaneous Base n' Break event.
+- Wedge Drop can follow either a recent exhaustion or a mature rising 10/20 EMA run that tightens near the cluster and then loses both averages decisively. It no longer requires a prior blowoff. The stage basis identifies which path fired.
+
+Research replay on the seven examples matched **15/15 deliberately selected short windows** ([recorded result](../research/kell-cycle-2023-results.json)), including absence of an early Exhaustion label for TOL and AFRM. This is an in-sample calibration check, not precision, hit rate or a return study. It uses vendor-adjusted historical prices retrieved at run time; later adjustments or different feeds can shift a boundary date. The chart examples include winners and the KBH/PHM downside cases, but remain a small, curated set.
+
+On the frozen `2026-09-25-eod-36226304827-1` snapshot, rescoring the **2,045** Kell names changed the primary stage of **97**. Wedge Drop rose from **3 to 22**, Base n' Break fell from **27 to 14**, and EMA Crossback fell from **21 to 0**. The last drop is material: 20 of the 21 old crossbacks were next-day touches, which the annotated sequence treats as part of the pop rather than a separate retest. This single-session absence is not a claim that crossbacks should always be rare; the tightened sequence needs manual chart review before any publication. This snapshot comparison did not reconstruct benchmark series, so it assesses stage transitions rather than final production scores. Forward validation and a broader blinded chart review remain necessary before enabling v6 in the GridView or notifications.
+
 Branch scope: `feature/kell-mcp-lab`
 
 This layer scans the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not alter Unified candidate generation, source ranks, or the ordinary Review Grid.
