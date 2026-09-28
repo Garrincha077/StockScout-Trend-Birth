@@ -432,15 +432,15 @@ def _research_metrics(item: dict) -> dict | None:
 def _research_pass(metrics: dict, *, broad: bool) -> bool:
     value = lambda key: float(metrics[key])
     runway = _number(metrics.get("runwayPct"))
-    room = (runway is not None and runway >= 12) or metrics.get("blueSkyConfirmed") is True
+    room = (runway is not None and runway >= (8 if broad else 12)) or metrics.get("blueSkyConfirmed") is True
     return (
-        value("baseWeeks") >= 52
+        value("baseWeeks") >= (39 if broad else 52)
         and value("weeklyMaClusterPct") <= (10 if broad else 8)
         and value("recentBaseRangePct12w") <= (35 if broad else 30)
-        and value("maPriorSlope30wPct13w") <= 4
-        and value("maPreBaseSlope30wPct26w") <= 8
+        and value("maPriorSlope30wPct13w") <= (8 if broad else 4)
+        and value("maPreBaseSlope30wPct26w") <= (15 if broad else 8)
         and value("mansfieldRsPct") >= (-10 if broad else -5)
-        and value("mansfieldRsChangePct4w") >= (-3 if broad else -2)
+        and value("mansfieldRsChangePct4w") >= (-5 if broad else -2)
         and (-25 if broad else -20) <= value("pivotDistancePct") <= (5 if broad else 4)
         and room
         and (-10 if broad else -6) <= value("extensionPct") <= (12 if broad else 10)
@@ -459,6 +459,21 @@ def _research_order(item: dict) -> tuple:
     )
 
 
+def _discovery_order(item: dict) -> tuple:
+    """Keep early Crash cases and RS repair visible in the wider D queue."""
+    metrics = item["weeklyBirth"]["metrics"]
+    rs_change = float(metrics["mansfieldRsChangePct4w"])
+    return (
+        metrics.get("bottomCrashBaseTriggered") is not True,
+        rs_change < 0,
+        -rs_change,
+        float(metrics["maSlope30wPct4w"]) < -0.5,
+        abs(float(metrics["pivotDistancePct"])),
+        float(metrics["recentBaseRangePct12w"]),
+        str(item.get("ticker") or ""),
+    )
+
+
 def weekly_research_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
     """Tier C Bottom near-misses, with or without the Crash Base detector."""
     watch = [item for item in items if (metrics := _research_metrics(item)) is not None
@@ -467,12 +482,12 @@ def weekly_research_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
     return watch[:limit]
 
 
-def weekly_discovery_watch(items: Iterable[dict], limit: int = 5) -> list[dict]:
+def weekly_discovery_watch(items: Iterable[dict], limit: int = 25) -> list[dict]:
     """Tier D: a separate, broader Bottom-only chart queue without alerts."""
     watch = [item for item in items if (metrics := _research_metrics(item)) is not None
              and not _research_pass(metrics, broad=False)
              and _research_pass(metrics, broad=True)]
-    watch.sort(key=_research_order)
+    watch.sort(key=_discovery_order)
     return watch[:limit]
 
 

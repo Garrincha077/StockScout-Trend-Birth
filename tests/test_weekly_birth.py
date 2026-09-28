@@ -249,6 +249,32 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertEqual("B", weekly_confirmed_tier(item))
         self.assertTrue(evidence["eligible"])
 
+    def test_d_is_a_broader_bottom_research_pool_capped_at_25(self):
+        metrics = {
+            "baseWeeks": 39, "weeklyMaClusterPct": 9,
+            "recentBaseRangePct12w": 34, "maPriorSlope30wPct13w": 7,
+            "maPreBaseSlope30wPct26w": 14, "mansfieldRsPct": -9,
+            "mansfieldRsChangePct4w": -4, "pivotDistancePct": -24,
+            "runwayPct": 8, "extensionPct": 11,
+            "maSlope30wPct4w": -1.4, "launchAdvancePct8w": 14,
+        }
+
+        def row(ticker, **changes):
+            return {"ticker": ticker, "unifiedSources": ["bottom-fishing"],
+                    "weeklyBirth": {"eligible": False, "metrics": {**metrics, **changes}}}
+
+        candidates = [row(f"D{index:02d}") for index in range(30)]
+        self.assertEqual([], weekly_research_watch(candidates))
+        self.assertEqual(25, len(weekly_discovery_watch(candidates)))
+        self.assertEqual("D00", weekly_discovery_watch(candidates)[0]["ticker"])
+        self.assertEqual([], weekly_discovery_watch([row("NO_ROOM", runwayPct=7)]))
+        ordered = weekly_discovery_watch([
+            row("TIGHT", recentBaseRangePct12w=2),
+            row("RS_UP", mansfieldRsChangePct4w=1),
+            row("CRASH", bottomCrashBaseTriggered=True),
+        ])
+        self.assertEqual(["CRASH", "RS_UP", "TIGHT"], [item["ticker"] for item in ordered])
+
     def test_steady_mature_uptrend_is_not_a_long_base(self):
         rows = base_rows()
         for index, row in enumerate(rows):

@@ -96,6 +96,18 @@ class WeeklyBirthShadowAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unique"):
             build_report(snapshot)
 
+    def test_d_shadow_queue_may_have_25_but_not_26(self):
+        def item(index):
+            return {"ticker": f"D{index:02d}", "weeklyBirth": {"eligible": False, "tier": "D"}}
+        snapshot = {"source": {"sessionDate": "2026-09-25"},
+                    "shortlists": {"schemaVersion": "stockscout-shortlists-v2",
+                                   "weeklyTrendBirth": [],
+                                   "weeklyDiscoveryWatch": [item(i) for i in range(25)]}}
+        self.assertEqual(25, build_report(snapshot)["discoveryWatchCount"])
+        snapshot["shortlists"]["weeklyDiscoveryWatch"].append(item(25))
+        with self.assertRaisesRegex(ValueError, "exceeds 25"):
+            build_report(snapshot)
+
 
 if __name__ == "__main__":
     unittest.main()

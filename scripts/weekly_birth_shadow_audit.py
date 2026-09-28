@@ -21,8 +21,8 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
     if len(research) > 5:
         raise ValueError("Early Base Watch exceeds 5")
     discovery = shortlist.get("weeklyDiscoveryWatch") or []
-    if len(discovery) > 5:
-        raise ValueError("Bottom Tier D watch exceeds 5")
+    if len(discovery) > 25:
+        raise ValueError("Bottom Tier D watch exceeds 25")
     members = {str(item.get("ticker") or "") for item in selected}
     if not members or "" in members:
         members.discard("")
