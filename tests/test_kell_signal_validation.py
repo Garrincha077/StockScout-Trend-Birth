@@ -175,13 +175,16 @@ class KellSignalValidationTests(unittest.TestCase):
         item = {"kell_metrics": {
             "recent_wedge_pop_sessions_ago": 4,
             "ema_crossback_touch_tolerance_pct": 2.5,
-        }}
+        }, "score_breakdown": {"model_version": "kell-overlay-v6-cycle-calibration-shadow"}}
         grade, reasons = validation._audit_ema_crossback(item, normalized)
         self.assertEqual((grade, reasons), ("strong", []))
         item["kell_metrics"]["recent_wedge_pop_sessions_ago"] = 1
         grade, reasons = validation._audit_ema_crossback(item, normalized)
         self.assertEqual(grade, "contradiction")
         self.assertIn("no_recent_wedge_pop", reasons)
+        item["score_breakdown"]["model_version"] = "kell-overlay-v5-quality-readiness-context"
+        grade, reasons = validation._audit_ema_crossback(item, normalized)
+        self.assertEqual((grade, reasons), ("strong", []))
 
     def test_crossback_support_distribution_is_exposed(self):
         bars = make_bars(count=60, start=100.0, daily=0.0)

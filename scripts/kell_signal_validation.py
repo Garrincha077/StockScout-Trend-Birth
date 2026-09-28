@@ -279,6 +279,8 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
     tolerance = _metric(item, "ema_crossback_touch_tolerance_pct")
     evidence = _ema_crossback_evidence(bars, tolerance if tolerance is not None else 1.0)
     pop_age = _metric(item, "recent_wedge_pop_sessions_ago")
+    model_version = str((item.get("score_breakdown") or {}).get("model_version") or "")
+    minimum_pop_age = 3 if model_version.startswith("kell-overlay-v6") else 1
     if pop_age is None:
         raw_age = (item.get("kell_metrics") or {}).get("recent_wedge_pop_sessions_ago")
         try:
@@ -292,7 +294,7 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
     close_vs_mid = evidence["closeVsMidpointPct"]
 
     reasons: list[str] = []
-    if pop_age is None or pop_age < 3 or pop_age > 15:
+    if pop_age is None or pop_age < minimum_pop_age or pop_age > 15:
         reasons.append("no_recent_wedge_pop")
     if not touches:
         reasons.append("did_not_retest_ema_cluster")
@@ -308,7 +310,7 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
     if isinstance(close_vs_mid, (int, float)) and close_vs_mid < -0.5:
         reasons.append("weak_crossback_close")
 
-    if (pop_age is None or pop_age < 3 or pop_age > 15) or not touches or not holds:
+    if (pop_age is None or pop_age < minimum_pop_age or pop_age > 15) or not touches or not holds:
         return "contradiction", reasons
     if reasons:
         return "borderline", reasons
