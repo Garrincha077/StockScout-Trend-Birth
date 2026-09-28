@@ -548,11 +548,9 @@ def score_candidate(
         e10_now, e20_now = ema10[-1], ema20[-1]
         e10_prev, e20_prev = ema10[-2], ema20[-2]
         if None not in (e10_now, e20_now, e10_prev, e20_prev):
-            prior_above = any(
-                ema10[j] is not None and ema20[j] is not None
-                and closes[j] >= min(float(ema10[j]), float(ema20[j]))
-                for j in range(len(bars) - 6, len(bars) - 1)
-            )
+            # Mark the first confirmed loss of the cluster, not every weak
+            # close during a multi-session slide after an earlier break.
+            prior_near_cluster = closes[-2] >= min(float(e10_prev), float(e20_prev)) * 0.99
             current_below = close < min(float(e10_now), float(e20_now))
             uptrend_sessions = sum(
                 ema10[j] is not None and ema20[j] is not None
@@ -574,20 +572,25 @@ def score_candidate(
             )
             loss_depth_pct = (1.0 - close / min(float(e10_now), float(e20_now))) * 100.0
             wedge_drop_loss_depth_pct = round(loss_depth_pct, 2)
-            decisive_loss = loss_depth_pct >= max(2.0, (recent_tr5 or 0.0) * 0.75)
+            decisive_loss = loss_depth_pct >= max(3.0, (recent_tr5 or 0.0) * 0.75)
+            bearish_break_bar = (
+                close_location <= 30.0
+                and rvol20 is not None and rvol20 >= 1.0
+            )
             prior_decisive_loss = any(
                 ema10[j] is not None and ema20[j] is not None
                 and closes[j] < min(float(ema10[j]), float(ema20[j])) * 0.97
                 for j in range(len(bars) - 5, len(bars) - 1)
             )
             tight_run_drop = bool(
-                prior_above and current_below and mature_run and near_ema
-                and tight_before_loss and decisive_loss and not prior_decisive_loss
+                prior_near_cluster and current_below and mature_run and near_ema
+                and tight_before_loss and decisive_loss and bearish_break_bar
+                and not prior_decisive_loss
             )
             exhaustion_drop = bool(
                 recent_exhaustion_index is not None
-                and closes[-2] >= min(float(e10_prev), float(e20_prev))
-                and current_below
+                and prior_near_cluster and current_below
+                and decisive_loss and bearish_break_bar
             )
             wedge_drop = tight_run_drop or exhaustion_drop
             if tight_run_drop:

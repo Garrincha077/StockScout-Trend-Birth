@@ -368,6 +368,15 @@ class KellScoringTests(unittest.TestCase):
         self.assertIn("decisive_ema_loss", out["kell_stage"]["basis"])
         self.assertGreater(out["kell_metrics"]["wedge_drop_loss_depth_pct"], 2.0)
 
+        thin_volume = [dict(row) for row in bars]
+        thin_volume[-1]["volume"] = 700_000
+        self.assertFalse(kell.score_candidate(thin_volume)["kell_wedge_drop"])
+
+        next_day = dict(bars[-1], time="2099-01-01", open=level * 0.94,
+                        high=level * 0.945, low=level * 0.90,
+                        close=level * 0.91, volume=2_400_000)
+        self.assertFalse(kell.score_candidate(bars + [next_day])["kell_wedge_drop"])
+
     def test_new_launch_is_not_labeled_exhaustion_the_next_day(self):
         bars = make_bars(count=100, start=100.0, daily=0.0)
         for row, close in zip(bars[-11:-1], [99.8, 99.5, 99.1, 98.8, 98.6, 98.4, 98.25, 98.15, 98.08, 98.0]):
