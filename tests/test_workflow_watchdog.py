@@ -59,6 +59,13 @@ class WorkflowWatchdogTests(unittest.TestCase):
         self.assertFalse(any(call[:3] == ("api", "-X", "POST") for call in calls))
         self.assertTrue(any(call[:2] == ("issue", "create") for call in calls))
 
+    def test_frequent_stale_probe_does_not_repeat_existing_incident_comment(self):
+        event = self._event()
+        event["workflow_run"]["name"] = "Refresh Trend Birth Review Lab"
+        issues = json.dumps([{"number": 8, "title": "[watchdog] Refresh Trend Birth Review Lab failed"}])
+        calls = self._run(event, "STALE_UPSTREAM expected=2026-10-01 actual=2026-09-30", issues)
+        self.assertFalse(any(call[:2] in (("issue", "comment"), ("issue", "create")) for call in calls))
+
 
 if __name__ == "__main__":
     unittest.main()
