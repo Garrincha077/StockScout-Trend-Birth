@@ -71,3 +71,15 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Branch: `codex/trend-watchdog-main`, based on controlled `main`.
 - Added a trusted `workflow_run` watchdog on the default branch so GitHub can observe failed Refresh, Review Grid Lab, and old/new PR validation workflows. It retries at most one initial transient Refresh or new validation failure, then records a deduplicated issue for persistent failures. It never checks out or executes failed PR code.
 - Tests cover transient retry, second-attempt deduplication, and a code failure with no retry. No scan, publication, deployment or Telegram behavior changes.
+
+## 2026-10-02 — Activation monitor and verified refresh
+
+- Branch: `codex/eod-linked-refresh-20261002`, based on main `2a016ceb98e183782f517e386339d8f74d5204d0`; implementation/review commit is recorded by the accompanying PR.
+- The scheduler checks activated Unified data every 15 minutes from 01:00 through 19:59 Europe/Zagreb, outside the ordinary evening EOD window. Existing low-frequency slots remain; the 17:17 slot forces daily tracked-watchlist enrichment. GitHub schedule queueing can add delay.
+- A pinned NYSE calendar requires the latest actual completed session, including holidays/early closes. The controller verifies all three Unified mode hashes and identities, compares the committed/deployed Review pointer and source-manifest hash, starts only the sole LAB publisher when needed, reuses an in-flight publisher, and waits for successful publication/deployment. A stale upstream fails visibly.
+- Manual historical recovery may explicitly pin a completed source session/run. Topic-branch runs are read-only. The controller has no Telegram credentials or sends; it downloads small pointers rather than chart archives on every probe.
+- Repeated stale probes do not add comments to an already open watchdog incident. Code, publication and other failures retain normal reporting.
+- Affected: Refresh workflow, refresh controller, dedicated calendar lock, refresh/watchdog regression tests, watchdog helper and this log. No discovery fields, signals, scoring, rankings, watchlist selection or sole-publisher data contract changed.
+- Local validation: calendar, stale-alignment, mode-hash, exact-source, no-op, duplicate/in-flight publisher, deployment-lag, failed/ambiguous dispatch and dry-run contracts pass. Companion Unified root suite: 244 passed / 2 existing documented skips; Ruff and shell/YAML checks pass. Remote branch and production results remain to be recorded after validation.
+- Limits: this uses a bounded polling bridge instead of an assumed cross-repository credential. The optional Unified recovery token can dispatch immediately; without it, recovery waits for the monitor. Public pointer convergence is checked here; immutable archive/chart validation remains in the LAB publisher and Unified delivery verifier.
+- Next: confirm branch dry-run and production no-op, then record exact run IDs; future authenticated direct activation events can supplement this monitor.

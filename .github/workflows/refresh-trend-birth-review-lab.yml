@@ -2,7 +2,37 @@ name: Refresh Trend Birth Review Lab
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Check readiness without starting the publisher"
+        type: boolean
+        default: false
+      force_refresh:
+        description: "Rebuild aligned data for watchlist/model changes"
+        type: boolean
+        default: false
+      session_date:
+        description: "Explicit completed session; blank requires latest NYSE close"
+        type: string
+        default: ""
+      source_run_id:
+        description: "Optional exact Unified run expected by a recovery request"
+        type: string
+        default: ""
+  push:
+    branches: [main, codex/eod-linked-refresh-20261002]
+    paths:
+      - ".github/workflows/refresh-trend-birth-review-lab.yml"
+      - "scripts/refresh_review_publication.py"
+      - "tests/test_refresh_review_publication.py"
+      - "scripts/workflow_watchdog.py"
+      - "tests/test_workflow_watchdog.py"
+      - "requirements-refresh.lock"
   schedule:
+    # Avoid the normal evening EOD publish window. Pick up late/recovered
+    # activations every 15 minutes; GitHub schedule latency can add delay.
+    - cron: "*/15 1-19 * * *"
+      timezone: "Europe/Zagreb"
     # Retry after Unified EOD activation; the publisher validates the exact manifest.
     - cron: "17 3 * * 2-6"
       timezone: "Europe/Zagreb"
@@ -24,9 +54,30 @@ concurrency:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     steps:
-      - name: Start the sole aligned LAB publisher
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-refresh.lock
+      - name: Install pinned readiness runtime
+        run: python -m pip install -r requirements-refresh.lock
+      - name: Test refresh and freshness contracts
+        run: python -m unittest discover -s tests -v
+      - name: Refresh only when needed and verify exact public activation
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run unified-review-grid-lab.yml --repo "$GITHUB_REPOSITORY" --ref feature/unified-review-grid-lab
+          DRY_RUN: ${{ github.ref != 'refs/heads/main' || inputs.dry_run }}
+          FORCE_REFRESH: ${{ inputs.force_refresh || (github.event_name == 'schedule' && github.event.schedule == '17 17 * * 2-6') }}
+          EXPECTED_SESSION: ${{ inputs.session_date }}
+          EXPECTED_RUN: ${{ inputs.source_run_id }}
+        shell: bash
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ "$FORCE_REFRESH" = "true" ]; then args+=(--force); fi
+          if [ -n "$EXPECTED_SESSION" ]; then args+=(--session-date "$EXPECTED_SESSION"); fi
+          if [ -n "$EXPECTED_RUN" ]; then args+=(--run-id "$EXPECTED_RUN"); fi
+          python scripts/refresh_review_publication.py "${args[@]}"

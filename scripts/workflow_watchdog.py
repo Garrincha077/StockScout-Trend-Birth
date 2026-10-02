@@ -45,6 +45,11 @@ def main() -> int:
     title = f"[watchdog] {name} failed"
     issues = json.loads(gh("issue", "list", "--repo", repo, "--state", "open", "--limit", "100", "--json", "number,title"))
     existing = next((issue for issue in issues if issue["title"] == title), None)
+    if existing and name == "Refresh Trend Birth Review Lab" and "STALE_UPSTREAM" in logs:
+        # Frequent readiness probes keep the incident visible in Actions. An
+        # existing open incident already covers continued upstream staleness.
+        print(json.dumps({"status": "incident_already_open", "workflow": name, "runId": run_id}))
+        return 0
     category = "transient after retry" if transient and attempt > 1 else "transient; auto-retry unavailable" if transient else "code/data/configuration or unknown"
     body = f"Run: {url}\nAttempt: {attempt}\nClassification: {category}\n\nInspect failed steps and logs before changing code or rerunning a delivery."
     if existing:
