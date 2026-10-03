@@ -1,0 +1,201 @@
+{
+  "modelVersion": "kell-overlay-v6-cycle-calibration-shadow",
+  "source": "Yahoo Finance adjusted daily OHLCV via yfinance; retrieved at replay time",
+  "scope": "seven user-annotated charts; selected positive and negative windows",
+  "cases": [
+    {
+      "ticker": "ELF",
+      "stage": "reversal_extension",
+      "window": [
+        "2023-10-30",
+        "2023-11-03"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-01"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "NVDA",
+      "stage": "wedge_pop",
+      "window": [
+        "2023-01-06",
+        "2023-01-11"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-01-09"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "TOL",
+      "stage": "wedge_pop",
+      "window": [
+        "2023-10-31",
+        "2023-11-03"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-01"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "TOL",
+      "stage": "ema_crossback",
+      "window": [
+        "2023-11-08",
+        "2023-11-13"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-10"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "TOL",
+      "stage": "exhaustion_extension",
+      "window": [
+        "2023-11-01",
+        "2023-11-03"
+      ],
+      "expectedPresent": false,
+      "hitDates": [],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "WING",
+      "stage": "reversal_extension",
+      "window": [
+        "2023-09-05",
+        "2023-09-07"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-09-06"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "WING",
+      "stage": "wedge_pop",
+      "window": [
+        "2023-09-08",
+        "2023-09-14"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-09-11"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "WING",
+      "stage": "base_n_break",
+      "window": [
+        "2023-10-30",
+        "2023-11-03"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-01"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "AFRM",
+      "stage": "wedge_pop",
+      "window": [
+        "2023-11-01",
+        "2023-11-03"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-02"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "AFRM",
+      "stage": "ema_crossback",
+      "window": [
+        "2023-11-07",
+        "2023-11-10"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-08"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "AFRM",
+      "stage": "base_n_break",
+      "window": [
+        "2023-11-24",
+        "2023-11-28"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-11-27"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "AFRM",
+      "stage": "exhaustion_extension",
+      "window": [
+        "2023-11-01",
+        "2023-11-10"
+      ],
+      "expectedPresent": false,
+      "hitDates": [],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "AFRM",
+      "stage": "exhaustion_extension",
+      "window": [
+        "2023-12-18",
+        "2023-12-21"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-12-19",
+        "2023-12-20"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "KBH",
+      "stage": "wedge_drop",
+      "window": [
+        "2023-08-15",
+        "2023-08-18"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-08-16"
+      ],
+      "matchesAnnotation": true
+    },
+    {
+      "ticker": "PHM",
+      "stage": "wedge_drop",
+      "window": [
+        "2023-08-16",
+        "2023-08-18"
+      ],
+      "expectedPresent": true,
+      "hitDates": [
+        "2023-08-17"
+      ],
+      "matchesAnnotation": true
+    }
+  ],
+  "matched": 15,
+  "total": 15
+}

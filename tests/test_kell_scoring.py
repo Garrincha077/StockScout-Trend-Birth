@@ -75,7 +75,7 @@ class KellScoringTests(unittest.TestCase):
             "score_breakdown",
         ):
             self.assertIn(field, out)
-        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v5-quality-readiness-context")
+        self.assertEqual(out["score_breakdown"]["model_version"], "kell-overlay-v6-cycle-calibration-shadow")
         self.assertEqual(set(out["score_breakdown"]["components"]), {"quality", "readiness", "context"})
         self.assertIn("primary", out["kell_stage"])
         for field in (
@@ -323,7 +323,7 @@ class KellScoringTests(unittest.TestCase):
         self.assertLessEqual(out["kell_score"], 60.0)
         self.assertLessEqual(out["kell_readiness_score"], 60.0)
 
-    def test_wedge_drop_requires_recent_exhaustion_and_ema_loss(self):
+    def test_wedge_drop_can_follow_recent_exhaustion_and_ema_loss(self):
         bars = make_bars(count=95, start=100.0, daily=0.0015, volume=1_200_000)
         base = bars[-5]["close"]
         bars[-4].update({
@@ -348,6 +348,62 @@ class KellScoringTests(unittest.TestCase):
         self.assertIsNotNone(out["kell_metrics"]["recent_exhaustion_sessions_ago"])
         self.assertLessEqual(out["kell_score"], 35.0)
         self.assertLessEqual(out["kell_readiness_score"], 35.0)
+
+    def test_wedge_drop_after_tight_mature_run_does_not_require_exhaustion(self):
+        bars = make_bars(count=110, start=100.0, daily=0.002, volume=1_200_000)
+        level = bars[-12]["close"]
+        for row in bars[-11:-1]:
+            set_close(row, level * 1.005, spread=0.005)
+        bars[-1].update({
+            "open": level * 1.003,
+            "high": level * 1.008,
+            "low": level * 0.935,
+            "close": level * 0.94,
+            "volume": 2_400_000,
+        })
+        out = kell.score_candidate(bars)
+        self.assertFalse(out["kell_exhaustion_extension"])
+        self.assertTrue(out["kell_wedge_drop"])
+        self.assertEqual(out["kell_cycle_stage"], "wedge_drop")
+        self.assertIn("decisive_ema_loss", out["kell_stage"]["basis"])
+        self.assertGreater(out["kell_metrics"]["wedge_drop_loss_depth_pct"], 2.0)
+
+        thin_volume = [dict(row) for row in bars]
+        thin_volume[-1]["volume"] = 700_000
+        self.assertFalse(kell.score_candidate(thin_volume)["kell_wedge_drop"])
+
+        next_day = dict(bars[-1], time="2099-01-01", open=level * 0.94,
+                        high=level * 0.945, low=level * 0.90,
+                        close=level * 0.91, volume=2_400_000)
+        self.assertFalse(kell.score_candidate(bars + [next_day])["kell_wedge_drop"])
+
+    def test_new_launch_is_not_labeled_exhaustion_the_next_day(self):
+        bars = make_bars(count=100, start=100.0, daily=0.0)
+        for row, close in zip(bars[-11:-1], [99.8, 99.5, 99.1, 98.8, 98.6, 98.4, 98.25, 98.15, 98.08, 98.0]):
+            set_close(row, close, spread=0.002)
+        set_close(bars[-1], 99.6, spread=0.003)
+        bars[-1]["open"] = 98.2
+        self.assertTrue(kell.score_candidate(bars)["kell_wedge_pop"])
+        next_day = dict(bars[-1], time="2026-02-01", open=103.0, high=113.0, low=102.0, close=110.0, volume=2_600_000)
+        out = kell.score_candidate(bars + [next_day])
+        self.assertFalse(out["kell_exhaustion_extension"])
+        self.assertFalse(out["kell_ema_crossback"])
+
+    def test_base_break_is_one_event_until_a_new_base_forms(self):
+        bars = make_bars(count=100, start=100.0, daily=0.0)
+        for row in bars[-21:-11]:
+            row["high"] = 102.0
+            row["low"] = 98.0
+        for row in bars[-11:-1]:
+            set_close(row, 100.0, spread=0.002)
+        set_close(bars[-1], 101.0, spread=0.002)
+        bars[-1]["low"] = 100.0
+        first = kell.score_candidate(bars)
+        self.assertTrue(first["kell_base_n_break"])
+        next_day = dict(bars[-1], time="2026-02-01", open=101.0, high=102.3, low=100.9, close=102.0)
+        second = kell.score_candidate(bars + [next_day])
+        self.assertFalse(second["kell_base_n_break"])
+        self.assertTrue(second["kell_metrics"]["recent_base_break"])
 
     def test_tightening_requires_tr_contraction_plus_dryup_or_inside_bars(self):
         bars = make_bars(count=50, start=30.0, daily=0.0, volume=1_500_000)

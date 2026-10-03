@@ -1,0 +1,358 @@
+{
+  "method": "Exact-session StockScout Unified Pages artifacts; identical inputs for v5, initial v6 and tuned v6; counts are candidate-sessions, not unique symbols or returns",
+  "sessions": [
+    {
+      "sessionDate": "2026-09-14",
+      "runId": "2026-09-14-eod-34910964290-1",
+      "manifestSha256": "e1ca59d9c7c175b4a2fbd85a46724b285c4d4c7f2d5f286ca46f534ac2022722",
+      "candidateCount": 2338,
+      "chartCoverageCount": 2338,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 112,
+          "initialV6": 101,
+          "tunedV6": 101
+        },
+        "kell_ema_crossback": {
+          "v5": 17,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 37,
+          "initialV6": 22,
+          "tunedV6": 22
+        },
+        "kell_wedge_drop": {
+          "v5": 12,
+          "initialV6": 51,
+          "tunedV6": 8
+        }
+      },
+      "focus": {
+        "v5": 5,
+        "initialV6": 2,
+        "tunedV6": 2
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 184,
+        "tunedV6": 143
+      }
+    },
+    {
+      "sessionDate": "2026-09-17",
+      "runId": "2026-09-17-eod-35287538852-1",
+      "manifestSha256": "4f5cd864aef1f4271f6d04e2713f08e0473ee4e340c2b7668abfea584a673fb2",
+      "candidateCount": 2657,
+      "chartCoverageCount": 2657,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 114,
+          "initialV6": 79,
+          "tunedV6": 79
+        },
+        "kell_ema_crossback": {
+          "v5": 18,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 35,
+          "initialV6": 19,
+          "tunedV6": 19
+        },
+        "kell_wedge_drop": {
+          "v5": 3,
+          "initialV6": 18,
+          "tunedV6": 1
+        }
+      },
+      "focus": {
+        "v5": 14,
+        "initialV6": 7,
+        "tunedV6": 7
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 158,
+        "tunedV6": 143
+      }
+    },
+    {
+      "sessionDate": "2026-09-18",
+      "runId": "2026-09-18-eod-35425827607-1",
+      "manifestSha256": "077d1a0a2ad8bc29dcfff762d8b7825157662b718dfaa8ba5df67035b38c9d15",
+      "candidateCount": 2675,
+      "chartCoverageCount": 2675,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 34,
+          "initialV6": 38,
+          "tunedV6": 38
+        },
+        "kell_ema_crossback": {
+          "v5": 44,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 22,
+          "initialV6": 13,
+          "tunedV6": 13
+        },
+        "kell_wedge_drop": {
+          "v5": 7,
+          "initialV6": 40,
+          "tunedV6": 6
+        }
+      },
+      "focus": {
+        "v5": 7,
+        "initialV6": 1,
+        "tunedV6": 1
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 132,
+        "tunedV6": 104
+      }
+    },
+    {
+      "sessionDate": "2026-09-21",
+      "runId": "2026-09-21-eod-35670984797-2",
+      "manifestSha256": "f58e924989e65ab0ce0d59ed8c813cd3ef56ccd91746a8c9d691354c2b552bfe",
+      "candidateCount": 2683,
+      "chartCoverageCount": 2683,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 111,
+          "initialV6": 102,
+          "tunedV6": 102
+        },
+        "kell_ema_crossback": {
+          "v5": 15,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 52,
+          "initialV6": 34,
+          "tunedV6": 34
+        },
+        "kell_wedge_drop": {
+          "v5": 3,
+          "initialV6": 36,
+          "tunedV6": 6
+        }
+      },
+      "focus": {
+        "v5": 7,
+        "initialV6": 7,
+        "tunedV6": 7
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 168,
+        "tunedV6": 138
+      }
+    },
+    {
+      "sessionDate": "2026-09-22",
+      "runId": "2026-09-22-eod-35798588370-1",
+      "manifestSha256": "f6553223bc4d8b0a2c948baf7ee0925c19ee6751d7a11fdb828edee04dbeee45",
+      "candidateCount": 2693,
+      "chartCoverageCount": 2693,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 144,
+          "initialV6": 125,
+          "tunedV6": 125
+        },
+        "kell_ema_crossback": {
+          "v5": 61,
+          "initialV6": 2,
+          "tunedV6": 2
+        },
+        "kell_base_n_break": {
+          "v5": 48,
+          "initialV6": 27,
+          "tunedV6": 27
+        },
+        "kell_wedge_drop": {
+          "v5": 1,
+          "initialV6": 52,
+          "tunedV6": 6
+        }
+      },
+      "focus": {
+        "v5": 10,
+        "initialV6": 4,
+        "tunedV6": 4
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 254,
+        "tunedV6": 208
+      }
+    },
+    {
+      "sessionDate": "2026-09-23",
+      "runId": "2026-09-23-eod-35935482043-1",
+      "manifestSha256": "bd2eb1049d2a8d5aa87d5bf63d5f854547303f21c508454b7e2e402893eea40f",
+      "candidateCount": 2672,
+      "chartCoverageCount": 2672,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 73,
+          "initialV6": 77,
+          "tunedV6": 77
+        },
+        "kell_ema_crossback": {
+          "v5": 34,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 30,
+          "initialV6": 23,
+          "tunedV6": 23
+        },
+        "kell_wedge_drop": {
+          "v5": 8,
+          "initialV6": 88,
+          "tunedV6": 13
+        }
+      },
+      "focus": {
+        "v5": 6,
+        "initialV6": 4,
+        "tunedV6": 4
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 206,
+        "tunedV6": 133
+      }
+    },
+    {
+      "sessionDate": "2026-09-24",
+      "runId": "2026-09-24-eod-36114232293-1",
+      "manifestSha256": "529c28d14b48e94174fb6935c3f87bbf76902ecd229da9e9e121b3233f001ba8",
+      "candidateCount": 2662,
+      "chartCoverageCount": 2662,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 47,
+          "initialV6": 40,
+          "tunedV6": 40
+        },
+        "kell_ema_crossback": {
+          "v5": 42,
+          "initialV6": 2,
+          "tunedV6": 2
+        },
+        "kell_base_n_break": {
+          "v5": 22,
+          "initialV6": 7,
+          "tunedV6": 7
+        },
+        "kell_wedge_drop": {
+          "v5": 3,
+          "initialV6": 53,
+          "tunedV6": 0
+        }
+      },
+      "focus": {
+        "v5": 6,
+        "initialV6": 2,
+        "tunedV6": 2
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 143,
+        "tunedV6": 90
+      }
+    },
+    {
+      "sessionDate": "2026-09-25",
+      "runId": "2026-09-25-eod-36226304827-1",
+      "manifestSha256": "8148312d9bf9953acf26e4ec7120f2df9e32b0ae7114355846b6681d269002a4",
+      "candidateCount": 2664,
+      "chartCoverageCount": 2664,
+      "benchmarkBars": 260,
+      "events": {
+        "kell_wedge_pop": {
+          "v5": 78,
+          "initialV6": 83,
+          "tunedV6": 83
+        },
+        "kell_ema_crossback": {
+          "v5": 21,
+          "initialV6": 1,
+          "tunedV6": 1
+        },
+        "kell_base_n_break": {
+          "v5": 28,
+          "initialV6": 15,
+          "tunedV6": 15
+        },
+        "kell_wedge_drop": {
+          "v5": 6,
+          "initialV6": 23,
+          "tunedV6": 0
+        }
+      },
+      "focus": {
+        "v5": 4,
+        "initialV6": 3,
+        "tunedV6": 3
+      },
+      "stageOrFocusChanged": {
+        "initialV6": 106,
+        "tunedV6": 85
+      }
+    }
+  ],
+  "totals": {
+    "candidateSessions": 21044,
+    "events": {
+      "kell_wedge_pop": {
+        "v5": 713,
+        "initialV6": 645,
+        "tunedV6": 645
+      },
+      "kell_ema_crossback": {
+        "v5": 252,
+        "initialV6": 10,
+        "tunedV6": 10
+      },
+      "kell_base_n_break": {
+        "v5": 274,
+        "initialV6": 160,
+        "tunedV6": 160
+      },
+      "kell_wedge_drop": {
+        "v5": 43,
+        "initialV6": 361,
+        "tunedV6": 40
+      }
+    },
+    "focus": {
+      "v5": 59,
+      "initialV6": 30,
+      "tunedV6": 30
+    },
+    "v5CrossbackPopAges": {
+      "1": 227,
+      "2": 8,
+      "3": 7,
+      "4": 4,
+      "5": 5,
+      "6": 1
+    }
+  },
+  "v5Commit": "37f29accc09d5159e436fd840c69f3eedb6f40e8",
+  "initialV6Source": "caf7b662cfbfd32ccffbbfc2780d3dfc900d20c5",
+  "tunedV6SourceSha256": "12a395270a9dba7fe40967bf21376d8280a04783a1c58c1802142150e9238f20"
+}
