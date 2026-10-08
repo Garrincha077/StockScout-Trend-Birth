@@ -15,7 +15,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-MODEL_VERSION = "kell-overlay-v5-quality-readiness-context"
+MODEL_VERSION = "kell-overlay-v6-cycle-calibration-shadow"
 
 # Keep discovery, structural stage, actionable setup and supporting context distinct.
 # These are output-contract groups; they do not alter the underlying Unified universe.
@@ -407,7 +407,7 @@ def score_candidate(
     )
     tightening = tr_contracted and (volume_dryup or inside_bars_5 >= 2)
 
-    def wedge_event(index: int) -> bool:
+    def wedge_event(index: int, check_cycle: bool = True) -> bool:
         if index < 25 or index >= len(bars):
             return False
         e10_i, e20_i = ema10[index], ema20[index]
@@ -428,12 +428,23 @@ def score_candidate(
         long_range = _range_pct(bars[index - 15:index])
         contracted = (
             short_range is not None and long_range is not None and long_range > 0
-            and short_range <= long_range * 0.70
+            and short_range <= long_range * 0.85
         )
         recent_high = max(float(x["high"]) for x in bars[index - 5:index])
         prior_high = max(float(x["high"]) for x in bars[index - 10:index - 5])
         works_lower = recent_high <= prior_high * 1.02
-        return crossed and below_count >= 3 and ema_gap_pct <= 1.5 and contracted and works_lower
+        prior_downtrend = (
+            index >= 20 and closes[index - 1] <= closes[index - 20] * 1.05
+        ) or float(e10_p) < float(e20_p)
+        raw_pop = crossed and below_count >= 3 and ema_gap_pct <= 2.5 and contracted and works_lower and prior_downtrend
+        if not raw_pop or not check_cycle:
+            return raw_pop
+        for prior_index in range(max(25, index - 40), index):
+            if wedge_event(prior_index, check_cycle=False):
+                advanced = max(closes[prior_index:index]) >= closes[prior_index] * 1.05
+                if advanced:
+                    return False
+        return True
 
     wedge_pop = wedge_event(len(bars) - 1)
 
@@ -480,10 +491,18 @@ def score_candidate(
         if e10_i in (None, 0) or e20_i in (None, 0) or e10_prior in (None, 0):
             return False
         prior_trend_positive = index >= 20 and closes[index - 1] > closes[index - 20]
+        # A fresh launch can be far from the 10EMA without being a late-cycle
+        # blowoff. Require an established run before interpreting extension.
+        established_run = index >= 35 and sum(
+            ema10[j] is not None and ema20[j] is not None
+            and float(ema10[j]) > float(ema20[j])
+            for j in range(index - 30, index)
+        ) >= 27
         mature_uptrend_context = (
             float(e10_i) > float(e20_i)
             and float(e10_i) > float(e10_prior)
             and prior_trend_positive
+            and established_run
         )
         if not mature_uptrend_context:
             return False
@@ -511,7 +530,7 @@ def score_candidate(
             for j in range(max(1, index - 6), index)
         ]
         tr_reference = median(prior_tr_values) if prior_tr_values else 0.0
-        extension_threshold = max(8.0, tr_reference * 3.0)
+        extension_threshold = max(12.0, tr_reference * 2.0)
         blowoff_clue = rvol_i >= 1.5 or gap_i >= 3.0 or row_close_location <= 45.0
         return new_high and dist >= extension_threshold and blowoff_clue
 
@@ -522,13 +541,62 @@ def score_candidate(
             recent_exhaustion_index = i
 
     wedge_drop = False
-    if recent_exhaustion_index is not None and len(bars) >= 2:
+    wedge_drop_basis: list[str] = []
+    wedge_drop_loss_depth_pct = None
+    wedge_drop_uptrend_sessions = None
+    if len(bars) >= 66:
         e10_now, e20_now = ema10[-1], ema20[-1]
         e10_prev, e20_prev = ema10[-2], ema20[-2]
         if None not in (e10_now, e20_now, e10_prev, e20_prev):
-            prior_above = closes[-2] >= min(float(e10_prev), float(e20_prev))
+            # Mark the first confirmed loss of the cluster, not every weak
+            # close during a multi-session slide after an earlier break.
+            prior_near_cluster = closes[-2] >= min(float(e10_prev), float(e20_prev)) * 0.99
             current_below = close < min(float(e10_now), float(e20_now))
-            wedge_drop = prior_above and current_below
+            uptrend_sessions = sum(
+                ema10[j] is not None and ema20[j] is not None
+                and float(ema10[j]) > float(ema20[j])
+                for j in range(len(bars) - 31, len(bars) - 6)
+            )
+            mature_run = uptrend_sessions >= 18 and closes[-6] > closes[-66] * 1.05
+            wedge_drop_uptrend_sessions = uptrend_sessions
+            short_range = _range_pct(bars[-6:-1])
+            long_range = _range_pct(bars[-21:-1])
+            near_ema = any(
+                ema10[j] is not None and ema20[j] is not None
+                and float(bars[j]["low"]) <= max(float(ema10[j]), float(ema20[j])) * 1.035
+                for j in range(len(bars) - 6, len(bars) - 1)
+            )
+            tight_before_loss = (
+                short_range is not None and long_range is not None and long_range > 0
+                and short_range <= long_range * 0.8
+            )
+            loss_depth_pct = (1.0 - close / min(float(e10_now), float(e20_now))) * 100.0
+            wedge_drop_loss_depth_pct = round(loss_depth_pct, 2)
+            decisive_loss = loss_depth_pct >= max(3.0, (recent_tr5 or 0.0) * 0.75)
+            bearish_break_bar = (
+                close_location <= 30.0
+                and rvol20 is not None and rvol20 >= 1.0
+            )
+            prior_decisive_loss = any(
+                ema10[j] is not None and ema20[j] is not None
+                and closes[j] < min(float(ema10[j]), float(ema20[j])) * 0.97
+                for j in range(len(bars) - 5, len(bars) - 1)
+            )
+            tight_run_drop = bool(
+                prior_near_cluster and current_below and mature_run and near_ema
+                and tight_before_loss and decisive_loss and bearish_break_bar
+                and not prior_decisive_loss
+            )
+            exhaustion_drop = bool(
+                recent_exhaustion_index is not None
+                and prior_near_cluster and current_below
+                and decisive_loss and bearish_break_bar
+            )
+            wedge_drop = tight_run_drop or exhaustion_drop
+            if tight_run_drop:
+                wedge_drop_basis = ["mature_prior_uptrend", "tight_pullback_into_10_20_ema", "decisive_ema_loss"]
+            else:
+                wedge_drop_basis = ["recent_exhaustion_extension_proxy", "10_20_ema_loss"]
 
     recent_pop_index = None
     for i in range(max(25, len(bars) - 16), len(bars) - 1):
@@ -538,17 +606,21 @@ def score_candidate(
     first_retest = False
     current_touch = False
     current_support = False
+    touch_tolerance_pct = None
     if recent_pop_index is not None and e10 is not None and e20 is not None:
-        current_touch = float(last["low"]) <= max(float(e10), float(e20)) * 1.01
+        pop_age = len(bars) - 1 - recent_pop_index
+        # A crossback is a later retest, not the next candle's ordinary wick.
+        touch_tolerance_pct = max(1.0, min(3.0, (recent_tr5 or 0.0) * 0.75))
+        current_touch = float(last["low"]) <= max(float(e10), float(e20)) * (1.0 + touch_tolerance_pct / 100.0)
         current_support = close >= min(float(e10), float(e20)) * 0.995
         prior_touch = False
         for j in range(recent_pop_index + 1, len(bars) - 1):
             if ema10[j] is None or ema20[j] is None:
                 continue
-            if float(bars[j]["low"]) <= max(float(ema10[j]), float(ema20[j])) * 1.01:
+            if float(bars[j]["low"]) <= max(float(ema10[j]), float(ema20[j])) * (1.0 + touch_tolerance_pct / 100.0):
                 prior_touch = True
                 break
-        first_retest = not prior_touch
+        first_retest = pop_age >= 3 and not prior_touch
     ema_crossback = (
         recent_pop_index is not None
         and first_retest and current_touch and current_support
@@ -565,12 +637,26 @@ def score_candidate(
         and range10 <= range20 * 0.80
     )
     base_breakout = prior10_high is not None and close > prior10_high
+    recent_base_break = False
+    for j in range(max(31, len(bars) - 7), len(bars) - 1):
+        earlier10 = bars[j - 10:j]
+        earlier20 = bars[j - 20:j]
+        earlier_range10 = _range_pct(earlier10)
+        earlier_range20 = _range_pct(earlier20)
+        if (
+            earlier_range10 is not None and earlier_range20 is not None
+            and earlier_range10 <= earlier_range20 * 0.8
+            and closes[j] > max(float(x["high"]) for x in earlier10)
+        ):
+            recent_base_break = True
+            break
     base_n_break = (
         len(bars) >= 31
         and base_contracted
         and base_support_count >= 8
         and base_breakout
         and close_location >= 55.0
+        and not recent_base_break
     )
 
     breakout_proximity_pct = (
@@ -707,18 +793,18 @@ def score_candidate(
         cycle_stage = "ema_crossback"
         stage_confidence = 0.95
         stage_basis = ["first_retest_after_wedge_pop", "10_20_ema_support"]
+    elif wedge_drop:
+        cycle_stage = "wedge_drop"
+        stage_confidence = 0.90
+        stage_basis = wedge_drop_basis
+    elif exhaustion_extension:
+        cycle_stage = "exhaustion_extension"
+        stage_confidence = 0.80
+        stage_basis = ["established_uptrend", "extended_from_10ema", "new_20d_high", "blowoff_volume_gap_or_reversal_clue"]
     elif base_n_break:
         cycle_stage = "base_n_break"
         stage_confidence = 0.95
         stage_basis = ["base_contraction", "10_20_ema_support", "10d_breakout"]
-    elif wedge_drop:
-        cycle_stage = "wedge_drop"
-        stage_confidence = 0.90
-        stage_basis = ["recent_exhaustion_extension_proxy", "10_20_ema_loss"]
-    elif exhaustion_extension:
-        cycle_stage = "exhaustion_extension"
-        stage_confidence = 0.80
-        stage_basis = ["extended_from_10ema", "new_20d_high", "blowoff_volume_gap_or_reversal_clue"]
     elif ema_ready:
         cycle_stage = "trend_ema_support"
         stage_confidence = 0.75
@@ -828,11 +914,11 @@ def score_candidate(
         ),
         "ema_crossback": _criterion(
             ema_crossback, WEIGHTS["ema_crossback"],
-            f"recent_wedge_pop={recent_pop_index is not None}; first_retest={first_retest}; touches_10/20={current_touch}; supported={current_support}",
+            f"pop_age={(len(bars)-1-recent_pop_index) if recent_pop_index is not None else 'n/a'} sessions; first_retest={first_retest}; touches_10/20={current_touch}; tolerance={_fmt(touch_tolerance_pct)}%; supported={current_support}",
         ),
         "base_n_break": _criterion(
             base_n_break, WEIGHTS["base_n_break"],
-            f"10D base contraction={base_contracted}; support_count={base_support_count}/10; breakout10D={base_breakout}",
+            f"10D base contraction={base_contracted}; support_count={base_support_count}/10; breakout10D={base_breakout}; recent_base_break={recent_base_break}",
         ),
         "tightening": _criterion(
             tightening if recent_tr5 is not None else None, WEIGHTS["tightening"],
@@ -1187,6 +1273,8 @@ def score_candidate(
             "prior_tr15_median_pct": prior_tr15,
             "volume_dryup": volume_dryup,
             "base_support_count": base_support_count,
+            "recent_base_break": recent_base_break,
+            "ema_crossback_touch_tolerance_pct": touch_tolerance_pct,
             "recent_wedge_pop_sessions_ago": (len(bars) - 1 - recent_pop_index) if recent_pop_index is not None else None,
             "breakout_proximity_pct": breakout_proximity_pct,
             "benchmark_ret_1d_pct": benchmark_ret,
@@ -1200,6 +1288,8 @@ def score_candidate(
             "support_distance_pct": support_distance_pct,
             "downside_extension_pct": downside_extension_pct,
             "recent_exhaustion_sessions_ago": (len(bars) - 1 - recent_exhaustion_index) if recent_exhaustion_index is not None else None,
+            "wedge_drop_loss_depth_pct": wedge_drop_loss_depth_pct,
+            "wedge_drop_prior_uptrend_sessions": wedge_drop_uptrend_sessions,
         },
     }
 

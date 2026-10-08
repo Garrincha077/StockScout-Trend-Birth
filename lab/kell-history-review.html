@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kell Daily · povijesni pregled</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color-scheme:dark;background:#101720;color:#e9f0f5}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}
+header{padding:24px max(20px,4vw);border-bottom:1px solid #334250;background:#17222d}
+h1{margin:0 0 8px;font-size:clamp(1.45rem,3vw,2rem)}p{line-height:1.45}.lead{max-width:1000px;margin:0;color:#b7c6d1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.toolbar input,.toolbar select,.toolbar button,textarea{background:#202e3b;color:#f0f5f7;border:1px solid #465969;border-radius:8px;padding:9px 11px}
+.toolbar input{min-width:180px}.toolbar button:hover,.rate button:hover{border-color:#84c8ee}
+main{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:18px;padding:20px max(20px,4vw);max-width:1540px;margin:auto}
+aside,.panel{background:#17222d;border:1px solid #334250;border-radius:12px}.panel{padding:18px;min-width:0}
+aside{max-height:calc(100vh - 210px);overflow:auto;padding:8px}.pick{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:7px;color:inherit;padding:10px 9px}.pick:hover,.pick.active{background:#2b4052}.pick small{display:block;color:#9dafbd;margin-top:3px}.pick .mark{float:right;color:#89d7aa}
+.summary{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;align-items:baseline}.summary h2{margin:0 0 5px}.muted{color:#9dafbd}.question{color:#f4d583;font-weight:650}
+canvas{display:block;width:100%;height:430px;margin:12px 0;background:#111b25;border:1px solid #334250;border-radius:8px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:#c2ced7}.legend b{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:4px}
+.rate{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.rate button{border:1px solid #506475;border-radius:8px;background:#263746;color:#f1f5f7;padding:9px 12px}.rate button.active{border-color:#f4d583;background:#634e20}
+textarea{display:block;width:100%;min-height:64px;margin-top:12px;resize:vertical}.reveal{margin-top:14px;padding:13px;background:#223443;border-radius:8px;white-space:pre-wrap;line-height:1.5}
+.foot{font-size:.86rem;color:#aebec9;margin-top:18px}.error{color:#ffb1aa}
+@media(max-width:760px){main{grid-template-columns:1fr}aside{max-height:220px}canvas{height:360px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kell Daily · povijesni pregled</h1>
+  <p class="lead">Uzorak je iz osam stvarnih Unified EOD sesija. Svaki graf završava na datumu signala, bez budućih svijeća. Prvo ocijeni strukturu, zatim otkrij kako su je označili v5, prvi v6 i podešeni v6. Ovaj pregled ne mijenja GridView ni Telegram.</p>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Traži ticker ili datum" aria-label="Traži ticker ili datum">
+    <select id="type" aria-label="Vrsta signala"><option value="all">Sve vrste</option><option value="wedge_drop">Wedge Drop</option><option value="ema_crossback">EMA Crossback</option></select>
+    <select id="status" aria-label="Status pregleda"><option value="all">Svi</option><option value="unrated">Nepregledani</option><option value="rated">Pregledani</option></select>
+    <button id="export" type="button">Izvezi ocjene CSV</button>
+    <span id="count" class="muted"></span>
+  </div>
+</header>
+<main>
+  <aside id="list" aria-label="Primjeri za pregled"></aside>
+  <section class="panel">
+    <div class="summary"><div><h2 id="title">Učitavanje…</h2><div id="subtitle" class="muted"></div></div><div id="question" class="question"></div></div>
+    <canvas id="chart" role="img" aria-label="Dnevne svijeće, EMA10, EMA20 i volumen"></canvas>
+    <div class="legend"><span><b style="background:#66c7ef"></b>EMA 10</span><span><b style="background:#e8ad69"></b>EMA 20</span><span><b style="background:#58c995"></b>Rast</span><span><b style="background:#ed7779"></b>Pad</span></div>
+    <p>Je li ovo uvjerljiv primjer tražene faze na označeni dan?</p>
+    <div class="rate"><button type="button" data-rating="yes">Da, dobar primjer</button><button type="button" data-rating="no">Ne, loš primjer</button><button type="button" data-rating="uncertain">Nisam siguran</button><button type="button" id="revealButton">Otkrij oznake bez ocjene</button></div>
+    <textarea id="note" placeholder="Bilješka: što na chartu potvrđuje ili pobija signal?" aria-label="Bilješka"></textarea>
+    <div id="reveal" class="reveal" hidden></div>
+    <p class="foot">Ocjene se čuvaju samo u ovom pregledniku. CSV možeš izvesti i poslati mi ga za sljedeću kalibraciju. Uzorak je namjerno uravnotežen između prihvaćenih i odbačenih signala; nije procjena preciznosti modela.</p>
+  </section>
+</main>
+<script>
+(() => {
+  'use strict';
+  const key='stockscout-kell-history-review-v1';
+  const $=id=>document.getElementById(id);
+  const canvas=$('chart'),ctx=canvas.getContext('2d');
+  let records=[],selected=null,revealed=false;
+  let ratings={};
+  try{ratings=JSON.parse(localStorage.getItem(key)||'{}')||{}}catch{ratings={}}
+  const label={yes:'Da',no:'Ne',uncertain:'Nesigurno'};
+  const groupLabel={tuned_drop:'Podešeni v6: Wedge Drop',removed_drop:'Prvi v6: odbačen Wedge Drop',v5_drop:'v5: odbačen Wedge Drop',tuned_crossback:'Podešeni v6: EMA Crossback',removed_crossback:'v5: odbačen EMA Crossback'};
+  const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'–';
+  function save(){localStorage.setItem(key,JSON.stringify(ratings))}
+  function filtered(){const q=$('search').value.trim().toUpperCase(),type=$('type').value,status=$('status').value;return records.filter(r=>(!q||r.ticker.includes(q)||r.date.includes(q))&&(type==='all'||r.question===type)&&(status==='all'||(status==='rated'?Boolean(ratings[r.id]?.rating):!ratings[r.id]?.rating)))}
+  function renderList(){const rows=filtered(),list=$('list');list.replaceChildren();for(const r of rows){const b=document.createElement('button');b.type='button';b.className='pick'+(selected?.id===r.id?' active':'');b.textContent=`${r.ticker} · ${r.date}`;const mark=document.createElement('span');mark.className='mark';mark.textContent=label[ratings[r.id]?.rating]||'';b.append(mark);const small=document.createElement('small');small.textContent=r.question==='wedge_drop'?'Wedge Drop?':'EMA Crossback?';b.append(small);b.onclick=()=>select(r);list.append(b)}$('count').textContent=`${rows.length} prikazano · ${Object.values(ratings).filter(v=>v.rating).length}/${records.length} ocijenjeno`;if(!selected&&rows.length)select(rows[0])}
+  function select(r){selected=r;revealed=Boolean(ratings[r.id]?.rating);$('title').textContent=`${r.ticker} · ${r.date}`;$('subtitle').textContent=`Unified EOD · ${r.bars.length} dnevnih svijeća do datuma signala`;$('question').textContent=r.question==='wedge_drop'?'Wedge Drop?':'EMA Crossback?';$('note').value=ratings[r.id]?.note||'';for(const b of document.querySelectorAll('[data-rating]'))b.classList.toggle('active',ratings[r.id]?.rating===b.dataset.rating);showReveal();renderChart();for(const b of $('list').querySelectorAll('button'))b.classList.toggle('active',b.textContent.startsWith(`${r.ticker} · ${r.date}`)&&b.querySelector('small')?.textContent===(r.question==='wedge_drop'?'Wedge Drop?':'EMA Crossback?'))}
+  function showReveal(){const box=$('reveal');box.hidden=!revealed;if(!revealed)return;const r=selected,m=r.metrics||{};box.textContent=`Skup: ${groupLabel[r.group]||r.group}\nv5: ${r.v5Stage}  ·  prvi v6: ${r.initialV6Stage}  ·  podešeni v6: ${r.tunedV6Stage}\nOsnova podešenog v6: ${(r.tunedBasis||[]).join(', ')||'–'}\nRVOL20 ${fmt(m.rvol20)}×  ·  zatvaranje u rasponu ${fmt(m.close_location_pct,1)}%  ·  ispod EMA clustera ${fmt(m.wedge_drop_loss_depth_pct,1)}%  ·  dana od Wedge Popa ${m.recent_wedge_pop_sessions_ago??'–'}\nUnified izvori: ${r.sources.join(', ')}`}
+  function renderChart(){if(!selected)return;const bounds=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1,W=Math.max(320,bounds.width),H=bounds.height;canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);const bars=selected.bars,n=bars.length,left=55,right=W-18,top=20,priceBottom=H-105,volTop=H-78,volBottom=H-32,pw=right-left;const vals=bars.flatMap(b=>[b[3],b[2],b[6],b[7]].filter(v=>v!==null));let low=Math.min(...vals),high=Math.max(...vals);const pad=(high-low)*.06||1;low-=pad;high+=pad;const y=v=>top+(high-v)/(high-low)*(priceBottom-top),x=i=>left+(i+.5)*pw/n,slot=pw/n,volMax=Math.max(...bars.map(b=>b[5]),1);ctx.font='12px system-ui';ctx.textAlign='right';for(let i=0;i<5;i++){const v=high-(high-low)*i/4,yy=y(v);ctx.strokeStyle='#2c3d4b';ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.fillStyle='#9fb1c0';ctx.fillText(fmt(v),left-7,yy+4)}for(let i=0;i<n;i++){const b=bars[i],up=b[4]>=b[1],color=up?'#58c995':'#ed7779',xx=x(i),w=Math.max(2,Math.min(7,slot*.62));ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(xx,y(b[2]));ctx.lineTo(xx,y(b[3]));ctx.stroke();ctx.fillRect(xx-w/2,Math.min(y(b[1]),y(b[4])),w,Math.max(1,Math.abs(y(b[1])-y(b[4]))));ctx.globalAlpha=.6;ctx.fillRect(xx-w/2,volBottom-b[5]/volMax*(volBottom-volTop),w,b[5]/volMax*(volBottom-volTop));ctx.globalAlpha=1}for(const [idx,color] of [[6,'#66c7ef'],[7,'#e8ad69']]){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();let started=false;bars.forEach((b,i)=>{if(b[idx]===null)return;if(!started){ctx.moveTo(x(i),y(b[idx]));started=true}else ctx.lineTo(x(i),y(b[idx]))});ctx.stroke()}ctx.fillStyle='#9fb1c0';ctx.textAlign='left';ctx.fillText(bars[0][0],left,H-10);ctx.textAlign='center';ctx.fillText(bars[Math.floor(n/2)][0],(left+right)/2,H-10);ctx.textAlign='right';ctx.fillText(bars[n-1][0],right,H-10);ctx.fillText('Volumen',right,volTop-5)}
+  document.querySelectorAll('[data-rating]').forEach(b=>b.onclick=()=>{if(!selected)return;ratings[selected.id]={rating:b.dataset.rating,note:$('note').value};save();revealed=true;showReveal();renderList();select(selected)});
+  $('note').oninput=()=>{if(!selected)return;ratings[selected.id]={...(ratings[selected.id]||{}),note:$('note').value};save()};
+  $('revealButton').onclick=()=>{revealed=true;showReveal()};
+  for(const id of ['search','type','status'])$(id).addEventListener(id==='search'?'input':'change',renderList);
+  $('export').onclick=()=>{const rows=[['ticker','date','question','rating','note','v5_stage','initial_v6_stage','tuned_v6_stage']];for(const r of records){const v=ratings[r.id];if(v?.rating)rows.push([r.ticker,r.date,r.question,v.rating,v.note||'',r.v5Stage,r.initialV6Stage,r.tunedV6Stage])}const cell=v=>{let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"'};const blob=new Blob([rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='kell-history-review.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)};
+  new ResizeObserver(()=>renderChart()).observe(canvas);
+  fetch('data/kell-history-review.json').then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}).then(data=>{records=data.records||[];renderList()}).catch(err=>{$('title').textContent='Pregled se nije učitao';$('subtitle').className='error';$('subtitle').textContent=String(err)})
+})();
+</script>
+</body>
+</html>
