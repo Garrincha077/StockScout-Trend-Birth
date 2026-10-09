@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "weekly-birth-shadow-audit-v1",
+  "sessionDate": "2026-10-08",
+  "runId": "2026-10-08-eod-37869155029-1",
+  "unifiedManifestSha256": "222854511579f17126081267dd0defbbb7b6e3c8b054f79097ed1eb6bd24611b",
+  "evaluatedCount": 2659,
+  "eligibleCount": 28,
+  "selectedCount": 15,
+  "stageCounts": {
+    "Compressed": 12,
+    "Ready": 3
+  },
+  "rejectionReasonCounts": {
+    "aboveSma30w": 340,
+    "clearRunway": 206,
+    "launchNotChased": 7,
+    "maSlopeTurn": 270,
+    "no_recent_52_to_104_week_base": 2047,
+    "notExtended": 10,
+    "recentBaseTight": 253,
+    "weeklyMaNear": 100,
+    "weekly_history_under_156_weeks": 162
+  },
+  "added": [],
+  "removed": [],
+  "previousSessionDate": "2026-10-07",
+  "selected": [
+    {
+      "ticker": "TXNM",
+      "stage": "Ready",
+      "score": 88.3,
+      "baseWeeks": 59,
+      "baseDepthPct": 7.13,
+      "weeklyMaClusterPct": 0.29,
+      "recentBaseRangePct26w": 4.37,
+      "runwayPct": null,
+      "extensionPct": 0.98
+    },
+    {
+      "ticker": "HTH",
+      "stage": "Ready",
+      "score": 78.8,
+      "baseWeeks": 58,
+      "baseDepthPct": 24.96,
+      "weeklyMaClusterPct": 3.26,
+      "recentBaseRangePct26w": 13.75,
+      "runwayPct": null,
+      "extensionPct": 1.19
+    },
+    {
+      "ticker": "BBDC",
+      "stage": "Ready",
+      "score": 76.2,
+      "baseWeeks": 64,
+      "baseDepthPct": 17.58,
+      "weeklyMaClusterPct": 4.55,
+      "recentBaseRangePct26w": 15.91,
+      "runwayPct": null,
+      "extensionPct": 2.17
+    },
+    {
+      "ticker": "MGRC",
+      "stage": "Compressed",
+      "score": 80.1,
+      "baseWeeks": 103,
+      "baseDepthPct": 25.95,
+      "weeklyMaClusterPct": 1.48,
+      "recentBaseRangePct26w": 16.35,
+      "runwayPct": null,
+      "extensionPct": 3.14
+    },
+    {
+      "ticker": "FDUS",
+      "stage": "Compressed",
+      "score": 77.7,
+      "baseWeeks": 104,
+      "baseDepthPct": 29.09,
+      "weeklyMaClusterPct": 2.34,
+      "recentBaseRangePct26w": 16.9,
+      "runwayPct": null,
+      "extensionPct": 0.41
+    },
+    {
+      "ticker": "BRK.B",
+      "stage": "Compressed",
+      "score": 77.3,
+      "baseWeeks": 104,
+      "baseDepthPct": 19.22,
+      "weeklyMaClusterPct": 2.46,
+      "recentBaseRangePct26w": 10.22,
+      "runwayPct": null,
+      "extensionPct": 1.21
+    },
+    {
+      "ticker": "TSLX",
+      "stage": "Compressed",
+      "score": 73.0,
+      "baseWeeks": 92,
+      "baseDepthPct": 29.94,
+      "weeklyMaClusterPct": 2.92,
+      "recentBaseRangePct26w": 14.13,
+      "runwayPct": null,
+      "extensionPct": 1.87
+    },
+    {
+      "ticker": "UGI",
+      "stage": "Compressed",
+      "score": 71.1,
+      "baseWeeks": 87,
+      "baseDepthPct": 31.93,
+      "weeklyMaClusterPct": 3.15,
+      "recentBaseRangePct26w": 15.76,
+      "runwayPct": null,
+      "extensionPct": 3.19
+    },
+    {
+      "ticker": "DIS",
+      "stage": "Compressed",
+      "score": 70.0,
+      "baseWeeks": 74,
+      "baseDepthPct": 28.44,
+      "weeklyMaClusterPct": 2.5,
+      "recentBaseRangePct26w": 14.44,
+      "runwayPct": 13.96,
+      "extensionPct": -0.86
+    },
+    {
+      "ticker": "MAIN",
+      "stage": "Compressed",
+      "score": 67.4,
+      "baseWeeks": 90,
+      "baseDepthPct": 32.19,
+      "weeklyMaClusterPct": 4.56,
+      "recentBaseRangePct26w": 17.52,
+      "runwayPct": null,
+      "extensionPct": 1.16
+    },
+    {
+      "ticker": "LLYVA",
+      "stage": "Compressed",
+      "score": 64.0,
+      "baseWeeks": 60,
+      "baseDepthPct": 29.48,
+      "weeklyMaClusterPct": 3.34,
+      "recentBaseRangePct26w": 17.01,
+      "runwayPct": null,
+      "extensionPct": -0.22
+    },
+    {
+      "ticker": "NDAQ",
+      "stage": "Compressed",
+      "score": 64.0,
+      "baseWeeks": 66,
+      "baseDepthPct": 24.29,
+      "weeklyMaClusterPct": 3.78,
+      "recentBaseRangePct26w": 16.95,
+      "runwayPct": null,
+      "extensionPct": -0.51
+    },
+    {
+      "ticker": "DGICA",
+      "stage": "Compressed",
+      "score": 63.8,
+      "baseWeeks": 70,
+      "baseDepthPct": 22.37,
+      "weeklyMaClusterPct": 4.17,
+      "recentBaseRangePct26w": 17.68,
+      "runwayPct": null,
+      "extensionPct": 0.28
+    },
+    {
+      "ticker": "PCRX",
+      "stage": "Compressed",
+      "score": 63.7,
+      "baseWeeks": 90,
+      "baseDepthPct": 32.03,
+      "weeklyMaClusterPct": 5.73,
+      "recentBaseRangePct26w": 17.57,
+      "runwayPct": 13.05,
+      "extensionPct": 2.84
+    },
+    {
+      "ticker": "SPFI",
+      "stage": "Compressed",
+      "score": 62.4,
+      "baseWeeks": 59,
+      "baseDepthPct": 25.31,
+      "weeklyMaClusterPct": 3.77,
+      "recentBaseRangePct26w": 14.32,
+      "runwayPct": null,
+      "extensionPct": -0.03
+    }
+  ],
+  "manualChartReviewComplete": false
+}
