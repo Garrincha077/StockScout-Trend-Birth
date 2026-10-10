@@ -1,364 +1,359 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-10-08",
+  "sessionDate": "2026-10-09",
   "baselineOnly": false,
-  "readyCount": 32,
-  "triggerCount": 69,
-  "invalidatedCount": 9,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21",
+  "readyCount": 26,
+  "triggerCount": 68,
+  "invalidatedCount": 32,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425",
   "messages": [
     {
       "kind": "ready",
-      "text": "🟠 KELL TREND BIRTH — 3/4 READY\n32 new candidates\n\nCNQ — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nAMGN — 3/4\n❌ Still needed: Close > EMA10 & EMA20; Bullish EMA re-expansion\n\nEGY — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nCHRD — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nHMC — 3/4\n❌ Still needed: EMA10 > EMA20; Bullish EMA re-expansion\n\n+27 additional candidates — View dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "text": "🟠 KELL TREND BIRTH — 3/4 READY\n26 new candidates\n\nPTGX — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nMDB — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nKO — 3/4\n❌ Still needed: EMA10 > EMA20; Bullish EMA re-expansion\n\nZD — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\nCGAU — 3/4\n❌ Still needed: EMA20 non-falling; EMA10 > EMA20; Bullish EMA re-expansion\n\n+21 additional candidates — View dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "E",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "FIVN",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFIVN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "ABM",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nABM — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PLSE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPLSE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SU",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSU — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "AMGN",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nAMGN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "NVGS",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nNVGS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "GLBE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGLBE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "DSP",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDSP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "TRI",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nTRI — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CVX",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCVX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "VAC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nVAC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CNNE",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCNNE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "GSAT",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGSAT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SONY",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSONY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "GILD",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGILD — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "GDDY",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGDDY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "DIS",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDIS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "ZETA",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nZETA — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CORT",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCORT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "RIGL",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nRIGL — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SCCO",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSCCO — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "HPQ",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHPQ — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "ANDG",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nANDG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EXPD",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEXPD — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PFE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPFE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "HURN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHURN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "LITE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nLITE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SB",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSB — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CAKE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCAKE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "KNTK",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nKNTK — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SM",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSM — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EOG",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEOG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SNX",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSNX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "DVN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDVN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "GGB",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGGB — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "FET",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFET — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SLDE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSLDE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "MSGS",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nMSGS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "BP",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nBP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SNOW",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSNOW — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "COP",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCOP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "IOT",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nIOT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "AMN",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nAMN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CBRL",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCBRL — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "FTRE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFTRE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "IT",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nIT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "OXY",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nOXY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "BWLP",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nBWLP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PDFS",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPDFS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "VRSN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nVRSN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "USPH",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nUSPH — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "KNSA",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nKNSA — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PRGO",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPRGO — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "STNG",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSTNG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "FCX",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFCX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "PBYI",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPBYI — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "LNG",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nLNG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "AVPT",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nAVPT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SXC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSXC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CSCO",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCSCO — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "OVV",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nOVV — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "HSHP",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHSHP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "HMC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHMC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "NPK",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nNPK — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "VCTR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nVCTR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CBC",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCBC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SIBN",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSIBN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "ECPG",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nECPG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "FLEX",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFLEX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EGBN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEGBN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "VIR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nVIR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "MET",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nMET — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CRDO",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCRDO — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "AVBC",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nAVBC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SCSC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSCSC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "MEI",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nMEI — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "EMR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEMR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "FAST",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFAST — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "IEX",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nIEX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "PCTY",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPCTY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "UVE",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nUVE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "STGW",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSTGW — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CRL",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCRL — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EXLS",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEXLS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "FTDR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nFTDR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "VLTO",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nVLTO — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "TDC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nTDC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "WEST",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nWEST — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "WK",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nWK — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "V",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nV — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "DHR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDHR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CLF",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCLF — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "TRGP",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nTRGP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "GNK",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGNK — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CAH",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCAH — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "GSL",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGSL — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "BDX",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nBDX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "DSGX",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDSGX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "WAY",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nWAY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CLH",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCLH — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "ZM",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nZM — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "REX",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nREX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "WOR",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nWOR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "EME",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEME — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "TAL",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nTAL — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "ELV",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nELV — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "ALRM",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nALRM — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "MUR",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nMUR — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SND",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSND — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CGNT",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCGNT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "TS",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nTS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CRNC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCRNC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "OGN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nOGN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "LYFT",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nLYFT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EQH",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEQH — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "CHEF",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCHEF — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "CVSA",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nCVSA — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "BHC",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nBHC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "STRA",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSTRA — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "SMMT",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSMMT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "EBF",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nEBF — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "DGII",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nDGII — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "JANX",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nJANX — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "PLUS",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nPLUS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "GWRE",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGWRE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "HOG",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHOG — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SPT",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSPT — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "RELY",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nRELY — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "ASAN",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nASAN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "HIMS",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nHIMS — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "SAP",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSAP — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "INTA",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nINTA — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "trigger",
-      "ticker": "BRZE",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nBRZE — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
-    },
-    {
-      "kind": "trigger",
-      "ticker": "SPSC",
-      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nSPSC — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "ticker": "GDYN",
+      "text": "🚀 KELL TREND BIRTH — 4/4 TRIGGER\nGDYN — 4/4\n✅ SMA50 rising\n✅ SMA30W rising\n✅ Structure valid\n✅ Not extended\n✅ Pullback + EMA compression\n✅ EMA10 rising\n✅ EMA20 non-falling\n✅ EMA10 > EMA20\n✅ Close > EMA10 & EMA20\n✅ Bullish EMA re-expansion\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     },
     {
       "kind": "invalidated",
-      "text": "⚪ KELL TREND BIRTH — INVALIDATED\n9 former READY/TRIGGER candidates\n\nKRP — 4/4 → 0/4\nPBF — 4/4 → 0/4\nRLGT — 4/4 → 0/4\nREPX — 4/4 → 0/4\nSLDE — 4/4 → 0/4\n\n+4 additional candidates — View dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+      "text": "⚪ KELL TREND BIRTH — INVALIDATED\n32 former READY/TRIGGER candidates\n\nTENB — 4/4 → 0/4\nCBRL — 4/4 → 0/4\nELF — 4/4 → 0/4\nABBV — 4/4 → 0/4\nSU — 4/4 → 0/4\n\n+27 additional candidates — View dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
     }
   ],
   "v2": {
@@ -368,11 +363,15 @@
     "kellDailyCount": 5,
     "messages": [
       {
+        "kind": "weekly",
+        "text": "🌱 WEEKLY BIRTH — early trend shortlist\n15 candidates\n\nBRK.B · Ready · 101W base · 2.63% MA · blue sky\nTXNM · Ready · 60W base · 0.42% MA · blue sky\nTAK · Ready · 60W base · 4.61% MA · blue sky\nAIG · Compressed · 104W base · 0.49% MA · blue sky\nBJ · Compressed · 104W base · 1.38% MA · blue sky\nMCO · Compressed · 104W base · 1.95% MA · blue sky\nFDUS · Compressed · 104W base · 2.05% MA · blue sky\nTSLX · Compressed · 93W base · 2.38% MA · blue sky\nCPK · Compressed · 79W base · 1.59% MA · blue sky\nMRSH · Compressed · 78W base · 2.17% MA · blue sky\nUGI · Compressed · 86W base · 3.24% MA · blue sky\nDIS · Compressed · 75W base · 2.78% MA · 14% runway\nMAIN · Compressed · 91W base · 4.04% MA · blue sky\nWFC · Compressed · 68W base · 2.66% MA · blue sky\nDGICA · Compressed · 71W base · 3.55% MA · blue sky\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
+      },
+      {
         "kind": "kell-daily",
-        "text": "⚡ KELL DAILY — new or improved setups\n\nPMTS · ema crossback · readiness 96\nLILA · ema crossback · readiness 96\nVTS · ema crossback · readiness 96\nHPQ · ema crossback · readiness 96\nIRMD · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-08-eod-37869155029-1--0c41e01ef637e61a191294addfb2af8504990bb67e487ea66eecaf3fe564bc21"
+        "text": "⚡ KELL DAILY — new or improved setups\n\nIFF · ema crossback · readiness 96\nNGG · ema crossback · readiness 96\nVAC · ema crossback · readiness 96\nNYT · ema crossback · readiness 96\nFMX · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-09-eod-38011703540-1--3de75013b9b2b33b065afd96abb91c57360051b8eb3774589d93fd6444de1425"
       }
     ]
   },
-  "previousSessionDate": "2026-10-07",
-  "previousPath": "lab/data/kell-history/2026-10-07.json"
+  "previousSessionDate": "2026-10-08",
+  "previousPath": "lab/data/kell-history/2026-10-08.json"
 }
