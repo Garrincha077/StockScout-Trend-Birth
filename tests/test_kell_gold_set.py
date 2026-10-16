@@ -188,7 +188,7 @@ class KellGoldSetTests(unittest.TestCase):
         row = report["rows"][0]
         self.assertIs(row["predictionNow"], True)
         self.assertEqual(row["evaluationSource"], "raw_snapshot_rescore")
-        self.assertEqual(row["modelVersionNow"], "kell-overlay-v5-quality-readiness-context")
+        self.assertEqual(row["modelVersionNow"], "kell-overlay-v6-cycle-calibration-shadow")
         self.assertEqual(report["summary"]["rescoredRowCount"], 1)
         self.assertEqual(report["summary"]["rawSnapshotSessionCount"], 1)
 

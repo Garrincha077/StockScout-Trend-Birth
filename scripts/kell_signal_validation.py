@@ -105,7 +105,9 @@ def _atr_pct(bars: list[dict[str, Any]], window: int = 14) -> float | None:
     return sum(values) / len(values) if values else None
 
 
-def _ema_crossback_evidence(bars: list[dict[str, Any]]) -> dict[str, float | bool | None]:
+def _ema_crossback_evidence(
+    bars: list[dict[str, Any]], touch_tolerance_pct: float = 1.0,
+) -> dict[str, float | bool | None]:
     """Return volatility-normalized support evidence for a current EMA Crossback bar."""
     if len(bars) < 30:
         return {
@@ -151,7 +153,7 @@ def _ema_crossback_evidence(bars: list[dict[str, Any]]) -> dict[str, float | boo
         "closeVsLowerEmaPct": (close / lower - 1.0) * 100.0 if lower > 0 else None,
         "closeVsMidpointPct": (close / midpoint - 1.0) * 100.0 if midpoint > 0 else None,
         "closeLocationPct": ((close - low) / span * 100.0) if span > 0 else 50.0,
-        "touchesCluster": low <= upper * 1.01,
+        "touchesCluster": low <= upper * (1.0 + touch_tolerance_pct / 100.0),
         "holdsCluster": close >= lower * 0.995,
     }
 
@@ -239,10 +241,10 @@ def _audit_wedge_pop(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[
     reasons: list[str] = []
     if not crossed:
         reasons.append("not_current_10_20_ema_recapture")
-    if ema_gap > 1.5:
+    if ema_gap > 2.0:
         reasons.append("ema_cluster_not_tight")
 
-    if not crossed or ema_gap > 2.0:
+    if not crossed or ema_gap > 2.5:
         return "contradiction", reasons
     if reasons:
         return "borderline", reasons
@@ -274,8 +276,11 @@ def _wedge_pop_soft_quality_flags(bars: list[dict[str, Any]]) -> tuple[list[str]
 def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, list[str]]:
     if len(bars) < 30:
         return "contradiction", ["insufficient_history"]
-    evidence = _ema_crossback_evidence(bars)
+    tolerance = _metric(item, "ema_crossback_touch_tolerance_pct")
+    evidence = _ema_crossback_evidence(bars, tolerance if tolerance is not None else 1.0)
     pop_age = _metric(item, "recent_wedge_pop_sessions_ago")
+    model_version = str((item.get("score_breakdown") or {}).get("model_version") or "")
+    minimum_pop_age = 3 if model_version.startswith("kell-overlay-v6") else 1
     if pop_age is None:
         raw_age = (item.get("kell_metrics") or {}).get("recent_wedge_pop_sessions_ago")
         try:
@@ -289,7 +294,7 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
     close_vs_mid = evidence["closeVsMidpointPct"]
 
     reasons: list[str] = []
-    if pop_age is None or pop_age > 15:
+    if pop_age is None or pop_age < minimum_pop_age or pop_age > 15:
         reasons.append("no_recent_wedge_pop")
     if not touches:
         reasons.append("did_not_retest_ema_cluster")
@@ -305,7 +310,7 @@ def _audit_ema_crossback(item: dict, bars: list[dict[str, Any]]) -> tuple[str, l
     if isinstance(close_vs_mid, (int, float)) and close_vs_mid < -0.5:
         reasons.append("weak_crossback_close")
 
-    if (pop_age is None or pop_age > 15) or not touches or not holds:
+    if (pop_age is None or pop_age < minimum_pop_age or pop_age > 15) or not touches or not holds:
         return "contradiction", reasons
     if reasons:
         return "borderline", reasons
@@ -518,7 +523,8 @@ def validate_snapshot(snapshot: dict, sample_limit: int = 15) -> dict:
 
             evidence = None
             if field == "kell_ema_crossback":
-                evidence = _ema_crossback_evidence(bars)
+                tolerance = _metric(item, "ema_crossback_touch_tolerance_pct")
+                evidence = _ema_crossback_evidence(bars, tolerance if tolerance is not None else 1.0)
                 undercut_atr = evidence.get("undercutAtr")
                 if evidence.get("holdsCluster") is not True:
                     bucket = "failed_hold"
