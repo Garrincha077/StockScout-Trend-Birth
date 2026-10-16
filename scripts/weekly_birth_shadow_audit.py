@@ -17,11 +17,32 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
     selected = shortlist.get("weeklyTrendBirth") or []
     if len(selected) > 15:
         raise ValueError("Weekly Birth shortlist exceeds 15")
+    research = shortlist.get("weeklyResearchWatch") or []
+    if len(research) > 5:
+        raise ValueError("Early Base Watch exceeds 5")
+    discovery = shortlist.get("weeklyDiscoveryWatch") or []
+    if len(discovery) > 25:
+        raise ValueError("Bottom Tier D watch exceeds 25")
     members = {str(item.get("ticker") or "") for item in selected}
     if not members or "" in members:
         members.discard("")
+    watch = research + discovery
+    watch_tickers = [str(item.get("ticker") or "") for item in watch]
+    if "" in watch_tickers or len(watch_tickers) != len(set(watch_tickers)):
+        raise ValueError("Weekly C/D research watch tickers must be unique and nonempty")
+    if any((item.get("weeklyBirth") or {}).get("eligible") is True or item.get("ticker") in members for item in watch):
+        raise ValueError("Weekly C/D research watches cannot contain a Weekly Birth selection")
+    for items, expected in ((research, "C"), (discovery, "D")):
+        if any((item.get("weeklyBirth") or {}).get("tier") not in (None, expected) for item in items):
+            raise ValueError(f"Weekly Tier {expected} list contains a different tier")
     old_members = {str(item.get("ticker") or "") for item in (previous or {}).get("selected", [])}
     stages = Counter((item.get("weeklyBirth") or {}).get("stageLabel") or "Unknown" for item in selected)
+    crash_items = [
+        item for item in universe
+        if (item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is True
+        or (item.get("metrics") or {}).get("crashBaseTriggered") is True
+    ]
+    chart_sources = Counter((item.get("weeklyBirth") or {}).get("chartSource") or "unavailable" for item in universe)
     reasons = Counter(
         reason
         for item in universe
@@ -34,28 +55,138 @@ def build_report(snapshot: dict, previous: dict | None = None) -> dict:
         detail.append({
             "ticker": item["ticker"],
             "stage": evidence.get("stageLabel"),
+            "chartSource": evidence.get("chartSource"),
             "score": evidence.get("score"),
+            "baseKind": metrics.get("baseKind"),
+            "bottomCrashBaseTriggered": metrics.get("bottomCrashBaseTriggered"),
             "baseWeeks": metrics.get("baseWeeks"),
             "baseDepthPct": metrics.get("baseDepthPct"),
             "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
             "recentBaseRangePct26w": metrics.get("recentBaseRangePct26w"),
+            "recentBaseRangePct12w": metrics.get("recentBaseRangePct12w"),
             "runwayPct": metrics.get("runwayPct"),
+            "runwayFromPricePct": metrics.get("runwayFromPricePct"),
             "extensionPct": metrics.get("extensionPct"),
+            "mansfieldRsPct": metrics.get("mansfieldRsPct"),
+            "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
+            "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
+            "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
+            "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
+            "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
+            "maPreBaseSlope30wPct26w": metrics.get("maPreBaseSlope30wPct26w"),
+            "blueSkyConfirmed": metrics.get("blueSkyConfirmed"),
         })
+    def research_detail(item: dict) -> dict:
+        evidence = item.get("weeklyBirth") or {}
+        metrics = evidence.get("metrics") or {}
+        return {
+        "ticker": item.get("ticker"),
+        "tier": evidence.get("tier"),
+        "bottomCrashBaseTriggered": metrics.get("bottomCrashBaseTriggered"),
+        "stage": evidence.get("stageLabel"),
+        "rejectReasons": evidence.get("rejectReasons") or [],
+        "baseWeeks": metrics.get("baseWeeks"),
+        "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
+        "recentBaseRangePct12w": metrics.get("recentBaseRangePct12w"),
+        "pivotDistancePct": metrics.get("pivotDistancePct"),
+        "mansfieldRsPct": metrics.get("mansfieldRsPct"),
+        "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
+        }
+    # A zero-name shortlist still needs reviewable negatives. Prefer candidates
+    # with a real base and few failed checks; never relabel them as selected.
+    chart_tickers = {
+        str(item.get("ticker") or "")
+        for collection in (snapshot.get("kellCandidates") or [], snapshot.get("candidates") or [])
+        for item in collection
+        if item.get("weeklyChartBars") or item.get("chartBars")
+    }
+    near_misses = sorted(
+        (item for item in universe
+         if not (item.get("weeklyBirth") or {}).get("eligible")
+         and (item.get("weeklyBirth") or {}).get("stage", 0) >= 1),
+        key=lambda item: (
+            str(item.get("ticker") or "") not in chart_tickers,
+            len((item.get("weeklyBirth") or {}).get("rejectReasons") or []),
+            -float((item.get("weeklyBirth") or {}).get("score") or 0),
+            str(item.get("ticker") or ""),
+        ),
+    )[:25]
+    review_queue = []
+    for item in near_misses:
+        evidence = item.get("weeklyBirth") or {}
+        metrics = evidence.get("metrics") or {}
+        review_queue.append({
+            "ticker": item.get("ticker"),
+            "stage": evidence.get("stageLabel"),
+            "chartSource": evidence.get("chartSource"),
+            "score": evidence.get("score"),
+            "chartAvailable": item.get("ticker") in chart_tickers,
+            "rejectReasons": evidence.get("rejectReasons") or [],
+            "baseWeeks": metrics.get("baseWeeks"),
+            "baseKind": metrics.get("baseKind"),
+            "bottomCrashBaseTriggered": metrics.get("bottomCrashBaseTriggered"),
+            "weeklyMaClusterPct": metrics.get("weeklyMaClusterPct"),
+            "mansfieldRsPct": metrics.get("mansfieldRsPct"),
+            "mansfieldRsChangePct4w": metrics.get("mansfieldRsChangePct4w"),
+            "maSlope30wPct4w": metrics.get("maSlope30wPct4w"),
+            "maPriorSlope30wPct4w": metrics.get("maPriorSlope30wPct4w"),
+            "maPriorSlope30wPct13w": metrics.get("maPriorSlope30wPct13w"),
+            "maPreBaseSlope30wPct26w": metrics.get("maPreBaseSlope30wPct26w"),
+            "runwayPct": metrics.get("runwayPct"),
+            "runwayFromPricePct": metrics.get("runwayFromPricePct"),
+            "breakoutVolumeRatio4w": metrics.get("breakoutVolumeRatio4w"),
+        })
+    crash_near_misses = sorted(
+        (item for item in crash_items if not (item.get("weeklyBirth") or {}).get("eligible")),
+        key=lambda item: (
+            -int((item.get("weeklyBirth") or {}).get("stage") or 0),
+            str(item.get("ticker") or "") not in chart_tickers,
+            len((item.get("weeklyBirth") or {}).get("rejectReasons") or []),
+            -float((item.get("weeklyBirth") or {}).get("score") or 0),
+            str(item.get("ticker") or ""),
+        ),
+    )[:25]
+    crash_review_queue = [{
+        "ticker": item.get("ticker"),
+        "stage": (item.get("weeklyBirth") or {}).get("stageLabel"),
+        "score": (item.get("weeklyBirth") or {}).get("score"),
+        "chartAvailable": item.get("ticker") in chart_tickers,
+        "rejectReasons": (item.get("weeklyBirth") or {}).get("rejectReasons") or [],
+        "baseKind": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("baseKind"),
+        "baseWeeks": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("baseWeeks"),
+        "weeklyMaClusterPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("weeklyMaClusterPct"),
+        "maPriorSlope30wPct13w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("maPriorSlope30wPct13w"),
+        "maPreBaseSlope30wPct26w": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("maPreBaseSlope30wPct26w"),
+        "mansfieldRsPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("mansfieldRsPct"),
+        "runwayPct": ((item.get("weeklyBirth") or {}).get("metrics") or {}).get("runwayPct"),
+    } for item in crash_near_misses]
     return {
         "schemaVersion": "weekly-birth-shadow-audit-v1",
+        "modelVersion": ((selected[0].get("weeklyBirth") or {}).get("modelVersion") if selected else "weinstein-stage2a-v4-bottom-crash"),
         "sessionDate": source.get("sessionDate"),
         "runId": source.get("runId"),
         "unifiedManifestSha256": source.get("unifiedManifestSha256"),
         "evaluatedCount": len(universe),
         "eligibleCount": sum((item.get("weeklyBirth") or {}).get("eligible") is True for item in universe),
         "selectedCount": len(selected),
+        "researchWatchCount": len(research),
+        "discoveryWatchCount": len(discovery),
+        "researchNonCrashCount": sum((item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is not True for item in research),
+        "discoveryNonCrashCount": sum((item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is not True for item in discovery),
         "stageCounts": dict(sorted(stages.items())),
+        "chartSourceCounts": dict(sorted(chart_sources.items())),
+        "bottomCrashTriggeredCount": len(crash_items),
+        "bottomCrashEligibleCount": sum((item.get("weeklyBirth") or {}).get("eligible") is True for item in crash_items),
+        "bottomCrashSelectedCount": sum((item.get("weeklyBirth") or {}).get("metrics", {}).get("bottomCrashBaseTriggered") is True for item in selected),
         "rejectionReasonCounts": dict(sorted(reasons.items())),
         "added": sorted(members - old_members) if previous else [],
         "removed": sorted(old_members - members) if previous else [],
         "previousSessionDate": (previous or {}).get("sessionDate"),
         "selected": detail,
+        "researchWatch": [research_detail(item) for item in research],
+        "discoveryWatch": [research_detail(item) for item in discovery],
+        "nearMissReviewQueue": review_queue,
+        "bottomCrashReviewQueue": crash_review_queue,
         "manualChartReviewComplete": False,
     }
 
