@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "StockScout Trend Birth",
+  "short_name": "Trend Birth",
+  "description": "Weekly Birth, Kell Daily, grafikoni i watchlist na mobitelu.",
+  "lang": "hr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08111d",
+  "theme_color": "#08111d",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {"src": "icons/trendbirth-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/trendbirth-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/trendbirth-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

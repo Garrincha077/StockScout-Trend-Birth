@@ -4,6 +4,18 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-21 — Installable Trend Birth mobile app
+
+- Branch: `codex/trendbirth-mobile-pwa`, based on production app commit `7a8e7caf91515eb2a6af2fc572e0788552d17801` on `feature/unified-review-grid-lab`. Implementation SHA is the commit containing this entry; activation will be recorded after deployment verification.
+- Added a standalone PWA manifest with a stable root identity/start URL, original Trend Birth SVG/192px/512px/maskable/Apple icons, Android install prompt and browser-menu guidance, iPhone Safari instructions, and an install dialog. Archived links retain their exact URL; installing from an archive starts future home-icon launches on the current review.
+- Reflowed the mobile topbar into full-width branding and two columns of controls, increased touch targets, prevented input-focus zoom and added safe-area padding. Existing cards, sorting, chart periods, filters and watchlist behavior are retained.
+- The worker caches only install artwork, manifest and an explicit offline screen. Market snapshots, current publication pointers, chart data, account requests and app/auth scripts always use the network. Open pages show an offline warning; cold offline launches show retry guidance. Updates wait for a user-triggered refresh that preserves snapshot parameters. Offline fallback normalizes redirected hosting responses for Vercel clean URLs.
+- Reuse audit: EXTEND Unified's standalone-manifest concept with a separate app identity and install UI; REPLACE market/snapshot caching with an explicit offline screen for this lab. Reviewed preferred Next source documentation and confirmed its current main lacks `frontend/public/sw.js`; no engine code imported and no other repositories modified.
+- Affected: `lab/index.html`, `lab/pwa.css`, `lab/pwa.js`, `lab/sw.js`, `lab/offline.html`, `lab/manifest.webmanifest`, `lab/icons/*`, `lab/vercel.json`, mobile documentation and `tests/pwa.test.cjs`.
+- Validation: 129 Python tests and 53 Node tests passed; JS syntax and diff-whitespace checks passed. Chromium used the actual 2026-10-20 publication (`2026-10-20-eod-39518546268-1`): 15 Weekly Birth cards rendered, chart detail opened, local watchlist survived reload, invalid snapshot failed visibly, exact archive survived offline/retry and a worker update. Layout had no horizontal page overflow at 320/360/393/430/1024/1440px; Android/manual install and iPhone instructions were exercised. Persistent Chromium reported no installability errors. Native OS installation and an actual iOS browser were not available; the native install event was simulated and manual guidance verified. No account sign-in or external notification was performed.
+- Impact: presentation/installation only; candidate membership, ranking/scoring, weekly/Kell definitions, publication data, owner auth/sync and Unified pipelines unchanged. Internet remains required for review data. Cross-browser local watchlists are not migrated by installation.
+- Next: verify branch CI and the deployed HTTPS manifest/worker/offline behavior, then record exact accepted implementation/deployment identity and installation URL.
+
 ## 2026-08-26 — Greenfield repository bootstrap
 
 - Repository: `Garrincha077/StockScout-Trend-Birth`.
