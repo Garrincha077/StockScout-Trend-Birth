@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "rm -rf dist && mkdir -p dist && cp -R lab/. dist/",
+  "buildCommand": "node lab/build-vercel.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "git": {
@@ -20,6 +20,12 @@
           "value": "no-store, max-age=0"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/data/:path*",
+      "destination": "https://raw.githubusercontent.com/Garrincha077/StockScout-Trend-Birth/feature/unified-review-grid-lab/lab/data/:path*"
     }
   ]
 }
