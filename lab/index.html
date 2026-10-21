@@ -2,13 +2,29 @@
 <html lang="hr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111d">
+  <meta name="description" content="Trend Birth — Weekly Birth, Kell Daily i watchlist na mobitelu.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Trend Birth">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
   <link rel="stylesheet" href="styles.css?v=weekly-v2-20260927">
+  <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
   <header class="topbar">
-    <div><strong>Trend Birth Review Lab</strong><span id="runMeta">Učitavanje…</span></div>
+    <div class="app-brand">
+      <div class="app-heading">
+        <strong>Trend Birth Review Lab</strong>
+        <button type="button" id="installApp" class="install-app" hidden aria-haspopup="dialog" aria-controls="installDialog">↓ Instaliraj</button>
+      </div>
+      <span id="runMeta">Učitavanje…</span>
+    </div>
     <div class="top-controls">
       <select id="chartPeriod" aria-label="Razdoblje charta">
         <option value="3m">3M · Daily</option>
@@ -60,6 +76,11 @@
       </details>
     </div>
   </header>
+  <div id="connectionNotice" class="app-notice" role="status" hidden>Bez interneta. Prikazani podaci nisu osvježeni. Za aktualnu objavu ponovno se poveži.</div>
+  <div id="updateNotice" class="app-notice" role="status" hidden>
+    Dostupna je nova verzija aplikacije.
+    <button type="button" id="updateApp">Osvježi aplikaciju</button>
+  </div>
   <nav id="primaryViews" class="primary-views" aria-label="Pregled kandidata">
     <button type="button" data-primary-view="weekly" class="active">Weekly Birth</button>
     <button type="button" data-primary-view="kell-daily">Kell Daily</button>
@@ -162,6 +183,17 @@
     </div>
     <div id="detailBody"></div>
   </dialog>
+  <dialog id="installDialog" class="install-dialog" aria-labelledby="installTitle">
+    <form method="dialog"><button class="close" aria-label="Zatvori upute za instalaciju">×</button></form>
+    <img src="icons/trendbirth-192.png" alt="" width="64" height="64">
+    <h2 id="installTitle">Trend Birth na mobitelu</h2>
+    <p>Dodaj aplikaciju na početni zaslon za otvaranje u vlastitom prozoru.</p>
+    <p id="installInstructions"></p>
+    <p class="install-note">Za aktualne skenove i grafikone potrebna je internetska veza. Lokalna watchlista ostaje u ovom pregledniku; za postojeću sinkronizaciju koristi isti owner račun.</p>
+    <button type="button" id="confirmInstall" class="install-confirm" hidden>Instaliraj Trend Birth</button>
+    <p id="installResult" role="status"></p>
+  </dialog>
+  <script src="pwa.js?v=1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
   <script src="watchlist-store.js"></script>
   <script src="owner-watchlist-sync.js"></script>

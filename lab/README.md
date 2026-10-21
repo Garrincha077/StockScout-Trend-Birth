@@ -43,6 +43,39 @@ python -m http.server 8000 -d lab
 
 Then open `http://localhost:8000/`.
 
+## Mobile app installation
+
+Open https://stockscout-trend-birth-review-lab.vercel.app/ in Android Chrome,
+tap **Instaliraj**, then confirm **Instaliraj Trend Birth**. If Chrome does not
+offer a prompt, use its menu → **Dodaj na početni zaslon / Instaliraj aplikaciju**.
+Open Telegram links in Chrome first. On iPhone, open the site in Safari and use
+**Dijeli → Dodaj na početni zaslon**. The installed app is named **Trend Birth**
+and opens in its own window. Its home icon opens the current review; archived
+snapshot links continue to open their exact session.
+
+Internet is required for scans and charts. The service worker stores only the
+offline screen, manifest and icons. It never caches publication pointers,
+snapshots, chart shards, app/auth scripts or account responses. An open page
+shows a connection warning when offline; reopening shows a retry screen rather
+than an old market snapshot. Local watchlist storage and the existing owner
+sync are unchanged. Installation does not copy another browser's local state;
+use the same browser or the existing owner sign-in to access synced entries.
+
+Updates wait for **Osvježi aplikaciju** before taking control. The refresh retains
+the current URL, including exact snapshot parameters. Increment the cache version
+in `sw.js` when changing precached assets, and the query version in `index.html`
+when changing `pwa.js` or `pwa.css`. Hosting serves `sw.js` without a persistent
+HTTP cache. Run `node --test tests/*.test.cjs` to validate the install manifest,
+icon dimensions, offline navigation, cache isolation and existing UI contracts.
+
+Reuse audit: **EXTEND** the installable-web-app approach found in StockScout
+Unified (`frontend/public/manifest.webmanifest`), with independent Trend Birth
+identity, PNG/maskable icons and install guidance. **REPLACE** snapshot caching
+with a dedicated offline screen to preserve this lab's exact-snapshot and fresh
+publication contract. StockScreener-next documentation was reviewed as the
+preferred reference; it has no `frontend/public/sw.js` on its current main.
+No scanner, scoring or chart engine code is imported.
+
 
 ## Candidate-only Kell v5 overlay
 
