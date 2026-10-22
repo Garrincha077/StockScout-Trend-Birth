@@ -29,18 +29,9 @@ on:
       - "tests/test_workflow_watchdog.py"
       - "requirements-refresh.lock"
   schedule:
-    # Avoid the normal evening EOD publish window. Pick up late/recovered
-    # activations every 15 minutes; GitHub schedule latency can add delay.
-    - cron: "*/15 1-19 * * *"
-      timezone: "Europe/Zagreb"
-    # Retry after Unified EOD activation; the publisher validates the exact manifest.
-    - cron: "17 3 * * 2-6"
-      timezone: "Europe/Zagreb"
-    - cron: "17 7 * * 2-6"
-      timezone: "Europe/Zagreb"
-    - cron: "17 11 * * 2-6"
-      timezone: "Europe/Zagreb"
-    - cron: "17 17 * * 2-6"
+    # One freshness check each Tue-Sat morning in Zagreb after the prior NYSE close.
+    # Missing/recovered EOD sessions can still be recovered via workflow_dispatch.
+    - cron: "17 8 * * 2-6"
       timezone: "Europe/Zagreb"
 
 permissions:
@@ -70,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ github.ref != 'refs/heads/main' || inputs.dry_run }}
-          FORCE_REFRESH: ${{ inputs.force_refresh || (github.event_name == 'schedule' && github.event.schedule == '17 17 * * 2-6') }}
+          FORCE_REFRESH: ${{ inputs.force_refresh }}
           EXPECTED_SESSION: ${{ inputs.session_date }}
           EXPECTED_RUN: ${{ inputs.source_run_id }}
         shell: bash
