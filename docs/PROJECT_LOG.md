@@ -4,6 +4,15 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+
+## 2026-10-22 — Single daily verified refresh and 21 October recovery
+
+- Branch: `fix/trend-birth-daily-refresh-20261022` from `main`; production data published independently by existing `feature/unified-review-grid-lab` workflow after verified upstream recovery.
+- Problem: Review pointer remained at 2026-10-20 after the first Unified 2026-10-21 EOD failed the source-coverage preflight; the Unified recovery run `39755499898` succeeded. Refresh's previous schedule required many daily probes, but the last observed scheduled execution was 2026-10-15; a missing run cannot be rescued by its run-triggered watchdog alone.
+- Change: replace the high-frequency and four redundant cron entries with one 08:17 Europe/Zagreb schedule Tuesday-Saturday, after the prior NYSE EOD. Keep manual `workflow_dispatch`, exact Unified mode/hash and session-date gates, deployed-pointer verification, safe in-flight reuse, and no-send contract. Only a new activation causes publication; manual force remains explicit. No changes to the scanner, scores, ranking, dataset schema, Telegram sending, or Vercel routing.
+- Verification: `tests/test_refresh_review_publication.py` now asserts exactly one cron entry, its timezone, and the readonly/topic-branch/no-send guards. Scheduled behavior still depends on GitHub Actions being enabled and account usage being available; execution should be checked after merge. A once-daily cadence deliberately trades automatic same-day retry coverage for lower Actions-minute use. Manual recovery remains the fallback for late upstream activation.
+- Next: confirm CI and PR merge, check first scheduled execution, and verify production `lab/data/publication.json` matches the active Unified session/run/hash.
+
 ## 2026-08-26 — Greenfield repository bootstrap
 
 - Repository: `Garrincha077/StockScout-Trend-Birth`.
