@@ -100,7 +100,9 @@ class RefreshTests(unittest.TestCase):
     def test_controller_has_no_send_and_topic_runs_are_read_only(self):
         root = Path(__file__).resolve().parents[1]
         workflow = (root / ".github/workflows/refresh-trend-birth-review-lab.yml").read_text()
-        self.assertIn("*/15 1-19 * * *", workflow)
+        self.assertIn('cron: "17 8 * * 2-6"', workflow)
+        self.assertEqual(1, workflow.count("- cron:"))
+        self.assertIn('timezone: "Europe/Zagreb"', workflow)
         self.assertIn("github.ref != 'refs/heads/main' || inputs.dry_run", workflow)
         self.assertNotIn("TELEGRAM_BOT_TOKEN", workflow)
         self.assertNotIn("--send", workflow)
