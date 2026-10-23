@@ -1,5 +1,35 @@
 # Oliver Kell Overlay Scoring v5 — Quality / Readiness / Context
 
+## v6 cycle calibration research branch (2026-09-28)
+
+`codex/kell-cycle-calibration` changes the cycle detector to `kell-overlay-v6-cycle-calibration-shadow`. It is a shadow/review change only; the checked-in 2026-09-25 `lab/data/latest.json`, deployed GridView and Telegram sender still carry v5. The v5 score composition, Unified candidate membership and published discovery-screen formulas are unchanged. Stage-dependent readiness can change when a candidate's stage changes.
+
+The seven user-annotated ELF, NVDA, TOL, WING, AFRM, KBH and PHM charts were compared with [TraderLion's Cycle of Price Action description](https://traderlion.com/technical-analysis/chart-patterns/cycle-of-price-action-by-oliver-kell/). The images identify qualitative phases, not exact machine-readable event dates. `research/kell_cycle_2023_replay.py` therefore tests short windows plus negative controls using daily adjusted OHLCV, truncating the bar series at each session before calling the detector. Its `yfinance` dependency is optional research tooling, not part of production or CI.
+
+Changes to the numerical lab proxies:
+
+- Wedge Pop allows a 2.5% 10/20 EMA gap and a five-day range up to 85% of the preceding 15-day range, but requires a prior flat/down context. A raw pop that has already advanced at least 5% in the preceding 40 sessions prevents another "first pop" label in the same cycle.
+- EMA Crossback must be at least three sessions after the pop. Retest proximity is volatility aware: 1–3% around the EMA cluster, scaled to recent median true range. This avoids next-day wicks masquerading as a separate retest.
+- Base n' Break has a seven-session event cooldown so a steady climb cannot fire the same base break on consecutive days.
+- Exhaustion Extension requires at least 27 of the preceding 30 sessions with 10EMA above 20EMA, then a fresh high at least the greater of 12% or two recent median true ranges above the 10EMA, plus a blowoff clue. A strong first launch is no longer automatically late-cycle. Exhaustion takes precedence over a simultaneous Base n' Break event.
+- Wedge Drop can follow either a recent exhaustion or a mature rising 10/20 EMA run that tightens near the cluster. It requires the first decisive cluster loss (at least 3% or 0.75 recent median true range below the lower EMA), a close in the bottom 30% of the day's range and RVOL20 at least 1.0. The preceding close must have been within 1% below or above the cluster. This keeps a multi-day slide from repeatedly firing and excludes low-volume drift. It no longer requires a prior blowoff. The stage basis identifies which path fired.
+
+Research replay on the seven examples matched **15/15 deliberately selected short windows** ([recorded result](../research/kell-cycle-2023-results.json)), including absence of an early Exhaustion label for TOL and AFRM. This is an in-sample calibration check, not precision, hit rate or a return study. It uses vendor-adjusted historical prices retrieved at run time; later adjustments or different feeds can shift a boundary date. The chart examples include winners and the KBH/PHM downside cases, but remain a small, curated set.
+
+The first frozen `2026-09-25` snapshot check rescored only its **2,045** existing Kell names, without reconstructing benchmark history. Its 22 Wedge Drops were a warning, not sufficient validation. We subsequently replayed eight exact StockScout Unified Pages EOD artifacts (September 14, 17, 18, and 21–25), using each session's full candidate membership, mode context, chart bars and embedded 260-bar SPY benchmark. All **21,044 candidate-sessions** had chart coverage. The baseline and both v6 variants were scored on identical inputs; artifacts and dates were checked before scoring, and future chart bars were rejected. The reproducible harness is [`research/kell_unified_history_audit.py`](../research/kell_unified_history_audit.py); the per-session identities, hashes and counts are in [`research/kell-unified-history-results.json`](../research/kell-unified-history-results.json).
+
+| Event across eight sessions | v5 | initial v6 | tuned v6 |
+| --- | ---: | ---: | ---: |
+| Wedge Pop | 713 | 645 | 645 |
+| EMA Crossback | 252 | 10 | 10 |
+| Base n' Break | 274 | 160 | 160 |
+| Wedge Drop | 43 | 361 | 40 |
+| Kell focus | 59 | 30 | 30 |
+
+The initial v6 Wedge Drop rule overfired, especially on September 23 (88 names). Requiring a first confirmed, bearish, at-least-average-volume break reduced that session to 13 and the eight-session total to 40. The 2023 KBH/PHM annotated Wedge Drops remain detected, and all 15 selected 2023 replay windows still match. Of 252 v5 Crossbacks, **227 occurred one session after a Wedge Pop**; the v6 three-session retest rule removes most of them. The resulting 10 Crossbacks and reduction of Kell focus from 59 to 30 are material and require blinded chart review before promotion. These eight days were used for tuning, so this is an in-sample classification stress test, not precision, trading performance or a forward validation result. v5 remains the deployed/rollback model, and v6 remains shadow-only.
+
+For that manual gate, the calibration PR preview serves `kell-history-review.html`. Its 89 deterministic, balanced cases include 16 tuned-v6 Wedge Drops, 24 initial-v6 Wedge Drops that tuning rejected, 15 v5-only Wedge Drops, all 10 tuned-v6 EMA Crossbacks, and 24 v5-only Crossbacks. The chart and review question appear before model labels; ratings reveal v5/initial/tuned stages and measured reasons. Ratings and notes stay in browser local storage and can be exported to CSV. The 160 displayed daily bars end on the session under review. Sampling is deliberately balanced, so the 89 charts cannot estimate event frequency or precision.
+
 Branch scope: `feature/kell-mcp-lab`
 
 This layer scans the **deduplicated union of all candidates already published by StockScout Unified** across Bottom, Next and Ryan. It does not create a new market-wide universe and does not alter Unified candidate generation, source ranks, or the ordinary Review Grid.

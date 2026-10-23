@@ -165,6 +165,27 @@ class KellSignalValidationTests(unittest.TestCase):
         self.assertEqual(grade, "borderline")
         self.assertIn("deep_ema_undercut_gt_1atr", reasons)
 
+    def test_v6_crossback_audit_uses_published_tolerance_and_later_retest(self):
+        bars = make_bars(count=60, start=100.0, daily=0.0)
+        bars[-1].update({
+            "open": 102.0, "high": 103.0, "low": 101.6,
+            "close": 102.5, "volume": 1_000_000,
+        })
+        normalized = validation._bars(bars)
+        item = {"kell_metrics": {
+            "recent_wedge_pop_sessions_ago": 4,
+            "ema_crossback_touch_tolerance_pct": 2.5,
+        }, "score_breakdown": {"model_version": "kell-overlay-v6-cycle-calibration-shadow"}}
+        grade, reasons = validation._audit_ema_crossback(item, normalized)
+        self.assertEqual((grade, reasons), ("strong", []))
+        item["kell_metrics"]["recent_wedge_pop_sessions_ago"] = 1
+        grade, reasons = validation._audit_ema_crossback(item, normalized)
+        self.assertEqual(grade, "contradiction")
+        self.assertIn("no_recent_wedge_pop", reasons)
+        item["score_breakdown"]["model_version"] = "kell-overlay-v5-quality-readiness-context"
+        grade, reasons = validation._audit_ema_crossback(item, normalized)
+        self.assertEqual((grade, reasons), ("strong", []))
+
     def test_crossback_support_distribution_is_exposed(self):
         bars = make_bars(count=60, start=100.0, daily=0.0)
         item = scored_candidate("XBACK", bars)
