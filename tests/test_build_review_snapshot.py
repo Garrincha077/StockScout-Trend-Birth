@@ -150,6 +150,72 @@ class BuilderTests(unittest.TestCase):
         # Day 1 implies SPY=500; day 2 implies roughly SPY=490.2.
         self.assertLess(benchmark[-1]["close"], benchmark[-2]["close"])
 
+    def test_weekly_prefers_bottom_chart_without_changing_kell_priority(self):
+        payloads = {
+            "bottom-fishing": ("bottom", {}, {}),
+            "next": ("next", {}, {}),
+            "ryan-original": ("ryan", {}, {}),
+        }
+        pool = {"AAA": {"chartModes": ["bottom-fishing", "next"]}}
+        original = builder.load_charts
+        builder.load_charts = lambda root, _manifest, _core, tickers: {
+            ticker: [[root]] for ticker in tickers
+        }
+        try:
+            weekly, sources = builder._load_preferred_weekly_charts(payloads, pool)
+            kell = builder._load_preferred_kell_charts(payloads, pool)
+        finally:
+            builder.load_charts = original
+        self.assertEqual(weekly["AAA"], [["bottom"]])
+        self.assertEqual(sources["AAA"], "bottom-fishing")
+        self.assertEqual(kell["AAA"], [["next"]])
+
+    def test_weekly_reuses_adjusted_fallback_without_refetching_it(self):
+        payloads = {"bottom-fishing": ("bottom", {}, {}), "next": ("next", {}, {})}
+        pool = {
+            "AAA": {"chartModes": ["bottom-fishing", "next"]},
+            "BBB": {"chartModes": ["next"]},
+        }
+        calls = []
+        original = builder.load_charts
+        def fake(root, _manifest, _core, tickers):
+            calls.append(root)
+            return {ticker: [[root]] for ticker in tickers}
+        builder.load_charts = fake
+        try:
+            charts, sources = builder._load_preferred_weekly_charts(
+                payloads, pool, {"AAA": [["next"]], "BBB": [["next"]]},
+                {"AAA": "next", "BBB": "next"},
+            )
+        finally:
+            builder.load_charts = original
+        self.assertEqual(["bottom"], calls)
+        self.assertEqual(charts["AAA"], [["bottom"]])
+        self.assertEqual(charts["BBB"], [["next"]])
+        self.assertEqual(sources, {"AAA": "bottom-fishing", "BBB": "next"})
+
+    def test_bottom_crash_membership_is_read_from_its_own_row(self):
+        pool = {
+            "raw": {"setupNames": ["ema_stack_launch"]},
+            "bottomRaw": {
+                "setupNames": ["crash_base_stage1"], "baseAgeWeeks": 110,
+                "drawdown5yPct": 81,
+            },
+        }
+        evidence = builder._bottom_weekly_evidence(pool)
+        self.assertTrue(evidence["crashBaseTriggered"])
+        self.assertEqual(110, evidence["crashBaseAgeWeeks"])
+
+    def test_weekly_benchmark_keeps_full_history_without_changing_kell_default(self):
+        rows = [[f"2026-01-{day:02d}", 100, 101, 99, 100, 1000, 20]
+                for day in range(1, 32)]
+        charts = {"AAA": rows}
+        self.assertEqual(31, len(builder._embedded_spy_benchmark(charts, lookback=1265)))
+        self.assertEqual(10, len(builder._embedded_spy_benchmark(charts, lookback=10)))
+        charts["ZZZ"] = [*rows, ["2026-02-01", 100, 101, 99, 100, 1000, 20]]
+        self.assertEqual(32, len(builder._embedded_spy_benchmark(charts, lookback=1265)))
+        self.assertEqual(31, len(builder._embedded_spy_benchmark(charts)))
+
     def test_embedded_spy_benchmark_is_independent_of_chart_insertion_order(self):
         aaa = [
             ["2026-09-18", 100, 102, 99, 100, 1_000_000, 20.0],

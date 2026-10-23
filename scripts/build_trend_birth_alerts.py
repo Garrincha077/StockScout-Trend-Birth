@@ -118,7 +118,7 @@ def build_v2_alerts(current: dict, previous: dict | None, dashboard_url: str) ->
                 birth = item.get("weeklyBirth") or {}
                 metrics = birth.get("metrics") or {}
                 runway = metrics.get("runwayPct")
-                runway_text = "blue sky" if runway is None else f"{runway:.0f}% runway"
+                runway_text = ("blue sky" if metrics.get("blueSkyConfirmed") is True else "runway unverified") if runway is None else f"{runway:.0f}% runway"
                 lines.append(
                     f"{item['ticker']} · {birth.get('stageLabel', 'Review')} · "
                     f"{metrics.get('baseWeeks', '—')}W base · {metrics.get('weeklyMaClusterPct', '—')}% MA · {runway_text}"

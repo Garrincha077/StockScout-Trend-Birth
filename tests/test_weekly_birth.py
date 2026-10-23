@@ -1,10 +1,12 @@
 import unittest
 from datetime import date, timedelta
 
-from scripts.weekly_birth import completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist
+from scripts.weekly_birth import (_crash_base, completed_weekly_bars, evaluate_weekly_birth,
+                                  weekly_confirmed_tier, weekly_discovery_watch,
+                                  weekly_research_watch, weekly_shortlist)
 
 
-def base_rows(count=180, *, breakout=False, older_resistance=None):
+def base_rows(count=180, *, breakout=False, older_resistance=None, breakout_volume=2_400_000):
     first_friday = date(2023, 1, 6)
     rows = []
     for index in range(count):
@@ -15,45 +17,160 @@ def base_rows(count=180, *, breakout=False, older_resistance=None):
         rows.append({
             "time": (first_friday + timedelta(weeks=index)).isoformat(),
             "open": 100, "high": max(close, high), "low": 98,
-            "close": close, "volume": 1_000_000,
+            "close": close, "volume": breakout_volume if breakout and index == count - 1 else 1_000_000,
         })
     return rows
 
 
+def benchmark_rows(rows):
+    length = len(rows)
+    return [{"time": row["time"], "close": 100 if index < length - 8 else 100 - (index - (length - 8)) * 0.4}
+            for index, row in enumerate(rows)]
+
+
+def evaluate(rows):
+    return evaluate_weekly_birth(rows, benchmark_rows(rows))
+
+
 class WeeklyBirthTests(unittest.TestCase):
     def test_long_base_is_ready_before_breakout(self):
-        result = evaluate_weekly_birth(base_rows())
+        result = evaluate(base_rows())
         self.assertEqual(3, result["stage"])
         self.assertTrue(result["eligible"])
         self.assertGreaterEqual(result["metrics"]["baseWeeks"], 52)
         self.assertLessEqual(result["metrics"]["weeklyMaClusterPct"], 6)
 
     def test_first_breakout_is_trigger(self):
-        result = evaluate_weekly_birth(base_rows(breakout=True))
+        result = evaluate(base_rows(breakout=True))
         self.assertEqual(4, result["stage"])
         self.assertEqual(0, result["metrics"]["weeksSinceBreakout"])
+        self.assertGreaterEqual(result["metrics"]["breakoutVolumeRatio4w"], 2)
+        self.assertGreater(result["metrics"]["mansfieldRsChangePct4w"], 0)
+
+    def test_weak_volume_cannot_claim_confirmed_trigger(self):
+        result = evaluate(base_rows(breakout=True, breakout_volume=1_100_000))
+        self.assertNotEqual(4, result["stage"])
+        self.assertFalse(result["checks"]["breakoutVolumeConfirmed"])
+        self.assertFalse(result["eligible"])
+        self.assertIn("earlyBreakoutOrPrebreakout", result["rejectReasons"])
+
+    def test_missing_rs_does_not_become_positive_evidence(self):
+        result = evaluate_weekly_birth(base_rows())
+        self.assertFalse(result["eligible"])
+        self.assertIsNone(result["metrics"]["mansfieldRsPct"])
+
+    def test_declining_relative_strength_is_not_selected(self):
+        rows = base_rows()
+        benchmark = [{"time": row["time"], "close": 100 + max(0, index - 172) * 0.4}
+                     for index, row in enumerate(rows)]
+        result = evaluate_weekly_birth(rows, benchmark)
+        self.assertFalse(result["eligible"])
+        self.assertFalse(result["checks"]["mansfieldRsImproving"])
 
     def test_dense_long_base_can_be_watched_before_sma30_turn(self):
         rows = base_rows()
         for row in rows[-6:]:
             row["close"] = 99
-        result = evaluate_weekly_birth(rows)
+        result = evaluate(rows)
         self.assertEqual("Long Base", result["stageLabel"])
         self.assertTrue(result["checks"]["stage1Watch"])
         self.assertTrue(result["eligible"])
 
-    def test_nearby_prior_resistance_excludes_shortlist(self):
-        result = evaluate_weekly_birth(base_rows(older_resistance=108))
+    def test_next_resistance_zone_excludes_shortlist(self):
+        result = evaluate(base_rows(older_resistance=112))
         self.assertFalse(result["checks"]["clearRunway"])
         self.assertFalse(result["eligible"])
         self.assertIn("clearRunway", result["rejectReasons"])
+
+    def test_old_peak_at_start_of_history_still_counts_as_overhead(self):
+        rows = base_rows()
+        rows[0]["high"] = 112
+        result = evaluate(rows)
+        self.assertFalse(result["checks"]["clearRunway"])
+        self.assertEqual(112, result["metrics"]["resistancePrice"])
+
+    def test_nearby_high_is_part_of_pivot_zone(self):
+        result = evaluate(base_rows(older_resistance=108))
+        self.assertTrue(result["checks"]["clearRunway"])
+        self.assertTrue(result["eligible"])
+        self.assertIsNone(result["metrics"]["resistancePrice"])
+
+    def test_crash_watch_can_measure_runway_from_price_below_pivot(self):
+        rows = base_rows(older_resistance=112)
+        for row in rows[-5:]:
+            row.update(open=95, high=102, low=94, close=95)
+        benchmark = benchmark_rows(rows)
+        without_bottom = evaluate_weekly_birth(rows, benchmark)
+        with_bottom = evaluate_weekly_birth(
+            rows, benchmark,
+            bottom_evidence={"crashBaseTriggered": True, "crashBaseAgeWeeks": 90,
+                             "crashBaseDrawdown5yPct": 70},
+        )
+        self.assertFalse(without_bottom["checks"]["clearRunway"])
+        self.assertTrue(with_bottom["checks"]["clearRunway"])
+        self.assertEqual("price-before-pivot", with_bottom["metrics"]["runwayBasis"])
+        self.assertLess(with_bottom["metrics"]["runwayPct"], 12)
+        self.assertGreaterEqual(with_bottom["metrics"]["runwayFromPricePct"], 12)
+
+    def test_crash_evidence_requires_measured_weekly_repair(self):
+        evidence = {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 72}
+        result = evaluate_weekly_birth(base_rows(), benchmark_rows(base_rows()), bottom_evidence=evidence, chart_source="bottom-fishing")
+        self.assertTrue(result["eligible"])
+        self.assertEqual("bottom-fishing", result["chartSource"])
+        self.assertTrue(result["metrics"]["bottomCrashBaseTriggered"])
+        rows = base_rows()
+        for row in rows[-20:]:
+            row.update(open=140, high=142, low=138, close=140)
+        late = evaluate_weekly_birth(rows, benchmark_rows(rows), bottom_evidence=evidence, chart_source="bottom-fishing")
+        self.assertFalse(late["eligible"])
+
+    def test_crash_age_and_drawdown_do_not_replace_current_shelf(self):
+        weeks = completed_weekly_bars(base_rows())
+        self.assertIsNone(_crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 51, "crashBaseDrawdown5yPct": 70}))
+        self.assertIsNone(_crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 34}))
+        self.assertEqual(90, _crash_base(weeks, {"crashBaseTriggered": True, "crashBaseAgeWeeks": 90, "crashBaseDrawdown5yPct": 70})[0])
+
+    def test_late_rebase_does_not_pass_as_first_ma_turn(self):
+        rows = base_rows()
+        for index, row in enumerate(rows):
+            close = 100 + min(max(index - 130, 0), 40) * 0.4 + (1.5 if index % 2 else -1.5)
+            row.update(open=close, high=120, low=95, close=close)
+        result = evaluate_weekly_birth(
+            rows, benchmark_rows(rows),
+            bottom_evidence={"crashBaseTriggered": True, "crashBaseAgeWeeks": 130,
+                             "crashBaseDrawdown5yPct": 80},
+        )
+        self.assertFalse(result["eligible"])
+        self.assertFalse(result["checks"]["maPrior13wFlat"])
+        self.assertGreater(result["metrics"]["maPriorSlope30wPct13w"], 4)
+
+    def test_quiet_new_shelf_after_prior_advance_is_not_first_base(self):
+        rows = base_rows(260)
+        for index, row in enumerate(rows):
+            close = 100 if index < 160 else 100 + (index - 160) * 0.5 if index < 212 else 126
+            row.update(open=close, high=close + 2, low=close - 2, close=close)
+        result = evaluate(rows)
+        self.assertTrue(result["checks"]["weeklyMaCompressed"])
+        self.assertTrue(result["checks"]["maPrior13wFlat"])
+        self.assertGreater(result["metrics"]["maPreBaseSlope30wPct26w"], 8)
+        self.assertFalse(result["checks"]["priorBaseTrendQuiet"])
+        self.assertFalse(result["eligible"])
+        self.assertIn("priorBaseTrendQuiet", result["rejectReasons"])
+
+    def test_old_pivot_far_above_price_is_not_blue_sky(self):
+        rows = base_rows()
+        for row in rows[-6:]:
+            row.update(open=80, high=82, low=78, close=80)
+        result = evaluate(rows)
+        self.assertFalse(result["metrics"]["blueSkyConfirmed"])
+        self.assertFalse(result["checks"]["clearRunway"])
 
     def test_unfinished_week_does_not_create_trigger(self):
         rows = base_rows()
         monday = date.fromisoformat(rows[-1]["time"]) + timedelta(days=3)
         rows.append({**rows[-1], "time": monday.isoformat(), "close": 110, "high": 110})
         self.assertEqual(180, len(completed_weekly_bars(rows)))
-        self.assertEqual(3, evaluate_weekly_birth(rows)["stage"])
+        self.assertEqual(3, evaluate(rows)["stage"])
 
     def test_history_and_shortlist_limit(self):
         self.assertEqual(0, evaluate_weekly_birth(base_rows(80))["stage"])
@@ -61,14 +178,111 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertEqual(15, len(weekly_shortlist(items)))
         self.assertEqual("T00", weekly_shortlist(items)[0]["ticker"])
 
+    def test_bottom_crash_wins_tie_with_next_only(self):
+        items = [
+            {"ticker": "NEXT", "weeklyBirth": {"eligible": True, "stage": 2, "score": 90, "chartSource": "next", "metrics": {}}},
+            {"ticker": "CRASH", "weeklyBirth": {"eligible": True, "stage": 2, "score": 75, "chartSource": "bottom-fishing", "metrics": {"bottomCrashBaseTriggered": True}}},
+        ]
+        self.assertEqual("CRASH", weekly_shortlist(items)[0]["ticker"])
+
+    def test_research_watch_keeps_early_crash_near_misses_separate(self):
+        def watch_item(ticker, **changes):
+            metrics = {
+                "bottomCrashBaseTriggered": True, "baseWeeks": 89, "weeklyMaClusterPct": 5,
+                "recentBaseRangePct12w": 15, "maPriorSlope30wPct13w": 0,
+                "maPreBaseSlope30wPct26w": -20, "mansfieldRsPct": -3,
+                "mansfieldRsChangePct4w": -1, "pivotDistancePct": -9,
+                "runwayPct": 18, "extensionPct": 0, "maSlope30wPct4w": 0,
+                "launchAdvancePct8w": 0,
+            }
+            metrics.update(changes)
+            return {"ticker": ticker, "weeklyBirth": {"eligible": False,
+                    "chartSource": "bottom-fishing", "metrics": metrics}}
+        quiet = watch_item("QUIET", recentBaseRangePct12w=8)
+        volatile = watch_item("VOLATILE", recentBaseRangePct12w=27)
+        mature = watch_item("MATURE", maPreBaseSlope30wPct26w=25)
+        weak = watch_item("WEAK", mansfieldRsPct=-12)
+        selected = watch_item("SELECTED")
+        selected["weeklyBirth"]["eligible"] = True
+        research = weekly_research_watch([volatile, weak, selected, mature, quiet])
+        self.assertEqual(["QUIET", "VOLATILE"], [item["ticker"] for item in research])
+        self.assertEqual(["QUIET"], [item["ticker"] for item in weekly_research_watch(research, limit=1)])
+
+    def test_research_tiers_include_non_crash_bottom_but_not_next_only(self):
+        metrics = {
+            "bottomCrashBaseTriggered": False, "baseWeeks": 70,
+            "weeklyMaClusterPct": 5, "recentBaseRangePct12w": 12,
+            "maPriorSlope30wPct13w": 1, "maPreBaseSlope30wPct26w": -10,
+            "mansfieldRsPct": 1, "mansfieldRsChangePct4w": 1,
+            "pivotDistancePct": -4, "blueSkyConfirmed": True,
+            "extensionPct": 2, "maSlope30wPct4w": 0.2,
+            "launchAdvancePct8w": 3,
+        }
+
+        def row(ticker, sources, **changes):
+            return {
+                "ticker": ticker, "unifiedSources": sources,
+                "weeklyBirth": {"eligible": False, "chartSource": "next",
+                                "metrics": {**metrics, **changes}},
+            }
+
+        noncrash = row("NONCRASH", ["bottom-fishing", "next"])
+        next_only = row("NEXT", ["next"])
+        discovery = row("DISCOVERY", ["bottom-fishing"], mansfieldRsPct=-7)
+        selected = row("SELECTED", ["bottom-fishing"])
+        selected["weeklyBirth"]["eligible"] = True
+        items = [noncrash, next_only, discovery, selected]
+        self.assertEqual(["NONCRASH"], [item["ticker"] for item in weekly_research_watch(items)])
+        self.assertEqual(["DISCOVERY"], [item["ticker"] for item in weekly_discovery_watch(items)])
+        self.assertEqual([], weekly_research_watch([row("MISSING", ["bottom-fishing"], mansfieldRsPct=None)]))
+
+    def test_confirmed_tier_does_not_change_eligibility(self):
+        evidence = {"eligible": True,
+                    "checks": {"mansfieldRsImproving": True, "maSlopeTurn": True,
+                               "launchNotChased": True, "notExtended": True},
+                    "metrics": {"baseWeeks": 70, "weeklyMaClusterPct": 4,
+                                "recentBaseRangePct12w": 10, "runwayPct": 24,
+                                "pivotDistancePct": -2, "extensionPct": 2}}
+        item = {"ticker": "STRONG", "weeklyBirth": evidence}
+        self.assertEqual("A", weekly_confirmed_tier(item))
+        evidence["metrics"]["runwayPct"] = 15
+        self.assertEqual("B", weekly_confirmed_tier(item))
+        self.assertTrue(evidence["eligible"])
+
+    def test_d_is_a_broader_bottom_research_pool_capped_at_25(self):
+        metrics = {
+            "baseWeeks": 39, "weeklyMaClusterPct": 9,
+            "recentBaseRangePct12w": 34, "maPriorSlope30wPct13w": 7,
+            "maPreBaseSlope30wPct26w": 14, "mansfieldRsPct": -9,
+            "mansfieldRsChangePct4w": -4, "pivotDistancePct": -24,
+            "runwayPct": 8, "extensionPct": 11,
+            "maSlope30wPct4w": -1.4, "launchAdvancePct8w": 14,
+        }
+
+        def row(ticker, **changes):
+            return {"ticker": ticker, "unifiedSources": ["bottom-fishing"],
+                    "weeklyBirth": {"eligible": False, "metrics": {**metrics, **changes}}}
+
+        candidates = [row(f"D{index:02d}") for index in range(30)]
+        self.assertEqual([], weekly_research_watch(candidates))
+        self.assertEqual(25, len(weekly_discovery_watch(candidates)))
+        self.assertEqual("D00", weekly_discovery_watch(candidates)[0]["ticker"])
+        self.assertEqual([], weekly_discovery_watch([row("NO_ROOM", runwayPct=7)]))
+        ordered = weekly_discovery_watch([
+            row("TIGHT", recentBaseRangePct12w=2),
+            row("RS_UP", mansfieldRsChangePct4w=1),
+            row("CRASH", bottomCrashBaseTriggered=True),
+        ])
+        self.assertEqual(["CRASH", "RS_UP", "TIGHT"], [item["ticker"] for item in ordered])
+
     def test_steady_mature_uptrend_is_not_a_long_base(self):
         rows = base_rows()
         for index, row in enumerate(rows):
             close = 75 + index * 0.15
             row.update(open=close - 0.5, high=close + 1, low=close - 1, close=close)
-        result = evaluate_weekly_birth(rows)
+        result = evaluate(rows)
         self.assertFalse(result["eligible"])
-        self.assertIn("no_recent_52_to_104_week_base", result["rejectReasons"])
+        self.assertIn("no_recent_39_to_130_week_base", result["rejectReasons"])
 
 
 if __name__ == "__main__":
