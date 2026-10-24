@@ -121,7 +121,9 @@ jobs:
       - name: Browser model tests
         run: node --test tests/*.test.cjs
       - name: GridView JavaScript syntax
-        run: node --check lab/app.js
+        run: |
+          node --check lab/app.js
+          node --check lab/trend-birth-stats.js
       - name: Sync owner watchlist into Trend Birth tracked input
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/unified-review-grid-lab'
         run: python scripts/sync_owner_watchlist.py --output lab/data/tracked-watchlist.json
@@ -141,7 +143,8 @@ jobs:
             --latest lab/data/latest.json \
             --history-dir lab/data/history \
             --month-dir lab/data/trend-birth-ticker-history \
-            --summary lab/data/trend-birth-intelligence.json
+            --summary lab/data/trend-birth-intelligence.json \
+            --internals lab/data/trend-birth-market-internals.json
       - name: Build compact Kell preview dataset
         run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Build no-send Trend Birth alert payload
@@ -243,6 +246,7 @@ jobs:
           cp lab/data/kell-gold-set-eval.json /tmp/kell-gold-set-eval.json
           cp lab/data/trend-birth-alerts.json /tmp/trend-birth-alerts.json
           cp lab/data/trend-birth-intelligence.json /tmp/trend-birth-intelligence.json
+          cp lab/data/trend-birth-market-internals.json /tmp/trend-birth-market-internals.json
           rm -rf /tmp/trend-birth-ticker-history
           cp -R lab/data/trend-birth-ticker-history /tmp/trend-birth-ticker-history
           cp lab/kell-calibration.html /tmp/kell-calibration.html
@@ -279,6 +283,7 @@ jobs:
           cp /tmp/kell-gold-set-eval.json lab/data/kell-gold-set-eval.json
           cp /tmp/trend-birth-alerts.json lab/data/trend-birth-alerts.json
           cp /tmp/trend-birth-intelligence.json lab/data/trend-birth-intelligence.json
+          cp /tmp/trend-birth-market-internals.json lab/data/trend-birth-market-internals.json
           mkdir -p lab/data/trend-birth-ticker-history
           cp -R /tmp/trend-birth-ticker-history/. lab/data/trend-birth-ticker-history/
           cp /tmp/kell-calibration.html lab/kell-calibration.html
@@ -310,7 +315,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0

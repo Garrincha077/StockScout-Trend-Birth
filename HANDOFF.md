@@ -2,6 +2,20 @@
 
 > **Ažurirano / provjereno:** 24. 10. 2026. (Europe/Zagreb). Ovo je **trenutačni operativni status**, a `docs/PROJECT_LOG.md` je kronološka evidencija promjena. Statuse u nastavku ponovno provjeriti pri idućem radu.
 
+## NOVO: Market Internals — zaseban tab Statistika (rad 24. 10. 2026.)
+
+**Status u ovom prijedlogu:** implementacija i testovi pripremljeni na topic grani `feature/tb-market-internals-20261024`; **produkciju ne proglašavati READY dok PR CI i stvarni Vercel deploy ne prođu**. Polazni commit aktivne grane nakon EOD autopublikacije bio je `3db166a1301d7ba6186f71874cc54769bfe2d825` (GitHub provjeren 24. 10. 2026.).
+
+- Odvojeni `lab/statistics.html`, `lab/trend-birth-stats.js`, `lab/trend-birth-stats.css` i vidljivi tab na postojećem `lab/index.html`. Postojeće kartice kandidata, graf 0/4–4/4 i Telegram format nisu dirani.
+- Mali `lab/data/trend-birth-market-internals.json` inicijalno iz **20 stvarnih EOD** točaka 24.9.–23.10.2026., veličine približno **11 KB**. Zadnja sjednica **23.10.2026.**: 2.614 evaluiranih, 3+/4=163 (6,2357%), setup pressure=8,3206/100; zadnji EOD 61 ulaz u 3+/4, 38 izlaza, neto +23 na 2.602 zajednička evaluirana tickera; pokrivenost 99,0861%. Sve vrijednosti dobivene iz kumulativnih mjesečnih arhiva, ne iz procjena.
+- `scripts/trend_birth_intelligence.py` sada generira market internals u istom postojećem nightly EOD procesu; dodatni CLI arg `--internals` (opcionalan radi kompatibilnosti), workflow sprema/publikira novi mali JSON istom atomskom logikom.
+- D/W/M i rasponi 1M/3M/1Y/5Y/All, zoom 25/50/75/100; povijesni percentil *samo naspram ranijih istovrsnih dnevnih očitanja*, velocity i acceleration odabrani prozor 3/5/10/20 EOD; 5×5 parna matrica prijelaza, net flow i zaštita pokrivenosti.
+- **Metodologija / faze 2 i 3:** `docs/MARKET_INTERNALS_ROADMAP.md`. Povijest mora ostati trajna, append-only, nikada samo zadnjih 20. Jedinice, točne definicije, ograničenja kratke povijesti i budući cohort survival te forward testovi su ondje.
+- **Testovi:** `tests/test_trend_birth_market_internals.py` i `tests/trend-birth-market-internals.test.cjs`; CI puni unittest discover i node --test. Prije remote commita odrađena Python sintaksa/sintetički test i JS provjera izvornog stvarnog 20-EOD sažetka; GitHub CI i produkcijski UI trebaju zasebnu provjeru.
+- **Sljedeće:** dovršiti topic PR, pratiti puni CI, spojiti u `feature/unified-review-grid-lab` samo ako je zelen, provjeriti Vercel stranicu `/statistics.html` i sljedeći EOD refresh bez novih jobova; zatim faza 2 cohort survival i provjera prediktivnosti tek nakon više povijesti.
+
+---
+
 ## Trenutačni dodatak — EOD Telegram grupiranje i trajnost setupa (24. 10. 2026.)
 
 **Produkcijski verificirano 24. 10. 2026. (Europe/Zagreb):** PR [#52](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/52) merged u aktivnu granu kao `e1c83658d62a0bc78b7c71f3fe65ff2c3bd29d8f`. GitHub CI run `40123181558` prošao je svih 8 JS i Python provjera te puni read-only snapshot/build/objavu (**success**). Vercel produkcija `dpl_3pgnTFURvWN29TVpiSyVwA9hoHSo` je **READY**. Stvarna stranica prikazuje stabilnost 69/21, ispadanja 38/39, nazivnike 2494/3576 i 1177/2069 te osobne nizove (npr. TRGP 3+/4=12 EOD, 4/4=1 EOD). Telegram format vrijedi **za idući novi EOD generirani payload**, dok arhivirani 23.10. JSON još ima 65 starih poruka; zakazana dostava novog formata u Telegram još nije potvrđena.

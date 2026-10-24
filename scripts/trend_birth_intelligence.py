@@ -304,6 +304,87 @@ def build_summary(current: dict, points: list[dict]) -> dict:
     }
 
 
+
+INTERNALS_SCHEMA = "trend-birth-market-internals-v1"
+
+
+def build_market_internals(points: list[dict]) -> dict:
+    """All retained EOD sessions; stage movement only for paired evaluated tickers.
+
+    This is an append-only derived view (no sampling/rolling truncation).
+    Missing/unavailable tickers never become stage 0. All rates are descriptive.
+    """
+    if not points:
+        raise ValueError("Cannot derive market internals without EOD sessions")
+    records: list[dict] = []
+    previous: dict | None = None
+    for point in points:
+        counts = _point_counts(point)
+        date = _day(point["sessionDate"])
+        if previous is not None and date <= previous["sessionDate"]:
+            raise ValueError("Market-internals input must be ordered, unique EOD sessions")
+        total = point["evaluatedCount"]
+        if total <= 0:
+            raise ValueError("Market internals requires a nonempty evaluated universe")
+        quality = counts["3"] + counts["4"]
+        pressure = sum(i * counts[str(i)] for i in range(5))
+        current_stages = point["stages"]
+        prior_stages = previous["stages"] if previous is not None else None
+        matrix = None
+        matched = new_coverage = lost_coverage = overlap = None
+        q_in = q_out = four_in = four_out = matched_delta = None
+        if prior_stages is not None:
+            common = prior_stages.keys() & current_stages.keys()
+            matched = len(common)
+            new_coverage = len(current_stages.keys() - prior_stages.keys())
+            lost_coverage = len(prior_stages.keys() - current_stages.keys())
+            union = matched + new_coverage + lost_coverage
+            overlap = round(100 * matched / union, 4) if union else None
+            matrix = [[0] * 5 for _ in range(5)]
+            for ticker in common:
+                before = prior_stages[ticker][0]
+                after = current_stages[ticker][0]
+                matrix[before][after] += 1
+            if sum(map(sum, matrix)) != matched:
+                raise ValueError("Transition matrix does not reconcile with paired universe")
+            q_in = sum(matrix[i][j] for i in range(3) for j in (3, 4))
+            q_out = sum(matrix[i][j] for i in (3, 4) for j in range(3))
+            four_in = sum(matrix[i][4] for i in range(4))
+            four_out = sum(matrix[4][j] for j in range(4))
+            prior_q = sum(matrix[i][j] for i in (3, 4) for j in range(5))
+            current_q = sum(matrix[i][j] for i in range(5) for j in (3, 4))
+            matched_delta = round(100 * (current_q - prior_q) / matched, 4) if matched else None
+        records.append({
+            "sessionDate": date,
+            "runId": point["runId"],
+            "counts": counts,
+            "evaluatedCount": total,
+            "unavailableCount": point["unavailableCount"],
+            "qualityBreadthPct": round(100 * quality / total, 4),
+            "fourBreadthPct": round(100 * counts["4"] / total, 4),
+            "pressurePct": round(100 * pressure / (4 * total), 4),
+            "previousSessionDate": previous["sessionDate"] if previous is not None else None,
+            "matchedCount": matched,
+            "newCoverage": new_coverage,
+            "lostCoverage": lost_coverage,
+            "overlapPct": overlap,
+            "matchedQualityDeltaPp": matched_delta,
+            "transitions": matrix,
+            "qualityFlow": {"in": q_in, "out": q_out,
+                            "net": q_in - q_out if q_in is not None else None},
+            "fourFlow": {"in": four_in, "out": four_out,
+                         "net": four_in - four_out if four_in is not None else None},
+        })
+        previous = point
+    return {
+        "schemaVersion": INTERNALS_SCHEMA,
+        "scope": SCOPE,
+        "latestSessionDate": records[-1]["sessionDate"],
+        "latestRunId": records[-1]["runId"],
+        "points": records,
+    }
+
+
 def write_json(path: Path, data: dict) -> None:
     content = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
     if path.exists() and path.read_text(encoding="utf-8") == content:
@@ -312,7 +393,8 @@ def write_json(path: Path, data: dict) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def build(latest_path: Path, history_dir: Path, month_dir: Path, summary_path: Path) -> dict:
+def build(latest_path: Path, history_dir: Path, month_dir: Path, summary_path: Path,
+          internals_path: Path | None = None) -> dict:
     current = json.loads(latest_path.read_text(encoding="utf-8"))
     latest = point_from_snapshot(current)
     if latest is None:
@@ -340,6 +422,8 @@ def build(latest_path: Path, history_dir: Path, month_dir: Path, summary_path: P
     for month, payload in months.items():
         write_json(month_dir / (month + ".json"), payload)
     write_json(summary_path, summary)
+    if internals_path is not None:
+        write_json(internals_path, build_market_internals(points))
     return {"sessions": len(points), "months": len(months),
             "latest": latest["sessionDate"], "newFour": summary["newFour"],
             "netImprovement": summary["netImprovement"]}
@@ -351,8 +435,10 @@ def main() -> None:
     parser.add_argument("--history-dir", type=Path, required=True)
     parser.add_argument("--month-dir", type=Path, required=True)
     parser.add_argument("--summary", type=Path, required=True)
+    parser.add_argument("--internals", type=Path)
     args = parser.parse_args()
-    print(json.dumps(build(args.latest, args.history_dir, args.month_dir, args.summary)))
+    print(json.dumps(build(args.latest, args.history_dir, args.month_dir, args.summary,
+                           args.internals)))
 
 
 if __name__ == "__main__":

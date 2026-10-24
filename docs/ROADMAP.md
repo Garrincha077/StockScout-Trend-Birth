@@ -1,5 +1,7 @@
 # StockScout Trend Birth Roadmap
 
+> **Market Internals / Statistika (24. 10. 2026.):** zaseban implementacijski plan, metodologija i sljedeće faze su u [MARKET_INTERNALS_ROADMAP.md](MARKET_INTERNALS_ROADMAP.md). Postojeći LEGACY/ranking i noćna frekvencija skeniranja ostaju nepromijenjeni.
+
 Status: design roadmap / greenfield-capable
 
 Date: 2026-08-26
