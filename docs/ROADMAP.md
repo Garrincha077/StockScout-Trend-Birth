@@ -2,6 +2,8 @@
 
 > **Market Internals / Statistika (24. 10. 2026.):** zaseban implementacijski plan, metodologija i sljedeće faze su u [MARKET_INTERNALS_ROADMAP.md](MARKET_INTERNALS_ROADMAP.md). Postojeći LEGACY/ranking i noćna frekvencija skeniranja ostaju nepromijenjeni.
 
+> **Stage-forward ishodi (25. 10. 2026.):** prva live implementacija čuva svaki point-in-time prijelaz faze i stvarne buduće prinose za 5/20/60 burzovnih sesija u inkrementalnim mjesečnim arhivama. Tab `Statistika` izlaže dospjele/pending/missing ishode i pokrivenost. Sljedeći milestone: 20/60D dovoljan uzorak, provjera korporativnih akcija i delistinga, kontrola SPY/benchmark i vremenski odvojen holdout; kalibracija Compositea tek nakon neovisne provjere.
+
 Status: design roadmap / greenfield-capable
 
 Date: 2026-08-26

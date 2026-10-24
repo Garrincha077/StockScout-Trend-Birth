@@ -290,6 +290,54 @@
       'loši režimi ostaju prikazani ('+(stale?'Composite još nije osvježen za zadnje EOD podatke.':'zadnji EOD je osvježen.')+')';
   }
 
+  function validateForward(value) {
+    if (!value || value.schemaVersion !== 'trend-birth-stage-forward-v1' ||
+        value.scope !== SCOPE || !/^\d{4}-\d{2}-\d{2}$/.test(value.asOf) ||
+        !Array.isArray(value.horizons) || value.horizons.join(',') !== '5,20,60' ||
+        !value.byHorizon || !Number.isInteger(value.stageTransitions))
+      throw Error('Neispravno arhivirani stvarni ishodi setupa');
+    for (const h of value.horizons) for (let stage=0;stage<=4;stage++) {
+      const item=value.byHorizon[String(h)]?.[String(stage)];
+      if (!item || !Number.isInteger(item.n) || !Number.isInteger(item.expectedMatured) ||
+          !Number.isInteger(item.missingMatured) || !Number.isInteger(item.pending) ||
+          item.n+item.missingMatured!==item.expectedMatured ||
+          (item.n && !Number.isFinite(item.meanPct))) throw Error('Neusklađen uzorak ishoda');
+    }
+    return value;
+  }
+  function renderForward(raw, eodDate) {
+    const data=validateForward(raw);
+    const status=el('siForwardStatus');
+    const stale=data.asOf!==eodDate;
+    status.textContent=(stale?'UPOZORENJE: mjerenje nije osvježeno za današnji EOD · ':'')+
+      'Stvarna point-in-time povijest · '+data.asOf+
+      ' · '+FMT.format(data.stageTransitions)+' potvrđenih prijelaza, '+FMT.format(data.archivedEventDays)+' datuma.';
+    el('siForwardSummary').textContent='Uzorci dospijevaju nakon 1 + 5/20/60 burzovnih sesija. '+
+      'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
+    const table=el('siForwardTable');
+    table.replaceChildren();
+    const thead=document.createElement('thead'), tr=document.createElement('tr');
+    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Prosjek','Medijan','% pozitivnih','P10 / P90']) {
+      const th=document.createElement('th'); th.textContent=label; tr.appendChild(th);
+    }
+    thead.appendChild(tr); table.appendChild(thead);
+    const tbody=document.createElement('tbody');
+    for (let stage=0;stage<=4;stage++) for (const horizon of data.horizons) {
+      const row=data.byHorizon[String(horizon)][String(stage)], r=document.createElement('tr');
+      const cells=[stage+'/4',horizon+'D',FMT.format(row.n)+' / '+FMT.format(row.expectedMatured),
+        FMT.format(row.pending),fmt(row.coveragePct,'%'),fmt(row.meanPct,'%'),
+        fmt(row.medianPct,'%'),fmt(row.winRatePct,'%'),
+        fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%')];
+      cells.forEach((value,i)=>{const cell=document.createElement(i===0?'th':'td');cell.textContent=value;
+        if (i===0) cell.style.color=COLORS[stage];
+        if (i===5 && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
+        r.appendChild(cell);
+      });
+      tbody.appendChild(r);
+    }
+    table.appendChild(tbody);
+  }
+
   async function start() {
     const status=el('siStatus');
     if (!status) return;
@@ -307,10 +355,17 @@
       } catch (error) {
         el('siCompositeStatus').textContent='Backtest nije dostupan: '+(error?.message||String(error));
       }
+      try {
+        const forwardResponse=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
+        if (!forwardResponse.ok) throw Error('HTTP '+forwardResponse.status);
+        renderForward(await forwardResponse.json(),data.latestSessionDate);
+      } catch (error) {
+        el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
+      }
     } catch(e) {
       status.textContent='Statistika nije dostupna: '+(e?.message||String(e))+' · Pokušaj osvježiti stranicu.';
       status.className='si-error';
     }
   }
-  return {validate, validateComposite, metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
+  return {validate, validateComposite, validateForward, metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });

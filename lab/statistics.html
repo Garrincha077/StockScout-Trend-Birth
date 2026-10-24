@@ -53,6 +53,15 @@
       <p id="siCompositeMethod" class="si-muted"></p>
       <aside class="si-note"><strong>Ogranicenje:</strong> test koristi <strong>14 unaprijed odabranih ETF-ova</strong> i rekonstrukciju na temelju prilagođenih dnevnih zatvaranja, a <strong>ne</strong> stvarne povijesne StockScout signale ni potpuni povijesni stock-univerzum. Godisnja optimizacija koristi samo prethodno zavrsene ishode. Score na danasnjoj listi prenosi te težine na znatno kraću stvarnu EOD arhivu. Rezultati nisu dokaz trgovačke prednosti ni preporuka za ulaz.</aside>
     </section>
+    <section class="si-panel" aria-labelledby="siForwardTitle">
+      <h2 id="siForwardTitle">Stvarni ishodi nakon ulaska u fazu · 5D / 20D / 60D</h2>
+      <p id="siForwardStatus" class="si-muted">Učitavam rezultate arhiviranih prelazaka u nove faze…</p>
+      <p id="siForwardSummary" class="si-muted"></p>
+      <div class="si-table-scroll"><table class="si-matrix si-forward-table" id="siForwardTable">
+        <caption class="sr-only">Povijesni stvarni prinosi dionica nakon prelaska u svaku Trend Birth fazu</caption>
+      </table></div>
+      <p class="si-muted">Svaki prijelaz u novu fazu računa se jednom, samo ako je ticker bio evaluiran i prethodnog EOD-a. Ulazak je po <strong>zatvaranju sljedeće burzovne sesije</strong>; izlaz nakon 5, 20 ili 60 cijelih sesija držanja. Nije signal za trgovanje. Prikaz uključuje samo dospjele ishode, a zasebno prati nedospjele i nedostajuće cijene. Prinos je <strong>cjenovni</strong>, bez dividendi i troškova. Ponavljani prijelazi istog tickera nisu neovisni pokusi.</p>
+    </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
       <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
       <div class="si-controls">
@@ -94,6 +103,6 @@
     </section>
     <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
   </main>
-  <script src="trend-birth-stats.js?v=composite-20261024" defer></script>
+  <script src="trend-birth-stats.js?v=stage-forward-20261025" defer></script>
 </body>
 </html>

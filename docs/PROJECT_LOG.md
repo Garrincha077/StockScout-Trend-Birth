@@ -503,3 +503,16 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Tab `lab/statistics.html` prikazuje score 0–100, sve periode pozitivne/negativne validacije i metodoloske napomene. GitHub workflow lokalno osvjezava aktualni score bez dodatnog network backtesta ili crona.
 - Inkrementalni EOD graf `lab/data/trend-birth-market-internals.json` ostaje samo stvarni feed (D/W/M, 1M/3M/1Y/5Y/All), nikakve sinteticke sesije.
 - **Sljedece:** kvaliteta cijena/OHLC i dinamicni universe/delistings, neovisni kalibracijski i finalni holdout, provjera metodoloskog rizika te nakon 120+ stvarnih EOD sesija validirati score na punom StockScout univerzumu. Negativni rezimi ukljuceni su u izvjestaj.
+
+
+## 2026-10-25 — Stvarni ishodi ulaska u Trend Birth faze (5/20/60 EOD)
+
+- Implementacija: `scripts/trend_birth_stage_forward.py`, `tests/test_trend_birth_stage_forward.py`, kompaktne mjesečne arhive `lab/data/trend-birth-forward-history/YYYY-MM.json` te sažetak `lab/data/trend-birth-stage-forward.json`. Jedini ulaz su **već arhivirane** point-in-time ticker faze i `trendBirthCandidateIndex.chartBars` iz postojećeg `latest.json`, bez novih skenova, servisa ili rasporeda.
+- Event definicija: isti ticker mora biti valjano evaluiran u dvije uzastopne zabilježene EOD sesije te promijeniti fazu 0–4. Prvi zapis tickera nikad nije automatski ulazak. Jedan event po tickeru/prijelazu; isti ticker može imati više vremenski razdvojenih događaja, koji nisu statistički neovisni.
+- Cijene: signal poznat na EOD zatvaranju; **ulaz na idućem AAPL-burzovnom zatvaranju**, potom izlaz za 5, 20 ili 60 cijelih burzovnih sesija. Koristi close-to-close promjenu bez dividendi, slippagea i troškova; rezultat je promatranje, ne izvršen nalog. Nedospjeli eventi ostaju pending; dospjeli bez oba closea broje se u missing, nisu nule. Calendar/price freshness fail-closed.
+- Svaki dovršen outcome ostaje u malom mjesečnom shardu i kad 260D chart prozor kasnije istekne. Ranije arhivirane faze se ne prepisuju; konflikt događaja/runId za isti dan izaziva fail. Sažetak: za svaku fazu × horizont broj, prosjek, medijan, win-rate, P10/P90, očekivana/dobivena pokrivenost, pending i missing. Prikaz u `lab/statistics.html` zasebno od **ETF proxy Composite**.
+- CI workflow: postojeći dnevni job izvršava skriptu nakon arhiviranja faza, čuva i objavljuje mjesečne sharde + sićušan JSON; bez nove Action minute iz zasebnog joba i bez novih Vercel funkcija. Testovi: čista Python sintaksa+core, Node sintaksa, CI unittests.
+- **Važna ograničenja:** nedostupne/delistane dionice mogu imati missing outcome (coverage guard); cijene su iz Unified charts i mogu imati split-ali nisu nužno dividend-adjusted; višestruki prijelazi istog tickera i preklapanje 5/20/60 ishoda → nisu nezavisne oklade. `eligibleForCalibration` tek ako pojedina kombinacija faza/horizont ima >=250 dospjelih opažanja, >=20 različitih signalnih dana i >=99% pokrivenosti, ali **ni tada nije automatska promjena Composite težina** bez neovisnog holdouta.
+- **Dalje:** provjeriti da CI/GitHub publication i Vercel `statistics.html` u produkciji daju report nakon sljedećeg EOD; dodati benchmark-relative SPY (ako stabilan izvor), survivorship/delisting review, klasterirane intervale pouzdanosti i odvojeni kalibracijski vs budući holdout na većem uzorku.
+
+---
