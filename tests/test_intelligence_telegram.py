@@ -26,7 +26,8 @@ class IntelligenceTelegramTests(unittest.TestCase):
                                 "stageCounts": self.payload()["counts"],
                                 "evaluatedCount": 5, "unavailableCount": 0},
         }
-        result = alerts.build_alerts(current, None, "https://example.org/", intelligence=self.payload())
+        prior = {"kellCandidates": [{"ticker": "AAA", "trendBirth": {"available": True, "stage": 3}}]}
+        result = alerts.build_alerts(current, prior, "https://example.org/", intelligence=self.payload())
         messages = [item for item in result["messages"] if item["kind"] == "intelligence-eod"]
         self.assertEqual(len(messages), 1)
         self.assertIn("Nova 4/4: 1", messages[0]["text"])
@@ -36,8 +37,9 @@ class IntelligenceTelegramTests(unittest.TestCase):
     def test_misaligned_eod_is_rejected(self):
         current = {"source": {"sessionDate": "2026-10-22", "runId": "1234"},
                    "trendBirthRadar": {"stageCounts": self.payload()["counts"]}}
+        prior = {"kellCandidates": [{"ticker": "AAA", "trendBirth": {"available": True, "stage": 3}}]}
         with self.assertRaisesRegex(ValueError, "not aligned"):
-            alerts.build_alerts(current, None, "https://example.org/", intelligence=self.payload())
+            alerts.build_alerts(current, prior, "https://example.org/", intelligence=self.payload())
 
 
 if __name__ == "__main__":

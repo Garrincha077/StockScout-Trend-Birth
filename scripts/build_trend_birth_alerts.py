@@ -256,7 +256,7 @@ def build_alerts(
             lines.append(f"View dashboard: {dashboard_url}")
         messages.append({"kind": "invalidated", "text": "\n".join(lines)})
 
-    if intelligence is not None:
+    if intelligence is not None and prior_has_radar:
         source = intelligence.get("source") or {}
         current_source = current.get("source") or {}
         radar_counts = (current.get("trendBirthRadar") or {}).get("stageCounts") or {}
