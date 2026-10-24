@@ -4,6 +4,15 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Slim EOD diagnostic artifact and daily-history integrity guard
+
+- **Read-only archive audit:** Review `history/` 25 files / ~1.89 GiB, `snapshots/` 61 / ~4.85 GiB; Kell `kell-history/` 21 / ~0.38 GiB and `kell-snapshots/` 53 / ~0.82 GiB. Of those, 23/25 Review date archives share the exact Git blob with a snapshot and 21/21 Kell date archives do too. Git SHA deduplication already prevents redundant object storage; working-tree nominal sizes must not be confused with Git pack or GitHub Actions artifact sizes.
+- **Non-destructive preservation:** `snapshot-loader.js` addresses immutable run snapshots/date archives; `kell_gold_set.py` can re-score historical raw evidence. Raw archives remain untouched in Git, without history rewriting, file removal, new data service or new workflow.
+- **Vercel already optimized:** `lab/build-vercel.mjs` excludes archived `lab/data` from `dist`; deployed UI fetches public JSON via GitHub Raw rewrite. No redundant Vercel changes.
+- **Cost fix in existing daily job:** `Upload review lab artifact` previously uploaded all of `lab`; one verified completed run `40106259332` stored a compressed **2,919,486,005-byte** 7-day artifact. Keep the artifact name and today's snapshot/charts/scripts, but exclude 6 archive directories with supported `actions/upload-artifact` negative glob rules. This does **not** shrink previous artifacts or Git history; measure actual savings on the next completed job.
+- **Fail-closed EOD contract:** `scripts/trend_birth_quality_history.py` adds optional `--latest` to compare full verified stage counts, source run ID, scope and date of `latest.json` to the final retained compact daily point. Both existing publication-time invocations supply the flag. Missing radar, mismatched/stale latest, or inconsistencies fail before writing misleading history. Old radar-less dates remain absent; genuine historic points stay immutable.
+- **Regression plan:** Python tests for matching, missing radar, stale and conflicting latest; YAML parse checks for two guarded invocations and archive exclusions. CI confirmation required on the topic PR. Next verify artifact size and a 21st legitimate daily session, then perform *separate* recoverable backup/backtest design before requesting deletion approval.
+
 ## 2026-10-24 — Durable HANDOFF.md for cross-chat continuity
 
 - Verified GitHub PR #48 / production feature commit `777c5a2f503105efce527a1260cfe58ea3d92277` and both required CI jobs (`build`, `historical_calibration`) green on Actions run `40106259332`.

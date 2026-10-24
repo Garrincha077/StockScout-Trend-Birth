@@ -94,14 +94,31 @@ def merge_history(retained: dict | None, observed: dict) -> dict:
             "points": [by_day[day] for day in sorted(by_day)]}
 
 
+
+def verify_latest_point(payload: dict, latest_snapshot: dict) -> None:
+    """Fail closed if published EOD does not exactly match the newest retained session."""
+    latest = point_from_snapshot(latest_snapshot)
+    if latest is None or not latest["scope"] or not latest["runId"]:
+        raise ValueError("Latest EOD snapshot has no verifiable Trend Birth radar reading")
+    points = payload["points"]
+    if not points or points[-1] != latest:
+        raise ValueError(
+            "Latest EOD reading does not match the last retained history point: "
+            + latest["sessionDate"]
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--history-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--latest", type=Path, help="Verify the latest EOD against the retained history")
     args = parser.parse_args()
     observed = build_history(args.history_dir)
     retained = json.loads(args.output.read_text(encoding='utf-8')) if args.output.exists() else None
     payload = merge_history(retained, observed)
+    if args.latest is not None:
+        verify_latest_point(payload, json.loads(args.latest.read_text(encoding="utf-8")))
     data = (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if not args.output.exists() or args.output.read_bytes() != data:

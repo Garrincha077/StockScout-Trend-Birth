@@ -46,16 +46,21 @@
 - `scripts/trend_birth_quality_history.py` sad spaja novi EOD arhiv s prethodnim provjerenim JSON-om: stariji sažeci ostaju i ako se velike sirove datoteke jednog dana sigurno arhiviraju drugdje. Sukobljen zapis istog dana ili različit univerzum izaziva grešku radi zaštite točnosti.
 - Nema dodatnog W/M JSON-a, baze, cron posla ni nove Telegram poruke zbog grafova.
 - **Odvojeni problem skladištenja:** pri inventuri 24. 10. `lab/data/history/` imao je 25 velikih JSON-a (~1,89 GiB), a `lab/data/snapshots/` 61 (~4,85 GiB); približno **6,7 GiB nominalne nekomprimirane veličine**, ne isto što i stvarna Git pack veličina. Pojedine datoteke blizu su GitHubova limita od 100 MB.
-- Neki sirovi snapshoti služe point-in-time backtestu/Gold Set istraživanju. **Ništa ne brisati** dok se ne napravi inventura potrošača, testovi i backtest, provjerena povratna kopija te korisnik ne odobri opseg. Brisanje sa zadnje Git grane samo po sebi ne uklanja stare blobove iz Git povijesti.
+- **Audit 24. 10.:** `history/` 25 datoteka (~1,89 GiB), `snapshots/` 61 (~4,85 GiB), `kell-history/` 21 (~0,38 GiB), `kell-snapshots/` 53 (~0,82 GiB). Među njima 23/25 Review `history` blobova točno su duplicirani u `snapshots`, a svih 21 Kell `kell-history` blobova u `kell-snapshots`. Git već deduplicira iste SHA blobove; zbroj veličina putanja **nije** stvarna veličina packa.
+- **Vercel je već lagan:** `lab/build-vercel.mjs` gradi `dist` bez velikih `lab/data` datoteka; `vercel.json` ih čita putem GitHub Raw rewrites. Nema potrebe za novim Vercel skladištem ni dodatnim buildom.
+- **Actions artefakt je bio usko grlo:** uspješni run `40106259332` učitao je `trend-birth-review-grid-lab` artefakt od **2.919.486.005 B** (~2,72 GiB, sa zadanih 7 dana čuvanja). Workflow sada iz tog *privremenog dijagnostičkog artefakta* izuzima stare `history/`, `snapshots/`, `kell-history/`, `kell-snapshots/`, `kell-chart-runs/` i `kell-chart-snapshots/`; **svi izvori ostaju u Git repozitoriju**. Artefakt zadržava isti naziv, trenutačni `latest.json`, `kell-latest.json`, aktualne chart sharde i skripte. Izmjeriti stvarnu manju veličinu nakon sljedećeg uspješnog EOD runa; stari artefakt ne nestaje retroaktivno.
+- **Integrity guard:** oba postojeća poziva `trend_birth_quality_history.py` koriste `--latest lab/data/latest.json`. Provjera odbija nedostajući radar, nevaljan zadnji session i nesklad s najnovijim trajno spremljenim očitanjem. Ne dodaje novu akciju, workflow, bazu ni trošak.
+- Neki sirovi snapshoti služe point-in-time backtestu/Gold Set istraživanju i nepromjenjivim permalinkovima (`snapshot-loader.js`, `kell_gold_set.py`). **Ništa ne brisati** dok ne postoje provjereni backup, backtest, migracijski plan i korisnikovo odobrenje. Brisanje sa zadnje Git grane samo po sebi ne uklanja stare blobove iz Git povijesti.
 - Prioritet je **jednom dnevno** završiti nužni EOD refresh, bez dodatnih napornih buildova i bez plaćenog Vercela.
 
 ## 5. Preporučeni sljedeći koraci (redoslijedom)
 
 1. **P0 — Provjera javnog UI-ja na Androidu:** D/W/M, 1M/3M/1Y/5Y/All, svih pet boja i četiri zooma, odabir stupca, prikaz postotaka/percentila. GitHub CI i Vercel `READY` potvrđeni su, ali ručno vizualno QA na fizičkom mobitelu još nije dokumentirano.
 2. **P0 — Potvrditi sljedeći stvarni EOD:** provjeriti da `trend-birth-quality-history.json` ima **21. i naredne stvarne sesije** i da starih 20 ostaje. Ako nema novog tržišnog dana, ne stvarati sintetsko očitanje.
-3. **P1 — Audit pohrane:** mapirati što koristi `history/`, `snapshots/` i druge velike arhive; identificirati dupliciranje i što zaista ide u Vercel build/artifact. Napraviti reproduktibilnu analizu/backtest i plan arhiviranja prije bilo kakvog brisanja. Tražiti odobrenje za destruktivni dio.
-4. **P2 — Povijesna proširenja:** stariji pre-radar snapshoti postoje od 17. 9., no nemaju potvrđeni 0/4–4/4 `trendBirthRadar`; ne predstavljati ih kao verificiranu povijest niti backfillati bez dokazivo iste metodologije i point-in-time ulaza. W/M percentili jačat će kako se gomilaju mjeseci/tjedni.
-5. **P2 — Dugoročna UI učinkovitost:** kada sažetak dosegne višegodišnju povijest, provjeriti mobilnu izvedbu `All` prikaza s tisućama dnevnih stupaca; optimizirati prikaz bez gubitka spremljenih podataka.
+3. **P1 — Provjeriti idući stvarni artefakt:** usporediti veličinu nakon šest izuzeća s ranijih 2.919.486.005 B. Potvrditi da `trend-birth-quality-history.json` i današnji `latest.json` imaju istu zadnju sesiju; nastaviti nadzor bez dodatnog joba. Ako integrity guard signalizira nesklad, istražiti podatke, **ne** prepisivati staru povijest.
+4. **P1 — Arhivski plan bez brisanja:** audit potrošača i duplikata napravljen; idući korak je izmjeriti stvarni Git pack/repository rast, testirati point-in-time backtest nakon *probne* restauracije u izolaciji i pripremiti eksterni povratni backup prije eventualnog korisničkog odobrenja.
+5. **P2 — Povijesna proširenja:** stariji pre-radar snapshoti postoje od 17. 9., no nemaju potvrđeni 0/4–4/4 `trendBirthRadar`; ne predstavljati ih kao verificiranu povijest niti backfillati bez dokazivo iste metodologije i point-in-time ulaza. W/M percentili jačat će kako se gomilaju mjeseci/tjedni.
+6. **P2 — Dugoročna UI učinkovitost:** kada sažetak dosegne višegodišnju povijest, provjeriti mobilnu izvedbu `All` prikaza s tisućama dnevnih stupaca; optimizirati prikaz bez gubitka spremljenih podataka.
 
 ## 6. Što se radi pri svakom budućem zadatku
 
@@ -67,3 +72,4 @@
 ## 7. Evidencija ove primopredaje
 
 - 24. 10. 2026.: potvrđeni `READY` Vercel i uspješni `build` + `historical_calibration` za D/W/M. Ponovno očitano svih 20 stvarnih sažetaka. Dodan operativni `HANDOFF.md`, protokol ažuriranja u `AGENTS.md` i poveznica iz `README.md`.
+- 24. 10. 2026.: audit velikih raw arhiva i privremenog Actions artefakta; izostavljeno šest arhivskih direktorija samo iz budućih 7-dnevnih dijagnostičkih artefakata, uz zadržavanje Git podataka. Dodan fail-closed integrity guard za latest EOD na obje postojeće točke izrade povijesti; čeka potvrdu na idućem stvarnom workflow runu.

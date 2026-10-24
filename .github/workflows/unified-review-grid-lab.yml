@@ -134,7 +134,7 @@ jobs:
       - name: Publish immutable review snapshot atomically
         run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory lab/data
       - name: Build point-in-time Trend Birth stage history
-        run: python scripts/trend_birth_quality_history.py --history-dir lab/data/history --output lab/data/trend-birth-quality-history.json
+        run: python scripts/trend_birth_quality_history.py --history-dir lab/data/history --output lab/data/trend-birth-quality-history.json --latest lab/data/latest.json
       - name: Build compact Kell preview dataset
         run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Build no-send Trend Birth alert payload
@@ -259,7 +259,7 @@ jobs:
           rm -rf lab/data/history lab/data/snapshots
           cp -R /tmp/review-publication/history lab/data/history
           cp -R /tmp/review-publication/snapshots lab/data/snapshots
-          python scripts/trend_birth_quality_history.py --history-dir lab/data/history --output lab/data/trend-birth-quality-history.json
+          python scripts/trend_birth_quality_history.py --history-dir lab/data/history --output lab/data/trend-birth-quality-history.json --latest lab/data/latest.json
           mkdir -p lab/data/weekly-birth-shadow
           cp -R /tmp/review-publication/weekly-birth-shadow/. lab/data/weekly-birth-shadow/
           cp /tmp/kell-latest.json lab/data/kell-latest.json
@@ -307,8 +307,15 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trend-birth-review-grid-lab
+          # Research archives stay in Git, outside this short-lived diagnostic artifact.
           path: |
             lab
+            !lab/data/history/**
+            !lab/data/snapshots/**
+            !lab/data/kell-history/**
+            !lab/data/kell-snapshots/**
+            !lab/data/kell-chart-runs/**
+            !lab/data/kell-chart-snapshots/**
             scripts/kell_scoring.py
             scripts/kell_signal_validation.py
             scripts/build_kell_calibration_report.py
