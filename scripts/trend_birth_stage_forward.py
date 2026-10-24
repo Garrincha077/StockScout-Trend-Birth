@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from datetime import date, datetime, timezone
 import json
 import math
 from pathlib import Path
@@ -21,18 +22,41 @@ REPORT_SCHEMA = "trend-birth-stage-forward-v1"
 HORIZONS = (5, 20, 60)
 
 
+def _date_from_stamp(value: object) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        numeric = float(text)
+        if math.isfinite(numeric) and numeric > 0:
+            seconds = numeric / 1000 if numeric >= 1e12 else numeric
+            return datetime.fromtimestamp(seconds, tz=timezone.utc).date().isoformat()
+    except (TypeError, ValueError, OSError, OverflowError):
+        pass
+    try:
+        return date.fromisoformat(text[:10]).isoformat()
+    except ValueError:
+        return None
+
+
 def _bars(row: dict, as_of: str) -> dict[str, float]:
+    # Original Unified charts are a mixture of compact OHLCV lists and dicts,
+    # with either ISO or Unix-seconds/milliseconds timestamps.
     result: dict[str, float] = {}
     for item in row.get("chartBars") or []:
-        if not isinstance(item, dict):
+        if isinstance(item, list) and len(item) >= 5:
+            stamp, raw_close = item[0], item[4]
+        elif isinstance(item, dict):
+            stamp, raw_close = item.get("time") or item.get("date"), item.get("close")
+        else:
             continue
-        date = str(item.get("time") or item.get("date") or "")[:10]
+        day = _date_from_stamp(stamp)
         try:
-            close = float(item.get("close"))
+            close = float(raw_close)
         except (TypeError, ValueError):
             continue
-        if date and date <= as_of and math.isfinite(close) and close > 0:
-            result[date] = close
+        if day and day <= as_of and math.isfinite(close) and close > 0:
+            result[day] = close
     return result
 
 

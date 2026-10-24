@@ -1,3 +1,10 @@
+## 2026-10-25 — EOD chart input format hardening
+
+- Source inspection after run #400 established that Unified charts frequently use `[timestamp,open,high,low,close,volume]` arrays and Unix-second/millisecond timestamps, not only `{time,close}` objects. Original new function handled only dicts, yielding false “no reference chart” in CI. Hotfix `_bars()` now normalizes all original source shapes; consensus calendar fix remains as protection for rotating universe. Added regression test for array, seconds, milliseconds, ISO and future-date rejection.
+- Need fresh EOD publication workflow to verify both changes and report.
+
+---
+
 ## 2026-10-25 — Ispravak nakon realnog GitHub Actions runa #400
 
 - Prvi produkcijski workflow proveo je sve Python i Node testove, potom je novi stage-forward korak javio da AAPL ne postoji u rotirajućem današnjem kandidatskom skupu. Namjenski ispravak: burzovni kalendar se utvrđuje kvorumom >50% svih dostupnih ažurnih Unified grafova s >=10 EOD podataka. Nema dodatnog izvora, nema ovisnosti o stalnom članstvu jednog tickera. Dodan regresijski test bez AAPL-a.
