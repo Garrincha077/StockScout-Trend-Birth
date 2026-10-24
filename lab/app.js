@@ -1,6 +1,6 @@
 const requestedMode=new URLSearchParams(location.search).get('mode');
 const defaultMode=requestedMode==='legacy'||requestedMode==='weekly-v2'?requestedMode:(window.StockScoutMode?.defaultMode||'weekly-v2');
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
@@ -97,6 +97,54 @@ const quickViews={
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
+function renderTrendBirthQuality(){
+  const panel=$('#trendBirthQuality'),summary=$('#tbQualitySummary'),countsBox=$('#tbQualityCounts'),historyBox=$('#tbQualityHistory');
+  const source=state.data?.trendBirthRadar,quality=TrendBirthQuality.normalizeRadar(source);
+  if(!quality){panel.hidden=true;return}
+  panel.hidden=false;
+  const day=String(state.data?.source?.sessionDate||'');
+  const promising=quality.counts['3']+quality.counts['4'];
+  const share=quality.evaluatedCount?100*promising/quality.evaluatedCount:0;
+  summary.textContent=day+' · '+quality.evaluatedCount.toLocaleString('hr-HR')+' analizirano / '+quality.universeCount.toLocaleString('hr-HR')+' pregledano · '+quality.unavailableCount+' bez podataka · 3/4+4/4: '+share.toFixed(1)+'%';
+  countsBox.innerHTML=['0','1','2','3','4'].map(stage=>{
+    const number=quality.counts[stage];
+    const percent=quality.evaluatedCount?100*number/quality.evaluatedCount:0;
+    return '<div class="tb-quality-stage" data-stage="'+stage+'"><span>'+stage+'/4</span><strong>'+number.toLocaleString('hr-HR')+'</strong><small>'+percent.toFixed(1)+'%</small></div>';
+  }).join('');
+  if(!state.qualityHistory){
+    historyBox.textContent=state.qualityHistoryError||'Učitavam povijest potvrđenih dnevnih skenova…';
+    return;
+  }
+  let points;
+  try{points=TrendBirthQuality.normalizeHistory(state.qualityHistory,day,source.scope)}
+  catch(error){historyBox.textContent='Povijesni podaci nisu usporedivi: '+error.message;return}
+  points=points.filter(point=>point.sessionDate!==day);
+  points.push({sessionDate:day,...quality});
+  points.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
+  points=points.slice(-45);
+  const stage=$('#tbHistoryStage')?.value||'3+';
+  const maxValue=Math.max(1,...points.map(point=>TrendBirthQuality.count(point,stage)));
+  const last=points[points.length-1];
+  const metric=stage==='3+'?'3/4 + 4/4 (READY + TRIGGER)':stage+'/4';
+  const bars=points.map(point=>{
+    const value=TrendBirthQuality.count(point,stage);
+    const percent=point.evaluatedCount?100*value/point.evaluatedCount:0;
+    const title=point.sessionDate+' · '+metric+': '+value+' ('+percent.toFixed(2)+'%) · analizirano '+point.evaluatedCount+' · bez podataka '+point.unavailableCount;
+    const height=value?Math.max(2,100*value/maxValue):0;
+    return '<div class="tb-history-bar" title="'+esc(title)+'" role="img" aria-label="'+esc(title)+'"><span style="height:'+height.toFixed(3)+'%"></span></div>';
+  }).join('');
+  historyBox.innerHTML='<div class="tb-history-metric">'+esc(metric)+' · zadnjih '+points.length+' arhiviranih sesija · zadnje '+TrendBirthQuality.count(last,stage)+' · maksimum '+maxValue+'</div>'+
+    '<div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Povijest broja dionica po danima">'+bars+'</div>'+
+    '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(last.sessionDate)+'</span></div>';
+}
+async function loadTrendBirthQualityHistory(){
+  try{
+    const response=await fetch('data/trend-birth-quality-history.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    state.qualityHistory=await response.json();
+  }catch(error){state.qualityHistoryError='Povijest još nije objavljena ('+error.message+'). Trenutačni dnevni brojevi ostaju prikazani.'}
+  renderTrendBirthQuality();
+}
 const trendBirthLabel=item=>{
   const radar=item?.trendBirth||{};
   if(radar.available!==true){
@@ -975,6 +1023,7 @@ $('#chartPeriod')?.addEventListener('change',e=>{
   if($('#detail')?.open)$('#detail').close();
   render();
 });
+$('#tbHistoryStage')?.addEventListener('change',renderTrendBirthQuality);
 $('#filters').addEventListener('click',async e=>{
   const universeButton=e.target.closest('button[data-universe]');
   const filterButton=e.target.closest('button[data-filter]');
@@ -1082,5 +1131,5 @@ $('#primaryViews')?.addEventListener('click',e=>{
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
 ReviewSnapshots.load(fetch,location.search)
-  .then(data=>{state.data=data;if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
+  .then(data=>{state.data=data;renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});

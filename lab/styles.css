@@ -79,3 +79,36 @@
   .analysis-text{padding:10px;font-size:12px;line-height:1.5}
 }
 .filters[hidden],.quick-views[hidden],.mobile-filter-toggle[hidden]{display:none!important}
+
+/* Dated Trend Birth stage breadth; uses verified daily counts, not visual filters. */
+.tb-quality{border:1px solid #2b4564;border-radius:13px;background:linear-gradient(180deg,#102138,#0b1929);padding:13px 14px;margin-bottom:14px}
+.tb-quality[hidden]{display:none}
+.tb-quality-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.tb-quality h2{font-size:15px;margin:0 0 3px}
+.tb-quality-header p{margin:0;color:var(--muted);font-size:12px}
+.tb-quality-header label{display:grid;gap:4px;color:var(--muted);font-size:11px;white-space:nowrap}
+.tb-quality-header select{border:1px solid #375677;color:var(--text);background:#102b46;border-radius:8px;padding:7px 9px;min-height:36px}
+.tb-quality-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:13px 0}
+.tb-quality-stage{min-width:0;border:1px solid var(--border);background:#0b1828;padding:8px 9px;border-radius:9px}
+.tb-quality-stage span{display:block;color:var(--muted);font-size:11px}
+.tb-quality-stage strong{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+.tb-quality-stage small{display:block;color:var(--muted);font-size:10px}
+.tb-quality-stage[data-stage="3"] strong{color:var(--amber)}
+.tb-quality-stage[data-stage="4"] strong{color:var(--green)}
+.tb-quality-history{border:1px solid var(--border);background:#091523;border-radius:10px;padding:10px;color:var(--muted);font-size:12px}
+.tb-history-chart{display:grid;align-items:end;gap:3px;height:116px;border-bottom:1px solid #365273;padding:9px 0 0;min-width:0}
+.tb-history-bar{display:flex;align-items:end;min-width:0;height:100%;position:relative}
+.tb-history-bar>span{display:block;width:100%;border-radius:4px 4px 0 0;background:#56a8ff}
+.tb-history-bar:last-child>span{background:#35d78b}
+.tb-history-axis{display:flex;justify-content:space-between;margin-top:6px;font-size:10px}
+.tb-history-metric{font-size:11px;color:var(--text);margin-bottom:4px}
+.tb-quality-footnote{color:var(--muted);font-size:10px;line-height:1.45;margin:9px 0 0}
+@media(max-width:720px){
+  .tb-quality{padding:10px;margin-bottom:10px}
+  .tb-quality-header select{max-width:130px}
+  .tb-quality-counts{gap:4px}
+  .tb-quality-stage{padding:7px 4px;text-align:center}
+  .tb-quality-stage strong{font-size:16px}
+  .tb-quality-stage small{font-size:9px}
+  .tb-history-chart{gap:2px}
+}
