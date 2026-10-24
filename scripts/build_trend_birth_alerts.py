@@ -207,7 +207,8 @@ def build_alerts(
     invalidated.sort(key=lambda item: (int(item.get("_previousStage") or 0), _rank(item)), reverse=True)
 
     messages: list[dict] = []
-    if ready:
+    grouped_eod = intelligence is not None and prior_has_radar
+    if ready and not grouped_eod:
         shown = ready[:max_ready]
         lines = [
             "🟠 KELL TREND BIRTH — 3/4 READY",
@@ -227,7 +228,7 @@ def build_alerts(
             lines.append(f"View dashboard: {dashboard_url}")
         messages.append({"kind": "ready", "text": "\n".join(lines).strip()})
 
-    for item in triggers:
+    for item in ([] if grouped_eod else triggers):
         lines = [
             "🚀 KELL TREND BIRTH — 4/4 TRIGGER",
             f"{item['ticker']} — 4/4",
@@ -237,7 +238,7 @@ def build_alerts(
         ]
         messages.append({"kind": "trigger", "ticker": item["ticker"], "text": "\n".join(lines)})
 
-    if invalidated:
+    if invalidated and not grouped_eod:
         shown = invalidated[:max_ready]
         lines = [
             "⚪ KELL TREND BIRTH — INVALIDATED",
@@ -266,7 +267,7 @@ def build_alerts(
                 or intelligence.get("counts") != radar_counts):
             raise ValueError("EOD intelligence is not aligned with alert source")
         lines = [
-            "📊 TREND BIRTH — EOD PROMJENE",
+            "📊 TREND BIRTH — JEDAN EOD SAŽETAK",
             f"Datum: {source['sessionDate']}",
             _stage_distribution_text(current),
         ]
@@ -278,10 +279,37 @@ def build_alerts(
                 f"Zajednički evaluirano: {intelligence['commonEvaluated']}",
                 f"Nova 4/4: {intelligence['newFour']} · Prelazak na 3/4: {intelligence['toReady']}",
                 f"Napredovalo: {intelligence['upgrades']} · Nazadovalo: {intelligence['downgrades']}",
-                "Novi 4/4: " + (", ".join(intelligence.get("newFourTickers", [])[:8]) or "—"),
             ])
+            stability = intelligence.get("stability") or {}
+            quality = stability.get("quality") or {}
+            four = stability.get("four") or {}
+            if quality and four:
+                lines.extend([
+                    f"Stabilni 3+/4 (≥3 EOD): {quality.get('atLeast3', '—')} · 4/4 (≥3 EOD): {four.get('atLeast3', '—')}",
+                    f"Zadnji padovi: iz 3+/4 {quality.get('latestDropouts', '—')} · iz 4/4 {four.get('latestDropouts', '—')}",
+                ])
+                q_ret = quality.get("retention") or {}
+                f_ret = four.get("retention") or {}
+                if q_ret.get("percent") is not None and f_ret.get("percent") is not None:
+                    lines.append(
+                        f"Povijesni ostanak idući EOD: 3+/4 {q_ret['percent']:.1f}% "
+                        f"({q_ret['eligible']} usporedbi) · 4/4 {f_ret['percent']:.1f}% "
+                        f"({f_ret['eligible']} usporedbi)"
+                    )
+
+            def group(label: str, tickers: list[str], max_names: int = 14) -> None:
+                unique = list(dict.fromkeys(tickers))
+                shown = ", ".join(unique[:max_names]) or "—"
+                more = f" (+{len(unique) - max_names} ostalih)" if len(unique) > max_names else ""
+                lines.append(f"{label} ({len(unique)}): {shown}{more}")
+
+            group("Nova 4/4 · cijeli univerzum", intelligence.get("newFourTickers") or [])
+            group("Novi 3/4 · cijeli univerzum", intelligence.get("readyTickers") or [], 10)
+            group("Kell/tracked 4/4", [item["ticker"] for item in triggers])
+            group("Kell/tracked 3/4", [item["ticker"] for item in ready], 10)
+            group("Kell/tracked invalidirani", [item["ticker"] for item in invalidated], 10)
         lines.append("View dashboard: " + dashboard_url)
-        messages.append({"kind": "intelligence-eod", "text": "\\n".join(lines)})
+        messages.append({"kind": "intelligence-eod", "text": "\n".join(lines)})
 
     distribution = _stage_distribution_text(current)
     if distribution:

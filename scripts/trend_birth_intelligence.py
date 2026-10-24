@@ -160,6 +160,72 @@ def _new_checks(before: list[int] | None, after: list[int]) -> list[str]:
     return [label for idx, label in enumerate(CHECK_LABELS) if bits & (1 << idx)]
 
 
+
+def calculate_stability(points: list[dict]) -> tuple[dict, dict[str, tuple[int, int]]]:
+    """Compute observed-EOD streaks and mature, paired-session retention.
+
+    A missing, unavailable or out-of-universe ticker breaks its streak.
+    Only tickers evaluated at both endpoints enter a retention denominator.
+    """
+    if not points:
+        raise ValueError("Cannot calculate stability without EOD sessions")
+    quality_streaks: dict[str, int] = {}
+    four_streaks: dict[str, int] = {}
+    quality_kept = quality_eligible = four_kept = four_eligible = 0
+    latest_quality_dropout = latest_four_dropout = 0
+    prior = None
+    for point in points:
+        stages = point["stages"]
+        next_quality = {
+            ticker: quality_streaks.get(ticker, 0) + 1
+            for ticker, value in stages.items() if value[0] >= 3
+        }
+        next_four = {
+            ticker: four_streaks.get(ticker, 0) + 1
+            for ticker, value in stages.items() if value[0] == 4
+        }
+        if prior is not None:
+            common = prior["stages"].keys() & stages.keys()
+            q_from = [ticker for ticker in common if prior["stages"][ticker][0] >= 3]
+            f_from = [ticker for ticker in common if prior["stages"][ticker][0] == 4]
+            quality_eligible += len(q_from)
+            four_eligible += len(f_from)
+            quality_kept += sum(stages[ticker][0] >= 3 for ticker in q_from)
+            four_kept += sum(stages[ticker][0] == 4 for ticker in f_from)
+            latest_quality_dropout = sum(stages[ticker][0] < 3 for ticker in q_from)
+            latest_four_dropout = sum(stages[ticker][0] < 4 for ticker in f_from)
+        quality_streaks, four_streaks = next_quality, next_four
+        prior = point
+
+    def rate(kept: int, eligible: int) -> dict:
+        return {"kept": kept, "eligible": eligible,
+                "percent": round(100 * kept / eligible, 1) if eligible else None}
+
+    return ({
+        "observedSessions": len(points),
+        "transitionPairs": max(0, len(points) - 1),
+        "quality": {
+            "current": len(quality_streaks),
+            "atLeast3": sum(value >= 3 for value in quality_streaks.values()),
+            "atLeast5": sum(value >= 5 for value in quality_streaks.values()),
+            "oneSession": sum(value == 1 for value in quality_streaks.values()),
+            "latestDropouts": latest_quality_dropout if len(points) > 1 else None,
+            "retention": rate(quality_kept, quality_eligible),
+        },
+        "four": {
+            "current": len(four_streaks),
+            "atLeast3": sum(value >= 3 for value in four_streaks.values()),
+            "atLeast5": sum(value >= 5 for value in four_streaks.values()),
+            "oneSession": sum(value == 1 for value in four_streaks.values()),
+            "latestDropouts": latest_four_dropout if len(points) > 1 else None,
+            "retention": rate(four_kept, four_eligible),
+        },
+    }, {
+        ticker: (quality_streaks.get(ticker, 0), four_streaks.get(ticker, 0))
+        for ticker in points[-1]["stages"]
+    })
+
+
 def build_summary(current: dict, points: list[dict]) -> dict:
     date = _day((current.get("source") or {}).get("sessionDate"))
     today = next((point for point in reversed(points) if point["sessionDate"] == date), None)
@@ -169,6 +235,7 @@ def build_summary(current: dict, points: list[dict]) -> dict:
     if verify != today or points[-1] != today:
         raise ValueError("Latest snapshot differs from newest ticker-stage archive")
     prior = next((point for point in reversed(points) if point["sessionDate"] < date), None)
+    stability, streaks = calculate_stability(points)
     old = prior["stages"] if prior else {}
     new = today["stages"]
     common = sorted(set(old) & set(new))
@@ -190,6 +257,7 @@ def build_summary(current: dict, points: list[dict]) -> dict:
         weekly = ((item.get("weeklyBirth") or {}).get("metrics") or {})
         return {
             "ticker": ticker, "stage": value[0], "previousStage": before[0] if before else None,
+            "qualityStreak": streaks[ticker][0], "fourStreak": streaks[ticker][1],
             "newChecks": _new_checks(before, value),
             "missingFor4": list(trend_birth.get("missingFor4") or [])[:4],
             "tracked": item.get("trackedWatchlist") is True,
@@ -228,6 +296,7 @@ def build_summary(current: dict, points: list[dict]) -> dict:
         "netImprovement": len(upgrades) - len(downgrades),
         "newFour": len(new_four), "toReady": len(to_ready),
         "stableFour": len(stable_four),
+        "stability": stability,
         "topOpportunities": [row(ticker) for ticker in featured],
         "newFourTickers": new_four,
         "readyTickers": to_ready,

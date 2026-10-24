@@ -56,3 +56,29 @@ test('lazy monthly archive loader caches verified results',async()=>{
   await T.loadMonths(fetcher,['2026-10'],cache,scope,'2026-10');
   assert.equal(calls,1);
 });
+
+test('streaks are continuous only for evaluated members of every archived EOD session',()=>{
+  const series=month('2026-10',[
+    day('2026-10-20',{AAA:[4,1],BBB:[3,1]}),
+    day('2026-10-21',{AAA:[4,1],BBB:[4,1]}),
+    day('2026-10-22',{AAA:[3,1]},['BBB']),
+    day('2026-10-23',{AAA:[4,1],BBB:[4,1]}),
+  ]);
+  assert.deepEqual(T.streaks([series],'AAA','2026-10-23'),{quality:4,four:1});
+  assert.deepEqual(T.streaks([series],'BBB','2026-10-23'),{quality:1,four:1});
+  assert.deepEqual(T.streaks([series],'BBB','2026-10-21'),{quality:2,four:1});
+  assert.deepEqual(T.streaks([series],'CCC'),{quality:0,four:0});
+});
+test('stability summary validates matching current population and retention denominators',()=>{
+  const good={schemaVersion:'trend-birth-intelligence-v1',
+    source:{sessionDate:'2026-10-23',runId:'r',scope},
+    counts:{0:0,1:0,2:0,3:1,4:1},evaluatedCount:2,topOpportunities:[],
+    stability:{observedSessions:3,transitionPairs:2,
+      quality:{current:2,atLeast3:1,atLeast5:0,oneSession:1,latestDropouts:0,
+        retention:{eligible:10,kept:8,percent:80}},
+      four:{current:1,atLeast3:0,atLeast5:0,oneSession:1,latestDropouts:1,
+        retention:{eligible:5,kept:2,percent:40}}}};
+  assert.equal(T.validateSummary(good),good);
+  assert.throws(()=>T.validateSummary({...good,stability:{...good.stability,transitionPairs:1}}),/sesija/);
+  assert.throws(()=>T.validateSummary({...good,counts:{0:1,1:0,2:0,3:0,4:1}}),/usklađena/);
+});

@@ -2,6 +2,15 @@
 
 > **Ažurirano / provjereno:** 24. 10. 2026. (Europe/Zagreb). Ovo je **trenutačni operativni status**, a `docs/PROJECT_LOG.md` je kronološka evidencija promjena. Statuse u nastavku ponovno provjeriti pri idućem radu.
 
+## Trenutačni dodatak — EOD Telegram grupiranje i trajnost setupa (24. 10. 2026.)
+
+**Status pri izradi:** uska produkcijska nadogradnja na temeljima potvrđenog Intelligence v1; datum 23. 10. i povijest od 20 sesija ostaju izvor. Ažurirati PR, commit, CI i Vercel status nakon spajanja; ne prikazivati ovu najavu kao dovršenu objavu.
+
+- `scripts/trend_birth_intelligence.py`: iz postojećih kumulativnih mjeseci računa `stability` za 3+/4 i 4/4: sadašnji broj; niz najmanje 3 i 5 uzastopnih *zabilježenih EOD* sesija; jednodnevni niz; ispadanja na zadnjem paru; povijesna stopa ostanka sljedećeg EOD-a uz nazivnik samo kada je ticker evaluiran oba dana. Izostanak/nedostupnost prekida niz. Osobni `qualityStreak` i `fourStreak` dodani su samo u deset `topOpportunities` zapisa, ne za svih 2.614 u malom sažetku.
+- `scripts/build_trend_birth_alerts.py`: ako postoji važeći EOD intelligence i prethodni radar, svi dotadašnji pojedinačni `trigger` i grupirani `ready`/`invalidated` za istu sesiju postaju **jedna `intelligence-eod` poruka** s imenima i ukupnim brojevima, konzervativno skraćenim popisima i istim dashboard linkom. Stare vrste poruka ostaju kao kompatibilan fallback samo bez intelligence podataka; zasebni hitni/hourly kanali, `v2.weekly` i `v2.kell-daily` nisu izmijenjeni. Ne treba novi Telegram bot ni Unified receiver izmjena jer #112 već prihvaća `intelligence-eod`.
+- `lab`: odvojeni blok trajnosti pod Today (3+/4 i 4/4 ≥3 EOD, zadnji padovi, uvjetne stope ostanka) i točan trenutačni niz za top tickere/otvorenu putanju. Ažuriran je samo mali `lab/data/trend-birth-intelligence.json` prema stvarnih 20 mjesečnih točaka kako bi prikaz radio odmah. D/W/M, 1M/3M/1Y/5Y/All, 25/50/75/100 zoom, arhive i stage 0–4 ostaju netaknuti.
+- **Izvorni broj 23. 10. na 20 EOD sesija:** 3+/4 =163 ukupno, ≥3 EOD=69, ≥5 EOD=28, ostanak=2.494/3.576=69,7%; 4/4=105 ukupno, ≥3 EOD=21, ≥5 EOD=3, ostanak=1.177/2.069=56,9%. Povijesni postotak nije probabilistička prognoza prinosa. Konačnu verziju i testove provjeriti u PR-u.
+
 ## 0. StockScout Intelligence v1 — najnoviji razvoj (24. 10. 2026.)
 
 Implementacija u ovoj radnoj promjeni cilja sljedeće, nadogradnjom postojećeg skenera bez promjene njegovih pravila:

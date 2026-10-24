@@ -128,14 +128,40 @@ function renderTrendBirthToday(){
   ];
   $('#tbTodayMetrics').innerHTML=metrics.map(m=>'<div class="tb-intelligence-metric" data-kind="'+m.kind+
     '"><small>'+m.label+'</small><strong>'+m.value+'</strong></div>').join('');
+  const stability=data.stability;
+  const stableBox=$('#tbTodayStability');
+  const stableCaption=$('#tbStabilitySource'),retentionBox=$('#tbStabilityRetention');
+  if(stability?.quality&&stability?.four){
+    const qs=stability.quality,fs=stability.four;
+    stableCaption.textContent=stability.observedSessions+' arhiviranih EOD sesija · '+stability.transitionPairs+' uzastopnih parova';
+    const stableMetrics=[
+      {label:'3+/4 barem 3 EOD zaredom',value:qs.atLeast3,kind:'up'},
+      {label:'4/4 barem 3 EOD zaredom',value:fs.atLeast3,kind:'up'},
+      {label:'Izgubljen 3+/4 u zadnjem EOD-u',value:qs.latestDropouts??'—',kind:'down'},
+      {label:'Izgubljen 4/4 u zadnjem EOD-u',value:fs.latestDropouts??'—',kind:'down'},
+    ];
+    stableBox.innerHTML=stableMetrics.map(m=>'<div class="tb-intelligence-metric" data-kind="'+m.kind+
+      '"><small>'+m.label+'</small><strong>'+m.value+'</strong></div>').join('');
+    const retention=r=>r?.percent==null?'—':r.percent.toFixed(1)+'% ('+r.kept+'/'+r.eligible+')';
+    retentionBox.textContent='Povijesni ostanak u istoj kvalitetnoj kategoriji na sljedećem EOD-u: 3+/4 '+
+      retention(qs.retention)+' · 4/4 '+retention(fs.retention)+
+      '. Usporedbe uključuju samo tickere evaluirane u obje susjedne arhivirane sesije.';
+  }else{
+    stableCaption.textContent='Stabilnost će biti dostupna u sljedećem EOD osvježavanju.';
+    stableBox.innerHTML='';
+    retentionBox.textContent='';
+  }
   const rows=data.topOpportunities||[];
   $('#tbTodayCandidates').innerHTML=rows.length?rows.map(item=>{
     const prior=Number.isInteger(item.previousStage)?item.previousStage+'/4 → ':'';
     const why=item.newChecks?.length?'Novo potvrđeno: '+item.newChecks.slice(0,2).join(', '):
-      item.stage===4?'Stabilan setup 4/4':'Potrebno: '+(item.missingFor4||[]).slice(0,2).join(', ');
+      item.stage===4?'Trenutni 4/4 setup':'Potrebno: '+(item.missingFor4||[]).slice(0,2).join(', ');
     return '<article class="tb-opportunity-card"><div class="tb-opportunity-card-head">'+
       '<strong>'+esc(item.ticker)+'</strong><span>'+prior+item.stage+'/4</span></div>'+
-      '<small>'+esc(why)+'</small><div class="tb-opportunity-actions">'+
+      '<small>'+esc(why)+'</small>'+
+      (Number.isInteger(item.qualityStreak)?'<small class="tb-streak-badge">3+/4: '+item.qualityStreak+
+        ' EOD u nizu'+(item.fourStreak?' · 4/4: '+item.fourStreak:'')+'</small>':'')+
+      '<div class="tb-opportunity-actions">'+
       '<button type="button" data-tb-journey="'+esc(item.ticker)+'">Povijest</button>'+
       '<a href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(item.ticker)+
       '" target="_blank" rel="noopener noreferrer">Chart ↗</a></div></article>';
@@ -221,13 +247,16 @@ async function showTickerJourney(ticker){
     const earliest=points.filter(p=>p.sessionDate<=asOf).map(p=>p.sessionDate).sort()[0]||asOf;
     const months=await loadTickerMonths(earliest,asOf);
     const journey=TrendBirthIntelligence.journey(months,ticker,asOf);
+    const streak=TrendBirthIntelligence.streaks(months,ticker,asOf);
     if(state.journeyTicker!==ticker)return;
     const renderDay=p=>'<div class="tb-ticker-journey-day"><small>'+p.sessionDate.slice(5)+'</small>'+
       '<strong>'+(p.stage==null?'N/A':p.stage+'/4')+'</strong>'+
       '<span class="tb-stage-dot" data-stage="'+(p.stage==null?'na':p.stage)+'"></span></div>';
     panel.innerHTML='<div class="tb-quality-header"><h3>'+esc(ticker)+' · putanja setupa</h3>'+
       '<button type="button" class="tb-text-button" id="tbCloseJourney">Zatvori ×</button></div>'+
-      '<p class="tb-history-data-note">'+journey.length+' sačuvanih očitanja. Nedostupno nije 0/4; izostanak u univerzumu nije izmišljen kao stupanj.</p>'+
+      '<p class="tb-history-data-note">'+journey.length+' sačuvanih očitanja · 3+/4 u nizu: '+
+      streak.quality+' EOD · 4/4 u nizu: '+streak.four+
+      ' EOD. Nedostupnost ili izostanak iz univerzuma prekida niz; ne izmišljamo 0/4.</p>'+
       (journey.length?'<div class="tb-ticker-journey-points">'+journey.map(renderDay).join('')+'</div>':
         '<p>Nema potvrđenih podataka za ticker u spremljenoj povijesti.</p>');
     panel.scrollIntoView({block:'nearest',behavior:'smooth'});
