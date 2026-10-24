@@ -64,3 +64,22 @@ Samostalan tab **Statistika** (putanja /statistics.html) daje strukturni pogled 
 - Ručno: desktop/mobitel render /statistics.html, 1M/3M/All, D/W/M, zoom 25→100, prebacivanje u Review i natrag.
 - Produkcija: provjeriti deploy **READY**, /data/trend-birth-market-internals.json nov i usklađen s /data/latest.json, do idućeg EOD-a pratiti pipeline.
 - Nakon što ima ≥60 EOD sesija, ponovno ocijeniti stabilnost percentila, ali ne čekati 60 dana za zapisivanje povijesti.
+
+
+## Faza 2 — H20 composite u tabu Statistika (24. 10. 2026.)
+
+- [x] Python alat `scripts/backtest_market_internals.py`: 14 unaprijed definiranih dionickih ETF-ova; zadnje poznato prilagodeno dnevno zatvaranje, 2004–2026, s pokrivenoscu >=12 instrumenata po sesiji; **povijesna proxy-rekonstrukcija**, a ne raniji StockScout kandidati.
+- [x] Godisnji walk-forward 2008–2026; ulaz sljedece prilagodeno zatvaranje nakon EOD signala, izlaz 20 trgovinskih sesija kasnije; uzorak svakih 10 sesija; 11 unaprijed definiranih vektora tezina; profil godine t odabran iskljucivo iz podataka ciji je budući horizont zavrsio prije pocetka t.
+- [x] Povijesni rezimi: 2008, 2011, 2015–16, 2018, 2020, 2022, 2023–24 + grupe VIX <20 i >=30. Nema biranja samo povoljnih razdoblja.
+- [x] Smjer i tezine sest komponenti (sirina, pressure, velocity, acceleration, flow, persistence) biraju se penaliziranom stabilnoscu korelacija po starijim godinama. Zadnji score 0–100 pretvara **stvarnu** kratku EOD seriju na njezine vlastite povijesne percentile, s izricitom oznakom prijenosa proxy tezina.
+- [x] Ne dodavati povijesne ETF proxy datume u graf stvarne StockScout povijesti. Rezultat, opis izvora i scenariji objavljuju se u malom odvojenom JSON-u. Nema kopiranja 1,5 MB cijena u repozitorij ni dodatnih rasporeda.
+- [x] Dnevni job mijenja **samo aktualni score** iz lokalne EOD arhive i vec pohranjene kalibracije. Ne preuzima cijene tijekom nocnog runa i ne pokrece puni povijesni backtest.
+- [ ] Provjeriti na stvarnom portfelju delistiranih/dinamicnih tickera (nije dostupno u ovom ETF skupu); provesti stock-level forward event study kad stvarna point-in-time arhiva dosegne barem 120+ EOD sesija.
+- [ ] Osigurati vlasnicki/revizijski benchmark s punim OHLC i corporate actions ako se score zeli tumaciti kao trgovacka prednost.
+- [ ] Revidirati profil tek nakon novog OOS razdoblja i koristiti fiksni holdout; ponovna optimizacija na testnim godinama pokvarila bi metodologiju.
+
+### Ogranicenja i negativni nalazi
+
+Povijesni 0/4–4/4 proxy nastaje iz adjusted **close**: 14D Wilder ATR s high/low zamijenjen je unaprijed fiksiranim 1,8 × EMA14 apsolutnih close pomaka, stoga nije istovjetan produkcijskim signalima. ETF-ovi imaju survivorship i veliku medusobnu ovisnost. Koristenje kasnije poznatih adjusted cijena za ex post prinos je dopusteno samo za evaluaciju, ne za signal u trenutku t. 10-dnevni razmak promatranja uz 20-dnevni horizont ostavlja djelomicno preklapanje ishoda; nema transaction-cost modela ni interday izvrsenja. Pojedini rezimi daju **negativan spread**, ukljucujuci krizu 2008.; to treba stalno prikazivati i ne predstavljati composite kao validiranu predikciju.
+
+**Kontrola izvora:** dvije potpuno prazne equity cijenske retke iz pinanog CSV-a (praznik 2026-05-25 i 2026-08-11) ne smiju resetirati EMA/SMA niti se racunati kao trgovinske sesije. Broj filtriranih redaka pohraniti u `source.droppedEmptyEquityRows`; djelomicni izostanak benchmarka SPY uz aktivne equity cijene mora izazvati gresku.
