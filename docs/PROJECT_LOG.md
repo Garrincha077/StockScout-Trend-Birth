@@ -4,6 +4,18 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Stacked Trend Birth breadth, selectable colours, stepped zoom and historic percentile
+
+- Topic branch: `codex/trend-birth-stacked-breadth-zoom-20261024`, based on production `feature/unified-review-grid-lab` at `10193975ef9cdecbb2140e783d7790125204bc2b`; implementation SHA is the commit containing this entry.
+- Replaced the single-stage history bars with **one true 100%-stacked bar per archived session**: 4/4 green at the bottom, then 3/4 light green, 2/4 yellow, 1/4 orange, 0/4 red at the top.
+- Stage checkboxes and two presets colour-highlight any subset while dimming unchecked segments without rebasing their percentages. The original 100% denominator stays intact even when all stages are muted.
+- Zoom buttons show **0–25%, 0–50%, 0–75% and 0–100%**. Cropping is from the bottom of the full stack so high-quality small shares are readable, and underlying stage percentages remain unchanged.
+- Added a point-in-time percentile card for any single stage, combined 3/4+4/4, or the selected subset. The latest daily percent is compared only to earlier archived sessions using a midrank for ties; full history is used for percentile even when bars display the most recent 45 sessions.
+- Added per-day interactive count/percentage inspection and explicit all-stage/unavailable denominators; old immutable archives remain authoritative. No scanner thresholds, membership, signal definitions, Telegram format, risk settings or source schemas changed.
+- Affected: `lab/index.html`, `lab/app.js`, `lab/styles.css`, `lab/trend-birth-quality.js`, `tests/trend-birth-quality.test.cjs`. Added validation for composition integrity, four zoom levels, tie-aware percentile and independent historical denominators.
+- Risk: a high percentile of 0/4 is **not bullish**. With only 20 available sessions initially, a percentile is a descriptive rank, not a statistically robust market forecast. Close-up intentionally crops higher levels of the stack.
+- Next: confirm browser/mobile rendering, GitHub regression CI and Vercel deployment; add additional genuine daily history over time.
+
 ## 2026-10-24 — Historical setup quality as a percentage (fixed 0–100% scale)
 
 - Topic branch: `codex/trend-birth-history-percent-axis-20261024` based on production `feature/unified-review-grid-lab` at `5632cdcdbe6e08ca995d9556b08e3e3d8cbafc9a`; implementation is the commit containing this entry.

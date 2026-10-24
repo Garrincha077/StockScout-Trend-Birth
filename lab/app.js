@@ -97,6 +97,7 @@ const quickViews={
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
+const tbQualityView={zoom:100,selectedDay:''};
 function renderTrendBirthQuality(){
   const panel=$('#trendBirthQuality'),summary=$('#tbQualitySummary'),countsBox=$('#tbQualityCounts'),historyBox=$('#tbQualityHistory');
   const source=state.data?.trendBirthRadar,quality=TrendBirthQuality.normalizeRadar(source);
@@ -111,32 +112,78 @@ function renderTrendBirthQuality(){
     const percent=quality.evaluatedCount?100*number/quality.evaluatedCount:0;
     return '<div class="tb-quality-stage" data-stage="'+stage+'"><span>'+stage+'/4</span><strong>'+number.toLocaleString('hr-HR')+'</strong><small>'+percent.toFixed(1)+'%</small></div>';
   }).join('');
+  document.querySelectorAll('[data-tb-zoom]').forEach(button=>
+    button.setAttribute('aria-pressed',String(Number(button.dataset.tbZoom)===tbQualityView.zoom)));
   if(!state.qualityHistory){
     historyBox.textContent=state.qualityHistoryError||'Učitavam povijest potvrđenih dnevnih skenova…';
     return;
   }
-  let points;
-  try{points=TrendBirthQuality.normalizeHistory(state.qualityHistory,day,source.scope)}
+  let fullPoints;
+  try{fullPoints=TrendBirthQuality.normalizeHistory(state.qualityHistory,day,source.scope)}
   catch(error){historyBox.textContent='Povijesni podaci nisu usporedivi: '+error.message;return}
-  points=points.filter(point=>point.sessionDate!==day);
-  points.push({sessionDate:day,...quality});
-  points.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
-  points=points.slice(-45);
-  const stage=$('#tbHistoryStage')?.value||'3+';
-  const last=points[points.length-1];
-  const metric=stage==='3+'?'3/4 + 4/4 (READY + TRIGGER)':stage+'/4';
+  fullPoints=fullPoints.filter(point=>point.sessionDate!==day);
+  fullPoints.push({sessionDate:day,...quality});
+  fullPoints.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
+  const points=fullPoints.slice(-45);
+  const selectedStages=[...document.querySelectorAll('input[data-tb-stage]:checked')]
+    .map(input=>input.dataset.tbStage);
+  const zoom=tbQualityView.zoom;
+  const ticks=TrendBirthQuality.zoomTicks(zoom);
+  const latest=fullPoints[fullPoints.length-1];
+  const selectedPoint=points.find(point=>point.sessionDate===tbQualityView.selectedDay)||latest;
   const bars=points.map(point=>{
-    const value=TrendBirthQuality.count(point,stage);
-    const percent=TrendBirthQuality.percent(point,stage);
-    const title=point.sessionDate+' · '+metric+': '+percent.toFixed(2)+'% ('+value+' od '+point.evaluatedCount+' analiziranih) · bez podataka '+point.unavailableCount;
-    return '<div class="tb-history-bar" title="'+esc(title)+'" role="img" aria-label="'+esc(title)+'"><span style="height:'+percent.toFixed(3)+'%"></span></div>';
+    const title=point.sessionDate+' · '+['4','3','2','1','0'].map(stage=>
+      stage+'/4: '+TrendBirthQuality.percent(point,stage).toFixed(2)+'% ('+point.counts[stage]+')').join(' · ')+
+      ' · analizirano '+point.evaluatedCount+' · bez podataka '+point.unavailableCount;
+    const segments=TrendBirthQuality.stackSlices(point,zoom).map(slice=>{
+      if(slice.visiblePercent<=0)return '';
+      const muted=selectedStages.includes(slice.stage)?'':' is-muted';
+      return '<span class="tb-history-segment'+muted+'" data-stage="'+slice.stage+'" style="height:'+slice.visiblePercent.toFixed(4)+'%"></span>';
+    }).join('');
+    const pressed=point.sessionDate===selectedPoint.sessionDate?'true':'false';
+    return '<button type="button" class="tb-history-bar" data-tb-day="'+point.sessionDate+
+      '" aria-pressed="'+pressed+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+segments+'</button>';
   }).join('');
-  const lastValue=TrendBirthQuality.count(last,stage);
-  const lastPercent=TrendBirthQuality.percent(last,stage);
-  historyBox.innerHTML='<div class="tb-history-metric">'+esc(metric)+' · zadnjih '+points.length+' arhiviranih sesija · zadnje '+lastPercent.toFixed(2)+'% ('+lastValue+' dionica) · skala 0–100%</div>'+
-    '<div class="tb-history-plot"><div class="tb-history-y-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>'+
-    '<div class="tb-history-main"><div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Povijest udjela analiziranih dionica u postocima, skala 0 do 100">'+bars+'</div>'+
-    '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(last.sessionDate)+'</span></div></div></div>';
+  const yLabels=ticks.map(tick=>'<span>'+tick+'%</span>').join('');
+  const gridLines=ticks.map(tick=>
+    '<span class="tb-history-gridline" style="bottom:'+(100*tick/zoom).toFixed(4)+'%"></span>').join('');
+  const focus=$('#tbPercentileMetric')?.value||'3+';
+  const focusStages=focus==='3+'?['3','4']:focus==='selected'?selectedStages:[focus];
+  const focusLabel=focus==='3+'?'3/4 + 4/4':focus==='selected'?
+    (focusStages.length?focusStages.map(stage=>stage+'/4').join(' + '):'Nijedna razina'):focus+'/4';
+  const rank=focusStages.length&&focusStages.length<5?
+    TrendBirthQuality.historicalPercentile(fullPoints,focusStages):null;
+  const lastCount=focusStages.reduce((sum,stage)=>sum+(latest.counts[stage]||0),0);
+  const rankValue=rank?.percentile==null?'—':'P'+Math.round(rank.percentile);
+  const rankExplain=!focusStages.length?'Označi barem jednu razinu.':
+    focusStages.length===5?'Zbroj svih razina uvijek je 100 %; za smislen percentil odaberi užu kombinaciju.':
+    'Udio '+(rank.currentPercent).toFixed(2)+'% ('+lastCount+' od '+latest.evaluatedCount+
+    '); rang prema '+rank.priorCount+' prethodnih sesija'+
+    (focusStages.length===1&&focusStages[0]==='0'?'. Viši percentil 0/4 znači više dionica bez setupa.':'.');
+  const detail= ['4','3','2','1','0'].map(stage=>
+    '<span class="tb-day-level"><i class="tb-stage-dot" data-stage="'+stage+'"></i>'+
+    stage+'/4: '+TrendBirthQuality.percent(selectedPoint,stage).toFixed(2)+'% ('+selectedPoint.counts[stage]+')</span>').join('');
+  const minChartWidth=Math.max(320,points.length*11);
+  const priorScroll=historyBox.querySelector('.tb-history-main')?.scrollLeft;
+  historyBox.innerHTML=
+    '<div class="tb-history-metric">Sastav svih analiziranih dionica · zadnjih '+points.length+
+      ' od '+fullPoints.length+' sesija · zoom 0–'+zoom+'%</div>'+
+    '<div class="tb-history-percentile" aria-live="polite"><strong>'+rankValue+'</strong>'+
+      '<span><b>'+esc(focusLabel)+'</b> · '+esc(rankExplain)+'</span></div>'+
+    '<div class="tb-history-plot"><div class="tb-history-y-axis" aria-hidden="true">'+yLabels+'</div>'+
+      '<div class="tb-history-main"><div class="tb-history-scroll" style="min-width:'+minChartWidth+'px">'+
+        '<div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Složeni povijesni stupci: udjeli razina od 0 do '+zoom+' posto">'+
+          '<div class="tb-history-gridlines" aria-hidden="true">'+gridLines+'</div>'+bars+'</div>'+
+        '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(latest.sessionDate)+'</span></div>'+
+      '</div></div></div>'+
+    '<div class="tb-history-day-detail"><strong>'+esc(selectedPoint.sessionDate)+
+      ' · '+selectedPoint.evaluatedCount+' analizirano · '+selectedPoint.unavailableCount+' bez podataka</strong>'+
+      '<div class="tb-day-levels">'+detail+'</div>'+
+      '<span class="tb-history-metric">3/4 + 4/4: '+
+        TrendBirthQuality.percent(selectedPoint,'3+').toFixed(2)+'% ('+
+        TrendBirthQuality.count(selectedPoint,'3+')+' dionica). Dodirni stupac za drugi dan.</span></div>';
+  const scroller=historyBox.querySelector('.tb-history-main');
+  if(scroller)scroller.scrollLeft=priorScroll==null?scroller.scrollWidth-scroller.clientWidth:priorScroll;
 }
 async function loadTrendBirthQualityHistory(){
   try{
@@ -1024,7 +1071,32 @@ $('#chartPeriod')?.addEventListener('change',e=>{
   if($('#detail')?.open)$('#detail').close();
   render();
 });
-$('#tbHistoryStage')?.addEventListener('change',renderTrendBirthQuality);
+document.querySelectorAll('input[data-tb-stage]').forEach(input=>
+  input.addEventListener('change',renderTrendBirthQuality));
+document.querySelectorAll('button[data-tb-zoom]').forEach(button=>
+  button.addEventListener('click',()=>{
+    tbQualityView.zoom=Number(button.dataset.tbZoom);
+    renderTrendBirthQuality();
+  }));
+$('#tbPercentileMetric')?.addEventListener('change',renderTrendBirthQuality);
+$('#tbStagesAll')?.addEventListener('click',()=>{
+  document.querySelectorAll('input[data-tb-stage]').forEach(input=>{input.checked=true});
+  renderTrendBirthQuality();
+});
+$('#tbStagesQuality')?.addEventListener('click',()=>{
+  document.querySelectorAll('input[data-tb-stage]').forEach(input=>
+    {input.checked=input.dataset.tbStage==='3'||input.dataset.tbStage==='4'});
+  $('#tbPercentileMetric').value='3+';
+  renderTrendBirthQuality();
+});
+$('#tbQualityHistory')?.addEventListener('click',event=>{
+  const bar=event.target.closest('button[data-tb-day]');
+  if(!bar)return;
+  tbQualityView.selectedDay=bar.dataset.tbDay;
+  renderTrendBirthQuality();
+  [...$('#tbQualityHistory').querySelectorAll('button[data-tb-day]')].find(
+    button=>button.dataset.tbDay===tbQualityView.selectedDay)?.focus({preventScroll:true});
+});
 $('#filters').addEventListener('click',async e=>{
   const universeButton=e.target.closest('button[data-universe]');
   const filterButton=e.target.closest('button[data-filter]');
