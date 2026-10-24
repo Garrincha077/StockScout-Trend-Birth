@@ -37,14 +37,19 @@ def _bars(row: dict, as_of: str) -> dict[str, float]:
 
 
 def _calendar(prices: dict[str, dict[str, float]], as_of: str) -> list[str]:
-    # A liquid exchange-listed proxy avoids counting non-trading dates of
-    # individual names as extra sessions. AAPL is in the Unified universe.
-    reference = prices.get("AAPL") or {}
-    if not reference:
-        raise ValueError("AAPL reference chart missing; cannot define trading sessions")
-    days = sorted(reference)
-    if days[-1] != as_of:
-        raise ValueError("Reference chart not current for EOD " + as_of)
+    # Full-universe membership rotates: no individual ticker (including AAPL)
+    # is guaranteed to appear in every EOD. Majority of CURRENT available
+    # US-equity charts provides a deterministic exchange-session calendar.
+    # Thin/illiquid one-off dates cannot create fake trading sessions.
+    active = [bars for bars in prices.values() if as_of in bars and len(bars) >= 10]
+    if not active:
+        raise ValueError("No sufficiently complete current Unified charts for exchange calendar")
+    counts = Counter(day for bars in active for day in bars)
+    quorum = len(active) // 2 + 1
+    days = sorted(day for day, count in counts.items()
+                  if day <= as_of and count >= quorum)
+    if not days or days[-1] != as_of:
+        raise ValueError("No current consensus exchange session")
     return days
 
 
@@ -196,7 +201,7 @@ def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
         "exitRule": "h complete exchange sessions after entry close",
         "benchmark": None, "dividendsIncluded": False,
         "pointInTimeStageMembership": True, "survivorshipGuard": "unmatched tickers excluded; missing mature outcomes counted",
-        "calendarSource": "Unified EOD AAPL chart",
+        "calendarSource": "majority of current Unified EOD chart dates",
         "byHorizon": by_horizon,
     }
 

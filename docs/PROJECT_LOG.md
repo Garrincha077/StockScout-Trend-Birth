@@ -516,3 +516,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - **Dalje:** provjeriti da CI/GitHub publication i Vercel `statistics.html` u produkciji daju report nakon sljedećeg EOD; dodati benchmark-relative SPY (ako stabilan izvor), survivorship/delisting review, klasterirane intervale pouzdanosti i odvojeni kalibracijski vs budući holdout na većem uzorku.
 
 ---
+
+
+## 2026-10-25 — Real EOD workflow postmortem and calendar hotfix
+
+- GitHub Actions run #400: new 5/20/60 script failed after passing all Python/Node tests because rotating candidate union omitted AAPL; full publication correctly stopped. Fixed by strict-majority (>50%) date quorum across all valid CURRENT Unified chart bars, preserving fail-closed behavior if no coherent market calendar. Regression test added for absent AAPL. Verify follow-up publication and data output before claiming live outcomes.

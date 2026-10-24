@@ -111,10 +111,19 @@ class ForwardStageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Conflicting point-in-time"):
                 forward.build(latest, stage_dir, root / "outcomes", root / "report.json")
 
+    def test_calendar_uses_consensus_when_aapl_is_absent(self):
+        dates=sessions(70)
+        prices={
+            "MSFT": {day: 100.0 for day in dates},
+            "NVDA": {day: 200.0 for day in dates},
+            "TINY": {dates[-1]: 4.0},  # one sparse ticker must not set calendar
+        }
+        self.assertEqual(forward._calendar(prices, dates[-1]), dates)
+
     def test_reference_calendar_requires_current_bar(self):
         dates=sessions()
-        self.assertRaisesRegex(ValueError, "reference", forward._calendar, {}, dates[-1])
-        self.assertRaisesRegex(ValueError, "not current", forward._calendar,
+        self.assertRaisesRegex(ValueError, "current", forward._calendar, {}, dates[-1])
+        self.assertRaisesRegex(ValueError, "current", forward._calendar,
                                {"AAPL": {dates[0]: 100.0}}, dates[-1])
 
 
