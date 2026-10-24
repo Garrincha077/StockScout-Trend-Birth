@@ -81,3 +81,5 @@ Samostalan tab **Statistika** (putanja /statistics.html) daje strukturni pogled 
 ### Ogranicenja i negativni nalazi
 
 Povijesni 0/4–4/4 proxy nastaje iz adjusted **close**: 14D Wilder ATR s high/low zamijenjen je unaprijed fiksiranim 1,8 × EMA14 apsolutnih close pomaka, stoga nije istovjetan produkcijskim signalima. ETF-ovi imaju survivorship i veliku medusobnu ovisnost. Koristenje kasnije poznatih adjusted cijena za ex post prinos je dopusteno samo za evaluaciju, ne za signal u trenutku t. 10-dnevni razmak promatranja uz 20-dnevni horizont ostavlja djelomicno preklapanje ishoda; nema transaction-cost modela ni interday izvrsenja. Pojedini rezimi daju **negativan spread**, ukljucujuci krizu 2008.; to treba stalno prikazivati i ne predstavljati composite kao validiranu predikciju.
+
+**Kontrola izvora:** dvije potpuno prazne equity cijenske retke iz pinanog CSV-a (praznik 2026-05-25 i 2026-08-11) ne smiju resetirati EMA/SMA niti se racunati kao trgovinske sesije. Broj filtriranih redaka pohraniti u `source.droppedEmptyEquityRows`; djelomicni izostanak benchmarka SPY uz aktivne equity cijene mora izazvati gresku.

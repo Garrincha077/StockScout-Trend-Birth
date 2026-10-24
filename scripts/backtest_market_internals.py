@@ -51,6 +51,11 @@ def _number(s: str) -> float | None:
         return None
 
 
+def empty_equity_row(row: dict) -> bool:
+    # Entire US equity session missing; VIX/rates alone do not make it a trading day.
+    return _number(row.get("SPY")) is None and all(_number(row.get(symbol)) is None for symbol in SECTORS)
+
+
 def load_prices(csv_text: str) -> tuple[list[date], dict[str, list[float | None]]]:
     reader = csv.DictReader(io.StringIO(csv_text))
     required = set(SECTORS) | {"SPY", "QQQ", "^VIX", "Date"}
@@ -60,6 +65,12 @@ def load_prices(csv_text: str) -> tuple[list[date], dict[str, list[float | None]
     values = {col: [] for col in required if col != "Date"}
     for row in reader:
         d = date.fromisoformat(row["Date"])
+        # Some source rows represent closed exchanges (e.g. US Memorial Day)
+        # or an unfinished tail: VIX may be present while every stock/ETF is blank.
+        if empty_equity_row(row):
+            continue
+        if _number(row.get("SPY")) is None:
+            raise ValueError("Missing benchmark SPY on a populated equity session: "+d.isoformat())
         if days and d <= days[-1]:
             raise ValueError("Prices are not strictly chronological")
         days.append(d)
@@ -356,7 +367,7 @@ def run(prices_csv: str, actual_payload: dict) -> dict:
         "scope":"equity-etf-proxy-not-historical-stockscout",
         "source":{"url":SOURCE_URL,"sha256":hashlib.sha256(prices_csv.encode()).hexdigest(),
                   "firstDate":days[0].isoformat(),"lastDate":days[-1].isoformat(),
-                  "description":"Dividend-adjusted closes of 14 sector/region/size/REIT equity ETFs, not OHLC or delisted stocks"},
+                  "description":"Dividend-adjusted closes of 14 sector/region/size/REIT equity ETFs, not OHLC or delisted stocks", "droppedEmptyEquityRows":len(list(csv.DictReader(io.StringIO(prices_csv))))-len(days)},
         "method":{"horizonTradingDays":HORIZON,"entry":"next-session adjusted CLOSE","exit":"adjusted CLOSE 20 sessions after entry",
                   "samplingStrideSessions":STEP,"walkForward":"annual profile selection using only previously completed labeled calendar years",
                   "featureRankWindowSessions":252,"atrProxy":"1.8 x EMA14 absolute close move; no high/low",

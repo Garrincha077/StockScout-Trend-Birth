@@ -35,6 +35,13 @@ class CompositeMarketInternalsTests(unittest.TestCase):
         self.assertEqual(result["latestActual"]["sessionDate"],actual["latestSessionDate"])
         self.assertTrue(0<=result["latestActual"]["score"]<=100)
 
+    def test_empty_market_row_is_not_a_trading_session(self):
+        blank={symbol:"" for symbol in bt.SECTORS}
+        blank.update({"SPY":"","^VIX":"16.59"})
+        self.assertTrue(bt.empty_equity_row(blank))
+        blank["SPY"]="650.12"
+        self.assertFalse(bt.empty_equity_row(blank))
+
     def test_historical_source_rejects_truncated_data(self):
         with self.assertRaises(ValueError):
             bt.load_prices("Date,SPY,XLE\n2008-10-01,100,50\n")
