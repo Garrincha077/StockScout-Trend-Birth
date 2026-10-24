@@ -59,7 +59,7 @@ class IntelligenceTelegramTests(unittest.TestCase):
         self.assertEqual((result["triggerCount"], result["readyCount"], result["invalidatedCount"]), (2, 1, 1))
         self.assertEqual([m["kind"] for m in result["messages"]], ["intelligence-eod"])
         body = result["messages"][0]["text"]
-        self.assertIn("Kell/tracked 4/4 (2): AAA, BBB", body)
+        self.assertIn("Kell/tracked 4/4 (2): BBB, AAA", body)
         self.assertIn("Kell/tracked 3/4 (1): CCC", body)
         self.assertIn("Kell/tracked invalidirani (1): DDD", body)
         self.assertIn("Stabilni 3+/4", body)
