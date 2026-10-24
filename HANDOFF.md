@@ -2,6 +2,18 @@
 
 > **Ažurirano / provjereno:** 24. 10. 2026. (Europe/Zagreb). Ovo je **trenutačni operativni status**, a `docs/PROJECT_LOG.md` je kronološka evidencija promjena. Statuse u nastavku ponovno provjeriti pri idućem radu.
 
+## 0. StockScout Intelligence v1 — najnoviji razvoj (24. 10. 2026.)
+
+Implementacija u ovoj radnoj promjeni cilja sljedeće, nadogradnjom postojećeg skenera bez promjene njegovih pravila:
+
+1. **Puna povijest po tickeru i razini 0/4–4/4**: `scripts/trend_birth_intelligence.py` izvlači točne stupnjeve iz `trendBirthCandidateIndex` za sav `unified-plus-tracked-watchlist` univerzum. Sprema dnevne zapise u kumulativne, kalendarski mjesečne `lab/data/trend-birth-ticker-history/YYYY-MM.json` datoteke. Svaki zapis nosi `sessionDate`, `runId`, `stages`, `unavailable`, potpune brojeve i bitmasku deset provjerenih checklist kriterija. Novi datum se pridodaje, stariji mjesečni zapisi se **ne režu prema 20 sesija**. Stariji datumi mogu se učitati samo ako stvarni arhiv sadrži potpun indeks i validan radar; nema interpolacije.
+2. **Dnevne prilike**: kompaktni `lab/data/trend-birth-intelligence.json` s brojevima novih 4/4, prelazaka u 3/4, poboljšanja, nazadovanja i najviše deset transparentno prikazanih kandidata. Prijelazi koriste **presjek dvaju evaluiranih univerzuma**, bez lažnih promocija novoobuhvaćenih ili ranije nedostupnih tickera. Nema novog skenera ni neprozirne dodatne ocjene.
+3. **UI**: Today's Opportunities se učitava prije višemegabajtnog Review/Kell snimka i naknadno validira prema izvornom datumu, `runId` i stage brojevima. Klik na dnevni/tjedni/mjesečni složeni stupac otvara **točan popis tickera** za odabranu razinu, uz provjeru da zbroj ticker-dana odgovara stupcu. Iz popisa i Today kartica može se otvoriti povijesna putanja tickera; mjesečne datoteke se učitavaju na zahtjev. W/M ostaju ponderirani dnevnim očitanjima, ne broj jedinstvenih dionica.
+4. **Automatika i troškovi**: nadograđuje se *postojeći* `.github/workflows/unified-review-grid-lab.yml` bez nove Actions satnice, dodatnog servera ili baze. Mjesečne arhive i sažetak kopiraju se kroz postojeći reset/push blok, čuvaju u GitHubu i serviraju postojećim Vercel Raw rewriteom. U privremeni Actions artefakt ne ulazi arhiva tickera. `build_trend_birth_alerts.py` može dodati jednu dnevnu `intelligence-eod` poruku postojećem **no-send payloadu**; hoće li je vanjski sender doista proslijediti treba posebno potvrditi — ovaj repozitorij **ne šalje** Telegram poruke izravno.
+5. **Konzistentnost**: Python provjerava svaki datum, točan nazivnik, 0–4 stage, nedostupne tickere i sukob postojećih sesija; JS zatvara historical drill ako popis nije potpun. Testovi u `tests/test_trend_birth_intelligence.py`, `tests/test_intelligence_telegram.py`, `tests/trend-birth-intelligence.test.cjs`.
+
+**Pri sljedećem chatu:** ponovno provjeriti je li PR s ovim kodom merged i je li idući EOD uspješno generirao `trend-birth-intelligence.json` i mjesečne datoteke; potvrditi vanjsku Telegram distribuciju vrste `intelligence-eod`, 1:1 povijesne zbrojeve i stvarno prikazivanje na mobitelu. Ne tvrdite da su nove datoteke već objavljene prije uspješnog EOD-a. Raniji status PR #48/#50 niže je povijesni kontekst.
+
 ## 1. Što pročitati prije nastavka
 
 1. `AGENTS.md` — obvezna pravila i ograničenja projekta.

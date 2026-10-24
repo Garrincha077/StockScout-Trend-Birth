@@ -1,6 +1,6 @@
 const requestedMode=new URLSearchParams(location.search).get('mode');
 const defaultMode=requestedMode==='legacy'||requestedMode==='weekly-v2'?requestedMode:(window.StockScoutMode?.defaultMode||'weekly-v2');
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',intelligence:null,intelligenceError:'',intelligenceMonths:new Map(),tickerDrill:null,tickerDrillLimit:40,journeyTicker:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
@@ -98,6 +98,142 @@ const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
 const tbQualityView={zoom:100,timeframe:'D',range:'all',selectedPeriod:'',scrollToEnd:true};
+
+const tbIntelligenceArchived=new URLSearchParams(location.search).has('snapshot')||
+  new URLSearchParams(location.search).has('date');
+function intelligenceAligned(){
+  const summary=state.intelligence;
+  if(!summary||tbIntelligenceArchived)return false;
+  const source=state.data?.source,radar=state.data?.trendBirthRadar;
+  if(!source)return true; // tiny EOD digest is rendered before the multi-MB review snapshot.
+  return source.sessionDate===summary.source.sessionDate&&
+    source.runId===summary.source.runId&&radar?.scope===summary.source.scope&&
+    ['0','1','2','3','4'].every(stage=>radar.stageCounts?.[stage]===summary.counts[stage]);
+}
+function renderTrendBirthToday(){
+  const panel=$('#tbToday');
+  if(!panel)return;
+  const data=state.intelligence;
+  if(!intelligenceAligned()){panel.hidden=true;return}
+  panel.hidden=false;
+  const source=data.source;
+  $('#tbTodaySource').textContent=source.sessionDate+' · '+data.evaluatedCount.toLocaleString('hr-HR')+
+    ' evaluirano · '+data.unavailableCount+' nedostupnih'+
+    (source.previousSessionDate?' · usporedba s '+source.previousSessionDate:' · početni dan');
+  const metrics=[
+    {label:'Novi 4/4',value:data.baselineOnly?'—':data.newFour,kind:'up'},
+    {label:'Prelazak na 3/4',value:data.baselineOnly?'—':data.toReady,kind:'up'},
+    {label:'Napredovalo',value:data.baselineOnly?'—':data.upgrades,kind:'up'},
+    {label:'Nazadovalo',value:data.baselineOnly?'—':data.downgrades,kind:'down'},
+  ];
+  $('#tbTodayMetrics').innerHTML=metrics.map(m=>'<div class="tb-intelligence-metric" data-kind="'+m.kind+
+    '"><small>'+m.label+'</small><strong>'+m.value+'</strong></div>').join('');
+  const rows=data.topOpportunities||[];
+  $('#tbTodayCandidates').innerHTML=rows.length?rows.map(item=>{
+    const prior=Number.isInteger(item.previousStage)?item.previousStage+'/4 → ':'';
+    const why=item.newChecks?.length?'Novo potvrđeno: '+item.newChecks.slice(0,2).join(', '):
+      item.stage===4?'Stabilan setup 4/4':'Potrebno: '+(item.missingFor4||[]).slice(0,2).join(', ');
+    return '<article class="tb-opportunity-card"><div class="tb-opportunity-card-head">'+
+      '<strong>'+esc(item.ticker)+'</strong><span>'+prior+item.stage+'/4</span></div>'+
+      '<small>'+esc(why)+'</small><div class="tb-opportunity-actions">'+
+      '<button type="button" data-tb-journey="'+esc(item.ticker)+'">Povijest</button>'+
+      '<a href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(item.ticker)+
+      '" target="_blank" rel="noopener noreferrer">Chart ↗</a></div></article>';
+  }).join(''):'<p class="tb-history-data-note">'+
+    (data.baselineOnly?'Početni dan: nema usporedbe s ranijom sesijom.':'Nema novih kandidata u odabranim prijelazima.')+'</p>';
+}
+async function loadTrendBirthIntelligence(){
+  if(tbIntelligenceArchived)return;
+  try{
+    const response=await fetch('data/trend-birth-intelligence.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    state.intelligence=TrendBirthIntelligence.validateSummary(await response.json());
+    renderTrendBirthToday();
+  }catch(error){
+    state.intelligenceError=error.message;
+    $('#tbToday').hidden=true; // Historical UI and EOD still work without new payload.
+  }
+}
+function selectedDrillPeriod(){
+  const source=state.data?.trendBirthRadar,day=state.data?.source?.sessionDate;
+  if(!source||!state.qualityHistory)return null;
+  const historical=TrendBirthQuality.normalizeHistory(state.qualityHistory,day,source.scope)
+    .filter(point=>point.sessionDate!==day);
+  const today=TrendBirthQuality.normalizeRadar(source);
+  if(!today)return null;
+  historical.push({sessionDate:day,...today});
+  const all=TrendBirthQuality.aggregateHistory(historical,tbQualityView.timeframe);
+  return TrendBirthQuality.selectHistoryRange(all,tbQualityView.range,day)
+    .find(point=>point.periodKey===tbQualityView.selectedPeriod)||null;
+}
+async function loadTickerMonths(from,to){
+  const scope=state.data?.trendBirthRadar?.scope||state.intelligence?.source.scope;
+  if(!scope)throw new Error('Nedostaje validirani Trend Birth univerzum.');
+  const months=TrendBirthIntelligence.monthsInPeriod(from,to);
+  return TrendBirthIntelligence.loadMonths(fetch,months,state.intelligenceMonths,scope,to.slice(0,7));
+}
+function tickerListHTML(entries,limit){
+  return entries.slice(0,limit).map(row=>
+    '<div class="tb-ticker-entry"><button type="button" data-tb-journey="'+esc(row.ticker)+
+    '" title="Pogledaj povijest tickera">'+esc(row.ticker)+'</button>'+
+    '<small>'+(row.days>1?row.days+'d · ':'')+
+    '<a href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(row.ticker)+
+    '" target="_blank" rel="noopener noreferrer">Graf ↗</a></small></div>').join('');
+}
+async function showSelectedTickerMembers(){
+  const period=selectedDrillPeriod(),result=$('#tbDrillResults');
+  if(!period){result.textContent='Odabrano razdoblje više nije na grafu.';return}
+  const stage=$('#tbDrillStage').value,requested=period.periodKey;
+  result.textContent='Učitavam arhivirane tickere…';
+  try{
+    const end=period.periodEnd<state.data.source.sessionDate?period.periodEnd:state.data.source.sessionDate;
+    const months=await loadTickerMonths(period.periodKey,end);
+    // Fail closed when daily archives and the displayed aggregate disagree.
+    const selection=TrendBirthIntelligence.membersForPeriod(months,period,stage,state.data.source.sessionDate);
+    if(tbQualityView.selectedPeriod!==requested||$('#tbDrillStage').value!==stage)return;
+    state.tickerDrill={selection,period,stage};
+    state.tickerDrillLimit=40;
+    renderTickerDrillResults();
+  }catch(error){
+    result.textContent='Nije moguće prikazati potpun popis: '+error.message;
+    state.tickerDrill=null;
+  }
+}
+function renderTickerDrillResults(){
+  const selected=state.tickerDrill;
+  if(!selected)return;
+  const {members,tickerDays}=selected.selection,limit=state.tickerDrillLimit;
+  const suffix=tbQualityView.timeframe==='D'?'tickera':'jedinstvenih tickera · '+tickerDays+' ticker-dana';
+  $('#tbDrillResults').innerHTML='<div class="tb-history-metric">'+members.length+' '+suffix+
+    ' · svaki ticker može se pojaviti više dana u W/M razdoblju.</div>'+
+    '<div class="tb-ticker-list">'+tickerListHTML(members,limit)+'</div>'+
+    (limit<members.length?'<button type="button" class="tb-drill-more" id="tbDrillMore">Prikaži još '+Math.min(40,members.length-limit)+'</button>':'');
+}
+async function showTickerJourney(ticker){
+  if(!/^[A-Z0-9.^_-]{1,24}$/.test(ticker||''))return;
+  const panel=$('#tbTickerJourney');
+  panel.hidden=false;
+  panel.innerHTML='<h3>'+esc(ticker)+' · putanja setupa</h3><p>Učitavam sačuvane EOD stupnjeve…</p>';
+  state.journeyTicker=ticker;
+  try{
+    const asOf=state.data?.source?.sessionDate||state.intelligence?.source.sessionDate;
+    const points=state.qualityHistory?.points||[];
+    const earliest=points.filter(p=>p.sessionDate<=asOf).map(p=>p.sessionDate).sort()[0]||asOf;
+    const months=await loadTickerMonths(earliest,asOf);
+    const journey=TrendBirthIntelligence.journey(months,ticker,asOf);
+    if(state.journeyTicker!==ticker)return;
+    const renderDay=p=>'<div class="tb-ticker-journey-day"><small>'+p.sessionDate.slice(5)+'</small>'+
+      '<strong>'+(p.stage==null?'N/A':p.stage+'/4')+'</strong>'+
+      '<span class="tb-stage-dot" data-stage="'+(p.stage==null?'na':p.stage)+'"></span></div>';
+    panel.innerHTML='<div class="tb-quality-header"><h3>'+esc(ticker)+' · putanja setupa</h3>'+
+      '<button type="button" class="tb-text-button" id="tbCloseJourney">Zatvori ×</button></div>'+
+      '<p class="tb-history-data-note">'+journey.length+' sačuvanih očitanja. Nedostupno nije 0/4; izostanak u univerzumu nije izmišljen kao stupanj.</p>'+
+      (journey.length?'<div class="tb-ticker-journey-points">'+journey.map(renderDay).join('')+'</div>':
+        '<p>Nema potvrđenih podataka za ticker u spremljenoj povijesti.</p>');
+    panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }catch(error){panel.innerHTML='<h3>'+esc(ticker)+'</h3><p>Putanja nije dostupna: '+esc(error.message)+'</p>'}
+}
+
 function renderTrendBirthQuality(){
   const panel=$('#trendBirthQuality'),summary=$('#tbQualitySummary'),countsBox=$('#tbQualityCounts'),historyBox=$('#tbQualityHistory');
   const source=state.data?.trendBirthRadar,quality=TrendBirthQuality.normalizeRadar(source);
@@ -1110,6 +1246,8 @@ document.querySelectorAll('button[data-tb-timeframe]').forEach(button=>
     tbQualityView.timeframe=button.dataset.tbTimeframe;
     tbQualityView.selectedPeriod='';
     tbQualityView.scrollToEnd=true;
+    $('#tbTickerDrill').hidden=true;
+    state.tickerDrill=null;
     renderTrendBirthQuality();
   }));
 document.querySelectorAll('button[data-tb-range]').forEach(button=>
@@ -1117,6 +1255,8 @@ document.querySelectorAll('button[data-tb-range]').forEach(button=>
     tbQualityView.range=button.dataset.tbRange;
     tbQualityView.selectedPeriod='';
     tbQualityView.scrollToEnd=true;
+    $('#tbTickerDrill').hidden=true;
+    state.tickerDrill=null;
     renderTrendBirthQuality();
   }));
 $('#tbPercentileMetric')?.addEventListener('change',renderTrendBirthQuality);
@@ -1134,9 +1274,23 @@ $('#tbQualityHistory')?.addEventListener('click',event=>{
   const bar=event.target.closest('button[data-tb-period]');
   if(!bar)return;
   tbQualityView.selectedPeriod=bar.dataset.tbPeriod;
+  $('#tbTickerDrill').hidden=false;
+  $('#tbDrillPeriod').textContent=bar.getAttribute('aria-label')?.split(' · ')[0]||bar.dataset.tbPeriod;
   renderTrendBirthQuality();
+  showSelectedTickerMembers();
   [...$('#tbQualityHistory').querySelectorAll('button[data-tb-period]')].find(
     button=>button.dataset.tbPeriod===tbQualityView.selectedPeriod)?.focus({preventScroll:true});
+});
+$('#tbDrillStage')?.addEventListener('change',showSelectedTickerMembers);
+$('#tbDrillResults')?.addEventListener('click',e=>{
+  if(e.target.closest('#tbDrillMore')){
+    state.tickerDrillLimit+=40;renderTickerDrillResults();
+  }
+});
+document.addEventListener('click',e=>{
+  const picker=e.target.closest('button[data-tb-journey]');
+  if(picker){showTickerJourney(picker.dataset.tbJourney);return}
+  if(e.target.closest('#tbCloseJourney')){$('#tbTickerJourney').hidden=true;state.journeyTicker=''}
 });
 $('#filters').addEventListener('click',async e=>{
   const universeButton=e.target.closest('button[data-universe]');
@@ -1244,6 +1398,7 @@ $('#primaryViews')?.addEventListener('click',e=>{
 });
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
+loadTrendBirthIntelligence(); // tiny payload while heavyweight Review/Kell data loads.
 ReviewSnapshots.load(fetch,location.search)
-  .then(data=>{state.data=data;renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
+  .then(data=>{state.data=data;renderTrendBirthToday();renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});

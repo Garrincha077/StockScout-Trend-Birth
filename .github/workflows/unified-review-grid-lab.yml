@@ -135,6 +135,13 @@ jobs:
         run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory lab/data
       - name: Build point-in-time Trend Birth stage history
         run: python scripts/trend_birth_quality_history.py --history-dir lab/data/history --output lab/data/trend-birth-quality-history.json --latest lab/data/latest.json
+      - name: Archive full-universe ticker stages and derive daily opportunities
+        run: |
+          python scripts/trend_birth_intelligence.py \
+            --latest lab/data/latest.json \
+            --history-dir lab/data/history \
+            --month-dir lab/data/trend-birth-ticker-history \
+            --summary lab/data/trend-birth-intelligence.json
       - name: Build compact Kell preview dataset
         run: python scripts/build_kell_compact.py --input lab/data/latest.json --output lab/data/kell-latest.json --charts-dir lab/data/kell-charts
       - name: Build no-send Trend Birth alert payload
@@ -144,7 +151,8 @@ jobs:
             --history-dir lab/data/kell-history \
             --publication lab/data/publication.json \
             --output lab/data/trend-birth-alerts.json \
-            --dashboard-url https://stockscout-trend-birth-review-lab.vercel.app/
+            --dashboard-url https://stockscout-trend-birth-review-lab.vercel.app/ \
+            --intelligence lab/data/trend-birth-intelligence.json
 
       - name: Validate compact Kell dataset
         run: |
@@ -234,6 +242,9 @@ jobs:
           cp lab/data/kell-signal-validation.json /tmp/kell-signal-validation.json
           cp lab/data/kell-gold-set-eval.json /tmp/kell-gold-set-eval.json
           cp lab/data/trend-birth-alerts.json /tmp/trend-birth-alerts.json
+          cp lab/data/trend-birth-intelligence.json /tmp/trend-birth-intelligence.json
+          rm -rf /tmp/trend-birth-ticker-history
+          cp -R lab/data/trend-birth-ticker-history /tmp/trend-birth-ticker-history
           cp lab/kell-calibration.html /tmp/kell-calibration.html
           rm -rf /tmp/kell-charts
           cp -R lab/data/kell-charts /tmp/kell-charts
@@ -267,6 +278,9 @@ jobs:
           cp /tmp/kell-signal-validation.json lab/data/kell-signal-validation.json
           cp /tmp/kell-gold-set-eval.json lab/data/kell-gold-set-eval.json
           cp /tmp/trend-birth-alerts.json lab/data/trend-birth-alerts.json
+          cp /tmp/trend-birth-intelligence.json lab/data/trend-birth-intelligence.json
+          mkdir -p lab/data/trend-birth-ticker-history
+          cp -R /tmp/trend-birth-ticker-history/. lab/data/trend-birth-ticker-history/
           cp /tmp/kell-calibration.html lab/kell-calibration.html
           rm -rf lab/data/kell-charts
           cp -R /tmp/kell-charts lab/data/kell-charts
@@ -296,7 +310,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0
@@ -313,6 +327,7 @@ jobs:
             !lab/data/history/**
             !lab/data/snapshots/**
             !lab/data/kell-history/**
+            !lab/data/trend-birth-ticker-history/**
             !lab/data/kell-snapshots/**
             !lab/data/kell-chart-runs/**
             !lab/data/kell-chart-snapshots/**

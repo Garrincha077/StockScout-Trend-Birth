@@ -177,6 +177,7 @@ def build_alerts(
     previous: dict | None,
     dashboard_url: str,
     max_ready: int = 5,
+    intelligence: dict | None = None,
 ) -> dict:
     current_map = _candidate_map(current)
     previous_map = _candidate_map(previous or {})
@@ -255,9 +256,38 @@ def build_alerts(
             lines.append(f"View dashboard: {dashboard_url}")
         messages.append({"kind": "invalidated", "text": "\n".join(lines)})
 
+    if intelligence is not None:
+        source = intelligence.get("source") or {}
+        current_source = current.get("source") or {}
+        radar_counts = (current.get("trendBirthRadar") or {}).get("stageCounts") or {}
+        if (intelligence.get("schemaVersion") != "trend-birth-intelligence-v1"
+                or source.get("sessionDate") != current_source.get("sessionDate")
+                or source.get("runId") != current_source.get("runId")
+                or intelligence.get("counts") != radar_counts):
+            raise ValueError("EOD intelligence is not aligned with alert source")
+        lines = [
+            "📊 TREND BIRTH — EOD PROMJENE",
+            f"Datum: {source['sessionDate']}",
+            _stage_distribution_text(current),
+        ]
+        if intelligence.get("baselineOnly"):
+            lines.append("Početno očitanje — povijesne promjene još nisu dostupne.")
+        else:
+            lines.extend([
+                f"Usporedba: {source.get('previousSessionDate')} → {source['sessionDate']}",
+                f"Zajednički evaluirano: {intelligence['commonEvaluated']}",
+                f"Nova 4/4: {intelligence['newFour']} · Prelazak na 3/4: {intelligence['toReady']}",
+                f"Napredovalo: {intelligence['upgrades']} · Nazadovalo: {intelligence['downgrades']}",
+                "Novi 4/4: " + (", ".join(intelligence.get("newFourTickers", [])[:8]) or "—"),
+            ])
+        lines.append("View dashboard: " + dashboard_url)
+        messages.append({"kind": "intelligence-eod", "text": "\\n".join(lines)})
+
     distribution = _stage_distribution_text(current)
     if distribution:
         for message in messages:
+            if message["kind"] == "intelligence-eod":
+                continue  # Full distribution already present in this one EOD digest.
             lines = message["text"].splitlines()
             link_at = next(i for i, line in enumerate(lines) if "View dashboard:" in line)
             lines[link_at:link_at] = [distribution, ""]
@@ -284,17 +314,20 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--dashboard-url", default=DEFAULT_DASHBOARD)
     parser.add_argument("--max-ready", type=int, default=5)
+    parser.add_argument("--intelligence", help="Optional verified full-universe EOD transitions")
     args = parser.parse_args()
 
     current = json.loads(Path(args.current).read_text(encoding="utf-8"))
     publication = json.loads(Path(args.publication).read_text(encoding="utf-8"))
     session_date = str((current.get("source") or {}).get("sessionDate") or "")
     prior_path, previous = _latest_prior(Path(args.history_dir), session_date)
+    intelligence = json.loads(Path(args.intelligence).read_text(encoding="utf-8")) if args.intelligence else None
     payload = build_alerts(
         current,
         previous,
         _dashboard_url(args.dashboard_url, publication),
         max_ready=max(1, args.max_ready),
+        intelligence=intelligence,
     )
     payload["previousSessionDate"] = (
         (previous.get("source") or {}).get("sessionDate") if previous else None
