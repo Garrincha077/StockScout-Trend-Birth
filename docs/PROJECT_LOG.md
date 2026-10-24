@@ -521,3 +521,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 ## 2026-10-25 — Real EOD workflow postmortem and calendar hotfix
 
 - GitHub Actions run #400: new 5/20/60 script failed after passing all Python/Node tests because rotating candidate union omitted AAPL; full publication correctly stopped. Fixed by strict-majority (>50%) date quorum across all valid CURRENT Unified chart bars, preserving fail-closed behavior if no coherent market calendar. Regression test added for absent AAPL. Verify follow-up publication and data output before claiming live outcomes.
+
+
+## 2026-10-25 — Native chart normalization correction
+
+- Additional inspection of `scripts/build_review_snapshot.py::_chart_rows` and `_date_from_stamp` confirmed Unified chart rows may be compact arrays and timestamps in seconds/milliseconds; stage-forward `_bars` originally accepted only dict bars. Implemented both formats with UTC time normalization and a contract test, alongside majority-calendar fallback. This is necessary for live end-to-end EOD success.

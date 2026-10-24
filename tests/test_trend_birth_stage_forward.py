@@ -111,6 +111,20 @@ class ForwardStageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Conflicting point-in-time"):
                 forward.build(latest, stage_dir, root / "outcomes", root / "report.json")
 
+    def test_compact_array_chart_and_unix_timestamp_normalization(self):
+        from datetime import datetime, timezone
+        day = "2026-10-23"
+        seconds = int(datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp())
+        payload = {"chartBars": [
+            [seconds, 98, 102, 97, 100, 300_000],
+            [seconds * 1000, 98, 102, 97, 101, 300_000],
+            {"time": "2026-10-22", "close": 99},
+            ["2026-10-24", 100, 103, 98, 102, 300_000],
+        ]}
+        bars = forward._bars(payload, day)
+        self.assertEqual(bars, {"2026-10-22": 99.0, "2026-10-23": 101.0})
+        self.assertEqual(forward._date_from_stamp("garbage"), None)
+
     def test_calendar_uses_consensus_when_aapl_is_absent(self):
         dates=sessions(70)
         prices={
