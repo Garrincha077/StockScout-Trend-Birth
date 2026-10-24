@@ -4,7 +4,7 @@
 
 > **Stage-forward ishodi (25. 10. 2026.):** prva live implementacija čuva svaki point-in-time prijelaz faze i stvarne buduće prinose za 5/20/60 burzovnih sesija u inkrementalnim mjesečnim arhivama. Tab `Statistika` izlaže dospjele/pending/missing ishode i pokrivenost. Sljedeći milestone: 20/60D dovoljan uzorak, provjera korporativnih akcija i delistinga, kontrola SPY/benchmark i vremenski odvojen holdout; kalibracija Compositea tek nakon neovisne provjere.
 
-Status: design roadmap / greenfield-capable
+> **Stage forward V2 data-quality fix (25. 10. 2026.):** chart-only V1 achieved just 43 / 4,368 matured 5D outcomes (~0.98% coverage), too biased to interpret. New incremental point-in-time EOD close-price monthly archives join source run/day to all actual evaluated tickers; 5/20/60 returns now come exclusively from these anchored prices. Price-source quality, missing sessions, corporate actions and dedicated holdout remain required before optimizing Composite.\n\nStatus: design roadmap / greenfield-capable
 
 Date: 2026-08-26
 

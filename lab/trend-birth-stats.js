@@ -291,7 +291,7 @@
   }
 
   function validateForward(value) {
-    if (!value || value.schemaVersion !== 'trend-birth-stage-forward-v1' ||
+    if (!value || value.schemaVersion !== 'trend-birth-stage-forward-v2' ||
         value.scope !== SCOPE || !/^\d{4}-\d{2}-\d{2}$/.test(value.asOf) ||
         !Array.isArray(value.horizons) || value.horizons.join(',') !== '5,20,60' ||
         !value.byHorizon || !Number.isInteger(value.stageTransitions))

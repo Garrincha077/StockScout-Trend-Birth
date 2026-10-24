@@ -16,9 +16,10 @@ from pathlib import Path
 from statistics import median
 
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
+from archive_trend_birth_closes import load_prices
 
-SCHEMA = "trend-birth-forward-month-v1"
-REPORT_SCHEMA = "trend-birth-stage-forward-v1"
+SCHEMA = "trend-birth-forward-eod-month-v2"
+REPORT_SCHEMA = "trend-birth-stage-forward-v2"
 HORIZONS = (5, 20, 60)
 
 
@@ -75,6 +76,16 @@ def _calendar(prices: dict[str, dict[str, float]], as_of: str) -> list[str]:
     if not days or days[-1] != as_of:
         raise ValueError("No current consensus exchange session")
     return days
+
+
+def _price_series(price_archive: dict[str, dict]) -> dict[str, dict[str, float]]:
+    by_ticker: dict[str, dict[str, float]] = {}
+    for day, point in sorted(price_archive.items()):
+        for ticker, value in point["prices"].items():
+            if not math.isfinite(float(value)) or float(value) <= 0:
+                raise ValueError("Invalid historical EOD close: " + ticker + " " + day)
+            by_ticker.setdefault(ticker, {})[day] = float(value)
+    return by_ticker
 
 
 def _events(points: list[dict]) -> list[dict]:
@@ -226,21 +237,28 @@ def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
         "benchmark": None, "dividendsIncluded": False,
         "pointInTimeStageMembership": True, "survivorshipGuard": "unmatched tickers excluded; missing mature outcomes counted",
         "calendarSource": "majority of current Unified EOD chart dates",
+        "priceSource": "archived point-in-time EOD metrics.price (not dividends adjusted)",
         "byHorizon": by_horizon,
     }
 
 
-def build(latest_path: Path, stages_dir: Path, outcomes_dir: Path, output: Path) -> dict:
+def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path, output: Path) -> dict:
     latest = json.loads(latest_path.read_text(encoding="utf-8"))
     as_of = str((latest.get("source") or {}).get("sessionDate") or "")
     points = all_points(load_months(stages_dir))
     if not points or points[-1]["sessionDate"] != as_of:
         raise ValueError("Stage archive and EOD snapshot have different latest dates")
-    prices = {
+    # Live chart bars define exchange session dates only. Their historical
+    # prices may be stale/partial and MUST NOT determine realized outcomes.
+    chart_dates = {
         str(row.get("ticker") or "").upper(): _bars(row, as_of)
         for row in (latest.get("trendBirthCandidateIndex") or [])
     }
-    calendar = _calendar(prices, as_of)
+    calendar = _calendar(chart_dates, as_of)
+    closed = load_prices(prices_dir)
+    if as_of not in closed or set(closed) != {p["sessionDate"] for p in points}:
+        raise ValueError("Daily close and stage archives are not aligned")
+    prices = _price_series(closed)
     sessions = _merge(_events(points), _load_archive(outcomes_dir))
     _mature(sessions, prices, calendar)
     grouped: dict[str, list[dict]] = {}
@@ -262,10 +280,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--latest", type=Path, required=True)
     parser.add_argument("--stages-dir", type=Path, required=True)
+    parser.add_argument("--prices-dir", type=Path, required=True)
     parser.add_argument("--outcomes-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(build(args.latest, args.stages_dir, args.outcomes_dir, args.output)))
+    print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir, args.outcomes_dir, args.output)))
 
 
 if __name__ == "__main__":
