@@ -4,6 +4,19 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Permanent compact Trend Birth setup history, D/W/M and 1M/3M/1Y/5Y/All
+
+- Topic branch: `codex/trend-birth-dwm-permanent-history-20261024`, based on the deployed `feature/unified-review-grid-lab` branch. Commit SHA: recorded in GitHub PR history.
+- The breadth chart offers daily (D), ISO Monday–Sunday weekly (W) and calendar monthly (M) intervals plus independent 1M/3M/1Y/5Y/All historical windows. The original five-level 100%-stacked red-to-green bars, 25/50/75/100% vertical close-up zoom, selectable stages, count details and interval-specific historical percentiles remain.
+- Weekly/monthly stage shares are weighted by each archived day's evaluated universe: sum(stage counts) / sum(evaluated counts). Their counts represent *ticker-days*, not distinct tickers, and the UI reports the number of actual daily observations and flags edge periods partially covered by the archive.
+- Derived W/M series and selected horizontal history windows exist **only in the browser**. There is no W/M persistence, server storage, additional scheduled scan, snapshot clone or added deployment. All retained daily points remain the source; long ranges are no longer truncated to the most recent 45 sessions.
+- Hardened `scripts/trend_birth_quality_history.py` to merge previously validated historical points with immutable daily radar archives, preserving past compact observations even if old 80–100 MB raw snapshots are eventually moved out of Git. It explicitly rejects conflicting rewrites and cross-universe merges. Existing pre-radar dates are never invented or backfilled.
+- Affected: `lab/index.html`, `lab/app.js`, `lab/styles.css`, `lab/trend-birth-quality.js`, `scripts/trend_birth_quality_history.py`, `tests/trend-birth-quality.test.cjs`, `tests/test_trend_birth_quality_history.py`.
+- No changes to scanner membership, radar thresholds, Telegram sending, broker integration or costly historical snapshot retention workflows. The archive size and duplicate large raw JSON directories remain an **independent** storage concern; do not delete point-in-time research archives without dependency review, a recoverable backup and explicit user authorization.
+- Regression validation: test weighted aggregation and stack conservation, calendar boundaries and leap year, range retention, selective chart controls, old-archive removal resilience and collision safety.
+- Caveat: Weekly/monthly percentiles initially have small samples, and any incomplete final aggregation period is provisional. No daily data before the first verified radar reading is claimed.
+- Next: verify production Vercel dashboard and CI after merge; separately audit large raw archive deduplication and Git history size before undertaking any cleanup.
+
 ## 2026-10-24 — Stacked Trend Birth breadth, selectable colours, stepped zoom and historic percentile
 
 - Topic branch: `codex/trend-birth-stacked-breadth-zoom-20261024`, based on production `feature/unified-review-grid-lab` at `10193975ef9cdecbb2140e783d7790125204bc2b`; implementation SHA is the commit containing this entry.
@@ -196,15 +209,15 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 ## 2026-09-22 — Candidate-only Oliver Kell scoring lab
 
-- Branch: \`feature/kell-mcp-lab\`, based from \`feature/unified-review-grid-lab\`.
+- Branch: `feature/kell-mcp-lab`, based from `feature/unified-review-grid-lab`.
 - Scope decision: Kell scoring is an **additive overlay on existing StockScout candidates only**. It does not create a new market-wide candidate universe, does not change source membership, and does not change the existing default ranking.
-- Added \`scripts/kell_scoring.py\` with deterministic OHLCV proxies for 52W/New High, unusual volume, Bull Snort, 3M/6M momentum/Doubler, gapper, Strength on Down Day, EMA10/20 readiness, Wedge Pop, EMA Crossback, Base n' Break, tightening/contraction and breakout proximity.
-- Added top-level candidate JSON fields including \`kell_score\` and a fully inspectable \`score_breakdown\`; unavailable criteria are excluded from the score denominator rather than silently treated as failures.
-- \`Strength on Down Day\` uses SPY only as optional benchmark context. SPY retrieval is benchmark-only and does not alter candidate generation.
-- GridView additions: Kell score badge, \`Kell >=60\` filter, Kell-score descending sort, and detailed criterion breakdown in ticker detail.
-- Added isolated tests plus a GitHub Actions historical smoke step that enriches \`lab/data/history/2026-09-17.json\` and asserts candidate membership/order is preserved.
-- Added \`docs/KELL_SCORING.md\` documenting definitions, weights, data provenance and caveats.
-- Production impact: **none**. No merge to \`main\`, no Unified change, no Telegram change, no broker state change.
+- Added `scripts/kell_scoring.py` with deterministic OHLCV proxies for 52W/New High, unusual volume, Bull Snort, 3M/6M momentum/Doubler, gapper, Strength on Down Day, EMA10/20 readiness, Wedge Pop, EMA Crossback, Base n' Break, tightening/contraction and breakout proximity.
+- Added top-level candidate JSON fields including `kell_score` and a fully inspectable `score_breakdown`; unavailable criteria are excluded from the score denominator rather than silently treated as failures.
+- `Strength on Down Day` uses SPY only as optional benchmark context. SPY retrieval is benchmark-only and does not alter candidate generation.
+- GridView additions: Kell score badge, `Kell >=60` filter, Kell-score descending sort, and detailed criterion breakdown in ticker detail.
+- Added isolated tests plus a GitHub Actions historical smoke step that enriches `lab/data/history/2026-09-17.json` and asserts candidate membership/order is preserved.
+- Added `docs/KELL_SCORING.md` documenting definitions, weights, data provenance and caveats.
+- Production impact: **none**. No merge to `main`, no Unified change, no Telegram change, no broker state change.
 - Validation: branch CI is green on the implementation/fix commit: 18 Python tests passed; the 2026-09-17 historical Kell smoke scored all 82/82 existing candidates and preserved candidate membership/order exactly; top scores in that archived run were CMPS 57.6, SDGR 55.4 and VITL 54.3. The live public-data build for session 2026-09-21 produced 80 candidates with 80/80 chart coverage. Snapshot-link tests passed. A follow-up CI hardening step also adds `node --check lab/app.js` for GridView syntax.
 
 

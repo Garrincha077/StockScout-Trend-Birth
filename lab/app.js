@@ -97,7 +97,7 @@ const quickViews={
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
-const tbQualityView={zoom:100,selectedDay:''};
+const tbQualityView={zoom:100,timeframe:'D',range:'all',selectedPeriod:'',scrollToEnd:true};
 function renderTrendBirthQuality(){
   const panel=$('#trendBirthQuality'),summary=$('#tbQualitySummary'),countsBox=$('#tbQualityCounts'),historyBox=$('#tbQualityHistory');
   const source=state.data?.trendBirthRadar,quality=TrendBirthQuality.normalizeRadar(source);
@@ -114,6 +114,10 @@ function renderTrendBirthQuality(){
   }).join('');
   document.querySelectorAll('[data-tb-zoom]').forEach(button=>
     button.setAttribute('aria-pressed',String(Number(button.dataset.tbZoom)===tbQualityView.zoom)));
+  document.querySelectorAll('[data-tb-timeframe]').forEach(button=>
+    button.setAttribute('aria-pressed',String(button.dataset.tbTimeframe===tbQualityView.timeframe)));
+  document.querySelectorAll('[data-tb-range]').forEach(button=>
+    button.setAttribute('aria-pressed',String(button.dataset.tbRange===tbQualityView.range)));
   if(!state.qualityHistory){
     historyBox.textContent=state.qualityHistoryError||'Učitavam povijest potvrđenih dnevnih skenova…';
     return;
@@ -124,24 +128,29 @@ function renderTrendBirthQuality(){
   fullPoints=fullPoints.filter(point=>point.sessionDate!==day);
   fullPoints.push({sessionDate:day,...quality});
   fullPoints.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
-  const points=fullPoints.slice(-45);
+  // W/M are derived from all retained daily sessions, never stored as a second archive.
+  const allPeriods=TrendBirthQuality.aggregateHistory(fullPoints,tbQualityView.timeframe);
+  const points=TrendBirthQuality.selectHistoryRange(allPeriods,tbQualityView.range,day);
   const selectedStages=[...document.querySelectorAll('input[data-tb-stage]:checked')]
     .map(input=>input.dataset.tbStage);
   const zoom=tbQualityView.zoom;
   const ticks=TrendBirthQuality.zoomTicks(zoom);
-  const latest=fullPoints[fullPoints.length-1];
-  const selectedPoint=points.find(point=>point.sessionDate===tbQualityView.selectedDay)||latest;
+  const latest=allPeriods[allPeriods.length-1];
+  const selectedPoint=points.find(point=>point.periodKey===tbQualityView.selectedPeriod)||points[points.length-1];
+  const periodName=tbQualityView.timeframe==='D'?'Dnevno':tbQualityView.timeframe==='W'?'Tjedno':'Mjesečno';
+  const countName=tbQualityView.timeframe==='D'?'dionica':'dionica-dana';
   const bars=points.map(point=>{
-    const title=point.sessionDate+' · '+['4','3','2','1','0'].map(stage=>
-      stage+'/4: '+TrendBirthQuality.percent(point,stage).toFixed(2)+'% ('+point.counts[stage]+')').join(' · ')+
-      ' · analizirano '+point.evaluatedCount+' · bez podataka '+point.unavailableCount;
+    const title=point.label+' · '+['4','3','2','1','0'].map(stage=>
+      stage+'/4: '+TrendBirthQuality.percent(point,stage).toFixed(2)+'% ('+point.counts[stage]+' '+countName+')').join(' · ')+
+      ' · '+point.sessionCount+' dnevnih sesija · '+point.evaluatedCount+' '+countName+
+      ' · '+point.unavailableCount+' bez podataka';
     const segments=TrendBirthQuality.stackSlices(point,zoom).map(slice=>{
       if(slice.visiblePercent<=0)return '';
       const muted=selectedStages.includes(slice.stage)?'':' is-muted';
       return '<span class="tb-history-segment'+muted+'" data-stage="'+slice.stage+'" style="height:'+slice.visiblePercent.toFixed(4)+'%"></span>';
     }).join('');
-    const pressed=point.sessionDate===selectedPoint.sessionDate?'true':'false';
-    return '<button type="button" class="tb-history-bar" data-tb-day="'+point.sessionDate+
+    const pressed=point.periodKey===selectedPoint.periodKey?'true':'false';
+    return '<button type="button" class="tb-history-bar" data-tb-period="'+point.periodKey+
       '" aria-pressed="'+pressed+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+segments+'</button>';
   }).join('');
   const yLabels=ticks.map(tick=>'<span>'+tick+'%</span>').join('');
@@ -151,39 +160,57 @@ function renderTrendBirthQuality(){
   const focusStages=focus==='3+'?['3','4']:focus==='selected'?selectedStages:[focus];
   const focusLabel=focus==='3+'?'3/4 + 4/4':focus==='selected'?
     (focusStages.length?focusStages.map(stage=>stage+'/4').join(' + '):'Nijedna razina'):focus+'/4';
+  // Ignore the leftmost truncated calendar bucket when comparing weekly/monthly history.
+  const rankPoints=tbQualityView.timeframe==='D'?allPeriods:
+    allPeriods.filter((point,index)=>index!==0||!point.isPartial||allPeriods.length===1);
   const rank=focusStages.length&&focusStages.length<5?
-    TrendBirthQuality.historicalPercentile(fullPoints,focusStages):null;
+    TrendBirthQuality.historicalPercentile(rankPoints,focusStages):null;
   const lastCount=focusStages.reduce((sum,stage)=>sum+(latest.counts[stage]||0),0);
   const rankValue=rank?.percentile==null?'—':'P'+Math.round(rank.percentile);
+  const unit=tbQualityView.timeframe==='D'?'sesija':tbQualityView.timeframe==='W'?'tjedana':'mjeseci';
   const rankExplain=!focusStages.length?'Označi barem jednu razinu.':
     focusStages.length===5?'Zbroj svih razina uvijek je 100 %; za smislen percentil odaberi užu kombinaciju.':
-    'Udio '+(rank.currentPercent).toFixed(2)+'% ('+lastCount+' od '+latest.evaluatedCount+
-    '); rang prema '+rank.priorCount+' prethodnih sesija'+
+    'Udio '+TrendBirthQuality.percentOfStages(latest,focusStages).toFixed(2)+'% ('+
+    lastCount.toLocaleString('hr-HR')+' od '+latest.evaluatedCount.toLocaleString('hr-HR')+' '+countName+
+    '); usporedba s '+(rank?.priorCount||0)+' ranijih '+unit+
+    (tbQualityView.timeframe!=='D'&&latest.isPartial?'; posljednje razdoblje još može biti nepotpuno':'')+
+    (rank?.priorCount<12?'; mali povijesni uzorak':'')+
     (focusStages.length===1&&focusStages[0]==='0'?'. Viši percentil 0/4 znači više dionica bez setupa.':'.');
-  const detail= ['4','3','2','1','0'].map(stage=>
+  const detail=['4','3','2','1','0'].map(stage=>
     '<span class="tb-day-level"><i class="tb-stage-dot" data-stage="'+stage+'"></i>'+
-    stage+'/4: '+TrendBirthQuality.percent(selectedPoint,stage).toFixed(2)+'% ('+selectedPoint.counts[stage]+')</span>').join('');
-  const minChartWidth=Math.max(320,points.length*11);
+      stage+'/4: '+TrendBirthQuality.percent(selectedPoint,stage).toFixed(2)+'% ('+
+      selectedPoint.counts[stage].toLocaleString('hr-HR')+' '+countName+')</span>').join('');
+  const minChartWidth=Math.max(320,points.length*(tbQualityView.timeframe==='D'?9:tbQualityView.timeframe==='W'?17:25));
   const priorScroll=historyBox.querySelector('.tb-history-main')?.scrollLeft;
   historyBox.innerHTML=
-    '<div class="tb-history-metric">Sastav svih analiziranih dionica · zadnjih '+points.length+
-      ' od '+fullPoints.length+' sesija · zoom 0–'+zoom+'%</div>'+
+    '<div class="tb-history-metric">'+periodName+' · '+points.length+' od '+allPeriods.length+
+      ' razdoblja · '+fullPoints.length+' trajno sačuvanih dnevnih očitanja · zoom 0–'+zoom+'%</div>'+
     '<div class="tb-history-percentile" aria-live="polite"><strong>'+rankValue+'</strong>'+
       '<span><b>'+esc(focusLabel)+'</b> · '+esc(rankExplain)+'</span></div>'+
     '<div class="tb-history-plot"><div class="tb-history-y-axis" aria-hidden="true">'+yLabels+'</div>'+
       '<div class="tb-history-main"><div class="tb-history-scroll" style="min-width:'+minChartWidth+'px">'+
-        '<div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Složeni povijesni stupci: udjeli razina od 0 do '+zoom+' posto">'+
+        '<div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="'+
+          periodName+' složeni povijesni stupci: udjeli razina od 0 do '+zoom+' posto">'+
           '<div class="tb-history-gridlines" aria-hidden="true">'+gridLines+'</div>'+bars+'</div>'+
-        '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(latest.sessionDate)+'</span></div>'+
+        '<div class="tb-history-axis"><span>'+esc(points[0].label)+'</span><span>'+esc(points[points.length-1].label)+'</span></div>'+
       '</div></div></div>'+
-    '<div class="tb-history-day-detail"><strong>'+esc(selectedPoint.sessionDate)+
-      ' · '+selectedPoint.evaluatedCount+' analizirano · '+selectedPoint.unavailableCount+' bez podataka</strong>'+
+    '<div class="tb-history-day-detail"><strong>'+esc(selectedPoint.label)+
+      ' · '+selectedPoint.sessionCount+' dnevnih sesija · '+
+      (tbQualityView.timeframe==='D'?selectedPoint.evaluatedCount+' analizirano':
+        Math.round(selectedPoint.evaluatedCount/selectedPoint.sessionCount).toLocaleString('hr-HR')+
+        ' prosječno analiziranih dionica/dan')+
+      ' · '+selectedPoint.unavailableCount+' nedostupnih '+(tbQualityView.timeframe==='D'?'dionica':'dionica-dana')+'</strong>'+
       '<div class="tb-day-levels">'+detail+'</div>'+
       '<span class="tb-history-metric">3/4 + 4/4: '+
         TrendBirthQuality.percent(selectedPoint,'3+').toFixed(2)+'% ('+
-        TrendBirthQuality.count(selectedPoint,'3+')+' dionica). Dodirni stupac za drugi dan.</span></div>';
+        TrendBirthQuality.count(selectedPoint,'3+').toLocaleString('hr-HR')+' '+countName+
+        '). Dodirni stupac za detalje razdoblja.</span>'+
+      (selectedPoint.isPartial?'<div class="tb-history-data-note">Razdoblje je djelomično pokriveno postojećom arhivom ili još traje.</div>':'')+
+      '</div>';
   const scroller=historyBox.querySelector('.tb-history-main');
-  if(scroller)scroller.scrollLeft=priorScroll==null?scroller.scrollWidth-scroller.clientWidth:priorScroll;
+  if(scroller)scroller.scrollLeft=tbQualityView.scrollToEnd||priorScroll==null?
+    scroller.scrollWidth-scroller.clientWidth:priorScroll;
+  tbQualityView.scrollToEnd=false;
 }
 async function loadTrendBirthQualityHistory(){
   try{
@@ -1078,6 +1105,20 @@ document.querySelectorAll('button[data-tb-zoom]').forEach(button=>
     tbQualityView.zoom=Number(button.dataset.tbZoom);
     renderTrendBirthQuality();
   }));
+document.querySelectorAll('button[data-tb-timeframe]').forEach(button=>
+  button.addEventListener('click',()=>{
+    tbQualityView.timeframe=button.dataset.tbTimeframe;
+    tbQualityView.selectedPeriod='';
+    tbQualityView.scrollToEnd=true;
+    renderTrendBirthQuality();
+  }));
+document.querySelectorAll('button[data-tb-range]').forEach(button=>
+  button.addEventListener('click',()=>{
+    tbQualityView.range=button.dataset.tbRange;
+    tbQualityView.selectedPeriod='';
+    tbQualityView.scrollToEnd=true;
+    renderTrendBirthQuality();
+  }));
 $('#tbPercentileMetric')?.addEventListener('change',renderTrendBirthQuality);
 $('#tbStagesAll')?.addEventListener('click',()=>{
   document.querySelectorAll('input[data-tb-stage]').forEach(input=>{input.checked=true});
@@ -1090,12 +1131,12 @@ $('#tbStagesQuality')?.addEventListener('click',()=>{
   renderTrendBirthQuality();
 });
 $('#tbQualityHistory')?.addEventListener('click',event=>{
-  const bar=event.target.closest('button[data-tb-day]');
+  const bar=event.target.closest('button[data-tb-period]');
   if(!bar)return;
-  tbQualityView.selectedDay=bar.dataset.tbDay;
+  tbQualityView.selectedPeriod=bar.dataset.tbPeriod;
   renderTrendBirthQuality();
-  [...$('#tbQualityHistory').querySelectorAll('button[data-tb-day]')].find(
-    button=>button.dataset.tbDay===tbQualityView.selectedDay)?.focus({preventScroll:true});
+  [...$('#tbQualityHistory').querySelectorAll('button[data-tb-period]')].find(
+    button=>button.dataset.tbPeriod===tbQualityView.selectedPeriod)?.focus({preventScroll:true});
 });
 $('#filters').addEventListener('click',async e=>{
   const universeButton=e.target.closest('button[data-universe]');
