@@ -28,6 +28,15 @@ A ticker can have multiple source badges, for example `Bottom + Kell`. Kell matc
 
 The browser never needs cross-origin access to Unified chart shards. `scripts/build_review_snapshot.py` resolves chart history server-side. The ordinary Review Grid keeps its chart rows in the review snapshot; the full Kell candidate view publishes deterministic lazy-load OHLCV shards under `data/kell-charts/`, so charts are available for the full Kell result set without forcing the browser to download all chart history up front.
 
+
+### Trend Birth setup breadth (0/4–4/4)
+
+The five daily counts use the verified Review snapshot Trend Birth radar across the existing deduplicated Unified candidates plus tracked owner watchlist. Missing histories are reported separately as unavailableCount, never as 0/4. The UI gives each stage's absolute count and share of successfully evaluated names, plus a selectable historical plot (3/4+4/4 by default).
+
+The publisher derives the small data/trend-birth-quality-history.json index from immutable dated Review archives, omitting dates before the radar existed. It reconciles all five counts and does not invent historical observations or alter source snapshots. Archived links cannot see future dates. The existing GitHub data rewrite serves it without a new backend or paid data store.
+
+EOD Telegram stage alerts share this daily scope. Unified's separate hourly Kell + watchlist alerts report their narrower live intraday scope to avoid confusing the two populations.
+
 ## AI analysis handoff
 
 A Work task can write an analysis JSON object using the format shown in `data/analysis.example.json`, then run the snapshot builder with `--analysis`. This keeps research/AI analysis separate from deterministic Unified source data.

@@ -69,6 +69,26 @@ def _checks(item: dict) -> list[str]:
     return [f"{'✅' if checks.get(key) else '❌'} {label}" for key, label in labels]
 
 
+def _stage_distribution_text(current: dict) -> str:
+    """Use the same complete EOD universe as the verified Review dashboard."""
+    radar = current.get("trendBirthRadar") or {}
+    if radar.get("schemaVersion") != "trend-birth-radar-v1":
+        return ""
+    counts = radar.get("stageCounts") or {}
+    evaluated = radar.get("evaluatedCount")
+    unavailable = radar.get("unavailableCount")
+    if (not isinstance(counts, dict)
+            or any(type(counts.get(str(i))) is not int or counts[str(i)] < 0 for i in range(5))
+            or type(evaluated) is not int or evaluated < 0
+            or type(unavailable) is not int or unavailable < 0
+            or sum(counts[str(i)] for i in range(5)) != evaluated):
+        raise ValueError("Invalid EOD stage distribution")
+    buckets = " · ".join(f"{i}/4: {counts[str(i)]}" for i in range(5))
+    return ("📊 EOD setupi (Unified + watchlist)\n"
+            + buckets
+            + f"\nAnalizirano {evaluated}/{evaluated + unavailable}; bez podataka {unavailable}")
+
+
 def _latest_prior(history_dir: Path, session_date: str) -> tuple[Path | None, dict | None]:
     candidates = sorted(
         (path for path in history_dir.glob("*.json") if path.stem < session_date),
@@ -234,6 +254,14 @@ def build_alerts(
         else:
             lines.append(f"View dashboard: {dashboard_url}")
         messages.append({"kind": "invalidated", "text": "\n".join(lines)})
+
+    distribution = _stage_distribution_text(current)
+    if distribution:
+        for message in messages:
+            lines = message["text"].splitlines()
+            link_at = next(i for i, line in enumerate(lines) if "View dashboard:" in line)
+            lines[link_at:link_at] = [distribution, ""]
+            message["text"] = "\n".join(lines)
 
     return {
         "schemaVersion": "trend-birth-alerts-v1",

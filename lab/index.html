@@ -168,6 +168,25 @@
   </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <section id="trendBirthQuality" class="tb-quality" aria-labelledby="tbQualityTitle" hidden>
+      <div class="tb-quality-header">
+        <div>
+          <h2 id="tbQualityTitle">Trend Birth · kvaliteta setupa</h2>
+          <p id="tbQualitySummary">Dnevni presjek analiziranih dionica</p>
+        </div>
+        <label for="tbHistoryStage">Povijesni graf
+          <select id="tbHistoryStage">
+            <option value="3+">3/4 + 4/4</option>
+            <option value="0">0/4</option><option value="1">1/4</option>
+            <option value="2">2/4</option><option value="3">3/4</option>
+            <option value="4">4/4</option>
+          </select>
+        </label>
+      </div>
+      <div id="tbQualityCounts" class="tb-quality-counts" aria-label="Broj dionica po Trend Birth stupnju"></div>
+      <div id="tbQualityHistory" class="tb-quality-history" aria-live="polite">Učitavam povijest…</div>
+      <p class="tb-quality-footnote">Dnevni EOD · Unified kandidati + praćena watchlista. Nedostupni podaci nisu 0/4 i nisu uključeni u postotke. Povijest počinje prvim stvarno arhiviranim radar skenom.</p>
+    </section>
     <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
     <section id="grid" class="grid" aria-live="polite"></section>
   </main>
@@ -198,9 +217,10 @@
   <script src="watchlist-store.js"></script>
   <script src="owner-watchlist-sync.js"></script>
   <script src="snapshot-loader.js"></script>
+  <script src="trend-birth-quality.js"></script>
   <script src="kell-dataset-loader.js"></script>
   <script src="kell-change-detector.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=weekly-v2-20260927" defer></script>
+  <script src="app.js?v=quality-history-20261024" defer></script>
 </body>
 </html>

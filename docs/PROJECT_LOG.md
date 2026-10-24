@@ -4,6 +4,16 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Trend Birth 0/4–4/4 setup breadth and dated chart
+
+- Topic branch: codex/trend-birth-quality-history-20261024, based on the production app branch feature/unified-review-grid-lab. Production publication requires review/CI and merge.
+- Dashboard: five exact daily counts, evaluated/unavailable denominators, a 3/4+4/4 breadth percentage and selectable history chart. Archived links cannot see future observations.
+- Existing verified radar is sole source. A compact index is reconstructed from immutable daily archives; pre-radar dates are omitted, not zero-filled. Counts reconcile and use a common universe scope.
+- The legacy no-send EOD Telegram alert text includes the same distribution and verified link; separate Unified hourly counts are clearly labeled as narrower intraday Kell/watchlist scope.
+- Affected: app HTML, JS and styles; quality history builder; publisher; no-send alert formatter; tests and docs. No scanner membership, thresholds, ranking, broker path, or sender infrastructure changed.
+- Verification: 134 Python and 58 Node tests passed before execution environment reset; reconstructed GitHub commit requires PR CI.
+- Limits: selected-universe breadth, not all-listed-stock breadth or a forward-return backtest. Denominator changes as selected universe varies.
+
 ## 2026-10-21 — Installable Trend Birth mobile app
 
 - Branch: `codex/trendbirth-mobile-pwa`, based on production app commit `7a8e7caf91515eb2a6af2fc572e0788552d17801` on `feature/unified-review-grid-lab`. Implementation SHA is the commit containing this entry; activation will be recorded after deployment verification.

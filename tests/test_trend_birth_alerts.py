@@ -89,6 +89,23 @@ class TrendBirthAlertTests(unittest.TestCase):
         self.assertEqual([m["kind"] for m in payload["messages"]], ["trigger", "trigger"])
         self.assertTrue(all("View dashboard: https://example.test/" in m["text"] for m in payload["messages"]))
 
+    def test_eod_stage_counts_reconcile_with_dashboard_and_keep_link(self):
+        current = {
+            "source": {"sessionDate": "2026-10-23"},
+            "kellCandidates": [item("AAA", 4)],
+            "trendBirthRadar": {
+                "schemaVersion": "trend-birth-radar-v1",
+                "stageCounts": {"0": 15, "1": 10, "2": 5, "3": 2, "4": 1},
+                "evaluatedCount": 33,
+                "unavailableCount": 4,
+            },
+        }
+        previous = {"kellCandidates": [item("AAA", 3)]}
+        text = build_alerts(current, previous, "https://example.test/?snapshot=abc")["messages"][0]["text"]
+        self.assertIn("0/4: 15 · 1/4: 10 · 2/4: 5 · 3/4: 2 · 4/4: 1", text)
+        self.assertIn("Analizirano 33/37; bez podataka 4", text)
+        self.assertEqual(text.count("View dashboard: https://example.test/?snapshot=abc"), 1)
+
     def test_alerts_prefer_quality_screened_kell_candidates(self):
         current = {
             "source": {"sessionDate": "2026-09-24"},
