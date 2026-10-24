@@ -70,6 +70,39 @@ class HistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Conflicting"):
             history.merge_history(retained, observed)
 
+    def test_latest_eod_matches_last_retained_session(self):
+        current = snapshot("2026-10-23")
+        earlier = history.point_from_snapshot(snapshot("2026-10-22"))
+        latest = history.point_from_snapshot(current)
+        payload = {"schemaVersion": history.SCHEMA, "scope": latest["scope"],
+                   "points": [earlier, latest]}
+        history.verify_latest_point(payload, current)
+
+    def test_latest_eod_rejects_missing_radar(self):
+        payload = {"schemaVersion": history.SCHEMA, "scope": None, "points": []}
+        with self.assertRaisesRegex(ValueError, "no verifiable"):
+            history.verify_latest_point(payload, {"source": {"sessionDate": "2026-10-23"}})
+
+    def test_latest_eod_rejects_stale_history_and_conflicting_counts(self):
+        earlier = history.point_from_snapshot(snapshot("2026-10-22"))
+        payload = {"schemaVersion": history.SCHEMA, "scope": earlier["scope"],
+                   "points": [earlier]}
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            history.verify_latest_point(payload, snapshot("2026-10-23"))
+        latest = history.point_from_snapshot(snapshot("2026-10-23"))
+        payload["points"].append(latest)
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            history.verify_latest_point(payload, snapshot(
+                "2026-10-23", counts={"0": 9, "1": 9, "2": 6, "3": 3, "4": 1}))
+
+    def test_latest_eod_rejects_snapshot_older_than_history(self):
+        points = [history.point_from_snapshot(snapshot(day))
+                  for day in ("2026-10-22", "2026-10-23")]
+        payload = {"schemaVersion": history.SCHEMA, "scope": points[0]["scope"],
+                   "points": points}
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            history.verify_latest_point(payload, snapshot("2026-10-22"))
+
 
 if __name__ == "__main__":
     unittest.main()
