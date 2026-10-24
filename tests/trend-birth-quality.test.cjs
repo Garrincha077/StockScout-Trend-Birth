@@ -29,15 +29,49 @@ test('historic setup breadth is a percentage of each session’s evaluated unive
   assert.equal(quality.percent(narrow,'0'),0);
   assert.equal(quality.percent({counts:{'0':0,'1':0,'2':0,'3':0,'4':0},evaluatedCount:0},'3+'),0);
 });
-test('history percent chart has a fixed labelled 0–100 percent scale',()=>{
+test('stacked daily percentages stay point-in-time and zoom crops only the visible axis',()=>{
+  const p=point('2026-10-23',[85,7,2,2,4]);
+  assert.deepEqual(quality.zoomTicks(25),[25,20,15,10,5,0]);
+  assert.deepEqual(quality.zoomTicks(50),[50,40,30,20,10,0]);
+  assert.deepEqual(quality.zoomTicks(75),[75,50,25,0]);
+  assert.deepEqual(quality.zoomTicks(100),[100,75,50,25,0]);
+  for(const zoom of [25,50,75,100]){
+    const slices=quality.stackSlices(p,zoom);
+    assert.deepEqual(slices.map(slice=>slice.stage),['4','3','2','1','0']);
+    assert.ok(Math.abs(slices.reduce((sum,slice)=>sum+slice.visiblePercent,0)-100)<1e-10);
+    assert.equal(quality.percentOfStages(p,['3','4']),6);
+  }
+  assert.equal(quality.stackSlices(p,25)[0].visiblePercent,16);
+  assert.equal(quality.stackSlices(p,25)[4].visiblePercent,40);
+  assert.equal(quality.stackSlices(p,100)[4].visiblePercent,85);
+  assert.throws(()=>quality.stackSlices(p,110));
+});
+test('latest percentile uses only earlier sessions, midranks ties and supports arbitrary subsets',()=>{
+  const p1=point('2026-10-21',[90,0,0,6,4]);
+  const p2=point('2026-10-22',[80,0,0,12,8]);
+  const p3=point('2026-10-23',[80,0,0,12,8]);
+  assert.equal(quality.historicalPercentile([p1,p2,p3],['3','4']).percentile,75);
+  assert.equal(quality.historicalPercentile([p1,p1,p1],['3','4']).percentile,50);
+  assert.equal(quality.historicalPercentile([p1,p2],['3','4']).percentile,100);
+  assert.equal(quality.historicalPercentile([p3],['3','4']).percentile,null);
+  assert.equal(quality.percentOfStages(p3,['3','4','4']),20);
+  assert.throws(()=>quality.percentOfStages(p3,['bad']));
+});
+test('app renders five coloured stack layers, four selectable zooms and historic percentile',()=>{
   const styles=fs.readFileSync(path.join(root,'lab/styles.css'),'utf8');
-  assert.match(html,/Povijesni graf \(%\)/);
-  assert.match(app,/TrendBirthQuality\.percent\(point,stage\)/);
-  assert.match(app,/height:'\+percent\.toFixed\(3\)\+'%/);
-  assert.match(app,/100%<\/span><span>75%<\/span><span>50%<\/span><span>25%<\/span><span>0%/);
-  assert.doesNotMatch(app,/const maxValue=Math\.max\(1,\.\.\.points/);
-  assert.match(styles,/\.tb-history-y-axis\{/);
-  assert.match(styles,/\.tb-history-chart\{[^}]*height:150px/);
+  for(const stage of ['0','1','2','3','4'])assert.match(html,new RegExp('data-tb-stage="'+stage+'"'));
+  for(const zoom of ['25','50','75','100'])assert.match(html,new RegExp('data-tb-zoom="'+zoom+'"'));
+  assert.match(html,/id="tbPercentileMetric"/);
+  assert.match(html,/value="selected">Označene razine/);
+  assert.match(app,/TrendBirthQuality\.stackSlices\(point,zoom\)/);
+  assert.match(app,/selectedStages\.includes\(slice\.stage\)/);
+  assert.match(app,/TrendBirthQuality\.zoomTicks\(zoom\)/);
+  assert.match(app,/TrendBirthQuality\.historicalPercentile\(fullPoints,focusStages\)/);
+  assert.match(app,/const points=fullPoints\.slice\(-45\)/);
+  assert.match(styles,/\.tb-history-segment\[data-stage="0"\]\{background:#df5962/);
+  assert.match(styles,/\.tb-history-segment\[data-stage="4"\]\{background:#2fca87/);
+  assert.match(styles,/\.tb-history-segment\.is-muted\{background:#334457/);
+  assert.doesNotMatch(app,/tbHistoryStage/);
 });
 test('history respects scope, archived date and chronological ordering',()=>{
   const payload={schemaVersion:'trend-birth-quality-history-v1',scope:'unified-plus-tracked-watchlist',

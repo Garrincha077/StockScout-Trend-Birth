@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css?v=weekly-v2-20260927">
+  <link rel="stylesheet" href="styles.css?v=stacked-breadth-20261024">
   <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
@@ -174,18 +174,41 @@
           <h2 id="tbQualityTitle">Trend Birth · kvaliteta setupa</h2>
           <p id="tbQualitySummary">Dnevni presjek analiziranih dionica</p>
         </div>
-        <label for="tbHistoryStage">Povijesni graf (%)
-          <select id="tbHistoryStage">
-            <option value="3+">3/4 + 4/4</option>
-            <option value="0">0/4</option><option value="1">1/4</option>
-            <option value="2">2/4</option><option value="3">3/4</option>
-            <option value="4">4/4</option>
-          </select>
-        </label>
+
       </div>
       <div id="tbQualityCounts" class="tb-quality-counts" aria-label="Broj dionica po Trend Birth stupnju"></div>
+      <div class="tb-quality-controls" aria-label="Postavke povijesnog grafa">
+        <div class="tb-stage-picker">
+          <div class="tb-control-title">Istakni razine <button type="button" id="tbStagesAll" class="tb-text-button">Sve</button> <button type="button" id="tbStagesQuality" class="tb-text-button">Istakni 3/4 + 4/4</button></div>
+          <div class="tb-stage-toggles" role="group" aria-label="Boje razina u složenom stupcu">
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="0" checked><span class="tb-stage-dot" data-stage="0"></span>0/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="1" checked><span class="tb-stage-dot" data-stage="1"></span>1/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="2" checked><span class="tb-stage-dot" data-stage="2"></span>2/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="3" checked><span class="tb-stage-dot" data-stage="3"></span>3/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="4" checked><span class="tb-stage-dot" data-stage="4"></span>4/4</label>
+          </div>
+        </div>
+        <div class="tb-history-toolbar">
+          <div class="tb-zoom-options" role="group" aria-label="Raspon okomite osi povijesnog grafa">
+            <span class="tb-control-title">Zoom</span>
+            <button type="button" data-tb-zoom="25" aria-pressed="false">0–25 %</button>
+            <button type="button" data-tb-zoom="50" aria-pressed="false">0–50 %</button>
+            <button type="button" data-tb-zoom="75" aria-pressed="false">0–75 %</button>
+            <button type="button" data-tb-zoom="100" aria-pressed="true">0–100 %</button>
+          </div>
+          <label class="tb-percentile-selector" for="tbPercentileMetric">Povijesni percentil
+            <select id="tbPercentileMetric">
+              <option value="3+">3/4 + 4/4</option>
+              <option value="selected">Označene razine</option>
+              <option value="0">0/4</option><option value="1">1/4</option>
+              <option value="2">2/4</option><option value="3">3/4</option>
+              <option value="4">4/4</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <div id="tbQualityHistory" class="tb-quality-history" aria-live="polite">Učitavam povijest…</div>
-      <p class="tb-quality-footnote">Dnevni EOD · Unified kandidati + praćena watchlista. Nedostupni podaci nisu 0/4 i nisu uključeni u postotke. Graf prikazuje udio među analiziranim dionicama na fiksnoj skali 0–100 %. Povijest počinje prvim stvarno arhiviranim radar skenom.</p>
+      <p class="tb-quality-footnote">Dnevni EOD · Unified kandidati + praćena watchlista. Nedostupni podaci nisu 0/4 i nisu uključeni u postotke. Svaki dnevni stupac zbraja se na 100 % (4/4 na dnu, 0/4 na vrhu). Neoznačene razine ostaju sive, a zoom prikazuje donji dio bez promjene izračuna. Percentil koristi sve ranije dostupne dnevne sesije. Povijest počinje prvim stvarno arhiviranim radar skenom.</p>
     </section>
     <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
     <section id="grid" class="grid" aria-live="polite"></section>
@@ -217,10 +240,10 @@
   <script src="watchlist-store.js"></script>
   <script src="owner-watchlist-sync.js"></script>
   <script src="snapshot-loader.js"></script>
-  <script src="trend-birth-quality.js"></script>
+  <script src="trend-birth-quality.js?v=stacked-breadth-20261024"></script>
   <script src="kell-dataset-loader.js"></script>
   <script src="kell-change-detector.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=quality-history-20261024" defer></script>
+  <script src="app.js?v=stacked-breadth-20261024" defer></script>
 </body>
 </html>
