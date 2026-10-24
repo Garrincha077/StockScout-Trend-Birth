@@ -485,3 +485,11 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - **Resursi:** bez novog API-ja, data storea, workflowa ili rasporeda. Postojeći EOD izračun radi iz već sačuvanih mjesečnih sharda; Vercel statički build kopira HTML/CSS/JS, mali JSON služi postojeći /data/* GitHub Raw rewrite.
 - **Testovi prije PR-a:** Python compile izvršen, sintetički tokovi/coverage i JS validacija stvarne 20-EOD serije prolaze; puni GitHub CI i produkcijska vizualna provjera odvojeni su sljedeći korak. **Ranking, trigger uvjeti i Telegram slanje nisu izmijenjeni.**
 - **Sljedeće:** otvoriti PR, provjeriti CI i live tab, paziti na mobilni izgled i iduće EOD osvježavanje; nakon toga Faza 2 cohort survival i uvjetne stopa izlaska prema roadmapu.
+
+
+### 2026-10-24 — Verified PR #53 merge, production deployment and UI
+
+- PR #53 successfully merged via squash to active `feature/unified-review-grid-lab` as `1eb8ebe55435d33241cee5914968a73e07bc7905`; GitHub CI run `40127378812` completed **success** (model/browser regression, Python and Node tests, snapshot publication pipeline).
+- Vercel production `dpl_YYrCvvQChjC8DkENgRGbNsngGo9m` reached **READY**; live Chrome browser loaded production /statistics, displayed 20 EOD values, 6.24% quality breadth, pressure 8.32, velocity 0.05 pp/EOD, acceleration 0.34 pp/EOD, 36.84 percentile on n19, matched net flow +23; 19 EOD transition pairs and 49,971 matching ticker transitions. Preview manually switched metric to acceleration and D to M; chart rendered with symmetric signed axis, missing values left blank when history insufficient. Screenshot visual QA passed.
+- No change to ranking, risk, Telegram sending or scanner cadence; no additional Vercel storage, cron, or external data. User sees independent Statistika tab; 11KB compact data remains served through existing GitHub Raw rewrite.
+- **Pending:** verify next *new* scheduled EOD refresh updates internals + intelligence + snapshot on the same runId/date and retains all historical points, and verify next grouped Telegram alert delivery in ledger.

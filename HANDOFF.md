@@ -2,6 +2,15 @@
 
 > **Ažurirano / provjereno:** 24. 10. 2026. (Europe/Zagreb). Ovo je **trenutačni operativni status**, a `docs/PROJECT_LOG.md` je kronološka evidencija promjena. Statuse u nastavku ponovno provjeriti pri idućem radu.
 
+## PRODUKCIJA VERIFIED — Market Internals / Statistika (24. 10. 2026., Europe/Zagreb)
+
+- **PR #53:** https://github.com/Garrincha077/StockScout-Trend-Birth/pull/53 — uspješno spojen squash commmit `1eb8ebe55435d33241cee5914968a73e07bc7905` u aktivnu granu `feature/unified-review-grid-lab`.
+- **GitHub CI:** https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/40127378812 — **success** (Node i Python testovi uključuju novo računanje, stvarnu arhivu i validaciju cijele publikacije).
+- **Vercel production:** deployment `dpl_YYrCvvQChjC8DkENgRGbNsngGo9m` — **READY**; browser uživo učitao https://stockscout-trend-birth-review-lab.vercel.app/statistics i uspješno prikazao graf te 5×5 matricu. Testirani D→M i Acceleration u previewu, browser pristup produkcijskoj strani i podaci provjereni.
+- **Source-of-truth podaci:** 20 stvarnih EOD točaka 24.9.–23.10.2026., nema budućeg truncation; posljednje očitanje 23.10. s 163/2614 3+/4 = 6,2357%; pressure 8,3206, vel 5 EOD ~+0,0507 pp/EOD, acceleration ~+0,3426 pp/EOD; flow +61/−38, net +23; matched 2602; percentil 36,84% od 19 prethodnih dana. Kompaktni JSON ~11 KB.
+- **Noćni pipeline:** ažurira isti sažetak kroz postojeći EOD workflow i trajne mjesečne arhive; idući **novi EOD refresh nije još viđen uživo**. Prvi sljedeći EOD provjeriti: sessionDate/runId `trend-birth-market-internals.json` = `trend-birth-intelligence.json` = `latest.json`, povijest raste na 21+ (ne resetira se), Telegram nema regresiju.
+- **Izvor metodologije / roadmape:** `docs/MARKET_INTERNALS_ROADMAP.md`. Faza 2: preživljavanje kohorti (stvarna ispadanja vs cenzurirani). Faza 3: forward returns i placebo/kontrolni testovi; nema novih trading signala bez tih provjera.
+
 ## NOVO: Market Internals — zaseban tab Statistika (rad 24. 10. 2026.)
 
 **Status u ovom prijedlogu:** implementacija i testovi pripremljeni na topic grani `feature/tb-market-internals-20261024`; **produkciju ne proglašavati READY dok PR CI i stvarni Vercel deploy ne prođu**. Polazni commit aktivne grane nakon EOD autopublikacije bio je `3db166a1301d7ba6186f71874cc54769bfe2d825` (GitHub provjeren 24. 10. 2026.).
