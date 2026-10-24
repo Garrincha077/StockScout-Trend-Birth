@@ -48,7 +48,8 @@ The primary discovery target is the middle of that lifecycle, especially:
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — full product and implementation roadmap.
 - [`docs/STAGE1_ACCUMULATION_MODEL.md`](docs/STAGE1_ACCUMULATION_MODEL.md) — long Stage 1 range accumulation and supply-absorption research model.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — initial greenfield architecture and reuse boundaries.
-- [`docs/PROJECT_LOG.md`](docs/PROJECT_LOG.md) — durable project history and handoff.
+- [`HANDOFF.md`](HANDOFF.md) — current deployment/data status, next steps, and cross-chat continuation.
+- [`docs/PROJECT_LOG.md`](docs/PROJECT_LOG.md) — append-only durable project history and detailed test/methodology log.
 - [`research/README.md`](research/README.md) — historical winner/failure research workspace.
 
 ## Reference repositories

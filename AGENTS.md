@@ -60,7 +60,11 @@ For each imported component classify it as:
 
 ## Durable project memory
 
-After every meaningful code, workflow, data-contract, research-methodology or product-architecture change, update `docs/PROJECT_LOG.md`.
+After every meaningful code, workflow, data-contract, research-methodology or product-architecture change, update **both**:
+- `docs/PROJECT_LOG.md` — append-only chronological change/test/methodology record;
+- `HANDOFF.md` — concise *current* operating status for continuity across ChatGPT/Codex chats (active branch, verified deployment, latest data date/count, PR/commit, tests, risks, top next steps).
+
+Always label the date/time of the last verification. Check GitHub and Vercel live before calling deployment READY; do not keep outdated success claims. Documentation-only changes should not introduce extra scans, scheduled jobs or large assets.
 
 Record:
 - date;
@@ -72,11 +76,12 @@ Record:
 - regression risks / methodological caveats;
 - next logical step.
 
-If chat history and GitHub disagree, treat this repository plus `docs/PROJECT_LOG.md` as durable truth.
+If chat history and GitHub disagree, treat this repository plus `HANDOFF.md` and `docs/PROJECT_LOG.md` as durable truth. Read `HANDOFF.md` first for operational priorities, and `docs/PROJECT_LOG.md` for historical evidence.
 
 ## Required reading before substantial work
 
 - `README.md`
+- `HANDOFF.md`
 - `docs/ROADMAP.md`
 - `docs/STAGE1_ACCUMULATION_MODEL.md`
 - `docs/ARCHITECTURE.md`

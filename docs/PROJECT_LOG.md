@@ -4,6 +4,14 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Durable HANDOFF.md for cross-chat continuity
+
+- Verified GitHub PR #48 / production feature commit `777c5a2f503105efce527a1260cfe58ea3d92277` and both required CI jobs (`build`, `historical_calibration`) green on Actions run `40106259332`.
+- Verified Vercel READY for the feature commit and for a subsequent latest-data publication `853c193346f7c51bfd99d8fcdedc56a6cf8d7ceb`. The compact stage-breadth JSON still contains 20 verified daily sessions ending on 2026-10-23.
+- Created root `HANDOFF.md`: explicit active production branch, stable dashboard link, stage-history schema/formulas, storage threats, no-delete constraints, remaining tasks, smoke checks and resume instructions. Updated `AGENTS.md` to require refreshing **both** current-state handoff and append-only project log after meaningful changes; linked handoff from `README.md`.
+- **Documentation only**: no scanner, alert, order, chart logic, storage cleanup or workflow changes. Deployment may still occur automatically on a docs-only Git commit; check state if needed.
+- Next: Android/mobile production smoke test; observe the next genuine EOD retaining 20+ earlier sessions; audit and archive massive raw histories only after point-in-time/backtest and recoverable backup review.
+
 ## 2026-10-24 — Permanent compact Trend Birth setup history, D/W/M and 1M/3M/1Y/5Y/All
 
 - Topic branch: `codex/trend-birth-dwm-permanent-history-20261024`, based on the deployed `feature/unified-review-grid-lab` branch. Commit SHA: recorded in GitHub PR history.
