@@ -154,3 +154,46 @@
   .tb-percentile-selector{width:100%}
   .tb-percentile-selector select{width:100%}
 }
+
+/* Full-universe stage intelligence: compact EOD cards, lazy historical drill-down. */
+.tb-intelligence-tag{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #39715e;background:#12352e;color:#a1f2c4;border-radius:999px;padding:5px 9px;font-size:11px}
+.tb-intelligence-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.tb-intelligence-metric{min-width:0;background:#0b1b2d;border:1px solid #2d4a67;border-radius:9px;padding:10px}
+.tb-intelligence-metric small{display:block;color:var(--muted);font-size:11px;line-height:1.35}
+.tb-intelligence-metric strong{display:block;font-size:23px;font-variant-numeric:tabular-nums;margin:2px 0}
+.tb-intelligence-metric[data-kind="up"] strong{color:#4add9d}
+.tb-intelligence-metric[data-kind="down"] strong{color:#ed7d84}
+.tb-opportunity-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.tb-opportunity-card{border:1px solid #2a4967;background:#0a1b2d;border-radius:10px;padding:10px;display:grid;gap:6px}
+.tb-opportunity-card-head{display:flex;align-items:center;gap:8px}
+.tb-opportunity-card-head strong{color:var(--text);font-size:16px}
+.tb-opportunity-card-head span{margin-left:auto;border:1px solid #395c6e;border-radius:5px;padding:2px 5px;font-size:11px}
+.tb-opportunity-card small{color:var(--muted);font-size:11px;line-height:1.4}
+.tb-opportunity-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:auto}
+.tb-opportunity-actions button,.tb-drill-actions button{padding:0;border:0;background:none;color:#91ceff;text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px}
+.tb-opportunity-actions a,.tb-ticker-list a{color:#91ceff;font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.tb-ticker-drill{border:1px solid #2e526d;border-radius:10px;padding:11px;margin-top:10px;background:#0b1d30}
+.tb-ticker-drill[hidden],.tb-intelligence[hidden]{display:none}
+.tb-ticker-drill h3{font-size:14px;margin:0 0 4px}
+.tb-ticker-drill .tb-quality-header p{font-size:11px}
+.tb-drill-results{margin-top:10px;max-height:310px;overflow-y:auto;scrollbar-width:thin}
+.tb-ticker-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:6px}
+.tb-ticker-entry{border:1px solid #2c4560;border-radius:7px;padding:7px;background:#071725;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tb-ticker-entry button{border:0;background:none;color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.tb-ticker-entry small{color:var(--muted);font-size:10px}
+.tb-ticker-journey-points{display:flex;gap:4px;overflow-x:auto;padding:9px 0;scrollbar-width:thin}
+.tb-ticker-journey-day{min-width:66px;display:grid;gap:4px;justify-items:center;border:1px solid #294963;border-radius:7px;padding:7px 5px;background:#081522}
+.tb-ticker-journey-day strong{font-size:15px}
+.tb-ticker-journey-day small{font-size:10px;color:var(--muted)}
+.tb-ticker-journey-day .tb-stage-dot{width:100%;height:6px;border-radius:3px}
+.tb-ticker-journey-day .tb-stage-dot[data-stage="na"]{background:#64748b}
+.tb-drill-more{margin-top:10px;border:1px solid #365677;background:#112a44;border-radius:7px;color:var(--text);padding:7px 12px;cursor:pointer}
+@media(max-width:720px){
+  .tb-intelligence-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .tb-intelligence-metric{padding:8px}
+  .tb-intelligence-metric strong{font-size:19px}
+  .tb-opportunity-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .tb-opportunity-card{padding:8px}
+  .tb-opportunity-card-head strong{font-size:13px}
+  .tb-ticker-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
