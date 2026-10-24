@@ -96,7 +96,10 @@
 .tb-quality-stage[data-stage="3"] strong{color:var(--amber)}
 .tb-quality-stage[data-stage="4"] strong{color:var(--green)}
 .tb-quality-history{border:1px solid var(--border);background:#091523;border-radius:10px;padding:10px;color:var(--muted);font-size:12px}
-.tb-history-chart{display:grid;align-items:end;gap:3px;height:116px;border-bottom:1px solid #365273;padding:9px 0 0;min-width:0}
+.tb-history-plot{display:grid;grid-template-columns:34px minmax(0,1fr);gap:7px;align-items:start}
+.tb-history-y-axis{display:flex;flex-direction:column;justify-content:space-between;height:150px;text-align:right;font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tb-history-main{min-width:0}
+.tb-history-chart{display:grid;align-items:end;gap:3px;height:150px;border-top:1px solid #365273;border-bottom:1px solid #365273;background:repeating-linear-gradient(to top,#2c465f 0 1px,transparent 1px 25%);min-width:0}
 .tb-history-bar{display:flex;align-items:end;min-width:0;height:100%;position:relative}
 .tb-history-bar>span{display:block;width:100%;border-radius:4px 4px 0 0;background:#56a8ff}
 .tb-history-bar:last-child>span{background:#35d78b}

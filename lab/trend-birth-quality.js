@@ -30,6 +30,7 @@
     return points.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
   }
   function count(point,stage){return stage==='3+'?point.counts['3']+point.counts['4']:point.counts[stage]}
-  root.TrendBirthQuality={normalizeRadar,normalizeHistory,count};
+  function percent(point,stage){return point.evaluatedCount?100*count(point,stage)/point.evaluatedCount:0}
+  root.TrendBirthQuality={normalizeRadar,normalizeHistory,count,percent};
   if(typeof module!=='undefined')module.exports=root.TrendBirthQuality;
 })(globalThis);
