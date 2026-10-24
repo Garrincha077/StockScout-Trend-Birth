@@ -14,6 +14,17 @@ Implementacija u ovoj radnoj promjeni cilja sljedeće, nadogradnjom postojećeg 
 
 **Pri sljedećem chatu:** ponovno provjeriti je li PR s ovim kodom merged i je li idući EOD uspješno generirao `trend-birth-intelligence.json` i mjesečne datoteke; potvrditi merged `StockScout-Unified` PR #112 te stvarnu Telegram distribuciju vrste `intelligence-eod`, 1:1 povijesne zbrojeve i stvarno prikazivanje na mobitelu. Ne tvrdite da su nove datoteke već objavljene prije uspješnog EOD-a. Raniji status PR #48/#50 niže je povijesni kontekst.
 
+### Produkcijska provjera nakon implementacije (24. 10. 2026., Europe/Zagreb)
+
+- **Merged:** Review Lab PR #51 → `3bcfc2bb7822009b2f238ed8d445d5095bbbc3f5`; Unified Telegram PR #112 → `c3bfbe93810cb5295c56b462d7b0a0350dce3b70`. Nijedan zamrznuti LEGACY skener, ranking niti provider prag nisu mijenjani.
+- **Produkcijska objava:** Vercel deployment `dpl_5cv2GGU3faH2s2i5MmtiGae5PRkn` status **READY** i `https://stockscout-trend-birth-review-lab.vercel.app/` HTML status HTTP 200, s novim Today panelom. GitHub EOD run `40119600553` završio je obvezni `build` job **success** i atomskom objavom proizveo commit `2261cdf6885a958e129ffef782e25bff3c579f5f`; pomoćni `historical_calibration` job provjeriti posebno ako je još u tijeku.
+- **Povijest stvarno objavljena:** 20 sesija 24. 9. – 23. 10. 2026. u `lab/data/trend-birth-ticker-history/2026-09.json` (5 sesija) i `2026-10.json` (15 sesija). Za svaki dan svih 5 stage brojeva **točno je usklađeno** s `lab/data/trend-birth-quality-history.json`; testiranim D/W/M segmentima to znači **135 uspješnih provjera** (D=100, W=25, M=10).
+- **Posljednji EOD 23.10.:** 2.614 evaluiranih, 1 nedostupan; 0/4=2.222, 1/4=182, 2/4=47, 3/4=58, 4/4=105; 3/4+4/4=6,24% / približno P37 na samo 20 sesija. Među 2.602 usporediva tickera: 144 napredovala, 93 nazadovala; 60 novih 4/4 i 16 prelazaka u 3/4. To je **promjena klasifikacije**, ne signal da treba odmah trgovati.
+- **Browser proof:** produkcijska stranica prikazuje Today sa stvarnim brojevima, povijesni D i W složeni graf, klik na 23.10. prikazuje točno **105** tickera za 4/4, klik na tjedan 19.–25.10. prikazuje **218 jedinstvenih tickera = 417 ticker-dana** u 4/4. AZTA putanja pokazala je 20 zabilježenih stupnjeva; produkcijski `/data/trend-birth-intelligence.json` vraća HTTP 200.
+- **Telegram:** `lab/data/trend-birth-alerts.json` sada sadržava `intelligence-eod` s validiranim podacima i linkom; Unified sender podržava novi tip. **Stvarna isporuka u Telegram nije još potvrđena**; prvi sljedeći zakazani prolaz treba provjeriti u sender ledgers/logovima. Ne pokretati ručno `--send` bez potrebe.
+- **Novi rizik za pregled:** originalni Kell sender i dalje može generirati velik broj pojedinačnih `trigger` poruka (objavljeni payload za 23.10. ima mnoge). Razmotriti grupiranje/dedup bez promjene stvarnih triggera kako ne bismo zatrpavali Telegram.
+- **Idući koraci:** provjeriti prvi novi EOD dan (bez prepisivanja starih mjeseci), stvarnu Telegram dostavu, mobilni UI s arhivom kroz godinu i vremensku/cjenovnu cijenu Vercel/GitHub clone; tek nakon mjerenja odlučivati o daljnjoj optimizaciji velikih raw arhiva.
+
 ## 1. Što pročitati prije nastavka
 
 1. `AGENTS.md` — obvezna pravila i ograničenja projekta.

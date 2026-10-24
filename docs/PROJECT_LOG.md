@@ -4,6 +4,17 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Production EOD verification for StockScout Intelligence v1
+
+- **Git commits/PRs:** Review Lab #51 merged as `3bcfc2bb7822009b2f238ed8d445d5095bbbc3f5`; Unified Telegram #112 merged as `c3bfbe93810cb5295c56b462d7b0a0350dce3b70`. Production Review EOD emitted `2261cdf6885a958e129ffef782e25bff3c579f5f`.
+- **CI:** Review PR run `40118997516` = success; Unified PR run `40118998453` = success. Production EOD run `40119600553`: primary `build` job success, including monthly stage extraction, Telegram no-send payload, publication alignment and Git push. Separate `historical_calibration` may still be running at this checkpoint.
+- **Deployed:** Vercel deployment `dpl_5cv2GGU3faH2s2i5MmtiGae5PRkn` READY on active production branch. Production root and compact EOD JSON return HTTP 200; frontend renders real opportunities.
+- **Archive:** immutable 20 observed sessions 2026-09-24 through 2026-10-23; five September sessions, fifteen October. Cross-checked every daily stage count, evaluated, unavailable and scope against compact quality-history; then validated ticker membership across all selected **20 D, 5 W and 2 M buckets × five stages = 135 no-difference segment checks**.
+- **EOD:** session 2026-10-23, run `2026-10-23-eod-40042215150-1`, 2,614 evaluated, one unavailable. Stages [2222,182,47,58,105]; 3+ share 6.24% and P37 (only 19 earlier daily baselines). 2,602 tickers comparable to 2026-10-22; 144 upgrades, 93 downgrades, 60 new 4/4, 16 to-ready. These are descriptive evidence-defined label changes, not causal investment edge.
+- **Live browser verification:** Today's panel displays real metrics, D/W stacked chart still renders. Clicking Oct23 4/4 yields 105 ticker names. Clicking W 2026-10-19..25 yields 218 unique tickers across 417 ticker-days. Clicking AZTA reveals 20 observed daily stages, no invented unavailable state.
+- **Notification:** `trend-birth-alerts.json` contains one `intelligence-eod` message, and Unified receiver now accepts it in legacy and weekly-v2. Direct Telegram sending **not yet observed**; check next scheduled sender run, delivery ledger and possible flood from existing per-ticker trigger messages.
+- **Next:** verify uninterrupted next-session EOD append (without truncation), scheduled Telegram dispatch, optionally reduce message multiplicity and benchmark total GitHub/Vercel checkout time before touching raw history. No raw archives deleted.
+
 ## 2026-10-24 — StockScout Intelligence v1: ticker-stage history, opportunities, drill-down
 
 - **Scope:** user-approved stage-level exploration without scanner rewrite: all 0/4–4/4 stages for the full verified Unified + tracked watchlist universe; compact daily opportunities; historical ticker membership; individual journey; existing Telegram no-send EOD enrichment.
