@@ -1,3 +1,14 @@
+## 2026-10-25 — Stage forward V2: actual full-universe EOD close archive
+
+- **Why:** production run #402 completed and published stage-forward V1, but **5D outcome coverage was only 43 / 4,368 matured stage entries (about 0.98%)**. The historical prices inside today's rolling Unified chart bars failed to align for most tickers; those averages are not representative and must not calibrate Composite.
+- **V2:** use immutable EOD Review snapshots to extract exactly one `metrics.price` per *evaluated ticker per actual day*, preserving `runId` and session-date identity. New script `scripts/archive_trend_birth_closes.py` backfills only missing historical sessions once from existing `lab/data/history`, then processes the new EOD daily. Compact monthly `lab/data/trend-birth-price-history/YYYY-MM.json` keeps every date permanently, without new APIs/services/scans.
+- Compute next-EOD-close entry +5/20/60 fully elapsed **exchange-session** closes from the price archives, not from the rolling charts (those now supply **dates only**). New immutable `lab/data/trend-birth-forward-eod-history/YYYY-MM.json` uses schema V2, so 43 prior V1 chart-only results remain available for audit in legacy `trend-birth-forward-history` but cannot contaminate V2 samples. Report `lab/data/trend-birth-stage-forward.json` now schema V2, UI validator updated.
+- New snapshot price-contract unit tests; existing stage-entry, chart calendar, pending/missing, immutable archive tests updated. Workflow: price extraction and stage forward after existing stage archive, both monthly archives and compact report included in existing atomic publication. App stays static on GitHub/Vercel.
+- **Guardrails:** `metrics.price` is the recorded EOD source quote, not necessarily dividend/split-adjusted; percentages remain descriptive only. Incomplete source-session snapshots are not filled, and missing EOD dates do not become artificial trading sessions. When stock splits/delistings occur, later add corporate-action checks and delisted-outcome review before statistical weight calibration.
+- **Next:** inspect real 5D n/coverage from new GH Actions publication. Hold Composite ETF proxy weights unchanged; after 20D/60D maturity and robust sample, use chronological holdout with controls before recalibration.
+
+---
+
 ## 2026-10-25 — EOD chart input format hardening
 
 - Source inspection after run #400 established that Unified charts frequently use `[timestamp,open,high,low,close,volume]` arrays and Unix-second/millisecond timestamps, not only `{time,close}` objects. Original new function handled only dicts, yielding false “no reference chart” in CI. Hotfix `_bars()` now normalizes all original source shapes; consensus calendar fix remains as protection for rotating universe. Added regression test for array, seconds, milliseconds, ISO and future-date rejection.

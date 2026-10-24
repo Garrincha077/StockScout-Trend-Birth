@@ -4,6 +4,9 @@ from datetime import date, timedelta
 from pathlib import Path
 import tempfile
 import unittest
+import sys
+
+sys.path.insert(0, str(Path(__file__).parents[1] / 'scripts'))
 
 MODULE = Path(__file__).parents[1] / "scripts" / "trend_birth_stage_forward.py"
 spec = importlib.util.spec_from_file_location("trend_birth_stage_forward", MODULE)
@@ -62,15 +65,33 @@ class ForwardStageTests(unittest.TestCase):
         }
         latest_path = base / "latest.json"
         latest_path.write_text(json.dumps(latest))
-        return stage_dir, latest_path
+        prices_dir = base / "prices"
+        prices_dir.mkdir()
+        price_months = {}
+        for index, day in enumerate(dates):
+            values = {"AAPL": float(100 + index),
+                      "AAA": round(100 * (1.01 ** index), 5)}
+            if not missing_bbb:
+                values["BBB"] = round(80 * (0.998 ** index), 5)
+            price_months.setdefault(day[:7], []).append({
+                "sessionDate": day, "runId": "r" + day,
+                "expectedEvaluated": 3, "priceCount": len(values),
+                "prices": values,
+            })
+        for month, rows in price_months.items():
+            (prices_dir / (month + ".json")).write_text(json.dumps({
+                "schemaVersion": "trend-birth-close-month-v1", "scope": forward.SCOPE,
+                "month": month, "sessions": rows,
+            }))
+        return stage_dir, latest_path, prices_dir
 
     def test_actual_stage_entry_not_daily_repeated_and_60d_matures(self):
         dates = sessions()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            stage_dir, latest = self.fixture(root, dates)
+            stage_dir, latest, prices_dir = self.fixture(root, dates)
             out_dir, output = root / "outcomes", root / "report.json"
-            result = forward.build(latest, stage_dir, out_dir, output)
+            result = forward.build(latest, stage_dir, prices_dir, out_dir, output)
             self.assertEqual(result["transitions"], 3)
             report = json.loads(output.read_text())
             h5 = report["byHorizon"]["5"]
@@ -81,15 +102,15 @@ class ForwardStageTests(unittest.TestCase):
             self.assertLess(h5["0"]["meanPct"], 0)
             self.assertEqual(report["byHorizon"]["60"]["4"]["n"], 1)
             first = (out_dir / "2026-06.json").read_bytes()
-            forward.build(latest, stage_dir, out_dir, output)
+            forward.build(latest, stage_dir, prices_dir, out_dir, output)
             self.assertEqual(first, (out_dir / "2026-06.json").read_bytes())
 
     def test_pending_horizons_and_missing_price_are_not_filled_with_zero(self):
         dates = sessions(12)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            stage_dir, latest = self.fixture(root, dates, missing_bbb=True)
-            forward.build(latest, stage_dir, root / "outcomes", root / "report.json")
+            stage_dir, latest, prices_dir = self.fixture(root, dates, missing_bbb=True)
+            forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
             report = json.loads((root / "report.json").read_text())
             self.assertEqual(report["byHorizon"]["5"]["0"]["n"], 0)
             self.assertEqual(report["byHorizon"]["5"]["0"]["missingMatured"], 1)
@@ -102,14 +123,14 @@ class ForwardStageTests(unittest.TestCase):
         dates = sessions()
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            stage_dir, latest = self.fixture(root, dates)
-            forward.build(latest, stage_dir, root / "outcomes", root / "report.json")
+            stage_dir, latest, prices_dir = self.fixture(root, dates)
+            forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
             path=stage_dir / "2026-06.json"
             payload=json.loads(path.read_text())
             payload["sessions"][1]["runId"]="rewritten"
             path.write_text(json.dumps(payload))
             with self.assertRaisesRegex(ValueError, "Conflicting point-in-time"):
-                forward.build(latest, stage_dir, root / "outcomes", root / "report.json")
+                forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
 
     def test_compact_array_chart_and_unix_timestamp_normalization(self):
         from datetime import datetime, timezone
