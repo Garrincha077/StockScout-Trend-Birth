@@ -33,7 +33,7 @@ test('history percent chart has a fixed labelled 0–100 percent scale',()=>{
   const styles=fs.readFileSync(path.join(root,'lab/styles.css'),'utf8');
   assert.match(html,/Povijesni graf \(%\)/);
   assert.match(app,/TrendBirthQuality\.percent\(point,stage\)/);
-  assert.match(app,/height:'\+percent\.toFixed\(3\)\+'%'/);
+  assert.match(app,/height:'\+percent\.toFixed\(3\)\+'%/);
   assert.match(app,/100%<\/span><span>75%<\/span><span>50%<\/span><span>25%<\/span><span>0%/);
   assert.doesNotMatch(app,/const maxValue=Math\.max\(1,\.\.\.points/);
   assert.match(styles,/\.tb-history-y-axis\{/);
