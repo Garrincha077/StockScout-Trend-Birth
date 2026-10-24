@@ -20,6 +20,25 @@ test('zero through four reconcile without converting missing data to zero',()=>{
   assert.equal(quality.count(summary,'3+'),4);
   assert.equal(quality.normalizeRadar({stageCounts:p.counts,evaluatedCount:30,unavailableCount:0}),null);
 });
+test('historic setup breadth is a percentage of each session’s evaluated universe',()=>{
+  const narrow=point('2026-10-23',[0,0,0,3,1]);
+  const wide=point('2026-10-22',[96,0,0,3,1]);
+  assert.equal(quality.percent(narrow,'3+'),100);
+  assert.equal(quality.percent(wide,'3+'),4);
+  assert.equal(quality.percent(wide,'0'),96);
+  assert.equal(quality.percent(narrow,'0'),0);
+  assert.equal(quality.percent({counts:{'0':0,'1':0,'2':0,'3':0,'4':0},evaluatedCount:0},'3+'),0);
+});
+test('history percent chart has a fixed labelled 0–100 percent scale',()=>{
+  const styles=fs.readFileSync(path.join(root,'lab/styles.css'),'utf8');
+  assert.match(html,/Povijesni graf \(%\)/);
+  assert.match(app,/TrendBirthQuality\.percent\(point,stage\)/);
+  assert.match(app,/height:'\+percent\.toFixed\(3\)\+'%/);
+  assert.match(app,/100%<\/span><span>75%<\/span><span>50%<\/span><span>25%<\/span><span>0%/);
+  assert.doesNotMatch(app,/const maxValue=Math\.max\(1,\.\.\.points/);
+  assert.match(styles,/\.tb-history-y-axis\{/);
+  assert.match(styles,/\.tb-history-chart\{[^}]*height:150px/);
+});
 test('history respects scope, archived date and chronological ordering',()=>{
   const payload={schemaVersion:'trend-birth-quality-history-v1',scope:'unified-plus-tracked-watchlist',
     points:[point('2026-10-23'),point('2026-10-21'),point('2026-10-22')]};

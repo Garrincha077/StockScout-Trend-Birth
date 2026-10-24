@@ -123,19 +123,20 @@ function renderTrendBirthQuality(){
   points.sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
   points=points.slice(-45);
   const stage=$('#tbHistoryStage')?.value||'3+';
-  const maxValue=Math.max(1,...points.map(point=>TrendBirthQuality.count(point,stage)));
   const last=points[points.length-1];
   const metric=stage==='3+'?'3/4 + 4/4 (READY + TRIGGER)':stage+'/4';
   const bars=points.map(point=>{
     const value=TrendBirthQuality.count(point,stage);
-    const percent=point.evaluatedCount?100*value/point.evaluatedCount:0;
-    const title=point.sessionDate+' · '+metric+': '+value+' ('+percent.toFixed(2)+'%) · analizirano '+point.evaluatedCount+' · bez podataka '+point.unavailableCount;
-    const height=value?Math.max(2,100*value/maxValue):0;
-    return '<div class="tb-history-bar" title="'+esc(title)+'" role="img" aria-label="'+esc(title)+'"><span style="height:'+height.toFixed(3)+'%"></span></div>';
+    const percent=TrendBirthQuality.percent(point,stage);
+    const title=point.sessionDate+' · '+metric+': '+percent.toFixed(2)+'% ('+value+' od '+point.evaluatedCount+' analiziranih) · bez podataka '+point.unavailableCount;
+    return '<div class="tb-history-bar" title="'+esc(title)+'" role="img" aria-label="'+esc(title)+'"><span style="height:'+percent.toFixed(3)+'%"></span></div>';
   }).join('');
-  historyBox.innerHTML='<div class="tb-history-metric">'+esc(metric)+' · zadnjih '+points.length+' arhiviranih sesija · zadnje '+TrendBirthQuality.count(last,stage)+' · maksimum '+maxValue+'</div>'+
-    '<div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Povijest broja dionica po danima">'+bars+'</div>'+
-    '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(last.sessionDate)+'</span></div>';
+  const lastValue=TrendBirthQuality.count(last,stage);
+  const lastPercent=TrendBirthQuality.percent(last,stage);
+  historyBox.innerHTML='<div class="tb-history-metric">'+esc(metric)+' · zadnjih '+points.length+' arhiviranih sesija · zadnje '+lastPercent.toFixed(2)+'% ('+lastValue+' dionica) · skala 0–100%</div>'+
+    '<div class="tb-history-plot"><div class="tb-history-y-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>'+
+    '<div class="tb-history-main"><div class="tb-history-chart" style="grid-template-columns:repeat('+points.length+',minmax(0,1fr))" aria-label="Povijest udjela analiziranih dionica u postocima, skala 0 do 100">'+bars+'</div>'+
+    '<div class="tb-history-axis"><span>'+esc(points[0].sessionDate)+'</span><span>'+esc(last.sessionDate)+'</span></div></div></div>';
 }
 async function loadTrendBirthQualityHistory(){
   try{

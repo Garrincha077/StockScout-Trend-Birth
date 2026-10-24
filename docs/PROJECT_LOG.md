@@ -4,6 +4,15 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-24 — Historical setup quality as a percentage (fixed 0–100% scale)
+
+- Topic branch: `codex/trend-birth-history-percent-axis-20261024` based on production `feature/unified-review-grid-lab` at `5632cdcdbe6e08ca995d9556b08e3e3d8cbafc9a`; implementation is the commit containing this entry.
+- Changed the selectable historical 0/4–4/4 and combined 3/4+4/4 graph from autoscaled absolute counts to percentage of each session's **evaluatedCount**. The Y axis is explicitly and permanently marked 0, 25, 50, 75 and 100%.
+- Kept exact counts in summary tiles and on each bar tooltip, including per-day denominator/unavailable counts. Historic values remain point-in-time from the immutable radar archive; no changes to stage thresholds, membership, Telegram sends or data schema.
+- Affected: `lab/app.js`, `lab/trend-birth-quality.js`, `lab/styles.css`, `lab/index.html`, `tests/trend-birth-quality.test.cjs`.
+- Verification: regression tests added for unequal daily denominators, 0% and 100%, and fixed-axis markup; GitHub CI should run before production merge.
+- Caveat: on a genuine 0–100% scale, small 3/4+4/4 percentages produce short bars; numerical percentages and exact counts remain available to avoid misreading the magnitude.
+
 ## 2026-10-24 — Trend Birth 0/4–4/4 setup breadth and dated chart
 
 - Topic branch: codex/trend-birth-quality-history-20261024, based on the production app branch feature/unified-review-grid-lab. Production publication requires review/CI and merge.
