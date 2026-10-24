@@ -48,6 +48,28 @@ class HistoryTests(unittest.TestCase):
             points = history.build_history(folder)["points"]
             self.assertEqual([p["sessionDate"] for p in points], ["2026-10-22", "2026-10-23"])
 
+    def test_compact_history_survives_pruning_of_large_raw_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            old = history.point_from_snapshot(snapshot("2026-10-21"))
+            retained = {"schemaVersion": history.SCHEMA, "scope": old["scope"], "points": [old]}
+            # No old raw archive remains; the next EOD snapshot must append without losing 21 October.
+            (folder / "2026-10-23.json").write_text(json.dumps(snapshot("2026-10-23")))
+            merged = history.merge_history(retained, history.build_history(folder))
+            self.assertEqual([p["sessionDate"] for p in merged["points"]],
+                             ["2026-10-21", "2026-10-23"])
+            empty = history.build_history(folder / "nonexistent")
+            self.assertEqual(history.merge_history(merged, empty), merged)
+
+    def test_existing_daily_point_cannot_be_silently_rewritten(self):
+        old = history.point_from_snapshot(snapshot("2026-10-23"))
+        changed = history.point_from_snapshot(snapshot("2026-10-23",
+                            counts={"0": 5, "1": 8, "2": 6, "3": 3, "4": 1}))
+        retained = {"schemaVersion": history.SCHEMA, "scope": old["scope"], "points": [old]}
+        observed = {"schemaVersion": history.SCHEMA, "scope": old["scope"], "points": [changed]}
+        with self.assertRaisesRegex(ValueError, "Conflicting"):
+            history.merge_history(retained, observed)
+
 
 if __name__ == "__main__":
     unittest.main()
