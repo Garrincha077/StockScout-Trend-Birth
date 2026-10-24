@@ -219,6 +219,77 @@
     el('siZoom').disabled=signed;
     el('siChart').setAttribute('data-selected-metric',field);
   }
+
+  function validateComposite(data) {
+    if (!data || data.schemaVersion !== 'trend-birth-composite-backtest-v1' ||
+        data.scope !== 'equity-etf-proxy-not-historical-stockscout' ||
+        !data.oos || !Array.isArray(data.oos.regimes) || !Number.isInteger(data.oos.n) ||
+        !data.calibration || !data.latestActual ||
+        !Number.isFinite(data.latestActual.score) || data.latestActual.score < 0 || data.latestActual.score > 100 ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(data.latestActual.sessionDate))
+      throw Error('Neispravan backtest / Composite Score zapis');
+    return data;
+  }
+  function renderComposite(raw, eodDate) {
+    const data = validateComposite(raw), report=data.oos, latest=data.latestActual;
+    const stale=latest.sessionDate!==eodDate;
+    el('siCompositeScore').textContent=fmt(latest.score,' / 100');
+    el('siCompositeScoreSub').textContent=(stale?'Zastarjelo mjerenje '+latest.sessionDate+' · ':'')+
+      'indikativno, '+latest.actualHistoryCount+' stvarnih EOD dana; nije verificiran trading signal';
+    el('siCompositeSpread').textContent=fmt(report.topMinusBottomPp,' pp');
+    el('siCompositeSpreadSub').textContent='SPY H20: gornja četvrtina '+fmt(report.highScoreMean20dPct,'%')+
+      ', donja '+fmt(report.lowScoreMean20dPct,'%')+'. Korelacija '+fmt(report.scoreReturnPearson)+'.';
+    el('siCompositeSample').textContent=FMT.format(report.n);
+    el('siCompositeSampleSub').textContent=report.startYear+'–'+report.endYear+
+      ' · '+report.testedYears+' kalendarskih godina · '+report.positiveSpreadYears+' s pozitivnom razlikom';
+    const names={breadth:'Širina 3+/4',pressure:'Setup pressure',velocity:'Brzina',acceleration:'Akceleracija',
+      flow:'Neto pomak istog skupa',persistence:'Trajnost širine'};
+    const parts=Object.entries(data.calibration.weights).map(([k,w])=>
+      names[k]+': '+(data.calibration.directions[k]<0?'obrnuto ':'')+w+
+      '× (zadnji percentil '+fmt(latest.components[k],'%')+')');
+    el('siCompositeFactors').textContent='Profil: '+data.calibration.selectedProfile+
+      ' · komponente: '+parts.join(' · ')+
+      '. Ponderi su odabrani na povijesnim ETF proxy godinama, a percentili se računaju samo na stvarnoj StockScout arhivi.';
+    const target=el('siCompositeRegimes');
+    target.replaceChildren();
+    const thead=document.createElement('thead'), header=document.createElement('tr');
+    for(const h of ['Režim','Uzorak','Gornji kvartil H20','Donji kvartil H20','Razlika (pp)']) {
+      const th=document.createElement('th');th.textContent=h;header.appendChild(th);
+    }
+    thead.appendChild(header);target.appendChild(thead);
+    const body=document.createElement('tbody');
+    const translations={
+      '2008 GFC':'2008 · financijska kriza',
+      '2011 sovereign debt':'2011 · dužnička kriza',
+      '2015-16 industrial correction':'2015–16 · korekcija',
+      '2018 tightening':'2018 · stezanje monetarne politike',
+      '2020 pandemic':'2020 · pandemija',
+      '2022 inflation bear':'2022 · inflacija / bear',
+      '2023-24 rally':'2023–24 · rast',
+      'High volatility (VIX >= 30)':'Stres (VIX ≥ 30)',
+      'Lower volatility (VIX < 20)':'Niska volatilnost (VIX < 20)',
+    };
+    for(const item of report.regimes) {
+      const tr=document.createElement('tr');
+      const cells=[translations[item.regime]||item.regime,
+        FMT.format(item.n),fmt(item.highScoreMean20dPct,'%'),fmt(item.lowScoreMean20dPct,'%'),
+        fmt(item.topMinusBottomPp,' pp')];
+      cells.forEach((c,i)=>{const td=document.createElement(i===0?'th':'td');td.textContent=c;
+        if(i===4 && Number.isFinite(item.topMinusBottomPp)) td.style.color=item.topMinusBottomPp>=0?'#37cb89':'#f26d79';
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    }
+    target.appendChild(body);
+    el('siCompositeMethod').textContent='Walk-forward: '+report.n+
+      ' izvanuzoračkih promatranja, interval 10 burzovnih dana, SPY realizirani prinos od sljedećeg prilagođenog zatvaranja do 20. idućeg zatvaranja. '+
+      'Za svaki testni kalendarski period težine su birane SAMO prema prije završenim godinama ('+
+      data.method.testedProfiles+' kandidatskih profila). Izvor cijena zaključan na GitHub SHA; zadnji dan izvora '+
+      data.source.lastDate+'. Nisu uračunati transakcijski troškovi; rezultati se djelomično preklapaju.';
+    el('siCompositeStatus').textContent='EKSPERIMENTALNI pokazatelj · ETF proxy, slaba do umjerena izvanuzoračka veza s prinosima; '+
+      'loši režimi ostaju prikazani ('+(stale?'Composite još nije osvježen za zadnje EOD podatke.':'zadnji EOD je osvježen.')+')';
+  }
+
   async function start() {
     const status=el('siStatus');
     if (!status) return;
@@ -229,10 +300,17 @@
       for(const id of ['siRange','siAggregation','siMetric','siZoom','siWindow']) el(id).addEventListener('change',()=>render(data));
       render(data);
       status.hidden=true;
+      try {
+        const compositeResponse=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
+        if (!compositeResponse.ok) throw Error('HTTP '+compositeResponse.status);
+        renderComposite(await compositeResponse.json(),data.latestSessionDate);
+      } catch (error) {
+        el('siCompositeStatus').textContent='Backtest nije dostupan: '+(error?.message||String(error));
+      }
     } catch(e) {
       status.textContent='Statistika nije dostupna: '+(e?.message||String(e))+' · Pokušaj osvježiti stranicu.';
       status.className='si-error';
     }
   }
-  return {validate, metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
+  return {validate, validateComposite, metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });

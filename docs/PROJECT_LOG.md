@@ -493,3 +493,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Vercel production `dpl_YYrCvvQChjC8DkENgRGbNsngGo9m` reached **READY**; live Chrome browser loaded production /statistics, displayed 20 EOD values, 6.24% quality breadth, pressure 8.32, velocity 0.05 pp/EOD, acceleration 0.34 pp/EOD, 36.84 percentile on n19, matched net flow +23; 19 EOD transition pairs and 49,971 matching ticker transitions. Preview manually switched metric to acceleration and D to M; chart rendered with symmetric signed axis, missing values left blank when history insufficient. Screenshot visual QA passed.
 - No change to ranking, risk, Telegram sending or scanner cadence; no additional Vercel storage, cron, or external data. User sees independent Statistika tab; 11KB compact data remains served through existing GitHub Raw rewrite.
 - **Pending:** verify next *new* scheduled EOD refresh updates internals + intelligence + snapshot on the same runId/date and retains all historical points, and verify next grouped Telegram alert delivery in ledger.
+
+
+## 2026-10-24 — Walk-forward Composite Score / 14 ETF proxy (eksperimentalno)
+
+- Novi `scripts/backtest_market_internals.py`, `tests/test_trend_birth_composite.py`, te `lab/data/trend-birth-composite-backtest.json`. Pinani izvor je `manisahni/marketdata` commit `65a079329e379e104495f459e12e76a8f995585a` (dividend-adjusted closes od 2004., 14 equity ETF-ova, 9 sektorskih + QQQ/IWM/EFA/EEM/VNQ); bez pohrane velike CSV kopije.
+- Backtest: walk-forward godisnji, H20 SPY total-return proxy, sljedeci adjusted CLOSE kao ulaz, 10-session stride, 11 predeklariranih modelskih profila, 2008–2026 OOS, obavezni kriza/rast/režim VIX izvjestaji; **nije replay stvarnih povijesnih StockScout setupa**.
+- Sest komponenti s historijskim percentilima na vlastitom izvoru; aktualni Composite iz stvarne EOD arhive 2026-09-24 nadalje. Profil ETF proxy prenesen je indikativno, bez dokazane stock-level prediktivnosti.
+- Tab `lab/statistics.html` prikazuje score 0–100, sve periode pozitivne/negativne validacije i metodoloske napomene. GitHub workflow lokalno osvjezava aktualni score bez dodatnog network backtesta ili crona.
+- Inkrementalni EOD graf `lab/data/trend-birth-market-internals.json` ostaje samo stvarni feed (D/W/M, 1M/3M/1Y/5Y/All), nikakve sinteticke sesije.
+- **Sljedece:** kvaliteta cijena/OHLC i dinamicni universe/delistings, neovisni kalibracijski i finalni holdout, provjera metodoloskog rizika te nakon 120+ stvarnih EOD sesija validirati score na punom StockScout univerzumu. Negativni rezimi ukljuceni su u izvjestaj.
