@@ -197,3 +197,9 @@
   .tb-opportunity-card-head strong{font-size:13px}
   .tb-ticker-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+.tb-stability-header{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-top:10px}
+.tb-stability-header h3{font-size:14px;font-weight:650;margin:0}
+.tb-stability-header small,.tb-streak-badge{font-size:11px;color:#9bb5cb}
+.tb-streak-badge{color:#b8e4d1!important}
+#tbStabilityRetention{margin:0 0 12px}

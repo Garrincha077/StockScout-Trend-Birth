@@ -101,6 +101,40 @@ class IntelligenceTests(unittest.TestCase):
         self.assertEqual(row["newChecks"], ["30W SMA raste"])
         self.assertEqual((row["previousStage"], row["stage"]), (3, 4))
 
+    def test_stability_counts_only_observed_consecutive_eod_and_paired_tickers(self):
+        days = [
+            snapshot("2026-10-20", [item("AAA", 4), item("BBB", 3),
+                                   item("UUU", 0, available=False)]),
+            snapshot("2026-10-21", [item("AAA", 4), item("BBB", 3), item("UUU", 4)]),
+            snapshot("2026-10-22", [item("AAA", 4), item("BBB", 2), item("UUU", 4)]),
+            snapshot("2026-10-23", [item("AAA", 4), item("BBB", 3), item("UUU", 1)]),
+        ]
+        summary = intel.build_summary(days[-1], [intel.point_from_snapshot(day) for day in days])
+        stable = summary["stability"]
+        self.assertEqual((stable["observedSessions"], stable["transitionPairs"]), (4, 3))
+        self.assertEqual((stable["quality"]["current"], stable["quality"]["atLeast3"],
+                          stable["quality"]["oneSession"]), (2, 1, 1))
+        self.assertEqual((stable["four"]["current"], stable["four"]["atLeast3"]), (1, 1))
+        self.assertEqual((stable["quality"]["latestDropouts"], stable["four"]["latestDropouts"]), (1, 1))
+        self.assertEqual(stable["quality"]["retention"],
+                         {"kept": 5, "eligible": 7, "percent": 71.4})
+        self.assertEqual(stable["four"]["retention"],
+                         {"kept": 4, "eligible": 5, "percent": 80.0})
+        featured = {row["ticker"]: row for row in summary["topOpportunities"]}
+        self.assertEqual((featured["AAA"]["qualityStreak"], featured["AAA"]["fourStreak"]), (4, 4))
+        self.assertEqual((featured["BBB"]["qualityStreak"], featured["BBB"]["fourStreak"]), (1, 0))
+
+    def test_stability_new_and_missing_eod_break_streak_without_counting_dropout(self):
+        a = intel.point_from_snapshot(snapshot("2026-10-20", [item("AAA", 4)]))
+        b = intel.point_from_snapshot(snapshot("2026-10-21", [item("AAA", 0, available=False)]))
+        c = intel.point_from_snapshot(snapshot("2026-10-22", [item("AAA", 4)]))
+        d = intel.point_from_snapshot(snapshot("2026-10-23", [item("BBB", 4)]))
+        stable, ticker_streaks = intel.calculate_stability([a, b, c, d])
+        self.assertEqual(ticker_streaks["BBB"], (1, 1))
+        self.assertEqual(stable["quality"]["retention"]["eligible"], 0)
+        self.assertEqual(stable["quality"]["latestDropouts"], 0)
+        self.assertIsNone(stable["four"]["retention"]["percent"])
+
     def test_merging_is_append_only_and_detects_conflicts(self):
         months = {}
         prev = intel.point_from_snapshot(snapshot("2026-09-30"))

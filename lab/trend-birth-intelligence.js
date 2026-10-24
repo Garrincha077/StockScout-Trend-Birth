@@ -20,6 +20,38 @@
       ||STAGES.reduce((sum,stage)=>sum+counts[stage],0)!==payload.evaluatedCount){
       throw new Error('Nesukladni brojčani pokazatelji intelligence pregleda.');
     }
+    const stability=payload.stability;
+    if(stability!==undefined){
+      if(!Number.isSafeInteger(stability?.observedSessions)||stability.observedSessions<1||
+        !Number.isSafeInteger(stability?.transitionPairs)||
+        stability.transitionPairs!==stability.observedSessions-1){
+        throw new Error('Neispravan broj EOD sesija za trajnost.');
+      }
+      for(const key of ['quality','four']){
+        const group=stability[key];
+        if(!group||['current','atLeast3','atLeast5','oneSession'].some(field=>
+          !Number.isSafeInteger(group[field])||group[field]<0)||
+          group.atLeast3>group.current||group.atLeast5>group.atLeast3||
+          group.oneSession>group.current||
+          (group.latestDropouts!==null&&(!Number.isSafeInteger(group.latestDropouts)||group.latestDropouts<0))||
+          !group.retention||!Number.isSafeInteger(group.retention.eligible)||
+          !Number.isSafeInteger(group.retention.kept)||group.retention.kept<0||
+          group.retention.eligible<group.retention.kept){
+          throw new Error('Neispravni pokazatelji trajnosti setupa.');
+        }
+        const expected=group.retention.eligible?
+          100*group.retention.kept/group.retention.eligible:null;
+        if((expected===null&&group.retention.percent!==null)||
+           (expected!==null&&(!Number.isFinite(group.retention.percent)||
+             Math.abs(group.retention.percent-expected)>0.051))){
+          throw new Error('Nesukladna stopa povijesnog ostanka.');
+        }
+      }
+      if(stability.quality.current!==counts['3']+counts['4']||
+         stability.four.current!==counts['4']){
+        throw new Error('Trajnost nije usklađena s dnevnim univerzumom.');
+      }
+    }
     if(!Array.isArray(payload.topOpportunities)
       ||payload.topOpportunities.some(row=>!row.ticker||!Number.isInteger(row.stage)
         ||row.stage<0||row.stage>4)){
@@ -135,7 +167,22 @@
       .filter(point=>point.stage!==null||point.unavailable);
   }
 
-  const api={validateSummary,monthsInPeriod,validateMonth,loadMonths,membersForPeriod,journey};
+  function streaks(payloads,ticker,asOf){
+    const normalized=String(ticker||'').toUpperCase();
+    if(!normalized)throw new Error('Ticker nije odabran.');
+    let quality=0,four=0;
+    const all=payloads.flatMap(month=>month.sessions)
+      .filter(point=>!asOf||point.sessionDate<=asOf)
+      .sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate));
+    for(const point of all){
+      const stage=point.stages[normalized]?.[0];
+      quality=stage>=3?quality+1:0;
+      four=stage===4?four+1:0;
+    }
+    return {quality,four};
+  }
+
+  const api={validateSummary,monthsInPeriod,validateMonth,loadMonths,membersForPeriod,journey,streaks};
   root.TrendBirthIntelligence=api;
   if(typeof module!=='undefined')module.exports=api;
 })(globalThis);
