@@ -203,3 +203,10 @@
 .tb-stability-header small,.tb-streak-badge{font-size:11px;color:#9bb5cb}
 .tb-streak-badge{color:#b8e4d1!important}
 #tbStabilityRetention{margin:0 0 12px}
+
+/* Navigation to standalone market-internals statistics page. */
+.workspace-tabs{display:flex;gap:8px;padding:9px 16px;background:#0c1929;border-bottom:1px solid var(--border)}
+.workspace-tabs a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:8px 15px;color:#d9e8f9;background:var(--panel);border:1px solid #324b67;border-radius:999px;text-decoration:none;font-weight:700}
+.workspace-tabs a.active{background:#193b2c;color:white;border-color:var(--green)}
+.workspace-tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:720px){.workspace-tabs{padding:8px 10px}.workspace-tabs a{flex:1}}
