@@ -131,7 +131,7 @@ class ForwardStageTests(unittest.TestCase):
             payload=json.loads(path.read_text())
             payload["sessions"][1]["runId"]="rewritten"
             path.write_text(json.dumps(payload))
-            with self.assertRaisesRegex(ValueError, "Conflicting point-in-time"):
+            with self.assertRaisesRegex(ValueError, "EOD close provenance mismatch"):
                 forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
 
     def test_missing_full_exchange_session_is_distinct_from_missing_ticker_quote(self):
