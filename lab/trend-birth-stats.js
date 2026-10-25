@@ -311,11 +311,11 @@
     }
     if (value.dataQuality) {
       const q=value.dataQuality;
-      if (!Number.isInteger(q.archivedSessions) || !Number.isInteger(q.exchangeSessionsSinceStart) ||
+      if (!Number.isInteger(q.archivedSessions) || !Number.isInteger(q.exchangeSessionsInWindow) ||
           !Array.isArray(q.missingExchangeSessions) || !Number.isInteger(q.actualSourceQuotes) ||
           !Number.isInteger(q.expectedSourceQuotes) || !Number.isFinite(q.sourcePriceCoveragePct) ||
           q.sourcePriceCoveragePct<0 || q.sourcePriceCoveragePct>100 ||
-          q.archivedSessions+q.missingExchangeSessions.length!==q.exchangeSessionsSinceStart ||
+          q.archivedSessions+q.missingExchangeSessions.length!==q.exchangeSessionsInWindow ||
           q.actualSourceQuotes<0 || q.actualSourceQuotes>q.expectedSourceQuotes ||
           Math.abs(q.sourcePriceCoveragePct-(100*q.actualSourceQuotes/q.expectedSourceQuotes))>0.02)
         throw Error('Neusklađena EOD pokrivenost cijena');
@@ -333,8 +333,8 @@
       'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
     const quality=data.dataQuality;
     el('siForwardQuality').textContent=quality
-      ? 'Kontrola izvora: '+quality.archivedSessions+' / '+quality.exchangeSessionsSinceStart+
-        ' stvarnih burzovnih sesija od '+quality.archiveStart+'; nedostaju cijeli EOD-i: '+
+      ? 'Kontrola izvora: '+quality.archivedSessions+' / '+quality.exchangeSessionsInWindow+
+        ' stvarnih burzovnih sesija od '+quality.coverageWindowStart+'; nedostaju cijeli EOD-i: '+
         (quality.missingExchangeSessions.join(', ')||'nema')+'. Cijene za sačuvane EOD-e: '+
         fmt(quality.sourcePriceCoveragePct,'%')+' ('+FMT.format(quality.actualSourceQuotes)+
         ' / '+FMT.format(quality.expectedSourceQuotes)+'). Rupe u datumima nisu isto što i nestali tickeri.'
