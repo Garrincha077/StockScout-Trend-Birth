@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+from copy import deepcopy
 import json
 from pathlib import Path
 import sys
@@ -82,17 +83,7 @@ class EvidenceTests(unittest.TestCase):
                 evidence._source_api_check(row)
 
     def test_release_requires_draft_and_matching_original_assets(self):
-        manifest = {
-            "sources": [{
-                "archivedName": "a.zip", "verifiedSize": 123,
-                "verifiedSha256": "sha256:abc",
-            }]
-        }
-        release = {"tag_name": evidence.RELEASE_TAG, "draft": True, "html_url": "https://github.com/x/y/releases/tag/t",
-                   "assets": [
-                       {"name": "a.zip", "size": 123, "digest": "sha256:abc"},
-                       {"name": "source-evidence-manifest.json", "size": 10},
-                   ]}
+        manifest, release = self.release_fixture()
         with patch.object(evidence, "_gh", return_value=[release]):
             evidence.verify_release(manifest, "x/y")
         release["draft"] = False
@@ -104,6 +95,58 @@ class EvidenceTests(unittest.TestCase):
         with patch.object(evidence, "_gh", return_value=[release]):
             with self.assertRaisesRegex(ValueError, "digest mismatch"):
                 evidence.verify_release(manifest, "x/y")
+
+    def release_fixture(self):
+        sources = [{**row,
+                    "archivedName": "unified-eod-" + row["sessionDate"] + "-pages.zip",
+                    "verifiedSize": row["artifactSize"], "verifiedSha256": row["artifactDigest"]}
+                   for row in evidence.SOURCES]
+        manifest = {"schemaVersion": "tb-original-unified-pages-evidence-v1",
+                    "sourceRepository": evidence.SOURCE_REPO,
+                    "releaseTag": evidence.RELEASE_TAG, "sources": sources}
+        release = {"tag_name": evidence.RELEASE_TAG, "draft": True, "html_url": "https://github.com/x/y/releases/tag/t",
+                   "assets": [{"name": row["archivedName"], "size": row["verifiedSize"],
+                               "digest": row["verifiedSha256"]} for row in sources] +
+                             [{"name": "source-evidence-manifest.json", "size": 10}]}
+        return manifest, release
+
+    def test_release_rejects_empty_incomplete_duplicate_and_replaced_sources(self):
+        original, release = self.release_fixture()
+        changed_identity = deepcopy(original)
+        changed_identity["sources"][0]["headSha"] = "0" * 40
+        replaced_zip = deepcopy(original)
+        replaced_zip["sources"][0]["verifiedSha256"] = "sha256:bad"
+        bad_schema = deepcopy(original)
+        bad_schema["sourceRepository"] = "other/repository"
+        for manifest in [
+            {**original, "sources": []},
+            {**original, "sources": original["sources"][:1]},
+            {**original, "sources": [original["sources"][0]] * 2},
+            changed_identity, replaced_zip, bad_schema,
+        ]:
+            with self.subTest(manifest=manifest):
+                with patch.object(evidence, "_gh", return_value=[release]) as gh:
+                    with self.assertRaises(ValueError):
+                        evidence.verify_release(manifest, "x/y")
+                    gh.assert_not_called()
+
+    def test_release_rejects_missing_original_zip_and_changed_manifest_bytes(self):
+        manifest, release = self.release_fixture()
+        missing = deepcopy(release)
+        missing["assets"].pop(0)
+        with patch.object(evidence, "_gh", return_value=[missing]):
+            with self.assertRaisesRegex(ValueError, "Missing GitHub Release asset"):
+                evidence.verify_release(manifest, "x/y")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "source-evidence-manifest.json"
+            path.write_text(json.dumps(manifest))
+            release["assets"][-1].update(size=path.stat().st_size, digest=evidence._sha256(path))
+            with patch.object(evidence, "_gh", return_value=[release]):
+                evidence.verify_release(manifest, "x/y", path)
+            path.write_text(json.dumps({**manifest, "changed": True}))
+            with patch.object(evidence, "_gh", return_value=[release]):
+                with self.assertRaisesRegex(ValueError, "size mismatch|digest mismatch"):
+                    evidence.verify_release(manifest, "x/y", path)
 
 
 if __name__ == "__main__":

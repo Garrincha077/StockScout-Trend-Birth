@@ -94,6 +94,7 @@ class ForwardStageTests(unittest.TestCase):
             result = forward.build(latest, stage_dir, prices_dir, out_dir, output)
             self.assertEqual(result["transitions"], 3)
             report = json.loads(output.read_text())
+            self.assertEqual(report["exchangeSessions"], dates)
             h5 = report["byHorizon"]["5"]
             self.assertEqual(h5["3"]["n"], 1)
             self.assertEqual(h5["4"]["n"], 1)

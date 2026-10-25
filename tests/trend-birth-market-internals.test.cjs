@@ -24,6 +24,34 @@ test('negative and incomplete stage counts are rejected',()=>{
   o.points[0].counts['0']--;
   assert.throws(()=>Stats.validate(o),/faza/);
 });
+test('required percentage inputs cannot be missing, null, strings or non-finite',()=>{
+  const original=JSON.parse(fs.readFileSync(path.join(__dirname,'../lab/data/trend-birth-market-internals.json'),'utf8'));
+  for(const field of ['qualityBreadthPct','fourBreadthPct','pressurePct'])
+    for(const value of [undefined,null,'50',NaN,Infinity,-1,101]){
+      const data=structuredClone(original);
+      if(value===undefined)delete data.points.at(-1)[field];
+      else data.points.at(-1)[field]=value;
+      assert.throws(()=>Stats.validate(data),/numerički/);
+    }
+  for(const field of ['overlapPct','matchedQualityDeltaPp']){
+    for(const value of [undefined,null,'0',NaN,Infinity]){
+      const data=structuredClone(original);data.points.at(-1)[field]=value;
+      assert.throws(()=>Stats.validate(data),/numerički/);
+    }
+  }
+  const data=structuredClone(original);
+  data.points.at(-1).matchedQualityDeltaPp=data.points.at(-1).matchedQualityDeltaPp===0?1:0;
+  assert.throws(()=>Stats.validate(data),/pomak/);
+});
+test('a supplied exchange calendar must be chronological and current',()=>{
+  const data=JSON.parse(fs.readFileSync(path.join(__dirname,'../lab/data/trend-birth-stage-forward.json'),'utf8'));
+  data.exchangeSessions=['2026-10-22','2026-10-23'];
+  assert.equal(Stats.validateForward(data),data);
+  for(const days of [[],['2026-10-23','2026-10-22'],['2026-10-23','2026-10-23'],['2026-10-22']]){
+    data.exchangeSessions=days;
+    assert.throws(()=>Stats.validateForward(data),/kalendar/);
+  }
+});
 test('weighted weekly/monthly breadth uses ticker-days, not naive mean',()=>{
   const rows=[point('2026-10-22',[5,0,0,0,5]),point('2026-10-23',[30,0,0,0,0])];
   const week=Stats.group(rows,'W');

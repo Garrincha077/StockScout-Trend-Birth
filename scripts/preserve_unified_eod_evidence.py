@@ -161,6 +161,27 @@ def preserve(destination: Path) -> dict:
 
 
 def verify_release(manifest: dict, repo: str, manifest_path: Path | None = None) -> None:
+    if (manifest.get("schemaVersion") != "tb-original-unified-pages-evidence-v1" or
+        manifest.get("sourceRepository") != SOURCE_REPO or
+        manifest.get("releaseTag") != RELEASE_TAG):
+        raise ValueError("Incompatible source evidence manifest")
+    sources = manifest.get("sources")
+    if (not isinstance(sources, list) or len(sources) != len(SOURCES) or
+        any(not isinstance(row, dict) or not isinstance(row.get("sessionDate"), str) for row in sources) or
+        {row.get("sessionDate") for row in sources} != {row["sessionDate"] for row in SOURCES}):
+        raise ValueError("Evidence manifest must contain both pinned source sessions exactly once")
+    by_day = {row["sessionDate"]: row for row in sources}
+    expected = []
+    for pinned in SOURCES:
+        row = by_day[pinned["sessionDate"]]
+        if any(row.get(key) != value for key, value in pinned.items()):
+            raise ValueError("Evidence source identity differs from pinned artifact: " + pinned["sessionDate"])
+        name = "unified-eod-" + pinned["sessionDate"] + "-pages.zip"
+        if (row.get("archivedName") != name or
+            row.get("verifiedSize") != pinned["artifactSize"] or
+            row.get("verifiedSha256") != pinned["artifactDigest"]):
+            raise ValueError("Evidence source ZIP differs from pinned bytes: " + pinned["sessionDate"])
+        expected.append((name, pinned["artifactSize"], pinned["artifactDigest"]))
     releases = _gh("api", f"repos/{repo}/releases?per_page=100")
     matching = [item for item in releases if item.get("tag_name") == RELEASE_TAG]
     if len(matching) != 1:
@@ -169,8 +190,6 @@ def verify_release(manifest: dict, repo: str, manifest_path: Path | None = None)
     if not release.get("draft"):
         raise ValueError("Evidence release must remain a private draft")
     assets = {a["name"]: a for a in release.get("assets", [])}
-    expected = [(row["archivedName"], row["verifiedSize"], row["verifiedSha256"])
-                for row in manifest["sources"]]
     expected.append(("source-evidence-manifest.json",
                      manifest_path.stat().st_size if manifest_path else None,
                      _sha256(manifest_path) if manifest_path else None))
