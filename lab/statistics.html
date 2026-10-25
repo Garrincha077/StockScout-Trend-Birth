@@ -7,8 +7,8 @@
   <meta name="description" content="StockScout Trend Birth — statistika kvalitete svih setupa i povijesni prijelazi.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=market-internals-20261024">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=market-internals-20261024">
+  <link rel="stylesheet" href="styles.css?v=composite-history-20261025">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=composite-history-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
 <body class="statistics-page">
@@ -46,7 +46,35 @@
         <article class="si-card"><h2>Uzorak testa</h2><strong id="siCompositeSample">—</strong><small id="siCompositeSampleSub"></small></article>
       </div>
       <p id="siCompositeFactors" class="si-muted"></p>
-      <h3>Rezultati po tržišnim rezimima</h3>
+      <div class="si-composite-detail">
+        <h3>Povijesni graf Composite Scorea</h3>
+        <div class="si-controls" aria-label="Prikaz povijesti Composite Scorea">
+          <label>Izvor serije <select id="siCompositeSeries">
+            <option value="actual" selected>Stvarni Trend Birth EOD</option>
+            <option value="proxy">ETF proxy · povijesni OOS</option>
+          </select></label>
+          <label>Razdoblje <select id="siCompositeRange">
+            <option value="1m">1 mjesec</option><option value="3m">3 mjeseca</option>
+            <option value="1y">1 godina</option><option value="5y">5 godina</option>
+            <option value="all" selected>Sva dostupna povijest</option>
+          </select></label>
+        </div>
+        <p id="siCompositeChartMeta" class="si-muted"></p>
+        <div id="siCompositeChart" class="si-chart si-composite-chart" role="region"
+             aria-label="Povijesni linijski graf Composite Scorea od 0 do 100" tabindex="0"></div>
+        <div class="si-composite-inspect">
+          <label for="siCompositePoint">Odaberi povijesno očitanje</label>
+          <input id="siCompositePoint" type="range" min="0" max="0" value="0" step="1">
+          <p id="siCompositeSelected" aria-live="polite"></p>
+        </div>
+        <h3 id="siCompositeFactorTitle">Razrada bodovanja · odabrani EOD</h3>
+        <p id="siCompositeFormula" class="si-muted"></p>
+        <div class="si-table-scroll"><table id="siCompositeFactorTable" class="si-matrix si-factor-table">
+          <caption class="sr-only">Sirove vrijednosti, povijesni percentili, smjer, težine i doprinos pojedinog faktora Composite Scoreu</caption>
+        </table></div>
+        <p id="siCompositeScoringCaveat" class="si-muted"></p>
+      </div>
+      <h3>Rezultati po tržišnim režimima</h3>
       <div class="si-table-scroll"><table class="si-matrix" id="siCompositeRegimes">
         <caption class="sr-only">Realizirani prinosi SPY-a 20 trgovinskih dana kasnije, prema povijesnom kvartilu composite scorea</caption>
       </table></div>
@@ -104,6 +132,6 @@
     </section>
     <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
   </main>
-  <script src="trend-birth-stats.js?v=stage-forward-coverage-audit-20261025" defer></script>
+  <script src="trend-birth-stats.js?v=composite-history-20261025" defer></script>
 </body>
 </html>
