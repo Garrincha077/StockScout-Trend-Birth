@@ -1,5 +1,6 @@
 """Offline regression checks for an explicitly exploratory ETF-proxy composite."""
 import unittest
+from copy import deepcopy
 
 from scripts import backtest_market_internals as bt
 
@@ -34,6 +35,42 @@ class CompositeMarketInternalsTests(unittest.TestCase):
         self.assertEqual(result["latestActual"]["actualHistoryCount"],20)
         self.assertEqual(result["latestActual"]["sessionDate"],actual["latestSessionDate"])
         self.assertTrue(0<=result["latestActual"]["score"]<=100)
+        self.assertEqual(len(result["actualHistory"]),len(points))
+        self.assertEqual(result["actualHistory"][-1]["sessionDate"],actual["latestSessionDate"])
+        self.assertEqual(result["actualHistory"][0]["readyFactors"],0)
+        self.assertLess(result["actualHistory"][-1]["readyFactors"],6)
+        self.assertAlmostEqual(result["actualHistory"][-1]["score"],result["latestActual"]["score"])
+        self.assertEqual(result["actualHistory"][-1]["fields"]["breadth"]["historyN"],19)
+        self.assertEqual(result["actualHistory"][0]["fields"]["breadth"]["historyN"],0)
+
+    def test_chronological_actual_history_never_uses_future_readings(self):
+        points=[{"sessionDate":f"2026-10-{i+1:02d}",
+                 "qualityBreadthPct":20+i/2,"pressurePct":25+i,
+                 "matchedQualityDeltaPp":float(i % 5)} for i in range(24)]
+        original={"latestSessionDate":points[-1]["sessionDate"],"points":points}
+        report={"schemaVersion":bt.SCHEMA,"calibration":{"selectedProfile":"recovery"}}
+        baseline=bt.refresh_actual(deepcopy(report),original)["actualHistory"]
+        changed=deepcopy(original)
+        changed["points"][-1]["qualityBreadthPct"]=99
+        changed["points"][-1]["pressurePct"]=99
+        updated=bt.refresh_actual(deepcopy(report),changed)["actualHistory"]
+        self.assertEqual(baseline[:-1],updated[:-1])
+        self.assertNotEqual(baseline[-1]["score"],updated[-1]["score"])
+
+    def test_trace_components_reconstruct_exact_weighted_score(self):
+        fields={k:float(i*12+7) for i,k in enumerate(bt.FIELDS)}
+        point={k+"Rank":fields[k] for k in bt.FIELDS}
+        for k in bt.FIELDS:
+            point[k]=fields[k]
+            point[k+"HistoryN"]=20
+        for profile in bt.PROFILES:
+            result=bt.actual_score_history([{"date":"2026-10-23",**point}],profile)[0]
+            weighted=sum(
+                weight*(value if sign>0 else 100-value)
+                for value,weight,sign in zip(fields.values(),profile[1],profile[2])
+            )/sum(profile[1])
+            self.assertAlmostEqual(result["score"],round(weighted,4))
+            self.assertEqual(result["readyFactors"],6)
 
     def test_empty_market_row_is_not_a_trading_session(self):
         blank={symbol:"" for symbol in bt.SECTORS}

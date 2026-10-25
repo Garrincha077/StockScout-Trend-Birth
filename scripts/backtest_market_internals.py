@@ -303,7 +303,32 @@ def actual_features(points: list[dict]) -> list[dict]:
         for field in FIELDS:
             past = [x[field] for x in normalized[max(0,i-252):i] if x[field] is not None]
             p[field+"Rank"] = percent_rank(p[field],past)
+            p[field+"HistoryN"] = len(past)
     return normalized
+
+
+def trace_fields(point: dict, with_history: bool = False) -> dict:
+    """Public per-factor evidence; never derive ranks from future observations."""
+    result = {}
+    for field in FIELDS:
+        value = point[field]
+        factor = {"raw":round(value, 4) if value is not None else None,
+                  "percentile":round(point[field+"Rank"], 4)}
+        if with_history:
+            factor["historyN"] = point[field+"HistoryN"]
+        result[field] = factor
+    return result
+
+
+def actual_score_history(points: list[dict], profile) -> list[dict]:
+    """Fixed ETF-calibrated weights applied chronologically to archived real EODs."""
+    return [
+        {"sessionDate":point["date"], "score":profile_score(point, profile),
+         "fields":trace_fields(point, with_history=True),
+         "readyFactors":sum(point[field] is not None and point[field+"HistoryN"] >= 12
+                             for field in FIELDS)}
+        for point in points
+    ]
 
 
 def run(prices_csv: str, actual_payload: dict) -> dict:
@@ -334,7 +359,8 @@ def run(prices_csv: str, actual_payload: dict) -> dict:
         for rec in samples:
             if rec["year"] == year:
                 point = {"date":rec["date"],"year":year,"score":profile_score(rec["features"],selected),
-                         "futureReturnPct":rec["futureReturnPct"],"vix":rec["vix"],"profile":selected[0]}
+                         "futureReturnPct":rec["futureReturnPct"],"vix":rec["vix"],"profile":selected[0],
+                          "labelEnd":rec["labelEnd"],"fields":trace_fields(rec["features"])}
                 out.append(point);year_oos.append(point)
         by_year.append({"year":year,"profile":selected[0],**summary(year_oos)})
     if len(out) < 180:
@@ -373,17 +399,28 @@ def run(prices_csv: str, actual_payload: dict) -> dict:
                   "featureRankWindowSessions":252,"atrProxy":"1.8 x EMA14 absolute close move; no high/low",
                   "survivorship":"14 pre-specified long-lived equity ETFs (>=12 evaluated/session), not a delisting-complete stock universe",
                   "testedProfiles":len(PROFILES),"minHistoryYears":3,
+                   "actualMinPriorObservations":12,
                   "status":"EXPLORATORY ETF PROXY, NOT AN AUDITED STOCKSCOUT SIGNAL"},
         "oos":{"startYear":2008,"endYear":by_year[-1]["year"],**summary(out),
                "positiveSpreadYears":good_years,"testedYears":len([r for r in by_year if r["n"]>=8]),
-               "yearly":by_year,"regimes":regime_summary},
+               "yearly":by_year,"regimes":regime_summary,
+                "history":[{"sessionDate":point["date"],"score":point["score"],
+                            "profile":point["profile"],"labelEnd":point["labelEnd"],
+                            "future20dPct":round(point["futureReturnPct"],4),
+                            "fields":point["fields"]} for point in out]},
         "calibration":{"selectedProfile":latest_profile[0],"weights":weights,"directions":directions,
                        "selection":"historical yearwise score/forward-return correlation minus across-year variability",
-                       "trainingYears":sorted({r["year"] for r in samples}),"sampleCount":len(samples)},
+                       "trainingYears":sorted({r["year"] for r in samples}),"sampleCount":len(samples),
+                        "profileBook":{
+                            profile[0]:{"weights":dict(zip(FIELDS,profile[1])),
+                                        "directions":dict(zip(FIELDS,profile[2]))}
+                            for profile in PROFILES}},
         "latestActual":{"sessionDate":actual_payload["latestSessionDate"],"score":latest_score,
                         "components":component,"actualHistoryCount":len(actual),
+                         "readyFactors":actual_score_history(actual,latest_profile)[-1]["readyFactors"],
                         "interpretation":"INDICATIVE transfer of ETF-proxy weights onto ranks of the short REAL StockScout EOD series; NOT out-of-sample validated"},
-        "lastProxy":{"sessionDate":last_valid_proxy["date"],"score":profile_score(last_valid_proxy,latest_profile)},
+        "actualHistory":actual_score_history(actual,latest_profile),
+         "lastProxy":{"sessionDate":last_valid_proxy["date"],"score":profile_score(last_valid_proxy,latest_profile)},
     }
 
 
@@ -397,11 +434,13 @@ def refresh_actual(report: dict, actual_payload: dict) -> dict:
     points = actual_payload["points"]
     actual = actual_features(points)
     now = actual[-1]
+    report["actualHistory"] = actual_score_history(actual,selected)
     report["latestActual"] = {
         "sessionDate":actual_payload["latestSessionDate"],
         "score":profile_score(now,selected),
         "components":{field:round(now[field+"Rank"],1) for field in FIELDS},
         "actualHistoryCount":len(points),
+        "readyFactors":report["actualHistory"][-1]["readyFactors"],
         "interpretation":"INDICATIVE ETF-proxy transfer; short REAL stock EOD history, no validated stock-level returns",
     }
     return report

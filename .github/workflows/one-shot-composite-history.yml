@@ -1,0 +1,76 @@
+name: One-shot Composite history backfill (sparse)
+# Run once for this topic branch; never scheduled, no additional market scan.
+# Retry once after correcting floating-point equality assertion; all pinned-data audits passed.
+on:
+  push:
+    branches:
+      - "feature/composite-history-breakdown-20261025"
+    paths:
+      - ".github/workflows/one-shot-composite-history.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: composite-history-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/backtest_market_internals.py
+            tests/test_trend_birth_composite.py
+            tests/trend-birth-composite-history.test.cjs
+            lab/trend-birth-stats.js
+            lab/data/trend-birth-market-internals.json
+            lab/data/trend-birth-composite-backtest.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Check Python and JavaScript definitions
+        run: |
+          python -m unittest discover -s tests -p test_trend_birth_composite.py -v
+          node --check lab/trend-birth-stats.js
+      - name: Rebuild complete point-in-time ETF OOS path from pinned source
+        run: |
+          python scripts/backtest_market_internals.py --actual lab/data/trend-birth-market-internals.json --output lab/data/trend-birth-composite-backtest.json
+      - name: Reconcile immutable research aggregates and real EOD scores
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("lab/data/trend-birth-composite-backtest.json").read_text())
+          assert p["source"]["sha256"] == "361efb287116fc8200582c15fcd315bcce2e218fa1e50b416bacc5acebff37b9", "Pinned ETF CSV digest changed"
+          assert p["oos"]["n"] == 466 and len(p["oos"]["history"]) == 466, "OOS sample changed"
+          assert p["oos"]["startYear"] == 2008 and p["oos"]["endYear"] == 2026
+          assert abs(p["oos"]["topMinusBottomPp"]-0.883)<0.001, "Historical aggregate was changed"
+          assert p["latestActual"]["sessionDate"] == p["actualHistory"][-1]["sessionDate"]
+          assert abs(p["latestActual"]["score"]-p["actualHistory"][-1]["score"])<1e-6
+          assert p["calibration"]["selectedProfile"] == "recovery"
+          assert p["calibration"]["weights"] == {"breadth":2,"pressure":2,"velocity":3,"acceleration":3,"flow":3,"persistence":1}
+          assert len(p["actualHistory"]) == p["latestActual"]["actualHistoryCount"]
+          print("Historical ETF proxy and real EOD score source reconciled")
+          PY
+      - name: Verify frontend formula, chronological series and source audit
+        run: node --test tests/trend-birth-composite-history.test.cjs
+      - name: Commit only rebuilt compact backtest JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/data/trend-birth-composite-backtest.json
+          if git diff --cached --quiet; then
+            echo "No report delta"
+          else
+            git commit -m "data(composite): publish verified proxy and real EOD history"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

@@ -220,6 +220,69 @@
     el('siChart').setAttribute('data-selected-metric',field);
   }
 
+
+  const COMPOSITE_FIELDS = [
+    ['breadth','Širina kvalitetnih setupa','%'],
+    ['pressure','Setup pressure','%'],
+    ['velocity','Brzina promjene širine',' pp/EOD'],
+    ['acceleration','Akceleracija širine',' pp/EOD'],
+    ['flow','Pomak usporedivog skupa',' pp'],
+    ['persistence','Trajnost kvalitete','%'],
+  ];
+  function compositeFactorRows(point, profile) {
+    if (!point || !point.fields || !profile || !profile.weights || !profile.directions)
+      throw Error('Nedostaje dokaz po komponentama Composite Scorea');
+    const total=COMPOSITE_FIELDS.reduce((sum,[field])=>sum+(profile.weights[field]||0),0);
+    if (!Number.isFinite(total) || total<=0) throw Error('Neispravne Composite težine');
+    const rows=COMPOSITE_FIELDS.map(([field,label,unit])=>{
+      const info=point.fields[field], weight=profile.weights[field], direction=profile.directions[field];
+      if (!info || !Number.isFinite(info.percentile) || info.percentile<0 || info.percentile>100 ||
+          !Number.isFinite(weight) || weight<0 || ![-1,1].includes(direction) ||
+          !(info.raw===null || Number.isFinite(info.raw)) ||
+          (info.historyN!==undefined && (!Number.isInteger(info.historyN)||info.historyN<0)))
+        throw Error('Neispravna povijesna komponenta: '+field);
+      const adjusted=direction<0?100-info.percentile:info.percentile;
+      return {field,label,unit,raw:info.raw,percentile:info.percentile,historyN:info.historyN,
+        weight,direction,adjusted,contribution:adjusted*weight/total,
+        provisional:info.historyN!==undefined && (info.raw===null || info.historyN<12)};
+    });
+    return {rows,total,score:rows.reduce((sum,row)=>sum+row.contribution,0)};
+  }
+  function compositeHistory(data, source, range) {
+    if (!['actual','proxy'].includes(source)) throw Error('Nepoznat izvor Scorea');
+    const original=source==='actual'?data.actualHistory:data.oos.history;
+    if (!Array.isArray(original)) return [];
+    if (!original.length || range==='all') return original.slice();
+    const last=original[original.length-1].sessionDate;
+    const base=new Date(last+'T00:00:00Z');
+    if (range==='1m') base.setUTCMonth(base.getUTCMonth()-1);
+    else if (range==='3m') base.setUTCMonth(base.getUTCMonth()-3);
+    else if (range==='1y') base.setUTCFullYear(base.getUTCFullYear()-1);
+    else if (range==='5y') base.setUTCFullYear(base.getUTCFullYear()-5);
+    else throw Error('Nepoznato razdoblje Composite povijesti');
+    const start=base.toISOString().slice(0,10);
+    return original.filter(point=>point.sessionDate>=start);
+  }
+  function validateCompositeTrace(items, profileBook, isActual) {
+    if (!Array.isArray(items)) throw Error('Nedostaje Composite povijest');
+    let prior='';
+    for (const point of items) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(point.sessionDate) || point.sessionDate<=prior ||
+          !Number.isFinite(point.score) || point.score<0 || point.score>100)
+        throw Error('Neispravan slijed Composite datuma ili ocjena');
+      const config=isActual?profileBook.current:profileBook[point.profile];
+      const checked=compositeFactorRows(point,config);
+      if (Math.abs(checked.score-point.score)>0.02)
+        throw Error('Doprinosi ne odgovaraju ukupnom Composite Scoreu: '+point.sessionDate);
+      if (isActual && (!Number.isInteger(point.readyFactors) || point.readyFactors<0 || point.readyFactors>6 ||
+          point.readyFactors!==checked.rows.filter(row=>!row.provisional).length))
+        throw Error('Neispravna oznaka kvalitete povijesne ocjene');
+      if (!isActual && (typeof point.profile!=='string'|| !/^\d{4}-\d{2}-\d{2}$/.test(point.labelEnd) ||
+          point.labelEnd<=point.sessionDate || !Number.isFinite(point.future20dPct)))
+        throw Error('Neispravan izvanuzorački Composite zapis');
+      prior=point.sessionDate;
+    }
+  }
   function validateComposite(data) {
     if (!data || data.schemaVersion !== 'trend-birth-composite-backtest-v1' ||
         data.scope !== 'equity-etf-proxy-not-historical-stockscout' ||
@@ -228,8 +291,181 @@
         !Number.isFinite(data.latestActual.score) || data.latestActual.score < 0 || data.latestActual.score > 100 ||
         !/^\d{4}-\d{2}-\d{2}$/.test(data.latestActual.sessionDate))
       throw Error('Neispravan backtest / Composite Score zapis');
+    const book={...(data.calibration.profileBook||{}),
+      current:{weights:data.calibration.weights,directions:data.calibration.directions}};
+    if (data.actualHistory!==undefined) {
+      validateCompositeTrace(data.actualHistory,book,true);
+      const last=data.actualHistory.at(-1);
+      if (!last || last.sessionDate!==data.latestActual.sessionDate ||
+          Math.abs(last.score-data.latestActual.score)>0.02)
+        throw Error('Zadnja stvarna povijesna ocjena nije usklađena');
+    }
+    if (data.oos.history!==undefined) {
+      validateCompositeTrace(data.oos.history,book,false);
+      if (data.oos.history.length!==data.oos.n)
+        throw Error('Nedostaje izvanuzoračka Composite povijest');
+    }
     return data;
   }
+
+  function renderCompositeHistory(data) {
+    const sourceEl=el('siCompositeSeries'), rangeEl=el('siCompositeRange');
+    const slider=el('siCompositePoint'), host=el('siCompositeChart');
+    const details=el('siCompositeSelected'), table=el('siCompositeFactorTable');
+    const labels=Object.fromEntries(COMPOSITE_FIELDS.map(([key,label])=>[key,label]));
+    const profileBook={...(data.calibration.profileBook||{}),
+      current:{weights:data.calibration.weights,directions:data.calibration.directions}};
+    const svgNs='http://www.w3.org/2000/svg';
+    function svgElement(tag,attributes,parent) {
+      const node=document.createElementNS(svgNs,tag);
+      for (const [key,value] of Object.entries(attributes||{})) node.setAttribute(key,String(value));
+      parent.appendChild(node);
+      return node;
+    }
+    function showFactors(point,mode) {
+      const profile=mode==='actual'?profileBook.current:profileBook[point.profile];
+      const breakdown=compositeFactorRows(point,profile);
+      if (Math.abs(breakdown.score-point.score)>0.02)
+        throw Error('Suma faktora se ne podudara s arhiviranim Scoreom');
+      table.replaceChildren();
+      const thead=document.createElement('thead'),head=document.createElement('tr');
+      for(const caption of ['Faktor','Sirova vrijednost','Percentil','Smjer','Težina','Udio u ocjeni','Pouzdanost']) {
+        const cell=document.createElement('th');cell.textContent=caption;head.appendChild(cell);
+      }
+      thead.appendChild(head);table.appendChild(thead);
+      const tbody=document.createElement('tbody');
+      for (const part of breakdown.rows) {
+        const tr=document.createElement('tr');
+        const unit=part.unit.startsWith(' ')?part.unit:part.unit;
+        const values=[
+          labels[part.field],fmt(part.raw,unit),fmt(part.percentile,'%'),
+          part.direction<0?'100 − percentil':'izravni',String(part.weight)+' / '+breakdown.total,
+          fmt(part.contribution,' bod.'),
+          part.provisional?'Neutralno 50 · kratka povijest':
+            part.historyN!==undefined?part.historyN+' prethodnih EOD':'ETF povijesni rang',
+        ];
+        values.forEach((value,i)=>{
+          const cell=document.createElement(i===0?'th':'td');
+          cell.textContent=value;
+          if(i===5)cell.className='si-contribution';
+          if(i===6&&part.provisional)cell.className='si-provisional';
+          tr.appendChild(cell);
+        });
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      const tfoot=document.createElement('tfoot'),foot=document.createElement('tr');
+      for(const [i,value] of ['Ukupni Composite','', '', '', 'Σ '+breakdown.total,
+           fmt(breakdown.score,' / 100'),''].entries()){
+        const cell=document.createElement(i===0?'th':'td');
+        cell.textContent=value;foot.appendChild(cell);
+      }
+      tfoot.appendChild(foot);table.appendChild(tfoot);
+      el('siCompositeFactorTitle').textContent='Razrada bodovanja · '+point.sessionDate+
+        (mode==='proxy'?' · ETF OOS profil '+point.profile:' · stvarni EOD');
+      el('siCompositeFormula').textContent='Score = Σ[težina × usmjereni percentil] / Σtežina. '+
+        'Za obrnuti faktor koristi se 100 − percentil. Odabrani profil ima '+breakdown.total+
+        ' pondera; zbroj doprinosa = '+fmt(breakdown.score,' / 100')+'.';
+      const provisional=breakdown.rows.filter(row=>row.provisional);
+      el('siCompositeScoringCaveat').textContent=mode==='actual'?
+        (provisional.length?provisional.length+' od 6 faktora za ovaj dan koristi neutralni 50. percentil '+
+          'jer nije dostupno barem 12 PRETHODNIH valjanih opažanja ili sirova vrijednost. ':
+          'Svih šest faktora ima najmanje 12 prethodnih valjanih opažanja. ')+
+        'Težine su zamrznute iz ETF-proxy kalibracije; ovo nije historijski stock-level backtest.':
+        'Svaki ETF datum koristi tada dostupne percentilne ulaze, a profil je biran samo iz prethodno '+
+        'završenih godina. H20 prinos je naknadni kontrolni ishod, nikada sastavni dio Scorea.';
+    }
+    function draw() {
+      const mode=sourceEl.value;
+      const points=compositeHistory(data,mode,rangeEl.value);
+      host.replaceChildren();
+      if (!points.length) {
+        host.textContent='Za odabrani izvor nema sačuvane povijesne serije u ovom izdanju.';
+        slider.disabled=true;
+        el('siCompositeChartMeta').textContent='Sažeti backtest je dostupan, ali vremenska serija još nije objavljena.';
+        details.textContent='—';table.replaceChildren();
+        return;
+      }
+      slider.disabled=false;
+      slider.max=String(points.length-1);
+      slider.min='0';
+      const width=970,height=280,left=45,right=22,top=18,bottom=42;
+      const bottomY=height-bottom,plotH=bottomY-top;
+      const ms=points.map(p=>Date.parse(p.sessionDate+'T00:00:00Z'));
+      const start=ms[0],duration=Math.max(1,ms[ms.length-1]-start);
+      const x=i=>left+(ms[i]-start)/duration*(width-left-right);
+      const y=value=>bottomY-value/100*plotH;
+      const svg=svgElement('svg',{viewBox:'0 0 '+width+' '+height,role:'img',
+        'aria-label':'Composite Score od 0 do 100, '+points[0].sessionDate+' do '+
+        points[points.length-1].sessionDate},host);
+      const title=svgElement('title',{},svg);
+      title.textContent=mode==='actual'?'Stvarni arhivirani Trend Birth Score (provisionalni dani označeni isprekidano)':
+        'Povijesni ETF proxy Score s godišnjim izvanuzoračkim profilima';
+      for(const tick of [0,25,50,75,100]) {
+        const yy=y(tick);
+        svgElement('line',{x1:left,y1:yy,x2:width-right,y2:yy,
+          stroke:tick===50?'#7895ae':'#2a4058','stroke-width':tick===50?1.4:0.8,
+          'stroke-dasharray':tick===50?'5 5':'none'},svg);
+        const label=svgElement('text',{x:left-10,y:yy+4,'text-anchor':'end',
+          fill:'#a9bed2','font-size':12},svg);label.textContent=String(tick);
+      }
+      const ticks=new Set([0,points.length-1]);
+      for(let i=1;i<=4;i++)ticks.add(Math.round((points.length-1)*i/5));
+      for(const idx of [...ticks].sort((a,b)=>a-b)){
+        const textNode=svgElement('text',{x:x(idx),y:height-14,'text-anchor':idx===0?'start':
+          idx===points.length-1?'end':'middle',fill:'#a9bed2','font-size':11},svg);
+        const years=(ms[ms.length-1]-ms[0])/(365.25*86400000);
+        textNode.textContent=years>5?points[idx].sessionDate.slice(0,4):
+          years>1?points[idx].sessionDate.slice(0,7):
+          points[idx].sessionDate.slice(8,10)+'.'+points[idx].sessionDate.slice(5,7)+'.';
+      }
+      const baseColor=mode==='proxy'?'#74b6ff':'#55e0ac';
+      for(let i=1;i<points.length;i++){
+        const warmup=mode==='actual'&&(points[i].readyFactors<6||points[i-1].readyFactors<6);
+        const line=svgElement('line',{x1:x(i-1),y1:y(points[i-1].score),
+          x2:x(i),y2:y(points[i].score),stroke:warmup?'#ebba69':baseColor,
+          'stroke-width':2.5,'stroke-linecap':'round',
+          'stroke-dasharray':warmup?'5 4':'none'},svg);
+        const tip=svgElement('title',{},line);
+        tip.textContent=points[i].sessionDate+' · '+fmt(points[i].score,' / 100');
+      }
+      const marker=svgElement('circle',{cx:x(points.length-1),cy:y(points[points.length-1].score),
+        r:6,stroke:'#fff','stroke-width':2,fill:baseColor},svg);
+      function choose(index){
+        const i=Math.max(0,Math.min(points.length-1,index));
+        const point=points[i];
+        slider.value=String(i);
+        marker.setAttribute('cx',String(x(i)));
+        marker.setAttribute('cy',String(y(point.score)));
+        const isProxy=mode==='proxy';
+        details.textContent=point.sessionDate+' · '+fmt(point.score,' / 100')+
+          (isProxy?' · OOS profil '+point.profile+' · SPY sljedećih 20D '+fmt(point.future20dPct,'%')+
+            ' (naknadno poznat ishod)':
+            ' · '+point.readyFactors+'/6 faktora s dovoljnom ranijom poviješću');
+        showFactors(point,mode);
+      }
+      slider.oninput=()=>choose(Number(slider.value));
+      svg.addEventListener('click',event=>{
+        const rect=svg.getBoundingClientRect();
+        const chartX=(event.clientX-rect.left)/rect.width*width;
+        let nearest=0,dist=Infinity;
+        for(let i=0;i<points.length;i++){
+          const delta=Math.abs(x(i)-chartX);
+          if(delta<dist){dist=delta;nearest=i;}
+        }
+        choose(nearest);
+      });
+      el('siCompositeChartMeta').textContent=points.length+(mode==='actual'?' stvarnih EOD zapisa · ':' povijesnih ETF OOS točaka · ')+
+        points[0].sessionDate+' – '+points[points.length-1].sessionDate+'. '+
+        (mode==='actual'?'Isprekidano zlatno = nedovoljna prethodna povijest; nema izmišljenih sesija.':
+          'Izvanuzorački ETF proxy, uzorak svakih 10 burzovnih dana; profil se može mijenjati po godini.');
+      choose(points.length-1);
+    }
+    sourceEl.addEventListener('change',draw);
+    rangeEl.addEventListener('change',draw);
+    draw();
+  }
+
   function renderComposite(raw, eodDate) {
     const data = validateComposite(raw), report=data.oos, latest=data.latestActual;
     const stale=latest.sessionDate!==eodDate;
@@ -244,12 +480,10 @@
       ' · '+report.testedYears+' kalendarskih godina · '+report.positiveSpreadYears+' s pozitivnom razlikom';
     const names={breadth:'Širina 3+/4',pressure:'Setup pressure',velocity:'Brzina',acceleration:'Akceleracija',
       flow:'Neto pomak istog skupa',persistence:'Trajnost širine'};
-    const parts=Object.entries(data.calibration.weights).map(([k,w])=>
-      names[k]+': '+(data.calibration.directions[k]<0?'obrnuto ':'')+w+
-      '× (zadnji percentil '+fmt(latest.components[k],'%')+')');
-    el('siCompositeFactors').textContent='Profil: '+data.calibration.selectedProfile+
-      ' · komponente: '+parts.join(' · ')+
-      '. Ponderi su odabrani na povijesnim ETF proxy godinama, a percentili se računaju samo na stvarnoj StockScout arhivi.';
+    el('siCompositeFactors').textContent='Trenutačni profil: '+data.calibration.selectedProfile+
+      ' · '+names.breadth+', '+names.pressure+', '+names.velocity+', '+names.acceleration+
+      ', '+names.flow+' i '+names.persistence+'. Klikni na graf ili pomakni klizač za razradu odabranog datuma.';
+    renderCompositeHistory(data);
     const target=el('siCompositeRegimes');
     target.replaceChildren();
     const thead=document.createElement('thead'), header=document.createElement('tr');
@@ -394,5 +628,6 @@
       status.className='si-error';
     }
   }
-  return {validate, validateComposite, validateForward, metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
+  return {validate, validateComposite, validateForward, compositeFactorRows, compositeHistory,
+    metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });
