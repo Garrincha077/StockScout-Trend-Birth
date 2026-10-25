@@ -83,3 +83,11 @@ Samostalan tab **Statistika** (putanja /statistics.html) daje strukturni pogled 
 Povijesni 0/4–4/4 proxy nastaje iz adjusted **close**: 14D Wilder ATR s high/low zamijenjen je unaprijed fiksiranim 1,8 × EMA14 apsolutnih close pomaka, stoga nije istovjetan produkcijskim signalima. ETF-ovi imaju survivorship i veliku medusobnu ovisnost. Koristenje kasnije poznatih adjusted cijena za ex post prinos je dopusteno samo za evaluaciju, ne za signal u trenutku t. 10-dnevni razmak promatranja uz 20-dnevni horizont ostavlja djelomicno preklapanje ishoda; nema transaction-cost modela ni interday izvrsenja. Pojedini rezimi daju **negativan spread**, ukljucujuci krizu 2008.; to treba stalno prikazivati i ne predstavljati composite kao validiranu predikciju.
 
 **Kontrola izvora:** dvije potpuno prazne equity cijenske retke iz pinanog CSV-a (praznik 2026-05-25 i 2026-08-11) ne smiju resetirati EMA/SMA niti se racunati kao trgovinske sesije. Broj filtriranih redaka pohraniti u `source.droppedEmptyEquityRows`; djelomicni izostanak benchmarka SPY uz aktivne equity cijene mora izazvati gresku.
+
+## Faza: Market Thermometer (25. 10. 2026.)
+
+- Pet jednakih temperaturnih zona (0/20/40/60/80/100), zelena = hladno, crvena = pregrijano; semantičke nijanse samo za temperaturne KPI kartice.
+- Poseban graf Market Thermometera, sa zajedničkim izborom stvarnog EOD datuma i raspona s Composite poviješću; ETF OOS proxy ne dijeli tržišni univerzum niti se sinkronizira.
+- PIT faktor-weight 40/30/20/10 (quality breadth, pressure, 4/4, 10 EOD persistence), 252 ranijih podataka, ≥12 za validan percentil, obvezne prve tri varijable; bez zamjene nedostajućih percentila neutralnim brojem 50.
+- 5 EOD velocity / 5+5 EOD acceleration / comparable matched flow imaju vlastiti −100…+100 momentum s ponderima 45/30/25, koji se nikada ne dodaje vrijednosti temperature. Pravila potvrde i preklapanja su u lab/trend-birth-heat.js.
+- Početna kratka arhiva = preliminarna, sve nedostajuće stvarne sesije i ETF povijest jasno se razlikuju; nema promjene produkcijskih rangiranja ili Composite Score pravila.

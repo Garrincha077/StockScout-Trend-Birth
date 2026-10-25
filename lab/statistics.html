@@ -9,6 +9,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=composite-history-20261025">
   <link rel="stylesheet" href="trend-birth-stats.css?v=composite-history-20261025">
+  <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
 <body class="statistics-page">
@@ -28,8 +29,10 @@
     </div>
     <p id="siLatest" class="si-muted" aria-live="polite"></p>
     <section class="si-kpis" aria-label="Pokazatelji zadnjeg EOD očitanja">
-      <article class="si-card"><h2>Quality breadth 3+/4</h2><strong id="siQuality">—</strong><small id="siQualitySub"></small></article>
-      <article class="si-card"><h2>Setup pressure 0–100</h2><strong id="siPressure">—</strong><small id="siPressureSub"></small></article>
+      <article class="si-card si-heat-card" id="siQualityCard"><h2>Quality breadth 3+/4</h2><strong id="siQuality">—</strong><small id="siQualitySub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siPressureCard"><h2>Setup pressure 0–100</h2><strong id="siPressure">—</strong><small id="siPressureSub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siFourCard"><h2>Udio potpuno spremnih 4/4</h2><strong id="siFour">—</strong><small id="siFourSub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siPersistenceCard"><h2>Trajnost 3+/4 · 10 EOD</h2><strong id="siPersistence">—</strong><small id="siPersistenceSub"></small><span class="si-heat-pill">—</span></article>
       <article class="si-card"><h2>Velocity 3+/4</h2><strong id="siVelocity">—</strong><small id="siVelocitySub"></small></article>
       <article class="si-card"><h2>Acceleration 3+/4</h2><strong id="siAcceleration">—</strong><small id="siAccelerationSub"></small></article>
       <article class="si-card"><h2>Neto priljev u 3+/4</h2><strong id="siNetFlow">—</strong><small id="siNetFlowSub"></small></article>
@@ -37,6 +40,45 @@
       <article class="si-card"><h2>Preklapanje univerzuma</h2><strong id="siCoverage">—</strong><small id="siCoverageSub"></small></article>
     </section>
     <p id="siRegimeDesc" class="si-muted"></p>
+    <section class="si-panel si-heat-panel" aria-labelledby="siHeatTitle">
+      <div class="si-heat-heading">
+        <div><h2 id="siHeatTitle">Market Thermometer · temperatura Trend Birth setupa</h2>
+          <p class="si-muted">Zeleno = relativno hladno, crveno = pregrijano. Temperatura nije isto što i kvaliteta ulaznog signala.</p></div>
+        <span class="si-heat-label" id="siHeatLabel">Čeka povijest</span>
+      </div>
+      <div class="si-kpis si-heat-kpis">
+        <article class="si-card"><h3>Temperatura 0–100</h3><strong id="siHeatScore">—</strong><small id="siHeatConfidence">Provjeravam povijesnu pokrivenost…</small></article>
+        <article class="si-card"><h3>Dinamika setupa · −100…+100</h3><strong id="siHeatMomentum">—</strong><small id="siHeatMovement">—</small></article>
+      </div>
+      <p id="siHeatCoverage" class="si-muted"></p>
+      <div class="si-heat-scale" role="img" aria-label="Pet jednakih temperaturnih zona: 0–20 vrlo hladno, 20–40 hladno, 40–60 neutralno, 60–80 vruće, 80–100 pregrijano">
+        <span>0–20<br>Vrlo hladno</span><span>20–40<br>Hladno</span><span>40–60<br>Neutralno</span><span>60–80<br>Vruće</span><span>80–100<br>Pregrijano</span>
+      </div>
+      <div class="si-heat-history">
+        <h3>Povijesni graf temperature · stvarni EOD</h3>
+        <div class="si-controls"><label>Razdoblje <select id="siHeatRange">
+          <option value="1m">1 mjesec</option><option value="3m">3 mjeseca</option>
+          <option value="1y">1 godina</option><option value="5y">5 godina</option>
+          <option value="all" selected>Sva povijest</option>
+        </select></label></div>
+        <p id="siHeatSyncStatus" class="si-muted">Grafovi koriste istu kalendarsku os i dijele odabrani EOD datum i raspon.</p>
+        <p id="siHeatChartMeta" class="si-muted"></p>
+        <div class="si-chart si-heat-chart" id="siHeatChart" role="region" tabindex="0"
+          aria-label="Temperatura svih stvarnih EOD očitanja u pet jednakih zona"></div>
+        <div class="si-composite-inspect">
+          <label for="siHeatPoint">Odaberi EOD na grafu temperature</label>
+          <input type="range" id="siHeatPoint" min="0" max="0" value="0" step="1">
+          <p id="siHeatSelected" aria-live="polite"></p>
+        </div>
+        <h3>Razrada temperaturnog bodovanja · odabrani EOD</h3>
+        <p id="siHeatFormula" class="si-muted"></p>
+        <div class="si-table-scroll"><table class="si-matrix si-factor-table" id="siHeatFactorTable">
+          <caption class="sr-only">Povijesni percentili, bazne i aktivne težine, doprinosi Market Thermometera</caption>
+        </table></div>
+        <p id="siHeatDynamics" class="si-muted"></p>
+      </div>
+      <aside class="si-note">Market Thermometer koristi isključivo stvarne arhivirane Trend Birth setupove i ranije dostupna opažanja. Prag za izračun je najmanje 12 prethodnih EOD-a po temeljnom faktoru; 12–59 opažanja označeno je kao preliminarno. Nedostajuće burzovne sesije nisu rekonstruirane. Povijesni ETF proxy Composite Scorea odvojen je univerzum i tada se grafovi ne povezuju. Ovo nije indikator procjene vrijednosti tržišta ni dokazan signal za trgovanje.</aside>
+    </section>
     <section class="si-panel" aria-labelledby="siCompositeTitle">
       <h2 id="siCompositeTitle">Composite Score · povijesni walk-forward backtest</h2>
       <p id="siCompositeStatus" class="si-muted">Učitavam validaciju kroz povijesne tržišne režime…</p>
@@ -145,6 +187,7 @@
     </section>
     <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
   </main>
-  <script src="trend-birth-stats.js?v=composite-history-20261025" defer></script>
+  <script src="trend-birth-heat.js?v=market-thermometer-20261025" defer></script>
+  <script src="trend-birth-stats.js?v=market-thermometer-20261025" defer></script>
 </body>
 </html>

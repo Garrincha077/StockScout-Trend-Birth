@@ -1,3 +1,12 @@
+## 2026-10-25 — Market Thermometer: pet jednakih temperaturnih zona (prva verzija)
+
+- **UI:** kartice Quality breadth, pressure, 4/4 i trajnosti dobivaju semantičku nijansu po **povijesnom temperaturnom percentilu**; 0–<20 tamno zeleno (vrlo hladno), 20–<40 svijetlo zeleno, 40–<60 žuto, 60–<80 narančasto, 80–100 crveno (pregrijano). Za preostale dinamičke kartice boje ne predstavljaju temperaturu.
+- **Formule:** Market Thermometer 0–100 = aktivno ponderirani PIT percentili breadth (40), pressure (30), 4/4 (20), 10-EOD persistence (10), s midrankom i najviše 252 **prethodne** stvarne EOD točke. Svaki faktor zahtijeva ≥12 ranijih valjanih podataka; sva tri core faktora su obvezna, nespremna persistence se izostavlja i težine se normaliziraju. To je opis relativnog stanja StockScout setupa, ne tržišna valuacija, vjerojatnost rasta ili trading signal.
+- **Dinamika odvojena:** 5-EOD velocity (45), dvije nepoklopljene 5-EOD brzine za acceleration (30) i matched-quality delta (25) daju normaliziranu skalu −100…+100, uz ±30 za promjenu i potvrdu 2 susjedna EOD-a; usporedni flow ne sudjeluje pri preklapanju <95%.
+- **Povijest:** zaseban termalni SVG 0–100 s pet zona, datumska kontrola i tablica sirovo/PIT percentil/aktivna težina/doprinos. Odabrani stvarni EOD datum i raspon sinkronizirani su s Composite grafom; za ETF proxy sinkronizacija je onemogućena i objašnjena. Prazni trgovački dani nisu interpolirani. Komponenta čita postojeći kompaktni JSON, bez novih skenova, troškova ili promjene Composite formule.
+- **Zasad:** arhiva ima 20 stvarnih EOD dana (2026-09-24…2026-10-23), samo osam preliminarnih temperaturnih opažanja (od 2026-10-12); 2026-10-23 iznosi približno 33,92/100 (hladno), bez dovoljno povijesti za persistence percentil. Srednja pouzdanost tek nakon ≥60, duža nakon ≥120 prethodnih opažanja. Nedostaju 15. i 19. 10., nema backfilla.
+- **Provjera:** Node unit/regression tests/trend-birth-heat.test.cjs; PR CI i live Vercel vizualni pregled obavezni prije proglašenja isporučenim.
+
 ## 2026-10-25 — Prevent stale Composite EOD JSON through Vercel external rewrites
 
 - **Fix:** Set `x-vercel-enable-rewrite-caching: 0` only on `/data/(.*)` in `lab/vercel.json`, retaining `Cache-Control: no-store, max-age=0`. After PR #65, GitHub Raw served the refreshed 205 KB Composite trace while Vercel external rewrite still returned the previous 7.9 KB JSON. This disables caching of those proxied daily files, not the static site.
