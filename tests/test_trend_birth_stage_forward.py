@@ -115,6 +115,8 @@ class ForwardStageTests(unittest.TestCase):
             self.assertEqual(report["byHorizon"]["5"]["0"]["n"], 0)
             self.assertEqual(report["byHorizon"]["5"]["0"]["missingMatured"], 1)
             self.assertEqual(report["byHorizon"]["5"]["0"]["coveragePct"], 0)
+            self.assertEqual(report["byHorizon"]["5"]["0"]["missingTickerQuote"], 1)
+            self.assertEqual(report["byHorizon"]["5"]["0"]["missingSessionGap"], 0)
             self.assertEqual(report["byHorizon"]["20"]["3"]["pending"], 1)
             self.assertIsNone(report["byHorizon"]["20"]["3"]["meanPct"])
             self.assertFalse(report["byHorizon"]["5"]["3"]["eligibleForCalibration"])
@@ -130,6 +132,38 @@ class ForwardStageTests(unittest.TestCase):
             payload["sessions"][1]["runId"]="rewritten"
             path.write_text(json.dumps(payload))
             with self.assertRaisesRegex(ValueError, "Conflicting point-in-time"):
+                forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
+
+    def test_missing_full_exchange_session_is_distinct_from_missing_ticker_quote(self):
+        full_dates = sessions(12)
+        gap = full_dates[7]  # AAA's 5D exit session was never archived
+        observed = [day for day in full_dates if day != gap]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stage_dir, latest, prices_dir = self.fixture(root, observed)
+            snapshot = json.loads(latest.read_text())
+            for row in snapshot["trendBirthCandidateIndex"][:2]:
+                row["chartBars"].append({"time": gap, "close": 123})
+            latest.write_text(json.dumps(snapshot))
+            forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
+            result = json.loads((root / "report.json").read_text())
+            self.assertEqual(result["dataQuality"]["missingExchangeSessions"], [gap])
+            self.assertEqual(result["dataQuality"]["sourcePriceCoveragePct"], 100)
+            stage3 = result["byHorizon"]["5"]["3"]
+            self.assertEqual(stage3["missingSessionGap"], 1)
+            self.assertEqual(stage3["missingTickerQuote"], 0)
+            self.assertFalse(stage3["eligibleForCalibration"])
+
+    def test_price_archive_run_identity_is_checked_against_stages(self):
+        dates = sessions(12)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stage_dir, latest, prices_dir = self.fixture(root, dates)
+            archive_file = prices_dir / (dates[0][:7] + ".json")
+            archive = json.loads(archive_file.read_text())
+            archive["sessions"][0]["runId"] = "wrong-run"
+            archive_file.write_text(json.dumps(archive))
+            with self.assertRaisesRegex(ValueError, "provenance"):
                 forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
 
     def test_compact_array_chart_and_unix_timestamp_normalization(self):
