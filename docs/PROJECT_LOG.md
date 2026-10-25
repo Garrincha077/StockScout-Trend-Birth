@@ -4,6 +4,11 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-10-25 — Disable stale EOD rewrite caching after Composite history release
+
+- The Composite history PR #65 was merged to the active Review Lab branch as `9080d3ea3730b5a96c5610ef4baaf1c3cbfc4d84`, with validated EOD and ETF OOS traces. Browser check detected Vercel's `/data/` external rewrite still proxying old 7.9 KB JSON even though GitHub Raw held the 205 KB current version.
+- Scope-limited remediation: configure `x-vercel-enable-rewrite-caching: 0` for `/data/(.*)` while preserving browser no-store. This follows official Vercel external rewrite guidance; a regression test enforces the header. No change to StockScout trading logic or EOD snapshots.
+
 ## 2026-10-24 — Production EOD verification for StockScout Intelligence v1
 
 - **Git commits/PRs:** Review Lab #51 merged as `3bcfc2bb7822009b2f238ed8d445d5095bbbc3f5`; Unified Telegram #112 merged as `c3bfbe93810cb5295c56b462d7b0a0350dce3b70`. Production Review EOD emitted `2261cdf6885a958e129ffef782e25bff3c579f5f`.

@@ -28,6 +28,10 @@
       "source": "/data/(.*)",
       "headers": [
         {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "0"
+        },
+        {
           "key": "Cache-Control",
           "value": "no-store, max-age=0"
         }

@@ -52,3 +52,11 @@ test('generated proxy and real EOD history reconcile to frozen aggregates',()=>{
   assert.ok(data.actualHistory.every((point,i)=>i===0||point.sessionDate>data.actualHistory[i-1].sessionDate));
   assert.ok(data.oos.history.every((point,i)=>i===0||point.sessionDate>data.oos.history[i-1].sessionDate));
 });
+
+test('Vercel external EOD rewrites cannot retain stale daily JSON',()=>{
+  const config=JSON.parse(fs.readFileSync(path.join(__dirname,'../lab/vercel.json'),'utf8'));
+  const dataHeaders=config.headers.find(item=>item.source==='/data/(.*)')?.headers||[];
+  assert.equal(dataHeaders.find(item=>item.key.toLowerCase()==='x-vercel-enable-rewrite-caching')?.value,'0');
+  assert.equal(dataHeaders.find(item=>item.key.toLowerCase()==='cache-control')?.value,'no-store, max-age=0');
+  assert.ok(config.rewrites.some(item=>item.source==='/data/:path*' && item.destination.includes('feature/unified-review-grid-lab')));
+});
