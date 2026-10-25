@@ -1,3 +1,8 @@
+## 2026-10-25 — Prevent stale Composite EOD JSON through Vercel external rewrites
+
+- **Fix:** Set `x-vercel-enable-rewrite-caching: 0` only on `/data/(.*)` in `lab/vercel.json`, retaining `Cache-Control: no-store, max-age=0`. After PR #65, GitHub Raw served the refreshed 205 KB Composite trace while Vercel external rewrite still returned the previous 7.9 KB JSON. This disables caching of those proxied daily files, not the static site.
+- **Validation:** added a Node regression assertion to `tests/trend-birth-composite-history.test.cjs`; verify production `/statistics` renders 20 actual EOD records and 466 ETF OOS points after deployment.
+
 ## 2026-10-25 — Composite Score history and transparent point-in-time breakdown (topic branch)
 
 - **Requested feature:** Statistika will show switchable chronological Composite lines: real StockScout daily EOD scores from the immutable market-internals history (initially 20 observed sessions), and 466 ETF-proxy out-of-sample observations across 2008–2026. Chart date selection and slider drive a six-factor score table including raw value, prior-only percentile, reversed direction, frozen weight and exact contribution to 0–100.
