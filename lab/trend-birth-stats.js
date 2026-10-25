@@ -302,6 +302,23 @@
           !Number.isInteger(item.missingMatured) || !Number.isInteger(item.pending) ||
           item.n+item.missingMatured!==item.expectedMatured ||
           (item.n && !Number.isFinite(item.meanPct))) throw Error('Neusklađen uzorak ishoda');
+      if (value.dataQuality && (
+          !Number.isInteger(item.missingSessionGap) || !Number.isInteger(item.missingTickerQuote) ||
+          !Number.isInteger(item.missingUnclassified) ||
+          item.missingSessionGap<0 || item.missingTickerQuote<0 || item.missingUnclassified<0 ||
+          item.missingSessionGap+item.missingTickerQuote+item.missingUnclassified!==item.missingMatured))
+        throw Error('Dijagnostika nedostajućih ishoda nije usklađena');
+    }
+    if (value.dataQuality) {
+      const q=value.dataQuality;
+      if (!Number.isInteger(q.archivedSessions) || !Number.isInteger(q.exchangeSessionsInWindow) ||
+          !Array.isArray(q.missingExchangeSessions) || !Number.isInteger(q.actualSourceQuotes) ||
+          !Number.isInteger(q.expectedSourceQuotes) || !Number.isFinite(q.sourcePriceCoveragePct) ||
+          q.sourcePriceCoveragePct<0 || q.sourcePriceCoveragePct>100 ||
+          q.archivedSessions+q.missingExchangeSessions.length!==q.exchangeSessionsInWindow ||
+          q.actualSourceQuotes<0 || q.actualSourceQuotes>q.expectedSourceQuotes ||
+          Math.abs(q.sourcePriceCoveragePct-(100*q.actualSourceQuotes/q.expectedSourceQuotes))>0.02)
+        throw Error('Neusklađena EOD pokrivenost cijena');
     }
     return value;
   }
@@ -314,10 +331,18 @@
       ' · '+FMT.format(data.stageTransitions)+' potvrđenih prijelaza, '+FMT.format(data.archivedEventDays)+' datuma.';
     el('siForwardSummary').textContent='Uzorci dospijevaju nakon 1 + 5/20/60 burzovnih sesija. '+
       'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
+    const quality=data.dataQuality;
+    el('siForwardQuality').textContent=quality
+      ? 'Kontrola izvora: '+quality.archivedSessions+' / '+quality.exchangeSessionsInWindow+
+        ' stvarnih burzovnih sesija od '+quality.coverageWindowStart+'; nedostaju cijeli EOD-i: '+
+        (quality.missingExchangeSessions.join(', ')||'nema')+'. Cijene za sačuvane EOD-e: '+
+        fmt(quality.sourcePriceCoveragePct,'%')+' ('+FMT.format(quality.actualSourceQuotes)+
+        ' / '+FMT.format(quality.expectedSourceQuotes)+'). Rupe u datumima nisu isto što i nestali tickeri.'
+      : 'Dijagnostika rupa u EOD kalendaru bit će dostupna nakon sljedeće objave podataka.';
     const table=el('siForwardTable');
     table.replaceChildren();
     const thead=document.createElement('thead'), tr=document.createElement('tr');
-    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Prosjek','Medijan','% pozitivnih','P10 / P90']) {
+    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Nedostaje: sesija / ticker / ostalo','Prosjek','Medijan','% pozitivnih','P10 / P90']) {
       const th=document.createElement('th'); th.textContent=label; tr.appendChild(th);
     }
     thead.appendChild(tr); table.appendChild(thead);
@@ -325,12 +350,14 @@
     for (let stage=0;stage<=4;stage++) for (const horizon of data.horizons) {
       const row=data.byHorizon[String(horizon)][String(stage)], r=document.createElement('tr');
       const cells=[stage+'/4',horizon+'D',FMT.format(row.n)+' / '+FMT.format(row.expectedMatured),
-        FMT.format(row.pending),fmt(row.coveragePct,'%'),fmt(row.meanPct,'%'),
+        FMT.format(row.pending),fmt(row.coveragePct,'%'),
+        quality ? [row.missingSessionGap,row.missingTickerQuote,row.missingUnclassified].map(x=>FMT.format(x)).join(' / ') : '—',
+        fmt(row.meanPct,'%'),
         fmt(row.medianPct,'%'),fmt(row.winRatePct,'%'),
         fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%')];
       cells.forEach((value,i)=>{const cell=document.createElement(i===0?'th':'td');cell.textContent=value;
         if (i===0) cell.style.color=COLORS[stage];
-        if (i===5 && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
+        if (i===6 && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
         r.appendChild(cell);
       });
       tbody.appendChild(r);

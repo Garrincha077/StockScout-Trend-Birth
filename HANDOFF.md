@@ -1,3 +1,13 @@
+## 2026-10-25 — Outcome coverage audit (topic branch, awaiting CI)
+
+- **Source verified:** GitHub Actions #403 on active `feature/unified-review-grid-lab` completed successfully, and the published V2 report is dated 2026-10-23. All **20 archived EOD sessions** have **100% prices** for evaluated tickers; consensus exchange calendar has **22 sessions** since 2026-09-24, with entire EOD gaps **2026-10-15 and 2026-10-19**. This is a major reason the matured 5D outcomes only cover ~71.55–78.38%; the observed 5D means must not recalibrate Composite.
+- **Development:** `feature/tb-forward-coverage-audit-20261025` partitions missing matured outcomes into **missing whole market session**, **ticker price absent in an archived session**, and **unclassified**; all buckets reconcile to `missingMatured`. The report exposes archived/expected market sessions, missing dates, and source-quote coverage. The Statistika tab shows the cause breakdown instead of silently collapsing all missingness.
+- **Integrity:** forward calculations now reject any EOD-price shard whose `runId` or evaluated universe count differs from immutable stage history. A full-market-session gap disables calibration eligibility even if an individual stage/horizon has 99% coverage. No scores, rankings, alerts, scanners, or existing stored outcomes are changed.
+- **Tests / deployment:** Python and Node regression tests added; **topic branch awaiting PR CI**. Do not call this production READY before merge, successful EOD publication, and live UI check. Old V2 reports remain UI-compatible until the next refresh.
+- **Next:** merge only after passing CI; inspect 5D missing-cause counts and ensure 20/60D samples mature. Recover missing entire market sessions only from authentic point-in-time EOD sources, without manufacturing quotes; later test split/delisting quality and independent chronological holdout before altering Composite.
+
+---
+
 ## 2026-10-25 — Stage forward V2: actual full-universe EOD close archive
 
 - **Why:** production run #402 completed and published stage-forward V1, but **5D outcome coverage was only 43 / 4,368 matured stage entries (about 0.98%)**. The historical prices inside today's rolling Unified chart bars failed to align for most tickers; those averages are not representative and must not calibrate Composite.

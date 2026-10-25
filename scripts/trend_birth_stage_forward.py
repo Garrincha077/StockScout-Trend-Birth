@@ -194,8 +194,61 @@ def _stats(values: list[float]) -> dict:
             "p90Pct": round(quantile(0.9), 3)}
 
 
-def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
+def _missing_reasons(sessions: list[dict], calendar: list[str],
+                     archived: dict[str, dict], horizon: int, stage: int) -> dict:
+    """Partition missing mature outcomes without guessing missing prices."""
+    positions = {day: index for index, day in enumerate(calendar)}
+    causes = {"missingSessionGap": 0, "missingTickerQuote": 0,
+              "missingUnclassified": 0}
+    key = str(horizon)
+    for session in sessions:
+        if key not in session.get("matured", []):
+            continue
+        start = positions.get(session["sessionDate"])
+        for ticker, _old_stage, new_stage, saved in session["events"]:
+            if new_stage != stage or key in saved:
+                continue
+            if start is None or start + 1 + horizon >= len(calendar):
+                causes["missingUnclassified"] += 1
+                continue
+            entry_day, exit_day = calendar[start + 1], calendar[start + 1 + horizon]
+            if entry_day not in archived or exit_day not in archived:
+                causes["missingSessionGap"] += 1
+            elif (ticker not in archived[entry_day]["prices"] or
+                  ticker not in archived[exit_day]["prices"]):
+                causes["missingTickerQuote"] += 1
+            else:
+                causes["missingUnclassified"] += 1
+    return causes
+
+
+def _data_quality(calendar: list[str], archived: dict[str, dict]) -> dict:
+    first = min(archived)
+    # The source chart calendar is rolling (~260 sessions); older permanent
+    # archives must never make the current calendar coverage ratio impossible.
+    window_start = max(first, calendar[0])
+    market_days = sorted(set(day for day in calendar if day >= window_start) |
+                         set(day for day in archived if day >= window_start))
+    gaps = [day for day in market_days if day not in archived]
+    expected = sum(day["expectedEvaluated"] for day in archived.values())
+    actual = sum(day["priceCount"] for day in archived.values())
+    return {
+        "archiveStart": first,
+        "coverageWindowStart": window_start,
+        "archivedSessions": len(market_days) - len(gaps),
+        "totalArchivedSessions": len(archived),
+        "exchangeSessionsInWindow": len(market_days),
+        "missingExchangeSessions": gaps,
+        "sourcePriceCoveragePct": round(100 * actual / expected, 2) if expected else None,
+        "expectedSourceQuotes": expected,
+        "actualSourceQuotes": actual,
+    }
+
+
+def report(sessions: list[dict], calendar: list[str], as_of: str,
+           archived: dict[str, dict]) -> dict:
     all_events = sum(len(row["events"]) for row in sessions)
+    data_quality = _data_quality(calendar, archived)
     by_horizon: dict[str, dict] = {}
     for h in HORIZONS:
         stage_rows: dict[str, dict] = {}
@@ -215,6 +268,7 @@ def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
                 for event in session["events"] if event[2] == stage
             )
             stats = _stats(values)
+            stats.update(_missing_reasons(sessions, calendar, archived, h, stage))
             stats.update({
                 "expectedMatured": eligible,
                 "missingMatured": eligible - len(values),
@@ -222,9 +276,13 @@ def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
                 "maturedSignalDates": matured_dates,
                 "coveragePct": round(100 * len(values) / eligible, 2) if eligible else None,
             })
+            if (stats["missingSessionGap"] + stats["missingTickerQuote"] +
+                stats["missingUnclassified"] != stats["missingMatured"]):
+                raise ValueError("Outcome missing-cause audit does not reconcile")
             stats["eligibleForCalibration"] = (
                 eligible >= 250 and matured_dates >= 20 and
-                stats["coveragePct"] is not None and stats["coveragePct"] >= 99.0
+                stats["coveragePct"] is not None and stats["coveragePct"] >= 99.0 and
+                not data_quality["missingExchangeSessions"]
             )
             stage_rows[str(stage)] = stats
         by_horizon[str(h)] = stage_rows
@@ -238,6 +296,7 @@ def report(sessions: list[dict], calendar: list[str], as_of: str) -> dict:
         "pointInTimeStageMembership": True, "survivorshipGuard": "unmatched tickers excluded; missing mature outcomes counted",
         "calendarSource": "majority of current Unified EOD chart dates",
         "priceSource": "archived point-in-time EOD metrics.price (not dividends adjusted)",
+        "dataQuality": data_quality,
         "byHorizon": by_horizon,
     }
 
@@ -258,6 +317,11 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
     closed = load_prices(prices_dir)
     if as_of not in closed or set(closed) != {p["sessionDate"] for p in points}:
         raise ValueError("Daily close and stage archives are not aligned")
+    for point in points:
+        close = closed[point["sessionDate"]]
+        if (close.get("runId") != point["runId"] or
+            close.get("expectedEvaluated") != point["evaluatedCount"]):
+            raise ValueError("EOD close provenance mismatch: " + point["sessionDate"])
     prices = _price_series(closed)
     sessions = _merge(_events(points), _load_archive(outcomes_dir))
     _mature(sessions, prices, calendar)
@@ -269,7 +333,7 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
             "schemaVersion": SCHEMA, "month": month, "scope": SCOPE,
             "sessions": rows,
         })
-    result = report(sessions, calendar, as_of)
+    result = report(sessions, calendar, as_of, closed)
     write_json(output, result)
     return {"asOf": as_of, "transitions": result["stageTransitions"],
             "archivedDays": len(sessions),

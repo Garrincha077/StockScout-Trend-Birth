@@ -74,3 +74,23 @@ test('derived velocity chart preserves nulls and excludes unavailable percentile
   assert.equal(Stats.percentile(derived,11,'velocityPp').comparisons,7);
   assert.equal(Stats.group(derived,'M')[0].accelerationPp,0);
 });
+
+test('stage forward source-session gap accounting is fail-closed',()=>{
+  const raw=JSON.parse(fs.readFileSync(path.join(__dirname,'../lab/data/trend-birth-stage-forward.json'),'utf8'));
+  const q={archiveStart:'2026-09-24',archivedSessions:20,totalArchivedSessions:20,coverageWindowStart:'2026-09-24',exchangeSessionsInWindow:22,
+    missingExchangeSessions:['2026-10-15','2026-10-19'],actualSourceQuotes:53000,
+    expectedSourceQuotes:53000,sourcePriceCoveragePct:100};
+  raw.dataQuality=q;
+  for(const horizon of raw.horizons) for(let stage=0;stage<=4;stage++) {
+    const row=raw.byHorizon[String(horizon)][String(stage)];
+    row.missingSessionGap=row.missingMatured;
+    row.missingTickerQuote=0;
+    row.missingUnclassified=0;
+  }
+  assert.equal(Stats.validateForward(raw),raw);
+  raw.byHorizon['5']['3'].missingSessionGap++;
+  assert.throws(()=>Stats.validateForward(raw),/Dijagnostika/);
+  raw.byHorizon['5']['3'].missingSessionGap--;
+  raw.dataQuality.missingExchangeSessions=[];
+  assert.throws(()=>Stats.validateForward(raw),/pokrivenost/);
+});
