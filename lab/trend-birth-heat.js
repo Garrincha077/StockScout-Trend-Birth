@@ -44,15 +44,19 @@
     const centre=(n-1)/2,den=n*(n*n-1)/12;
     return slice.reduce((sum,value,i)=>sum+(i-centre)*value,0)/den;
   }
-  function businessGap(a,b) {
-    const start=new Date(a+'T12:00:00Z'),end=new Date(b+'T12:00:00Z');
-    if (!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||start>=end) return Infinity;
-    let days=0;
-    for(let d=new Date(start.getTime()+86400000);d<=end;d=new Date(d.getTime()+86400000)){
-      if(d.getUTCDay()!==0&&d.getUTCDay()!==6) days++;
-      if(days>366)break;
-    }
-    return days;
+  function exchangeCalendar(points,report) {
+    if (!report || report.asOf!==points.at(-1)?.sessionDate) return [];
+    if (Array.isArray(report.exchangeSessions)) return report.exchangeSessions;
+    // Older V2 reports already identify every missing session in their coverage
+    // window. Their union with observed dates is the same verified calendar.
+    const quality=report.dataQuality;
+    if (!quality || !Array.isArray(quality.missingExchangeSessions) ||
+        typeof quality.coverageWindowStart!=='string') return [];
+    const observed=points.filter(p=>p.sessionDate>=quality.coverageWindowStart).map(p=>p.sessionDate);
+    const sessions=[...observed,...quality.missingExchangeSessions].sort();
+    if (observed.length!==quality.archivedSessions || sessions.length!==quality.exchangeSessionsInWindow ||
+        new Set(sessions).size!==sessions.length || sessions.at(-1)!==report.asOf) return [];
+    return sessions;
   }
   function factorRows(point,archive,factors,readyCore) {
     let weightReady=0;
@@ -71,13 +75,17 @@
     return {rows,complete,weightReady,
       score:complete?rows.reduce((s,r)=>s+r.contribution,0):null};
   }
-  function computeHeatHistory(points) {
+  function computeHeatHistory(points,exchangeSessions=[]) {
     if (!Array.isArray(points)) throw Error('Market Thermometer: očekuje se niz EOD opažanja');
     for(let i=0;i<points.length;i++) {
       if(!/^\d{4}-\d{2}-\d{2}$/.test(points[i].sessionDate)||
          (i&&points[i-1].sessionDate>=points[i].sessionDate))
         throw Error('Market Thermometer: EOD datumi moraju biti uređeni i jedinstveni');
     }
+    if (!Array.isArray(exchangeSessions) || exchangeSessions.some((day,i)=>
+        !/^\d{4}-\d{2}-\d{2}$/.test(day) || (i&&exchangeSessions[i-1]>=day)))
+      throw Error('Market Thermometer: neispravan burzovni kalendar');
+    const positions=new Map(exchangeSessions.map((day,i)=>[day,i]));
     const breadth=points.map(p=>p.qualityBreadthPct);
     const prepared=points.map((p,i)=>{
       const velocity=slope(breadth,i);
@@ -108,7 +116,8 @@
         accelerationHighlight:moves.rows.find(r=>r.key==='acceleration')?.ready &&
           p.accelerationPp>0 && moves.rows.find(r=>r.key==='acceleration').percentile>=65,
         qualityWarning:i>0&&(p.overlapPct===null||p.overlapPct<95),
-        continuity:i>0?businessGap(points[i-1].sessionDate,p.sessionDate)===1:true};
+        continuity:i===0?true:positions.has(points[i-1].sessionDate)&&positions.has(p.sessionDate)?
+          positions.get(p.sessionDate)-positions.get(points[i-1].sessionDate)===1:null};
     }).map((record,index,list)=>{
       // Two actually consecutive valid EOD observations confirm a warming/cooling regime.
       const prev=list[index-1];
@@ -128,8 +137,8 @@
     else throw Error('Nepoznato razdoblje: '+range);
     return d.toISOString().slice(0,10);
   }
-  function mount(payload) {
-    const history=computeHeatHistory(payload.points);
+  function mount(payload,forwardReport) {
+    const history=computeHeatHistory(payload.points,exchangeCalendar(payload.points,forwardReport));
     const $=id=>document.getElementById(id);
     const range=$('siHeatRange'),slider=$('siHeatPoint'),chart=$('siHeatChart');
     if(!range||!slider||!chart)return history;
@@ -170,8 +179,10 @@
       const moveLabel={warming:'Zagrijavanje',cooling:'Hlađenje',stable:'Bez potvrđenog smjera'};
       $('siHeatMovement').textContent=moveLabel[record.trend]+
         (record.accelerationHighlight?' · akceleracija ≥65. percentila':'');
-      $('siHeatCoverage').textContent=record.qualityWarning?'Upozorenje: preklapanje tickera <95%.':'Usporedni skup: '+fmt(record.source.overlapPct)+'% preklapanja'+
-        (!record.continuity?' · razmak u EOD arhivi, bez interpolacije':'');
+      $('siHeatCoverage').textContent=(record.qualityWarning?'Upozorenje: preklapanje tickera <95%.':
+        'Usporedni skup: '+fmt(record.source.overlapPct)+'% preklapanja')+
+        (record.continuity===false?' · razmak u EOD arhivi, bez interpolacije':
+          record.continuity===null?' · burzovni kontinuitet nije potvrđen':'');
       $('siHeatSelected').textContent=record.sessionDate+' · '+(record.zone?
         fmt(record.score)+' / 100 · '+record.zone.label:'još bez valjane temperature')+
         ' · '+(compositeSource==='actual'?'datumski usklađeno s Composite EOD':'ETF proxy nema zajednički stock-univerzum');
@@ -263,7 +274,10 @@
         selectedDate=visible[i].sessionDate;slider.value=String(i);
         const point=visible[i];marker.setAttribute('cx',String(x(i)));
         marker.setAttribute('cy',String(y(point.score??0)));
-        marker.style.display=point.score===null?'none':'';
+        marker.style.visibility=point.score===null?'hidden':'visible';
+        const bounds=marker.getBoundingClientRect(),clip=chart.getBoundingClientRect();
+        if(bounds.left<clip.left+8)chart.scrollLeft-=clip.left+8-bounds.left;
+        else if(bounds.right>clip.right-8)chart.scrollLeft+=bounds.right-clip.right+8;
         show(point);
         if(emit&&compositeSource==='actual')document.dispatchEvent(
           new CustomEvent('tb:statistics-date-select',{detail:{origin:'heat',date:selectedDate}}));
@@ -277,7 +291,7 @@
       });
       $('siHeatChartMeta').textContent=visible.filter(p=>p.score!==null).length+' valjanih od '+visible.length+
         ' stvarnih EOD očitanja · '+visible[0].sessionDate+' – '+visible.at(-1).sessionDate+
-        '. Ne crta se linija preko nestalih burzovnih dana. Nema ETF proxy backfilla.';
+          '. Linije i potvrda smjera traže potvrđene susjedne burzovne sesije. Nema ETF proxy backfilla.';
       choose(selected,false);
     }
     range.addEventListener('change',()=>{
@@ -304,8 +318,10 @@
       if(compositeSource==='actual'){selectedDate=latest.sessionDate;range.value=$('siCompositeRange').value;draw();}
       else show(history.find(p=>p.sessionDate===selectedDate)||latest);
     });
-    draw();return history;
+    draw();
+    document.dispatchEvent(new CustomEvent('tb:statistics-selection-request'));
+    return history;
   }
   return {MIN_HISTORY,LOOKBACK,HEAT_FACTORS,MOVE_FACTORS,ZONES,
-    percentile,slope,businessGap,zoneFor,computeHeatHistory,windowStart,mount};
+    percentile,slope,exchangeCalendar,zoneFor,computeHeatHistory,windowStart,mount};
 });

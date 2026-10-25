@@ -264,6 +264,7 @@ jobs:
           cp lab/data/trend-birth-alerts.json /tmp/trend-birth-alerts.json
           cp lab/data/trend-birth-intelligence.json /tmp/trend-birth-intelligence.json
           cp lab/data/trend-birth-market-internals.json /tmp/trend-birth-market-internals.json
+          cp lab/data/trend-birth-composite-backtest.json /tmp/trend-birth-composite-backtest.json
           cp lab/data/trend-birth-stage-forward.json /tmp/trend-birth-stage-forward.json
           rm -rf /tmp/trend-birth-price-history
           cp -R lab/data/trend-birth-price-history /tmp/trend-birth-price-history
@@ -306,6 +307,7 @@ jobs:
           cp /tmp/trend-birth-alerts.json lab/data/trend-birth-alerts.json
           cp /tmp/trend-birth-intelligence.json lab/data/trend-birth-intelligence.json
           cp /tmp/trend-birth-market-internals.json lab/data/trend-birth-market-internals.json
+          cp /tmp/trend-birth-composite-backtest.json lab/data/trend-birth-composite-backtest.json
           cp /tmp/trend-birth-stage-forward.json lab/data/trend-birth-stage-forward.json
           mkdir -p lab/data/trend-birth-price-history
           cp -R /tmp/trend-birth-price-history/. lab/data/trend-birth-price-history/
@@ -338,6 +340,13 @@ jobs:
           assert kell["source"]["sessionDate"] == review_date
           assert kell["source"]["runId"] == review_run
           assert kell["source"]["unifiedManifestSha256"] == review_unified_sha
+          internals = json.loads(Path("lab/data/trend-birth-market-internals.json").read_text())
+          composite = json.loads(Path("lab/data/trend-birth-composite-backtest.json").read_text())
+          assert internals["latestSessionDate"] == review_date
+          assert internals["latestRunId"] == review_run
+          assert composite["latestActual"]["sessionDate"] == review_date
+          assert composite["actualHistory"][-1]["sessionDate"] == review_date
+          assert composite["actualHistory"][-1]["score"] == composite["latestActual"]["score"]
           print({"alignedSessionDate": review_date, "runId": review_run, "unifiedManifestSha256": review_unified_sha})
           PY
           git config user.name "github-actions[bot]"

@@ -24,23 +24,34 @@
       if (typeof p.runId !== 'string' || !p.runId || !Number.isInteger(p.evaluatedCount) || p.evaluatedCount <= 0 || !Number.isInteger(p.unavailableCount) || p.unavailableCount < 0) throw Error('Neispravno očitanje');
       const counts = Object.keys(p.counts || {});
       if (counts.length !== 5 || ![0, 1, 2, 3, 4].every(i => Number.isInteger(p.counts[i]) && p.counts[i] >= 0) || [0, 1, 2, 3, 4].reduce((n, i) => n + p.counts[i], 0) !== p.evaluatedCount) throw Error('Neusklađen broj faza');
+      if (!['qualityBreadthPct','fourBreadthPct','pressurePct'].every(key =>
+          Number.isFinite(p[key]) && p[key] >= 0 && p[key] <= 100)) throw Error('Neispravan numerički pokazatelj');
       if (Math.abs(p.qualityBreadthPct - (p.counts[3] + p.counts[4]) / p.evaluatedCount * 100) > 0.001 ||
           Math.abs(p.fourBreadthPct - p.counts[4] / p.evaluatedCount * 100) > 0.001 ||
           Math.abs(p.pressurePct - [0, 1, 2, 3, 4].reduce((n, i) => n + i * p.counts[i], 0) / (4 * p.evaluatedCount) * 100) > 0.001) throw Error('Netočan pokazatelj');
       if (!previous) {
         if (p.transitions !== null || p.matchedCount !== null || p.previousSessionDate !== null) throw Error('Prvo očitanje nema par');
+        if (p.overlapPct !== null || p.matchedQualityDeltaPp !== null) throw Error('Prvo očitanje nema usporedni pokazatelj');
       } else {
         if (p.previousSessionDate !== previous.sessionDate || !Array.isArray(p.transitions) || p.transitions.length !== 5 ||
             !p.transitions.every(row => Array.isArray(row) && row.length === 5 && row.every(n => Number.isInteger(n) && n >= 0))) throw Error('Neispravna matrica prijelaza');
         const n = p.transitions.flat().reduce((a,b) => a+b,0);
         if (n !== p.matchedCount || p.matchedCount + p.newCoverage !== p.evaluatedCount ||
             p.matchedCount + p.lostCoverage !== previous.evaluatedCount) throw Error('Prijelazi nisu usklađeni s pokrivenošću');
+        if (!Number.isFinite(p.overlapPct) || p.overlapPct < 0 || p.overlapPct > 100 ||
+            (p.matchedCount > 0 ? !Number.isFinite(p.matchedQualityDeltaPp) ||
+              Math.abs(p.matchedQualityDeltaPp) > 100 : p.matchedQualityDeltaPp !== null))
+          throw Error('Neispravan usporedni numerički pokazatelj');
+        const union=p.matchedCount+p.newCoverage+p.lostCoverage;
+        if (Math.abs(p.overlapPct-100*p.matchedCount/union)>0.001) throw Error('Netočno preklapanje univerzuma');
         const qIn = p.transitions.slice(0,3).reduce((a,r) => a+r[3]+r[4],0);
         const qOut = p.transitions.slice(3).reduce((a,r) => a+r[0]+r[1]+r[2],0);
         const fIn = p.transitions.slice(0,4).reduce((a,r)=>a+r[4],0);
         const fOut = p.transitions[4].slice(0,4).reduce((a,b)=>a+b,0);
         if (qIn !== p.qualityFlow.in || qOut !== p.qualityFlow.out || qIn-qOut !== p.qualityFlow.net ||
             fIn !== p.fourFlow.in || fOut !== p.fourFlow.out || fIn-fOut !== p.fourFlow.net) throw Error('Neusklađeni tokovi');
+        if (p.matchedCount > 0 && Math.abs(p.matchedQualityDeltaPp-100*(qIn-qOut)/p.matchedCount)>0.001)
+          throw Error('Netočan pomak usporedivog skupa');
       }
       previous = p;
     }
@@ -439,6 +450,9 @@
         slider.value=String(i);
         marker.setAttribute('cx',String(x(i)));
         marker.setAttribute('cy',String(y(point.score)));
+        const bounds=marker.getBoundingClientRect(),clip=host.getBoundingClientRect();
+        if(bounds.left<clip.left+8)host.scrollLeft-=clip.left+8-bounds.left;
+        else if(bounds.right>clip.right-8)host.scrollLeft+=bounds.right-clip.right+8;
         const isProxy=mode==='proxy';
         details.textContent=point.sessionDate+' · '+fmt(point.score,' / 100')+
           (isProxy?' · OOS profil '+point.profile+' · SPY sljedećih 20D '+fmt(point.future20dPct,'%')+
@@ -489,7 +503,19 @@
         rangeEl.value=event.detail.range;draw();
       }
     });
+    function publishSelection() {
+      document.dispatchEvent(new CustomEvent('tb:statistics-source-select',
+        {detail:{origin:'composite',source:sourceEl.value}}));
+      if(sourceEl.value==='actual'&&currentPoints.length){
+        document.dispatchEvent(new CustomEvent('tb:statistics-range-select',
+          {detail:{origin:'composite',range:rangeEl.value}}));
+        document.dispatchEvent(new CustomEvent('tb:statistics-date-select',
+          {detail:{origin:'composite',date:currentPoints[Number(slider.value)].sessionDate}}));
+      }
+    }
+    document.addEventListener('tb:statistics-selection-request',publishSelection);
     draw();
+    publishSelection();
   }
 
   function renderComposite(raw, eodDate) {
@@ -580,6 +606,10 @@
           Math.abs(q.sourcePriceCoveragePct-(100*q.actualSourceQuotes/q.expectedSourceQuotes))>0.02)
         throw Error('Neusklađena EOD pokrivenost cijena');
     }
+    if (value.exchangeSessions!==undefined && (!Array.isArray(value.exchangeSessions) ||
+        !value.exchangeSessions.length || value.exchangeSessions.at(-1)!==value.asOf ||
+        value.exchangeSessions.some((day,i)=>!/^\d{4}-\d{2}-\d{2}$/.test(day) ||
+          (i&&value.exchangeSessions[i-1]>=day)))) throw Error('Neispravan burzovni kalendar ishoda');
     return value;
   }
   function renderForward(raw, eodDate) {
@@ -634,28 +664,35 @@
       const data=validate(await response.json());
       for(const id of ['siRange','siAggregation','siMetric','siZoom','siWindow']) el(id).addEventListener('change',()=>render(data));
       render(data);
-      try {
-        if(!globalThis.TrendBirthHeat)throw Error('Nedostaje modul Market Thermometera');
-        globalThis.TrendBirthHeat.mount(data);
-      }catch(heatError){
-        const heatPanel=el('siHeatTitle');
-        if(heatPanel)heatPanel.textContent='Market Thermometer nije dostupan: '+(heatError?.message||String(heatError));
-      }
       status.hidden=true;
-      try {
-        const compositeResponse=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
-        if (!compositeResponse.ok) throw Error('HTTP '+compositeResponse.status);
-        renderComposite(await compositeResponse.json(),data.latestSessionDate);
-      } catch (error) {
-        el('siCompositeStatus').textContent='Backtest nije dostupan: '+(error?.message||String(error));
-      }
-      try {
-        const forwardResponse=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
-        if (!forwardResponse.ok) throw Error('HTTP '+forwardResponse.status);
-        renderForward(await forwardResponse.json(),data.latestSessionDate);
-      } catch (error) {
-        el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
-      }
+      await Promise.all([
+        (async()=>{
+          try {
+            const response=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
+            if (!response.ok) throw Error('HTTP '+response.status);
+            renderComposite(await response.json(),data.latestSessionDate);
+          } catch (error) {
+            el('siCompositeStatus').textContent='Backtest nije dostupan: '+(error?.message||String(error));
+          }
+        })(),
+        (async()=>{
+          let forward=null;
+          try {
+            const response=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
+            if (!response.ok) throw Error('HTTP '+response.status);
+            forward=validateForward(await response.json());
+            renderForward(forward,data.latestSessionDate);
+          } catch (error) {
+            el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
+          }
+          try {
+            if(!globalThis.TrendBirthHeat)throw Error('Nedostaje modul Market Thermometera');
+            globalThis.TrendBirthHeat.mount(data,forward);
+          } catch (error) {
+            el('siHeatTitle').textContent='Market Thermometer nije dostupan: '+(error?.message||String(error));
+          }
+        })()
+      ]);
     } catch(e) {
       status.textContent='Statistika nije dostupna: '+(e?.message||String(e))+' · Pokušaj osvježiti stranicu.';
       status.className='si-error';

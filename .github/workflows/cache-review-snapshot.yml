@@ -34,6 +34,16 @@ jobs:
           python -m unittest discover -s tests -v
           node --test tests/*.test.cjs
           node --check lab/app.js
+      # Browser regressions belong to PR validation, not the scheduled EOD job.
+      - name: Statistics mobile browser regressions
+        if: github.event_name == 'pull_request'
+        env:
+          NODE_PATH: ${{ runner.temp }}/statistics-browser/node_modules
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/statistics-browsers
+        run: |
+          npm install --prefix "$RUNNER_TEMP/statistics-browser" --no-package-lock --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/statistics-browser/node_modules/.bin/playwright" install --with-deps chromium
+          node --test tests/browser/statistics.test.cjs
       - name: Build current read-only snapshot
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Validate immutable publication in temporary directory
