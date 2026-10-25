@@ -538,3 +538,13 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - **Next:** inspect real 5D n/coverage from new GH Actions publication. Hold Composite ETF proxy weights unchanged; after 20D/60D maturity and robust sample, use chronological holdout with controls before recalibration.
 
 ---
+
+
+## 2026-10-25 — Stage-forward V2: forensic EOD coverage audit
+
+- **Branch:** `feature/tb-forward-coverage-audit-20261025` based on `feature/unified-review-grid-lab` after PR #59; commits visible in corresponding PR history.
+- **Problem and evidence:** run #403 and V2 report (2026-10-23) show 20 archived EOD snapshots with 100% quote coverage for the evaluated universe, versus 22 dates on the latest majority-chart exchange calendar. Whole-market price snapshots missing for 2026-10-15 and 2026-10-19; 5D outcomes have 71.55–78.38% mature coverage, so means are selection-biased and cannot support score calibration.
+- **Change:** `scripts/trend_birth_stage_forward.py` now audits every missing matured ticker-stage outcome as missing whole session, missing ticker quote on otherwise archived sessions, or unclassified (e.g. older calendar no longer retained), and verifies exact reconciliation. Source-session coverage, missing dates and quote coverage join the compact V2 report. `lab/trend-birth-stats.js` and `lab/statistics.html` surface these facts beside the 5/20/60D table with fail-closed consistency checks. No historical prices or stage outcomes are imputed or overwritten; 99% future coverage is insufficient for calibration while complete EOD sessions remain missing.
+- **Safety / tests:** `scripts/trend_birth_stage_forward.py` also rejects `runId` / evaluated-count mismatch between stage and price archives for each date. Regression cases in `tests/test_trend_birth_stage_forward.py` and `tests/trend-birth-market-internals.test.cjs` cover missing exchange-day attribution, ticker-only gaps, provenance mismatch and invalid aggregate counts. CI and production verification pending at the time of recording.
+- **Method caveats:** dates are inferred from the current majority chart calendar; missing historical dates cannot be fabricated. Price source remains unadjusted for dividends/corporate actions, exits can be delisted, and repeated ticker events are dependent. ETF proxy Composite weights and production ranking remain unchanged.
+- **Next:** PR checks, branch merge, Vercel live data audit; consider verified missing-session recovery from preserved historical EOD sources, split/delisting handling, and chronological test-vs-holdout before any outcome-based weighting.
