@@ -455,7 +455,7 @@
         }
         choose(nearest);
       });
-      el('siCompositeChartMeta').textContent=points.length+' stvarnih arhiviranih točaka · '+
+      el('siCompositeChartMeta').textContent=points.length+(mode==='actual'?' stvarnih EOD zapisa · ':' povijesnih ETF OOS točaka · ')+
         points[0].sessionDate+' – '+points[points.length-1].sessionDate+'. '+
         (mode==='actual'?'Isprekidano zlatno = nedovoljna prethodna povijest; nema izmišljenih sesija.':
           'Izvanuzorački ETF proxy, uzorak svakih 10 burzovnih dana; profil se može mijenjati po godini.');
