@@ -52,6 +52,19 @@ python -m http.server 8000 -d lab
 
 Then open `http://localhost:8000/`.
 
+## Statistics regression checks
+
+From the repository root, run `python -m unittest discover -s tests -v` and
+`node --test tests/*.test.cjs`. The publication regression uses only a tiny
+temporary Git repository and local remote; it never publishes live data.
+
+With Playwright 1.62.1 and its Chromium installed, also run
+`node --test tests/browser/statistics.test.cjs`. Set
+`STATISTICS_CHROMIUM_PATH=/usr/bin/chromium` to use an existing system Chromium.
+These browser tests check mobile marker visibility, historical selection,
+source synchronization and unavailable calendar behavior. The existing PR
+validation workflow installs and runs them; the scheduled EOD workflow does not.
+
 ## Mobile app installation
 
 Open https://stockscout-trend-birth-review-lab.vercel.app/ in Android Chrome,
