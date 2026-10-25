@@ -475,6 +475,8 @@
       draw();
       if(sourceEl.value==='actual')document.dispatchEvent(new CustomEvent('tb:statistics-range-select',
         {detail:{origin:'composite',range:rangeEl.value}}));
+      if(sourceEl.value==='actual'&&currentPoints.length)document.dispatchEvent(
+        new CustomEvent('tb:statistics-date-select',{detail:{origin:'composite',date:currentPoints.at(-1).sessionDate}}));
     });
     document.addEventListener('tb:statistics-date-select',event=>{
       if(event.detail?.origin!=='heat'||sourceEl.value!=='actual'||!selectCurrent)return;

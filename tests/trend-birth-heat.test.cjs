@@ -77,6 +77,13 @@ test('flow is excluded when universe overlap is low; non-contiguous EODs are not
   assert.equal(Heat.businessGap('2026-10-16','2026-10-19'),1);
   assert.equal(Heat.businessGap('2026-10-16','2026-10-20'),2);
   assert.equal(Heat.computeHeatHistory(real.points).find(x=>x.sessionDate==='2026-10-20').continuity,false);
+  // An untrustworthy comparison must not contaminate later flow percentile history.
+  const longer=synthetic(30),baseline=Heat.computeHeatHistory(longer);
+  longer[13].overlapPct=40;longer[13].matchedQualityDeltaPp=9999;
+  const guarded=Heat.computeHeatHistory(longer);
+  const b=baseline.at(-1).movementRows.find(r=>r.key==='flow');
+  const g=guarded.at(-1).movementRows.find(r=>r.key==='flow');
+  assert.equal(g.historyN,b.historyN-1);
 });
 test('rejected out-of-order dates and no date fabrication',()=>{
   assert.throws(()=>Heat.computeHeatHistory([{sessionDate:'2026-10-03'},{sessionDate:'2026-10-03'}]),/uređeni/);

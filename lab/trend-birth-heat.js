@@ -57,7 +57,7 @@
   function factorRows(point,archive,factors,readyCore) {
     let weightReady=0;
     const rows=factors.map(f=>{
-      const ranked=percentile(point[f.field],archive.map(p=>p[f.field]));
+      const ranked=percentile(point[f.field],archive.map(p=>f.key==='flow'&&!(p.overlapPct>=95)?null:p[f.field]));
       const ready=ranked.value!==null && (f.key!=='flow'||point.overlapPct>=95);
       if (ready)weightReady+=f.weight;
       return {...f,raw:point[f.field]??null,percentile:ready?ranked.value:null,
@@ -284,6 +284,8 @@
       draw();
       if(compositeSource==='actual')document.dispatchEvent(
         new CustomEvent('tb:statistics-range-select',{detail:{origin:'heat',range:range.value}}));
+      if(compositeSource==='actual')document.dispatchEvent(
+        new CustomEvent('tb:statistics-date-select',{detail:{origin:'heat',date:selectedDate}}));
     });
     document.addEventListener('tb:statistics-date-select',e=>{
       if(e.detail?.origin!=='composite'||compositeSource!=='actual')return;
@@ -299,7 +301,7 @@
       $('siHeatSyncStatus').textContent=compositeSource==='actual'?
         'Grafovi koriste istu kalendarsku os i dijele odabrani EOD datum i raspon.':
         'ETF proxy ima drugi univerzum i godine; automatsko usklađivanje s njim je isključeno.';
-      if(compositeSource==='actual'){range.value=$('siCompositeRange').value;draw();}
+      if(compositeSource==='actual'){selectedDate=latest.sessionDate;range.value=$('siCompositeRange').value;draw();}
       else show(history.find(p=>p.sessionDate===selectedDate)||latest);
     });
     draw();return history;
