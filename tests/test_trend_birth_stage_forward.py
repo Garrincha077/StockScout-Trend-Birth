@@ -148,11 +148,22 @@ class ForwardStageTests(unittest.TestCase):
             forward.build(latest, stage_dir, prices_dir, root / "outcomes", root / "report.json")
             result = json.loads((root / "report.json").read_text())
             self.assertEqual(result["dataQuality"]["missingExchangeSessions"], [gap])
+            self.assertEqual(result["dataQuality"]["exchangeSessionsInWindow"], len(full_dates))
             self.assertEqual(result["dataQuality"]["sourcePriceCoveragePct"], 100)
             stage3 = result["byHorizon"]["5"]["3"]
             self.assertEqual(stage3["missingSessionGap"], 1)
             self.assertEqual(stage3["missingTickerQuote"], 0)
             self.assertFalse(stage3["eligibleForCalibration"])
+
+    def test_quality_window_does_not_count_expired_chart_dates_as_gaps(self):
+        quote = {"expectedEvaluated": 2, "priceCount": 2}
+        quality = forward._data_quality(["2026-10-22", "2026-10-23"], {
+            "2025-01-02": quote, "2026-10-22": quote,
+        })
+        self.assertEqual(quality["totalArchivedSessions"], 2)
+        self.assertEqual(quality["archivedSessions"], 1)
+        self.assertEqual(quality["missingExchangeSessions"], ["2026-10-23"])
+        self.assertEqual(quality["exchangeSessionsInWindow"], 2)
 
     def test_price_archive_run_identity_is_checked_against_stages(self):
         dates = sessions(12)
