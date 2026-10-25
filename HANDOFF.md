@@ -1,3 +1,12 @@
+## 2026-10-25 — Source evidence rescue (P1; one-shot archival PR in progress)
+
+- **Production verified:** PR #60 merged into active `feature/unified-review-grid-lab` as `d842be64`; Vercel production deployment `dpl_FEuP4b7hyKvRYrV7PgpsEv1R2Swz` READY; 2026-10-25 GitHub Actions run `40147700778` main `build` job SUCCESS and compact V2 data-quality JSON published. Chart page's missing-cause column was confirmed in the live UI. Its `dataQuality` confirms 20/22 available exchange sessions, dates 2026-10-15/19 missing, and 52,951/52,951 extracted source quotes for existing EOD dates. Auxiliary historical_calibration may finish later.
+- **Urgent preservation:** original Unified Pages artifact ZIPs for 2026-10-15 (`12016667723`, 162,020,086 B, expires Oct 30 UTC) and 2026-10-19 (`12235521722`, 159,822,532 B, expires Nov 3 UTC) were found and directly retrieved. Topic branch `feature/tb-eod-artifact-preservation-20261025` adds pinned artifact SHA256, metadata, complete source/session/manifests verification, and a **one-shot GitHub Actions workflow** to retain both exact ZIPs in a **draft GitHub Release**, not in the expensive Git/Vercel code tree. CI/run and durable release upload must be verified before marking evidence saved; no EOD backfill is undertaken in this rescue phase.
+- **Immutable history safeguard:** Do not inject missing 15/19 date rows directly into published stage or outcome archives: intermediate dates alter stage transitions and already recorded entries. Next deliverable after source preservation is a versioned side-by-side reconciliation of historical membership, stage transitions and 5/20/60D returns, with an explicit migration plan and rollback.
+- **No ranking/scoring modification:** Composite ETF-proxy weights, current ticker ranking and Telegram alerts remain unchanged. No extra scheduled scan/API/provider introduced.
+
+---
+
 ## 2026-10-25 — Outcome coverage audit (topic branch, awaiting CI)
 
 - **Source verified:** GitHub Actions #403 on active `feature/unified-review-grid-lab` completed successfully, and the published V2 report is dated 2026-10-23. All **20 archived EOD sessions** have **100% prices** for evaluated tickers; consensus exchange calendar has **22 sessions** since 2026-09-24, with entire EOD gaps **2026-10-15 and 2026-10-19**. This is a major reason the matured 5D outcomes only cover ~71.55–78.38%; the observed 5D means must not recalibrate Composite.
