@@ -6,8 +6,6 @@ on:
       - "feature/tb-eod-artifact-preservation-20261025"
     paths:
       - ".github/workflows/preserve-unified-eod-evidence.yml"
-      - "scripts/preserve_unified_eod_evidence.py"
-      - "tests/test_preserve_unified_eod_evidence.py"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +14,7 @@ permissions:
 
 concurrency:
   group: tb-source-evidence-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   preserve:
