@@ -175,7 +175,7 @@ def verify_release(manifest: dict, repo: str) -> None:
         if size is not None and asset.get("size") != size:
             raise ValueError("GitHub Release asset size mismatch: " + name)
         remote_digest = asset.get("digest")
-        if digest is not None and remote_digest and remote_digest != digest:
+        if digest is not None and remote_digest != digest:
             raise ValueError("GitHub Release asset digest mismatch: " + name)
     print(json.dumps({"status": "verified_draft_release", "tag": RELEASE_TAG,
                       "releaseUrl": release.get("html_url"), "assets": [n for n, _, _ in expected]}))
