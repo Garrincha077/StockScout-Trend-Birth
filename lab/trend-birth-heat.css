@@ -1,0 +1,43 @@
+/* Trend Birth Market Thermometer: five equal descriptive temperature zones. */
+.si-heat-card{--heat:#627b96;position:relative;padding-left:18px;background:linear-gradient(100deg,color-mix(in srgb,var(--heat) 13%,#101f32),#101f32 75%);border-color:color-mix(in srgb,var(--heat) 55%,#2b4059)}
+.si-heat-card::before{content:"";position:absolute;top:9px;bottom:9px;left:0;width:4px;border-radius:0 4px 4px 0;background:var(--heat)}
+[data-heat-zone="very-cold"]{--heat:#176b4a}
+[data-heat-zone="cold"]{--heat:#4caf75}
+[data-heat-zone="neutral"]{--heat:#e2bf54}
+[data-heat-zone="hot"]{--heat:#e79142}
+[data-heat-zone="overheated"]{--heat:#d74c55}
+[data-heat-zone="unavailable"]{--heat:#627b96}
+.si-heat-pill{display:inline-block;align-self:flex-start;background:color-mix(in srgb,var(--heat) 19%,#132437);border:1px solid color-mix(in srgb,var(--heat) 53%,#2b4059);border-radius:100px;color:#edf4fa;font-size:10px;font-weight:750;padding:5px 8px;line-height:1.3}
+.si-heat-panel{border-color:#345a66}
+.si-heat-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.si-heat-heading h2{margin:0 0 3px}
+.si-heat-heading .si-muted{margin:4px 0 0}
+.si-heat-label{--heat:#627b96;background:color-mix(in srgb,var(--heat) 27%,#111d2e);border:1px solid var(--heat);border-radius:100px;padding:9px 15px;white-space:nowrap;color:#fff;font-size:12px;font-weight:850}
+.si-heat-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+.si-heat-kpis h3{font-size:12px;margin:0;color:#b4cbe0}
+.si-heat-kpis .si-card{min-height:115px}
+.si-heat-kpis .si-card strong{font-size:27px}
+.si-heat-scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:16px 0 23px;overflow:hidden;border-radius:9px;border:1px solid #38546c}
+.si-heat-scale span{min-width:0;text-align:center;padding:12px 4px;color:#fff;font-weight:850;font-size:11px;line-height:1.6;text-shadow:0 1px 2px #152132}
+.si-heat-scale span:nth-child(1){background:#176b4a}
+.si-heat-scale span:nth-child(2){background:#4caf75}
+.si-heat-scale span:nth-child(3){background:#d2ac46}
+.si-heat-scale span:nth-child(4){background:#e79142}
+.si-heat-scale span:nth-child(5){background:#c64550}
+.si-heat-history{padding:15px;border:1px solid #294863;border-radius:11px;background:#0c1b2e;margin-bottom:17px}
+.si-heat-history h3{font-size:15px;margin:4px 0 12px;color:#e5f0fb}
+.si-heat-chart{min-height:240px;margin:10px 0}
+.si-heat-chart svg{min-width:660px;max-height:310px}
+.si-heat-history input[type="range"]{accent-color:#55c69a}
+.si-heat-history .si-factor-table{min-width:760px}
+.si-heat-history .si-factor-table tbody th{text-align:left}
+.si-heat-history .si-factor-table tfoot td{background:#173142;font-weight:850}
+@media(max-width:720px){
+  .si-heat-heading{flex-direction:column;gap:8px}
+  .si-heat-label{align-self:flex-start}
+  .si-heat-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .si-heat-kpis .si-card strong{font-size:22px}
+  .si-heat-scale span{padding:9px 2px;font-size:9px}
+  .si-heat-history{padding:10px}
+}
+@media(max-width:390px){.si-heat-kpis{grid-template-columns:1fr}}

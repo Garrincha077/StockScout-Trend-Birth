@@ -316,6 +316,7 @@
     const profileBook={...(data.calibration.profileBook||{}),
       current:{weights:data.calibration.weights,directions:data.calibration.directions}};
     const svgNs='http://www.w3.org/2000/svg';
+    let currentPoints=[],selectCurrent=null;
     function svgElement(tag,attributes,parent) {
       const node=document.createElementNS(svgNs,tag);
       for (const [key,value] of Object.entries(attributes||{})) node.setAttribute(key,String(value));
@@ -378,6 +379,7 @@
     function draw() {
       const mode=sourceEl.value;
       const points=compositeHistory(data,mode,rangeEl.value);
+      currentPoints=points;selectCurrent=null;
       host.replaceChildren();
       if (!points.length) {
         host.textContent='Za odabrani izvor nema sačuvane povijesne serije u ovom izdanju.';
@@ -431,7 +433,7 @@
       }
       const marker=svgElement('circle',{cx:x(points.length-1),cy:y(points[points.length-1].score),
         r:6,stroke:'#fff','stroke-width':2,fill:baseColor},svg);
-      function choose(index){
+      function choose(index,emit=false){
         const i=Math.max(0,Math.min(points.length-1,index));
         const point=points[i];
         slider.value=String(i);
@@ -443,8 +445,11 @@
             ' (naknadno poznat ishod)':
             ' · '+point.readyFactors+'/6 faktora s dovoljnom ranijom poviješću');
         showFactors(point,mode);
+        if(emit&&mode==='actual')document.dispatchEvent(new CustomEvent('tb:statistics-date-select',
+          {detail:{origin:'composite',date:point.sessionDate}}));
       }
-      slider.oninput=()=>choose(Number(slider.value));
+      selectCurrent=choose;
+      slider.oninput=()=>choose(Number(slider.value),true);
       svg.addEventListener('click',event=>{
         const rect=svg.getBoundingClientRect();
         const chartX=(event.clientX-rect.left)/rect.width*width;
@@ -453,7 +458,7 @@
           const delta=Math.abs(x(i)-chartX);
           if(delta<dist){dist=delta;nearest=i;}
         }
-        choose(nearest);
+        choose(nearest,true);
       });
       el('siCompositeChartMeta').textContent=points.length+(mode==='actual'?' stvarnih EOD zapisa · ':' povijesnih ETF OOS točaka · ')+
         points[0].sessionDate+' – '+points[points.length-1].sessionDate+'. '+
@@ -461,8 +466,29 @@
           'Izvanuzorački ETF proxy, uzorak svakih 10 burzovnih dana; profil se može mijenjati po godini.');
       choose(points.length-1);
     }
-    sourceEl.addEventListener('change',draw);
-    rangeEl.addEventListener('change',draw);
+    sourceEl.addEventListener('change',()=>{
+      draw();
+      document.dispatchEvent(new CustomEvent('tb:statistics-source-select',
+        {detail:{origin:'composite',source:sourceEl.value}}));
+    });
+    rangeEl.addEventListener('change',()=>{
+      draw();
+      if(sourceEl.value==='actual')document.dispatchEvent(new CustomEvent('tb:statistics-range-select',
+        {detail:{origin:'composite',range:rangeEl.value}}));
+      if(sourceEl.value==='actual'&&currentPoints.length)document.dispatchEvent(
+        new CustomEvent('tb:statistics-date-select',{detail:{origin:'composite',date:currentPoints.at(-1).sessionDate}}));
+    });
+    document.addEventListener('tb:statistics-date-select',event=>{
+      if(event.detail?.origin!=='heat'||sourceEl.value!=='actual'||!selectCurrent)return;
+      const idx=currentPoints.findIndex(p=>p.sessionDate===event.detail.date);
+      if(idx>=0)selectCurrent(idx);
+    });
+    document.addEventListener('tb:statistics-range-select',event=>{
+      if(event.detail?.origin!=='heat'||sourceEl.value!=='actual')return;
+      if(['1m','3m','1y','5y','all'].includes(event.detail.range)){
+        rangeEl.value=event.detail.range;draw();
+      }
+    });
     draw();
   }
 
@@ -608,6 +634,13 @@
       const data=validate(await response.json());
       for(const id of ['siRange','siAggregation','siMetric','siZoom','siWindow']) el(id).addEventListener('change',()=>render(data));
       render(data);
+      try {
+        if(!globalThis.TrendBirthHeat)throw Error('Nedostaje modul Market Thermometera');
+        globalThis.TrendBirthHeat.mount(data);
+      }catch(heatError){
+        const heatPanel=el('siHeatTitle');
+        if(heatPanel)heatPanel.textContent='Market Thermometer nije dostupan: '+(heatError?.message||String(heatError));
+      }
       status.hidden=true;
       try {
         const compositeResponse=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
