@@ -49,3 +49,9 @@
 .si-factor-table .si-provisional{color:#ffd486}
 .si-factor-table tfoot td{background:#132f3b;font-weight:850}
 @media(max-width:720px){.si-composite-detail{padding:10px}.si-composite-chart{min-height:220px}.si-composite-inspect{margin:11px 0 15px}}
+
+.si-composite-definitions{margin:15px 0 0;padding:11px 13px;border:1px solid #314c68;border-radius:9px;background:#102338;color:#b7cce0;font-size:12px;line-height:1.65}
+.si-composite-definitions summary{cursor:pointer;font-weight:800;color:#e5f3ff;padding:2px 0}
+.si-composite-definitions ul{margin:10px 0;padding-left:22px}
+.si-composite-definitions li{padding:3px 0}
+.si-composite-definitions p{margin:9px 0 0}

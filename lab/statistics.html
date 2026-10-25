@@ -73,6 +73,19 @@
           <caption class="sr-only">Sirove vrijednosti, povijesni percentili, smjer, težine i doprinos pojedinog faktora Composite Scoreu</caption>
         </table></div>
         <p id="siCompositeScoringCaveat" class="si-muted"></p>
+        <details class="si-composite-definitions">
+          <summary>Kako se računa svaki faktor?</summary>
+          <ul>
+            <li><strong>Širina:</strong> udio dionica u fazi 3/4 ili 4/4 (ETF test: udio fondova u proxy fazi ≥ 3).</li>
+            <li><strong>Pressure:</strong> prosječna faza podijeljena s 4, prikazana kao postotak 0–100.</li>
+            <li><strong>Brzina:</strong> linearni nagib širine kroz zadnjih pet zabilježenih sesija, u pp/EOD.</li>
+            <li><strong>Akceleracija:</strong> razlika trenutačnog petodnevnog nagiba i nagiba prethodnog odvojenog petodnevnog prozora.</li>
+            <li><strong>Neto pomak:</strong> promjena kvalitete među istim usporedivim dionicama; ETF proxy koristi promjenu ukupne širine u odnosu na prethodni dan.</li>
+            <li><strong>Trajnost:</strong> prosjek širine u posljednjih deset EOD očitanja, uključujući promatrani dan.</li>
+          </ul>
+          <p>Svaki se faktor pretvara u percentil na najviše 252 <em>prethodna</em> opažanja. Kad nema barem 12 prethodnih valjanih vrijednosti, koristi se neutralnih 50 i to se označava u tablici.</p>
+          <p>Profil <strong>Recovery</strong> posebno obrće širinu i pressure: niža vrijednost ta dva faktora može povećati ukupni Score. To je hipoteza o oporavku iz slabosti, a ne dokaz da je rast započeo.</p>
+        </details>
       </div>
       <h3>Rezultati po tržišnim režimima</h3>
       <div class="si-table-scroll"><table class="si-matrix" id="siCompositeRegimes">
