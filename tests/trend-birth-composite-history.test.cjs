@@ -38,7 +38,7 @@ test('fail-closed breakdown rejects corrupt percentiles and mismatched weights',
     directions:Object.fromEntries(fields.map(k=>[k,1]))};
   assert.throws(()=>Stats.compositeFactorRows(point,profile),/komponenta/);
   point.fields.breadth.percentile=50;
-  assert.equal(Stats.compositeFactorRows(point,profile).score,50);
+  assert.ok(Math.abs(Stats.compositeFactorRows(point,profile).score-50)<1e-9);
   profile.weights.flow=-1;
   assert.throws(()=>Stats.compositeFactorRows(point,profile),/komponenta/);
 });

@@ -1,5 +1,6 @@
 name: One-shot Composite history backfill (sparse)
 # Run once for this topic branch; never scheduled, no additional market scan.
+# Retry once after correcting floating-point equality assertion; all pinned-data audits passed.
 on:
   push:
     branches:
