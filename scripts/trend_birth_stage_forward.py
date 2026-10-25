@@ -224,14 +224,20 @@ def _missing_reasons(sessions: list[dict], calendar: list[str],
 
 def _data_quality(calendar: list[str], archived: dict[str, dict]) -> dict:
     first = min(archived)
-    market_days = [day for day in calendar if day >= first]
+    # The source chart calendar is rolling (~260 sessions); older permanent
+    # archives must never make the current calendar coverage ratio impossible.
+    window_start = max(first, calendar[0])
+    market_days = sorted(set(day for day in calendar if day >= window_start) |
+                         set(day for day in archived if day >= window_start))
     gaps = [day for day in market_days if day not in archived]
     expected = sum(day["expectedEvaluated"] for day in archived.values())
     actual = sum(day["priceCount"] for day in archived.values())
     return {
         "archiveStart": first,
-        "archivedSessions": len(archived),
-        "exchangeSessionsSinceStart": len(market_days),
+        "coverageWindowStart": window_start,
+        "archivedSessions": len(market_days) - len(gaps),
+        "totalArchivedSessions": len(archived),
+        "exchangeSessionsInWindow": len(market_days),
         "missingExchangeSessions": gaps,
         "sourcePriceCoveragePct": round(100 * actual / expected, 2) if expected else None,
         "expectedSourceQuotes": expected,
