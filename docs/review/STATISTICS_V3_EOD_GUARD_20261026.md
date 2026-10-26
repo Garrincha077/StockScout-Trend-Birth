@@ -46,3 +46,15 @@ Production and CI only use stdlib Python and browser JavaScript to read the comm
 ## Rollback
 
 Revert the UI/gate implementation commit through a reviewed PR. V2 continues as the default throughout; no history migration or pointer reversal is necessary. The compact calendar can remain as an unused additive file. Do not bypass a genuine gate failure: inspect the dated source bundle and repair the missing/mixed inputs with provenance before retrying.
+
+## Production UI verification — 2026-10-26 18:40 UTC
+
+PR #71 merged as `2008e445e466cf6f450243fa32c2effd51ceda67` after final-head CI run `40377938425` SUCCESS and Vercel preview `dpl_2vgsJFFZ7B196sMTKh3caKP53sfr` READY. The remote suite contains 206 Python, 107 Node and 9 Chromium tests. Production deployment `dpl_4EZvE9XHcUeMMYwdNXJHjUjAMSis` is independently verified READY for the merged implementation.
+
+Actual public production URL was checked at 390px and 1440px, without routing or data fixtures: the comparison is fetched only after opening; coverage is 74.52%/97.67%; 60D correctly reports not mature; the live V2 table retains 15 rows. The home page renders 15 Weekly and 5 Kell cards and opens real details. Both pages show the actual Oct23 publication and expected Oct23 session before the Oct26 close/deadline; neither document overflows horizontally. No observed page errors or HTTP >=400 responses in these flows. Calendar and comparison HTTP200 responses match committed SHA256 byte-for-byte. Runtime error/fatal log query for the merged deployment returned no records; browser/HTTP evidence remains the meaningful runtime check for this static app.
+
+Evidence is retained locally under `/workspace/scratch/tb-v3-visual/` (live.json and desktop/mobile screenshots). Production workflow `40378983041`, build job `121769737954`, is separately followed to check the real publication gate. No Oct26 source EOD or physical-phone owner login is claimed by this UI verification.
+
+## Final production publication checkpoint — 2026-10-26 18:44 UTC
+
+Production build job `121769737954` in workflow `40378983041` completed SUCCESS, including the actual atomic publication step. The gate output at `2026-10-26T18:43:02.744177+00:00` verified session/expected session `2026-10-23`, run `2026-10-23-eod-40042215150-1`, 2,614/2,614 evaluated prices and the 99% minimum coverage policy. Git found the data unchanged; no new data commit or historical rewrite occurred. The previously verified production UI deployment remains the merged `2008e44` / `dpl_4EZvE9XHcUeMMYwdNXJHjUjAMSis` READY. Existing separate historical-calibration job `121774418518` was still in progress at this checkpoint and is not included in this completion claim. Real Oct26 EOD and physical-phone owner sign-in remain separate future/user confirmations.
