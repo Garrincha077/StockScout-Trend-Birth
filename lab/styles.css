@@ -214,3 +214,5 @@
 .market-summary{margin:0 0 14px}.market-summary>summary{cursor:pointer;padding:10px 0;color:var(--muted)}
 
 @media(max-width:720px){.primary-views{flex-wrap:wrap;overflow:visible}}
+.eod-freshness{margin:10px 16px;padding:10px 12px;border:1px solid #35516d;border-radius:9px;background:#102338;color:#bbd0e6;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.eod-freshness[data-state="stale"],.eod-freshness[data-state="unknown"]{border-color:#aa793e;color:#ffe0a6;background:#30271c}

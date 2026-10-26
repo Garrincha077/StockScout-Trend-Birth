@@ -576,8 +576,8 @@
       'loši režimi ostaju prikazani ('+(stale?'Composite još nije osvježen za zadnje EOD podatke.':'zadnji EOD je osvježen.')+')';
   }
 
-  function validateForward(value) {
-    if (!value || value.schemaVersion !== 'trend-birth-stage-forward-v2' ||
+  function validateForward(value, version='trend-birth-stage-forward-v2') {
+    if (!value || value.schemaVersion !== version ||
         value.scope !== SCOPE || !/^\d{4}-\d{2}-\d{2}$/.test(value.asOf) ||
         !Array.isArray(value.horizons) || value.horizons.join(',') !== '5,20,60' ||
         !value.byHorizon || !Number.isInteger(value.stageTransitions))
@@ -612,12 +612,84 @@
           (i&&value.exchangeSessions[i-1]>=day)))) throw Error('Neispravan burzovni kalendar ishoda');
     return value;
   }
+  function validateRecovery(value){
+    if(value?.schemaVersion!=='trend-birth-recovery-comparison-v3'||value.scope!==SCOPE||
+       value.baselineReplayMatchesPublished!==true||value.migration?.activated!==false||
+       value.migration?.v2InputsUntouched!==true||value.migration?.calibrationApproved!==false||
+       value.after?.calibrationApproved!==false||!value.before?.dataQuality||!value.after?.dataQuality||
+       value.asOf!=='2026-10-23'||value.asOf!==value.before?.asOf||
+       value.asOf!==value.after?.asOf)throw Error('Neispravna usporedba V2/V3');
+    validateForward(value.before);
+    validateForward(value.after,'trend-birth-stage-forward-v3');
+    for(const report of [value.before,value.after])for(const stages of Object.values(report.byHorizon))
+      if(Object.values(stages).some(row=>row.eligibleForCalibration!==false))throw Error('V3 usporedba ne odobrava kalibraciju');
+    return value;
+  }
+  function horizonTotals(report,horizon){
+    const rows=Object.values(report.byHorizon[String(horizon)]);
+    const sum=key=>rows.reduce((n,row)=>n+row[key],0);
+    const n=sum('n'),expected=sum('expectedMatured');
+    return {n,expected,missing:sum('missingMatured'),pending:sum('pending'),coverage:expected?100*n/expected:null};
+  }
+  function comparisonTable(id,headers,rows){
+    const table=el(id);
+    table.querySelectorAll('thead,tbody').forEach(node=>node.remove());
+    const head=document.createElement('thead'),header=document.createElement('tr');
+    for(const title of headers){const th=document.createElement('th');th.textContent=title;th.scope='col';header.appendChild(th);}
+    head.appendChild(header);table.appendChild(head);
+    const body=document.createElement('tbody');
+    for(const values of rows){
+      const row=document.createElement('tr');
+      values.forEach((value,index)=>{const cell=document.createElement(index?'td':'th');
+        cell.textContent=value;if(!index)cell.scope='row';row.appendChild(cell);});
+      body.appendChild(row);
+    }
+    table.appendChild(body);
+  }
+  function renderRecovery(data){
+    const reports=[data.before,data.after],totals=reports.map(report=>horizonTotals(report,5));
+    comparisonTable('siRecoveryCoverage',['Pokazatelj · '+data.asOf,'V2 · izvorno','V3 · rekonstrukcija'],[
+      ['EOD sesije',...reports.map(r=>r.dataQuality.archivedSessions+' / '+r.dataQuality.exchangeSessionsInWindow)],
+      ['Prijelazi faza',...reports.map(r=>FMT.format(r.stageTransitions))],
+      ['Dospjeli 5D s cijenom',...totals.map(r=>FMT.format(r.n)+' / '+FMT.format(r.expected))],
+      ['Pokrivenost 5D',...totals.map(r=>fmt(r.coverage,'%'))],
+      ['Nedostaju dospjeli 5D',...totals.map(r=>FMT.format(r.missing))]
+    ]);
+    const horizon=el('siRecoveryHorizon').value,rows=[];
+    for(let stage=0;stage<=4;stage++)for(const [index,report] of reports.entries()){
+      const row=report.byHorizon[horizon][String(stage)];
+      rows.push([stage+'/4',index?'V3':'V2',FMT.format(row.n)+' / '+FMT.format(row.expectedMatured),
+        FMT.format(row.pending),fmt(row.coveragePct,'%'),fmt(row.meanPct,'%'),fmt(row.medianPct,'%'),
+        [row.missingSessionGap,row.missingTickerQuote,row.missingUnclassified].map(n=>FMT.format(n)).join(' / ')]);
+    }
+    comparisonTable('siRecoveryTable',['Faza','Verzija','Dospjelo s cijenom','Na čekanju','Pokrivenost','Prosjek','Medijan','Nedostaje: sesija / ticker / ostalo'],rows);
+    const totalsForHorizon=reports.map(r=>horizonTotals(r,horizon));
+    el('siRecoveryStatus').textContent='Zamrznuta usporedba do '+data.asOf+' · '+horizon+'D. '+
+      (totalsForHorizon.every(r=>r.expected===0)?'Ishodi još nisu dospjeli; prinosi nisu dostupni.':
+        'Veća pokrivenost nije dokaz boljeg prinosa.');
+  }
+  function mountRecovery(){
+    const details=el('siRecovery');if(!details)return;
+    let data=null,loading=false;
+    el('siRecoveryHorizon').addEventListener('change',()=>{if(data)renderRecovery(data);});
+    details.addEventListener('toggle',async()=>{
+      if(!details.open||data||loading)return;
+      loading=true;el('siRecoveryStatus').textContent='Učitavam odvojenu usporedbu V2/V3…';
+      try{
+        const response=await fetch('data/recovery-v3/comparison.json',{cache:'no-store'});
+        if(!response.ok)throw Error('HTTP '+response.status);
+        const recovered=validateRecovery(await response.json());
+        renderRecovery(recovered);data=recovered;el('siRecoveryContent').hidden=false;
+      }catch(error){el('siRecoveryStatus').textContent='Usporedba nije dostupna: '+error.message+'. Zatvori i ponovno otvori za ponovni pokušaj. Glavni V2 prikaz ostaje dostupan.';}
+      finally{loading=false;}
+    });
+  }
   function renderForward(raw, eodDate) {
     const data=validateForward(raw);
     const status=el('siForwardStatus');
     const stale=data.asOf!==eodDate;
     status.textContent=(stale?'UPOZORENJE: mjerenje nije osvježeno za današnji EOD · ':'')+
-      'Stvarna point-in-time povijest · '+data.asOf+
+      'V2 · stvarna point-in-time povijest · '+data.asOf+
       ' · '+FMT.format(data.stageTransitions)+' potvrđenih prijelaza, '+FMT.format(data.archivedEventDays)+' datuma.';
     el('siForwardSummary').textContent='Uzorci dospijevaju nakon 1 + 5/20/60 burzovnih sesija. '+
       'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
@@ -658,6 +730,7 @@
   async function start() {
     const status=el('siStatus');
     if (!status) return;
+    mountRecovery();
     try {
       const response=await fetch('data/trend-birth-market-internals.json',{cache:'no-store'});
       if (!response.ok) throw Error('HTTP '+response.status);
@@ -698,6 +771,6 @@
       status.className='si-error';
     }
   }
-  return {validate, validateComposite, validateForward, compositeFactorRows, compositeHistory,
+  return {validate, validateComposite, validateForward, validateRecovery, horizonTotals, compositeFactorRows, compositeHistory,
     metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });
