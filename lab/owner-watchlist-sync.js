@@ -40,6 +40,8 @@
     const onSession=typeof options.onSession==='function'?options.onSession:()=>{};
     let client=null,session=null,subscription=null;
 
+    function sameOwner(id){if(session?.user?.id!==id)throw new Error('Owner session changed; retry synchronization')}
+
     function signedIn(){return Boolean(session?.user)}
     function user(){return session?.user||null}
 
@@ -55,11 +57,13 @@
         .eq('price_basis',PRICE_BASIS)
         .order('ticker');
       if(error)throw error;
+      sameOwner(ownerId);
       return normalizeTickers((data||[]).map(row=>row.ticker));
     }
 
     async function setTicker(ticker,present){
       if(!client||!session?.user)throw new Error('Owner sign-in is required');
+      const ownerId=session.user.id;
       const normalized=normalizeTicker(ticker);
       const {error}=await client.rpc('unified_set_watchlist_ticker',{
         p_name:WATCHLIST_NAME,
@@ -69,15 +73,19 @@
         p_present:Boolean(present)
       });
       if(error)throw error;
+      sameOwner(ownerId);
       return load();
     }
 
     async function migrate(tickers){
       if(!client||!session?.user)return[];
+      // Explicit import only; normal reconciliation calls load(), never migrate().
+      const ownerId=session.user.id;
       const local=normalizeTickers(tickers);
       const remote=await load();
       const missing=local.filter(ticker=>!remote.includes(ticker));
       for(const ticker of missing){
+        sameOwner(ownerId);
         const {error}=await client.rpc('unified_set_watchlist_ticker',{
           p_name:WATCHLIST_NAME,
           p_ticker:ticker,
@@ -87,6 +95,7 @@
         });
         if(error)throw error;
       }
+      sameOwner(ownerId);
       return missing.length?load():remote;
     }
 

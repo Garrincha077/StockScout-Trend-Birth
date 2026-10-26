@@ -11,6 +11,11 @@ from datetime import datetime, timezone
 import math
 from typing import Iterable
 
+try:
+    from .market_week import week_is_complete
+except ImportError:
+    from market_week import week_is_complete
+
 STAGE_LABELS = {
     0: "NO SETUP / INVALIDATED",
     1: "WATCH",
@@ -145,7 +150,7 @@ def _parse_day(value):
 
 
 def _completed_weekly_closes(bars: list[dict]) -> list[float]:
-    """Aggregate daily closes by ISO week and ignore an unfinished current week."""
+    """Aggregate daily closes by ISO week and ignore a session-incomplete current week."""
     weeks: list[tuple[object, object, float]] = []
     current_key = None
     for bar in bars:
@@ -159,7 +164,7 @@ def _completed_weekly_closes(bars: list[dict]) -> list[float]:
             current_key = key
         else:
             weeks[-1] = (key, day, bar["close"])
-    if weeks and weeks[-1][1].weekday() < 4:
+    if weeks and not week_is_complete(weeks[-1][1]):
         weeks = weeks[:-1]
     return [close for _, _, close in weeks]
 

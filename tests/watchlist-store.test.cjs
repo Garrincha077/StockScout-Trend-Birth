@@ -38,3 +38,14 @@ test('invalid storage never breaks the review UI',()=>{
   const storage=memoryStorage({[WatchlistStore.STORAGE_KEY]:'{not-json'});
   assert.deepEqual(WatchlistStore.load(storage),[]);
 });
+
+
+test('anonymous and signed-in watchlists use independent cache keys',()=>{
+  const storage=memoryStorage();
+  WatchlistStore.save(storage,['LOCAL']);
+  WatchlistStore.save(storage,['AAA'],'user-A');
+  WatchlistStore.save(storage,['BBB'],'user-B');
+  assert.deepEqual(WatchlistStore.load(storage).map(x=>x.ticker),['LOCAL']);
+  assert.deepEqual(WatchlistStore.load(storage,'user-A').map(x=>x.ticker),['AAA']);
+  assert.deepEqual(WatchlistStore.load(storage,'user-B').map(x=>x.ticker),['BBB']);
+});

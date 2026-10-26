@@ -28,7 +28,8 @@ test('owner watchlist sync loads before app code and explains the magic-link flo
   assert.match(app,/Link je poslan\. Otvori najnoviju Supabase poruku/);
   assert.match(app,/OwnerWatchlistSync\.create/);
   assert.match(app,/ownerSync\.setTicker\(ticker,present\)/);
-  assert.match(app,/ownerSync\.migrate\(local\)/);
+  assert.match(app,/ownerSync\.load\(\)/);
+  assert.match(app,/ownerImportLocal/);
 });
 
 test('grid exposes a persistent Watchlist universe and loads its store before app code',()=>{
@@ -63,8 +64,8 @@ test('opening Watchlist defaults to all saved names rather than inheriting stale
 
 test('browser rejects Kell or chart data from another Unified activation',()=>{
   assert.ok(html.indexOf('kell-dataset-loader.js')<html.indexOf('app.js'));
-  assert.match(kellLoader,/review\.runId&&kell\.runId&&review\.runId!==kell\.runId/);
-  assert.match(kellLoader,/review\.unifiedManifestSha256&&kell\.unifiedManifestSha256&&review\.unifiedManifestSha256!==kell\.unifiedManifestSha256/);
+  assert.match(kellLoader,/review\.runId&&review\.runId!==kell\.runId/);
+  assert.match(kellLoader,/review\.unifiedManifestSha256&&review\.unifiedManifestSha256!==kell\.unifiedManifestSha256/);
   assert.match(app,/result\?\.source\?\.runId!==data\?\.source\?\.runId/);
   assert.match(app,/chart shard Unified activation mismatch/);
 });

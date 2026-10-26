@@ -30,15 +30,33 @@
 
   function validateIdentity(reviewSource,kellSource){
     const review=reviewSource||{},kell=kellSource||{};
-    if(review.sessionDate&&kell.sessionDate&&review.sessionDate!==kell.sessionDate){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(kell.sessionDate||'')||typeof kell.runId!=='string'||!kell.runId){
+      throw new Error('Kell podacima nedostaje identitet izvora.');
+    }
+    if(review.unifiedManifestSha256&&!/^[a-f0-9]{64}$/.test(kell.unifiedManifestSha256||'')){
+      throw new Error('Kell podacima nedostaje identitet aktivacije.');
+    }
+    if(review.sessionDate&&review.sessionDate!==kell.sessionDate){
       throw new Error('Kell dataset je za '+kell.sessionDate+', a Review Grid za '+review.sessionDate+'.');
     }
-    if(review.runId&&kell.runId&&review.runId!==kell.runId){
+    if(review.runId&&review.runId!==kell.runId){
       throw new Error('Kell i Review Grid nisu iz istog Unified runa.');
     }
-    if(review.unifiedManifestSha256&&kell.unifiedManifestSha256&&review.unifiedManifestSha256!==kell.unifiedManifestSha256){
+    if(review.unifiedManifestSha256&&review.unifiedManifestSha256!==kell.unifiedManifestSha256){
       throw new Error('Kell i Review Grid nisu iz iste aktivirane Unified objave.');
     }
+  }
+
+
+  function validate(data,reviewSource){
+    // Older compact archives are explicitly recognized, never accepted by shape alone.
+    if(!/^kell-compact-v[1-5]$/.test(data?.schemaVersion||'')||!Array.isArray(data.kellCandidates)||
+        !Number.isInteger(data.kellCandidateCount)||data.kellCandidateCount<0||
+        data.kellCandidateCount!==data.kellCandidates.length){
+      throw new Error('Neispravna Kell shema ili broj kandidata.');
+    }
+    validateIdentity(reviewSource,data.source);
+    return data;
   }
 
   async function fetchJson(fetcher,path){
@@ -56,7 +74,7 @@
         throw new Error('Kell podaci nisu dostupni (HTTP '+fallback.response.status+').');
       }
       try{
-        validateIdentity(reviewSource,fallback.data?.source);
+        validate(fallback.data,reviewSource);
       }catch(_err){
         throw new Error('Kell arhiva nije dostupna za ovaj Review snapshot; odbijam koristiti Kell podatke iz drugog Unified runa.');
       }
@@ -66,9 +84,9 @@
       const label=target.kind==='latest'?'Kell dataset':'Kell arhiva';
       throw new Error(label+' nije dostupan (HTTP '+result.response.status+').');
     }
-    validateIdentity(reviewSource,result.data?.source);
+    validate(result.data,reviewSource);
     return result.data;
   }
 
-  return{resolve,validateIdentity,load};
+  return{resolve,validateIdentity,validate,load};
 });

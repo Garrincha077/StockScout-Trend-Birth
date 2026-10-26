@@ -253,6 +253,7 @@ jobs:
           mkdir -p /tmp/review-publication
           cp lab/data/latest.json /tmp/review-publication/latest.json
           cp lab/data/publication.json /tmp/review-publication/publication.json
+          cp -R lab/data/review-bootstrap-v1 /tmp/review-publication/review-bootstrap-v1
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
           cp -R lab/data/history /tmp/review-publication/history
           cp -R lab/data/snapshots /tmp/review-publication/snapshots
@@ -294,6 +295,8 @@ jobs:
           git checkout -B "$target_branch" origin/"$target_branch"
           cp /tmp/review-publication/latest.json lab/data/latest.json
           cp /tmp/review-publication/publication.json lab/data/publication.json
+          mkdir -p lab/data/review-bootstrap-v1
+          cp -R /tmp/review-publication/review-bootstrap-v1/. lab/data/review-bootstrap-v1/
           rm -rf lab/data/history lab/data/snapshots
           cp -R /tmp/review-publication/history lab/data/history
           cp -R /tmp/review-publication/snapshots lab/data/snapshots
@@ -351,7 +354,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0

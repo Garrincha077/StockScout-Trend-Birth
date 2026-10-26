@@ -210,3 +210,7 @@
 .workspace-tabs a.active{background:#193b2c;color:white;border-color:var(--green)}
 .workspace-tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:720px){.workspace-tabs{padding:8px 10px}.workspace-tabs a{flex:1}}
+
+.market-summary{margin:0 0 14px}.market-summary>summary{cursor:pointer;padding:10px 0;color:var(--muted)}
+
+@media(max-width:720px){.primary-views{flex-wrap:wrap;overflow:visible}}

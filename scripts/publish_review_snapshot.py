@@ -54,6 +54,38 @@ def write_changed(path: Path, content: bytes) -> bool:
     return True
 
 
+
+def bootstrap(snapshot: dict, snapshot_id: str) -> dict | None:
+    """Small, immutable initial view; research keeps its original exact snapshot."""
+    lists = snapshot.get("shortlists") or {}
+    if lists.get("schemaVersion") != "stockscout-shortlists-v2":
+        return None
+    return {
+        "schemaVersion": "trend-birth-review-bootstrap-v1",
+        "reviewSnapshotId": snapshot_id,
+        "source": snapshot["source"],
+        "shortlists": lists,
+        "trendBirthRadar": snapshot.get("trendBirthRadar"),
+        "kellScoring": snapshot.get("kellScoring"),
+        "candidateCount": snapshot.get("candidateCount", 0),
+        "candidates": [],
+    }
+
+
+def publish_bootstrap(snapshot: dict, manifest: dict, directory: Path) -> bool:
+    compact = bootstrap(snapshot, manifest["snapshotId"])
+    if compact is None:
+        return False
+    content = encode(compact)
+    relative = "review-bootstrap-v1/" + manifest["snapshotId"] + ".json"
+    target = directory / relative
+    if target.exists() and target.read_bytes() != content:
+        raise ValueError("Immutable bootstrap collision")
+    changed = write_changed(target, content)
+    manifest["bootstrapPath"] = "data/" + relative
+    return changed
+
+
 def publish(snapshot: dict, directory: Path) -> dict:
     session, run = validate(snapshot)
     content = encode(snapshot)
@@ -82,7 +114,8 @@ def publish(snapshot: dict, directory: Path) -> dict:
         "candidateCount": snapshot["candidateCount"],
         "chartCount": snapshot["chartCount"],
     }
-    changed = write_changed(archive, content)
+    changed = publish_bootstrap(snapshot, manifest, directory)
+    changed = write_changed(archive, content) or changed
     # Preserve existing date links forever, including the pre-v1 archives.
     date_archive = directory / "history" / f"{session}.json"
     if not date_archive.exists():

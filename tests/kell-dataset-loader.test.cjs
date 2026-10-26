@@ -4,7 +4,7 @@ const {resolve,load}=require('../lab/kell-dataset-loader.js');
 
 const id='run-1--'+'a'.repeat(64);
 const review={runId:'run-1',sessionDate:'2026-09-23',unifiedManifestSha256:'b'.repeat(64)};
-const matching={source:{...review}};
+const matching={schemaVersion:'kell-compact-v5',kellCandidates:[],kellCandidateCount:0,source:{...review}};
 
 test('snapshot links request their exact Kell companion first',async()=>{
   const paths=[];
@@ -45,4 +45,14 @@ test('dated archives use dated Kell history',()=>{
 
 test('latest view uses moving Kell latest',()=>{
   assert.equal(resolve('').primary,'data/kell-latest.json');
+});
+
+test('malformed and identity-free Kell responses fail before display, including fallback',async()=>{
+  for(const broken of [{},{...matching,schemaVersion:'unexpected'},{...matching,source:{}},
+      {...matching,source:{...review,runId:null}},{...matching,source:{...review,unifiedManifestSha256:null}},
+      {...matching,kellCandidateCount:1}]){
+    await assert.rejects(load(async()=>({ok:true,status:200,json:async()=>broken}),'',review));
+    await assert.rejects(load(async path=>path.includes('kell-snapshots/')?{ok:false,status:404}:
+      {ok:true,status:200,json:async()=>broken},'?snapshot='+id,review));
+  }
 });
