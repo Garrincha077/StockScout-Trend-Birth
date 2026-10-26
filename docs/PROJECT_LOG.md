@@ -616,3 +616,5 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - **Final local verification, 2026-10-26 13:42 UTC:** 191 Python, 104 Node and 6 Chromium cases pass; final 2 Review browser reruns also pass after the last source guards. Static build, workflow YAML and diff checks pass. Local 390px and 1440px screenshots show the 15 weekly cards, collapsed summary and direct Watchlist navigation without document overflow. No production rollout has occurred.
 
 - **Visual follow-up:** wrapped the primary navigation on narrow screens so the direct Watchlist button is visible without horizontal navigation scrolling, and removed the residual “no nearby swing” label from old null-resistance cards. Added a browser visibility assertion for the Watchlist button.
+
+- **Remote checkpoint, 2026-10-26 13:44 UTC:** implementation `800af98cb5fc15a84fc4934b618f75e81204d990` pushed and draft PR #69 opened against `feature/unified-review-grid-lab`. GitHub confirms MERGEABLE; validation run `40333107938` and Vercel preview are still in progress. Final narrow-screen navigation/label browser rerun passes (2/2). No production change.
