@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 import math
@@ -65,7 +65,9 @@ def active_tickers(points, calendar, day):
 
 
 def capture_window(day, close, now):
-    return now >= datetime.fromisoformat(close) and now.astimezone(NY).date().isoformat() == day
+    # Let delayed daily feeds settle; never label a just-closed intraday bar EOD.
+    return (now >= datetime.fromisoformat(close) + timedelta(minutes=20) and
+            now.astimezone(NY).date().isoformat() == day)
 
 
 def parse_quote(payload, ticker, day, close, now, host):

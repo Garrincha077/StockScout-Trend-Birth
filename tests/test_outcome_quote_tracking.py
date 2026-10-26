@@ -74,11 +74,13 @@ class OutcomeTrackingTests(unittest.TestCase):
 
     def test_provider_rejects_live_intraday_stale_future_or_wrong_symbol_quotes(self):
         day = DATES[7]; close = dict(CALENDAR["sessions"])[day]
-        after = datetime.fromisoformat(close)+timedelta(minutes=10)
+        after = datetime.fromisoformat(close)+timedelta(minutes=30)
         self.assertIsNotNone(tracking.parse_quote(payload("AAA", day, 12), "AAA", day, close, after,
                                                 "query1.finance.yahoo.com")[0])
         self.assertIsNone(tracking.parse_quote(payload("AAA", day, 12), "AAA", day, close,
                                                after-timedelta(hours=1), "query1.finance.yahoo.com")[0])
+        self.assertIsNone(tracking.parse_quote(payload("AAA", day, 12), "AAA", day, close,
+                                               after-timedelta(minutes=20), "query1.finance.yahoo.com")[0])
         for mutate in [lambda p:p['chart']['result'][0]['meta'].update(symbol='BBB'),
                        lambda p:p['chart']['result'][0]['meta'].update(regularMarketTime=after.timestamp()+1),
                        lambda p:p['chart']['result'][0]['meta'].update(regularMarketPrice=True),
