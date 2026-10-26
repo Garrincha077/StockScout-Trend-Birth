@@ -1,6 +1,6 @@
 # Deployment verification and isolated EOD recovery V3
 
-Verified 26 October 2026, 14:50 UTC. Related issue: #62; this comparison does not close the migration issue.
+Initial verification 26 October 2026, 14:50 UTC; final publication checks 2026-10-26 15:07 UTC. Related issue: #62; this comparison does not close the migration issue.
 
 ## 1. Application fixes are deployed
 
@@ -87,3 +87,5 @@ python scripts/compare_trend_birth_recovery.py \
 Use the baseline input hashes in the comparison to select the same observed archive version. The comparator refuses an existing output or any output overlapping its inputs. Recovery refuses an existing recovered file. Rollback is simply to keep serving V2; V3 has no active production pointer. Do not close #62 or promote V3 until the tracked-membership policy and remaining quote/methodology gaps are reviewed.
 
 Verification: **198 Python tests pass**, including seven focused recovery cases covering offline source merge, future/stale rows, provenance tampering, event reconstruction and unchanged baseline bytes. Existing PR #69 validation additionally passed 104 Node and 6 Chromium cases. Actual production browser checks are described above; no real owner emails or database mutations were performed.
+
+Final verification: PR #70 passed GitHub CI/Vercel preview and merged as `4c6d94e`. All three additive `/data/recovery-v3/` JSON files returned HTTP 200 with byte hashes matching the committed inputs/comparison. Production full Research loaded its exact initial snapshot (HTTP 200, same source identity), candidate detail opened and Ready showed 222 rows without fetching Kell latest. The first diagnostic attempt to re-read the 99 MB response body exceeded Chromium inspector cache; the subsequent actual UI/source verification succeeded. This is not a content-digest claim about that large response. V2 remains the active Statistics source; physical-device owner login is still unconfirmed.
