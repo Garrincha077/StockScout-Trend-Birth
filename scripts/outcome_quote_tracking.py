@@ -13,6 +13,7 @@ import json
 import math
 from pathlib import Path
 import re
+from time import monotonic
 import urllib.request
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -247,8 +248,13 @@ def build(latest, stages_dir, prices_dir, directory, policy, calendar, output, n
         needed = sorted(set(wanted) - set(primary[day]["prices"]) - set(point["prices"]))
         now = now or datetime.now(timezone.utc)
         close = dict(calendar["sessions"])[day]
+        deadline = monotonic() + 120
+        def collect(ticker):
+            if monotonic() >= deadline:
+                return None, "collection_budget_exhausted"
+            return fetcher(ticker, day, close, now)
         with ThreadPoolExecutor(max_workers=4) as pool:
-            results = list(pool.map(lambda ticker: fetcher(ticker, day, close, now), needed))
+            results = list(pool.map(collect, needed))
         for ticker, (record, reason) in zip(needed, results):
             if record:
                 point["prices"][ticker] = record["price"]

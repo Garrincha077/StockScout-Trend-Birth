@@ -66,6 +66,17 @@ def fixture(root, last):
 
 
 class OutcomeTrackingTests(unittest.TestCase):
+    def test_provider_outage_cannot_queue_unbounded_network_requests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); latest,stages,prices,_=fixture(root,7)
+            close=dict(CALENDAR['sessions'])[DATES[7]]
+            with patch.object(tracking,'monotonic',side_effect=[0,121]):
+                value=tracking.build(latest,stages,prices,root/'extra',POLICY,CALENDAR,root/'health.json',
+                    datetime.fromisoformat(close)+timedelta(minutes=30),lambda *args:self.fail('over-budget fetch'))
+            self.assertEqual(value['missingCount'],1)
+            point=json.loads(next((root/'extra').glob('*.json')).read_text())
+            self.assertEqual(point['missing']['AAA'],'collection_budget_exhausted')
+
     def test_dropped_ticker_kept_through_exact_60d_exit_then_retires(self):
         with tempfile.TemporaryDirectory() as tmp:
             _, _, _, points = fixture(Path(tmp), 63)
