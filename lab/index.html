@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css?v=reviewfixes-20261026">
+  <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
   <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
@@ -82,6 +82,7 @@
     <a href="statistics.html">Statistika</a>
   </nav>
   <div id="connectionNotice" class="app-notice" role="status" hidden>Bez interneta. Prikazani podaci nisu osvježeni. Za aktualnu objavu ponovno se poveži.</div>
+  <p id="eodFreshness" class="eod-freshness" role="status">Provjeravam svježinu EOD objave…</p>
   <div id="updateNotice" class="app-notice" role="status" hidden>
     Dostupna je nova verzija aplikacije.
     <button type="button" id="updateApp">Osvježi aplikaciju</button>
@@ -298,6 +299,7 @@
     <p id="installResult" role="status"></p>
   </dialog>
   <script src="pwa.js?v=1" defer></script>
+  <script src="eod-freshness.js?v=eod-guard-20261026" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
   <script src="watchlist-store.js?v=reviewfixes-20261026"></script>
   <script src="owner-watchlist-sync.js?v=reviewfixes-20261026"></script>

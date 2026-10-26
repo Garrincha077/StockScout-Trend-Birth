@@ -7,7 +7,7 @@
   <meta name="description" content="StockScout Trend Birth — statistika kvalitete svih setupa i povijesni prijelazi.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=composite-history-20261025">
+  <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
   <link rel="stylesheet" href="trend-birth-stats.css?v=composite-history-20261025">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
@@ -22,6 +22,7 @@
     <a href="statistics.html" class="active" aria-current="page">Statistika</a>
   </nav>
   <main class="si-main">
+    <p id="eodFreshness" class="eod-freshness" role="status">Provjeravam svježinu EOD objave…</p>
     <div id="siStatus" role="status">Učitavam sažetu arhivu očitanja…</div>
     <div class="si-title-row">
       <div><h1>Market Internals</h1><p>Širina, ubrzanje i migracija svih 0/4–4/4 setupa — bez dodatnog skeniranja.</p></div>
@@ -145,6 +146,17 @@
         <caption class="sr-only">Povijesni stvarni prinosi dionica nakon prelaska u svaku Trend Birth fazu</caption>
       </table></div>
       <p class="si-muted">Svaki prijelaz u novu fazu računa se jednom, samo ako je ticker bio evaluiran i prethodnog EOD-a. Ulazak je po <strong>zatvaranju sljedeće burzovne sesije</strong>; izlaz nakon 5, 20 ili 60 cijelih sesija držanja. Nije signal za trgovanje. Prikaz uključuje samo dospjele ishode, a zasebno prati nedospjele i nedostajuće cijene. Prinos je <strong>cjenovni</strong> iz izvornih, trajno arhiviranih EOD cijena istoga dana, bez dividendi i troškova. Ponavljani prijelazi istog tickera nisu neovisni pokusi.</p>
+      <details id="siRecovery" class="si-composite-definitions">
+        <summary>Usporedi V2 i rekonstruirani V3 · stanje 23.10.2026.</summary>
+        <p id="siRecoveryStatus" role="status">Usporedba se učitava pri otvaranju.</p>
+        <div id="siRecoveryContent" hidden>
+          <p class="si-muted">Oba izvještaja završavaju istog datuma. Ovo je zamrznuta usporedba prije i nakon rekonstrukcije sesija 15. i 19. listopada; glavni prikaz iznad nastavlja koristiti V2.</p>
+          <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix"><caption>Pokrivenost povijesnih podataka</caption></table></div>
+          <label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label>
+          <div class="si-table-scroll"><table id="siRecoveryTable" class="si-matrix"><caption>Ishodi po fazama · V2 i V3</caption></table></div>
+          <p class="si-note">V3 uključuje naknadno rekonstruirane sesije. Watchlista se temelji na posljednjem sačuvanom prethodnom EOD-u; točno članstvo na dva nedostajuća dana nije poznato. Nedostupne cijene ostaju prazne. Razlike u prinosima odražavaju i promijenjen skup prijelaza te nisu dokaz poboljšanja modela. Korporativne akcije, delistinzi i neovisni test ostaju otvoreni. V3 nije aktiviran za glavni prikaz ni kalibraciju bodovanja.</p>
+        </div>
+      </details>
     </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
       <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
@@ -188,6 +200,7 @@
     <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
   </main>
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
-  <script src="trend-birth-stats.js?v=statistics-review-20261025" defer></script>
+  <script src="eod-freshness.js?v=eod-guard-20261026" defer></script>
+  <script src="trend-birth-stats.js?v=recovery-20261026" defer></script>
 </body>
 </html>

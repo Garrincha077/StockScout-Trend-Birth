@@ -1,3 +1,11 @@
+## 2026-10-26 — V3 comparison UI and EOD guard prepared
+
+- **Checkpoint 18:20 UTC:** topic `feature/statistics-v3-eod-guard-20261026`, based on production data `340b8c6`. Last independently checked production deployment `dpl_8FnhRHcwnSrH2dnsMey7jCMRxRc2` READY for that baseline; this new implementation is not yet deployed.
+- **Statistics:** lazy expandable V2/V3 comparison pinned to common Oct23 date, coverage and per-stage 5/20/60D tables, explicit membership/reconstruction limitations. Live V2 remains the default; no calibration or history migration.
+- **Publication:** local XNYS close calendar 2025–2030 (64,891 bytes), four-hour grace after scheduled close; pre-commit gate checks freshness, source/digest alignment, current stage/quote identity, >=99% evaluated quote coverage and no newly skipped sessions. Review/Statistics display stale or unconfirmed freshness honestly. Last valid remote publication is retained on failure.
+- **Validation:** 203 Python +107 Node +9 Chromium tests pass; three further publication cases cover skipped sessions, wrong run and insufficient matching quotes. Real current Oct23 bundle passes with 2,614/2,614 evaluated quotes. Static build/syntax/diff checks pass. Details and reproduction: `docs/review/STATISTICS_V3_EOD_GUARD_20261026.md`.
+- **Next:** run PR CI, publish and verify production UI/data; actual next EOD cannot yet be claimed. Physical-phone owner login remains user confirmation; remaining 109 V3 quote gaps and corporate-action/holdout work remain open.
+
 ## 2026-10-26 — Completed production verification and persisted separate V3
 
 - **Final checkpoint 2026-10-26 15:07 UTC:** PR #69 deployed and its post-merge build/publication succeeded. Last independently verified UI/data deployment `82b652f` / `dpl_9FGLTCkgM8txqEacvaaWYCAsmQ46` READY. Desktop/mobile/Statistics and real full Research/detail/Ready-filter flow succeeded with matching pinned source identity, no observed app errors and no extra Kell download. Initial bootstrap ~693 KB decoded /245 KB encoded. Physical-phone owner sign-in remains awaiting user confirmation.
