@@ -13,7 +13,7 @@
   },
   "rejectionReasonCounts": {
     "aboveSma30w": 258,
-    "clearRunway": 205,
+    "clearRunway": 212,
     "launchNotChased": 20,
     "maSlopeTurn": 189,
     "no_recent_52_to_104_week_base": 2001,
