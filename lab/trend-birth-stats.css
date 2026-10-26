@@ -55,3 +55,7 @@
 .si-composite-definitions ul{margin:10px 0;padding-left:22px}
 .si-composite-definitions li{padding:3px 0}
 .si-composite-definitions p{margin:9px 0 0}
+.si-matrix.si-recovery-coverage{min-width:0;table-layout:fixed}
+.si-recovery-coverage th:first-child{width:40%}
+.si-matrix.si-recovery-coverage th,.si-matrix.si-recovery-coverage td{white-space:normal;overflow-wrap:anywhere}
+#siRecovery caption{text-align:left;padding:8px 0;color:#b7cce0}

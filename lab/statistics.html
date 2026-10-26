@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=composite-history-20261025">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=recovery-20261026">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -151,8 +151,9 @@
         <p id="siRecoveryStatus" role="status">Usporedba se učitava pri otvaranju.</p>
         <div id="siRecoveryContent" hidden>
           <p class="si-muted">Oba izvještaja završavaju istog datuma. Ovo je zamrznuta usporedba prije i nakon rekonstrukcije sesija 15. i 19. listopada; glavni prikaz iznad nastavlja koristiti V2.</p>
-          <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix"><caption>Pokrivenost povijesnih podataka</caption></table></div>
-          <label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label>
+          <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix si-recovery-coverage"><caption>Pokrivenost povijesnih podataka</caption></table></div>
+          <div class="si-controls"><label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label></div>
+          <p class="si-muted">Tablicu ishoda možeš pomicati vodoravno za prikaz svih stupaca.</p>
           <div class="si-table-scroll"><table id="siRecoveryTable" class="si-matrix"><caption>Ishodi po fazama · V2 i V3</caption></table></div>
           <p class="si-note">V3 uključuje naknadno rekonstruirane sesije. Watchlista se temelji na posljednjem sačuvanom prethodnom EOD-u; točno članstvo na dva nedostajuća dana nije poznato. Nedostupne cijene ostaju prazne. Razlike u prinosima odražavaju i promijenjen skup prijelaza te nisu dokaz poboljšanja modela. Korporativne akcije, delistinzi i neovisni test ostaju otvoreni. V3 nije aktiviran za glavni prikaz ni kalibraciju bodovanja.</p>
         </div>

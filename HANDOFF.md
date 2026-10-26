@@ -1,3 +1,8 @@
+## 2026-10-26 — PR #71 validation and mobile comparison follow-up
+
+- **Checkpoint 18:28 UTC:** PR https://github.com/Garrincha077/StockScout-Trend-Birth/pull/71; implementation `32f71c1` passed CI `40376953720` and preview `dpl_5ZadHYRhWTb5YQKgD9FLxob7M1zm` READY. Main production remains baseline `340b8c6` until merge.
+- Preview 390/1440px browser flow passed; calendar fulfilled locally because preview rewrites use production data. Visual follow-up makes V2/V3 coverage columns fit a phone, styles the selector and explains detailed-table horizontal scrolling. Focused mobile fit regression added. Final head CI and real production calendar/UI verification remain next.
+
 ## 2026-10-26 — V3 comparison UI and EOD guard prepared
 
 - **Checkpoint 18:20 UTC:** topic `feature/statistics-v3-eod-guard-20261026`, based on production data `340b8c6`. Last independently checked production deployment `dpl_8FnhRHcwnSrH2dnsMey7jCMRxRc2` READY for that baseline; this new implementation is not yet deployed.

@@ -58,6 +58,7 @@ test('mobile recovery comparison loads only on demand, uses a frozen date and pr
   assert.match(await page.locator('#siRecoveryCoverage').innerText(),/97,67%/);
   assert.match(await page.locator('#siRecoveryStatus').innerText(),/2026-10-23/);
   assert.match(await page.locator('#siRecoveryTable').innerText(),/V3/);
+  assert.ok(await page.locator('#siRecoveryCoverage').evaluate(table=>table.scrollWidth<=table.clientWidth));
   await page.selectOption('#siRecoveryHorizon','20');
   assert.match(await page.locator('#siRecoveryStatus').innerText(),/još nisu dospjeli/);
   assert.match(await page.locator('#siRecoveryTable').innerText(),/—/);
