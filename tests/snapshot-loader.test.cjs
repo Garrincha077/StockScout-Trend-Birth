@@ -24,3 +24,30 @@ test('latest rejects a different Unified activation even when date and run match
   const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
   await assert.rejects(load(async path=>({ok:true,json:async()=>path.endsWith('publication.json')?manifest:{source:{runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'b'.repeat(64)}}}), ''));
 });
+
+
+test('compact initial load is pinned and Research fetches that exact full source only on demand',async()=>{
+  const {loadInitial,loadResearch}=require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,
+    bootstrapPath:'data/review-bootstrap-v1/'+id+'.json'};
+  const compact={schemaVersion:'trend-birth-review-bootstrap-v1',reviewSnapshotId:id,source,
+    shortlists:{schemaVersion:'stockscout-shortlists-v2',weeklyTrendBirth:[],kellDaily:[]}};
+  const paths=[];
+  const fetcher=async path=>{paths.push(path);return{ok:true,json:async()=>path.endsWith('publication.json')?manifest:compact}};
+  assert.equal(await loadInitial(fetcher,''),compact);
+  assert.deepEqual(paths,['data/publication.json',manifest.bootstrapPath]);
+  const full={source,candidates:[]};
+  assert.equal(await loadResearch(async path=>{assert.equal(path,'data/snapshots/'+id+'.json');return{ok:true,json:async()=>full}},compact),full);
+  await assert.rejects(loadResearch(async()=>({ok:true,json:async()=>({source:{...source,runId:'other'}})}),compact));
+});
+
+
+test('explicit legacy mode bypasses compact startup and retains the full source',async()=>{
+  const {loadInitial}=require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,bootstrapPath:'data/review-bootstrap-v1/'+id+'.json'};
+  const paths=[];
+  await loadInitial(async path=>{paths.push(path);return{ok:true,json:async()=>path.endsWith('publication.json')?manifest:{source}}},'?mode=legacy');
+  assert.deepEqual(paths,['data/publication.json','data/snapshots/'+id+'.json']);
+});

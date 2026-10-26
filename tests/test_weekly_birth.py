@@ -1,7 +1,7 @@
 import unittest
 from datetime import date, timedelta
 
-from scripts.weekly_birth import completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist
+from scripts.weekly_birth import completed_weekly_bars, evaluate_weekly_birth, weekly_shortlist, _resistance
 
 
 def base_rows(count=180, *, breakout=False, older_resistance=None):
@@ -48,12 +48,26 @@ class WeeklyBirthTests(unittest.TestCase):
         self.assertFalse(result["eligible"])
         self.assertIn("clearRunway", result["rejectReasons"])
 
+    def test_holiday_week_is_complete_on_its_actual_last_session(self):
+        from scripts.trend_birth_radar import _completed_weekly_closes, normalize_bars
+        for last in ('2026-07-02', '2026-04-02', '2026-12-24'):
+            rows = [{"time": last, "open": 100, "high": 101, "low": 99, "close": 100, "volume": 1}]
+            self.assertEqual(1, len(completed_weekly_bars(rows)))
+            self.assertEqual([100], _completed_weekly_closes(normalize_bars(rows)))
+        normal = [{"time": "2026-10-22", "open": 100, "high": 101, "low": 99, "close": 100, "volume": 1}]
+        self.assertEqual([], completed_weekly_bars(normal))
+
     def test_unfinished_week_does_not_create_trigger(self):
         rows = base_rows()
         monday = date.fromisoformat(rows[-1]["time"]) + timedelta(days=3)
         rows.append({**rows[-1], "time": monday.isoformat(), "close": 110, "high": 110})
         self.assertEqual(180, len(completed_weekly_bars(rows)))
         self.assertEqual(3, evaluate_weekly_birth(rows)["stage"])
+
+    def test_monotonic_overhead_history_has_resistance(self):
+        old = [{"high": 200 - i} for i in range(52)]
+        base = [{"high": 100} for _ in range(104)]
+        self.assertEqual(149, _resistance(old + base, 104, 100))
 
     def test_history_and_shortlist_limit(self):
         self.assertEqual(0, evaluate_weekly_birth(base_rows(80))["stage"])

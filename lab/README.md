@@ -129,3 +129,23 @@ Stage remains a separate single structural classification, while setup filters i
 The boolean `kell_focus` research shortlist is labelled **Kell Shortlist** in the UI so it is not confused with the numerical **Kell Focus score**.
 
 See `docs/KELL_SCORING.md` for the exact v5 formulas, explicit proxy thresholds and source-grounding notes.
+
+
+## 26 October review corrections
+
+Ordinary startup follows `publication.json.bootstrapPath` to an immutable small
+companion containing the exact Weekly/Kell Daily lists. Research/Watchlist fetch
+the original pinned full Review only on demand; archive/date links and legacy
+mode retain their exact existing sources. The publication step preserves the
+bootstrap across its reset. It does not duplicate raw research archives.
+
+Account watchlists use user-specific local caches and remote membership wins on
+login/token refresh. Importing anonymous local stars is an explicit action in
+the sync menu. Missing numeric values display a dash. Weekly evidence exposes
+its observed resistance window and no longer infers blue sky from null. The
+versioned offline XNYS week-end calendar has no production package/API cost.
+
+Run all browser regressions with
+`STATISTICS_CHROMIUM_PATH=/usr/bin/chromium node --test tests/browser/*.test.cjs`.
+See `docs/review/IMPLEMENTATION_20261026.md` for measured payload sizes, the
+bounded weekly-definition comparison, calendar regeneration and rollout checks.

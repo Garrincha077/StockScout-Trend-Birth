@@ -1,0 +1,637 @@
+{
+  "sourceCommit": "168fc51bfc207e134d29e6b30201e7c087c3c1d8",
+  "asOf": "2026-10-23",
+  "rowsAvailable": 2176,
+  "archivedReplayMatches": 2174,
+  "universe": 2615,
+  "baselinePublishedShortlist": [
+    "ED",
+    "BRK.B",
+    "BKH",
+    "CPK",
+    "TXNM",
+    "MSCI",
+    "BCPC",
+    "FTS",
+    "SWX",
+    "UGI",
+    "ITW",
+    "MGRC",
+    "AIG",
+    "SPGI",
+    "MCO"
+  ],
+  "replayedBefore": [
+    "ED",
+    "BRK.B",
+    "BKH",
+    "CPK",
+    "TXNM",
+    "MSCI",
+    "BCPC",
+    "FTS",
+    "SWX",
+    "UGI",
+    "ITW",
+    "MGRC",
+    "AIG",
+    "SPGI",
+    "MCO"
+  ],
+  "replayedAfter": [
+    "ED",
+    "BRK.B",
+    "BKH",
+    "CPK",
+    "TXNM",
+    "MSCI",
+    "BCPC",
+    "FTS",
+    "SWX",
+    "UGI",
+    "ITW",
+    "MGRC",
+    "AIG",
+    "SPGI",
+    "MCO"
+  ],
+  "changedCount": 36,
+  "changes": [
+    {
+      "ticker": "ABM",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 54.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 54.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 56.704,
+      "resistanceAfter": 56.353
+    },
+    {
+      "ticker": "AHRT",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 51.3,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 31.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 10.26,
+      "resistanceAfter": 7.98
+    },
+    {
+      "ticker": "AMCR",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 55.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 55.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 56.95,
+      "resistanceAfter": 56.2
+    },
+    {
+      "ticker": "AON",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 41.0,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 21.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": null,
+      "resistanceAfter": 412.97
+    },
+    {
+      "ticker": "APO",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 49.1,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 29.1,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 170.34,
+      "resistanceAfter": 154.154
+    },
+    {
+      "ticker": "BCC",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 56.4,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 56.4,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 100.484,
+      "resistanceAfter": 98.557
+    },
+    {
+      "ticker": "BF.B",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 54.1,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 54.1,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 35.35,
+      "resistanceAfter": 34.66
+    },
+    {
+      "ticker": "BMRC",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 47.6,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 47.6,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 32.339,
+      "resistanceAfter": 31.948
+    },
+    {
+      "ticker": "CWST",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 52.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 52.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 114.88,
+      "resistanceAfter": 114.12
+    },
+    {
+      "ticker": "EMN",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 26.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 26.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 86.101,
+      "resistanceAfter": 82.582
+    },
+    {
+      "ticker": "ETD",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 33.9,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 33.9,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 24.408,
+      "resistanceAfter": 24.405
+    },
+    {
+      "ticker": "FFIN",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 38.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 38.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 42.02,
+      "resistanceAfter": 41.83
+    },
+    {
+      "ticker": "GRNT",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 63.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 63.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 6.055,
+      "resistanceAfter": 6.036
+    },
+    {
+      "ticker": "IEP",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 54.7,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 34.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 9.932,
+      "resistanceAfter": 8.013
+    },
+    {
+      "ticker": "J",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 53.2,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 33.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": null,
+      "resistanceAfter": 166.664
+    },
+    {
+      "ticker": "JD",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 23.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 23.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 38.2,
+      "resistanceAfter": 38.08
+    },
+    {
+      "ticker": "JJSF",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 47.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 47.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 111.092,
+      "resistanceAfter": 104.044
+    },
+    {
+      "ticker": "KAI",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 20.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 20.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 406.402,
+      "resistanceAfter": 378.629
+    },
+    {
+      "ticker": "KVUE",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 60.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 60.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 20.847,
+      "resistanceAfter": 20.394
+    },
+    {
+      "ticker": "LADR",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 28.1,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 28.1,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 12.36,
+      "resistanceAfter": 12.35
+    },
+    {
+      "ticker": "LEO",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 22.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 22.2,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 6.869,
+      "resistanceAfter": 6.836
+    },
+    {
+      "ticker": "MTD",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 46.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 46.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 1546.93,
+      "resistanceAfter": 1543.82
+    },
+    {
+      "ticker": "MTN",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 44.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 44.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 178.829,
+      "resistanceAfter": 177.231
+    },
+    {
+      "ticker": "MYI",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 28.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 28.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 12.07,
+      "resistanceAfter": 11.85
+    },
+    {
+      "ticker": "NOMD",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 59.6,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 39.6,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 16.7,
+      "resistanceAfter": 14.17
+    },
+    {
+      "ticker": "PGR",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 45.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 45.3,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 270.62,
+      "resistanceAfter": 267.93
+    },
+    {
+      "ticker": "PNFP",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 55.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 55.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 128.711,
+      "resistanceAfter": 123.735
+    },
+    {
+      "ticker": "PUK",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 36.3,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 36.3,
+        "stage": 1,
+        "eligible": false
+      },
+      "resistanceBefore": null,
+      "resistanceAfter": 37.997
+    },
+    {
+      "ticker": "RCI",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 19.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 19.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 40.748,
+      "resistanceAfter": 40.476
+    },
+    {
+      "ticker": "RMD",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 33.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 33.8,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 290.734,
+      "resistanceAfter": 281.888
+    },
+    {
+      "ticker": "TFX",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 68.5,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 68.5,
+        "stage": 1,
+        "eligible": false
+      },
+      "resistanceBefore": 181.857,
+      "resistanceAfter": 177.177
+    },
+    {
+      "ticker": "TMUS",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 12.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 12.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 237.41,
+      "resistanceAfter": 225.771
+    },
+    {
+      "ticker": "TSN",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 16.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 16.5,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 73.006,
+      "resistanceAfter": 70.201
+    },
+    {
+      "ticker": "VRSK",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 31.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 31.0,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 243.466,
+      "resistanceAfter": 237.086
+    },
+    {
+      "ticker": "WAL",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 55.4,
+        "stage": 1,
+        "eligible": false
+      },
+      "after": {
+        "score": 55.4,
+        "stage": 1,
+        "eligible": false
+      },
+      "resistanceBefore": 112.43,
+      "resistanceAfter": 110.425
+    },
+    {
+      "ticker": "WY",
+      "archivedReplayMatches": true,
+      "before": {
+        "score": 19.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "after": {
+        "score": 19.7,
+        "stage": 0,
+        "eligible": false
+      },
+      "resistanceBefore": 28.537,
+      "resistanceAfter": 28.536
+    }
+  ]
+}

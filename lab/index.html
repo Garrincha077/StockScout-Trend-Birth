@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css?v=market-internals-20261024">
+  <link rel="stylesheet" href="styles.css?v=reviewfixes-20261026">
   <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
@@ -71,6 +71,7 @@
             <small id="ownerMagicSentTo"></small>
           </div>
           <p class="owner-auth-note">Google prijava je zasad isključena; magic link je aktivni način prijave.</p>
+          <button type="button" id="ownerImportLocal" hidden>Dodaj lokalne tickere u ovaj račun</button>
           <button type="button" id="ownerSignOut" hidden>Odjavi sync</button>
         </div>
       </details>
@@ -89,6 +90,7 @@
     <button type="button" data-primary-view="weekly" class="active">Weekly Birth</button>
     <button type="button" data-primary-view="kell-daily">Kell Daily</button>
     <button type="button" data-primary-view="research">Research Universe</button>
+    <button type="button" data-primary-view="watchlist">★ Watchlist</button>
   </nav>
   <nav id="filters" class="filters" aria-label="Filter kandidata">
     <div class="mobile-filter-head">
@@ -172,6 +174,8 @@
   </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <details class="market-summary" id="marketSummary">
+      <summary>EOD sažetak i povijest setupa</summary>
     <section id="tbToday" class="tb-quality tb-intelligence" aria-labelledby="tbTodayTitle" hidden>
       <div class="tb-quality-header">
         <div>
@@ -267,6 +271,7 @@
       </div>
       <p class="tb-quality-footnote">Unified kandidati + praćena watchlista. D je jedno EOD očitanje; W i M ponderirani su prosjeci dnevnih raspodjela (dionica-dani, ne jedinstvene dionice). Svaki stupac zbraja se na 100 %, nedostupni podaci nisu 0/4. Zoom skraćuje samo vidljivu os, a percentil se uspoređuje s ranijim očitanjima istog intervala, čak i izvan odabranog raspona. All prikazuje cijelu sačuvanu povijest; nema automatskog brisanja starih očitanja.</p>
     </section>
+    </details>
     <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
     <section id="grid" class="grid" aria-live="polite"></section>
   </main>
@@ -294,14 +299,14 @@
   </dialog>
   <script src="pwa.js?v=1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
-  <script src="watchlist-store.js"></script>
-  <script src="owner-watchlist-sync.js"></script>
-  <script src="snapshot-loader.js"></script>
+  <script src="watchlist-store.js?v=reviewfixes-20261026"></script>
+  <script src="owner-watchlist-sync.js?v=reviewfixes-20261026"></script>
+  <script src="snapshot-loader.js?v=reviewfixes-20261026"></script>
   <script src="trend-birth-quality.js?v=dwm-history-20261024"></script>
   <script src="trend-birth-intelligence.js?v=intelligence-20261024"></script>
-  <script src="kell-dataset-loader.js"></script>
+  <script src="kell-dataset-loader.js?v=reviewfixes-20261026"></script>
   <script src="kell-change-detector.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=intelligence-20261024" defer></script>
+  <script src="app.js?v=reviewfixes-20261026" defer></script>
 </body>
 </html>

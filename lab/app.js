@@ -16,8 +16,9 @@ function clearOwnerAuthPhase(){
   url.searchParams.delete('tb_auth');
   history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
 }
-const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toFixed(d):'—';
-const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
+const numberOrNaN=value=>typeof value==='number'&&Number.isFinite(value)?value:NaN;
+const fmt=(n,d=2)=>Number.isFinite(numberOrNaN(n))?n.toFixed(d):'—';
+const pct=n=>Number.isFinite(numberOrNaN(n))?fmt(n,1)+'%':'—';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const labels={'bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','kell-daily':'Kell 3x','kell-gap':'Kell Gap'};
 const universeLabels={'all':'All','bottom-fishing':'Bottom','next':'Next','ryan-original':'Ryan','watchlist':'Watchlist'};
@@ -97,6 +98,10 @@ const quickViews={
 const stageName=value=>kellStageLabels['stage:'+(value||'unavailable')]||String(value||'unavailable').replaceAll('_',' ');
 const primaryStage=item=>item?.kell_stage?.primary||item?.kell_cycle_stage||'unavailable';
 const trendBirthStage=item=>Number(item?.trendBirth?.stage||0);
+function runwayLabel(metrics){
+  if(Number.isFinite(numberOrNaN(metrics?.runwayPct)))return pct(metrics.runwayPct)+' od pivota';
+  return metrics?.resistanceStatus==='not_detected_in_window'?'Nije detektiran u '+fmt(metrics.historyWeeks,0)+'W':'Otpor nije potvrđen';
+}
 const tbQualityView={zoom:100,timeframe:'D',range:'all',selectedPeriod:'',scrollToEnd:true};
 
 const tbIntelligenceArchived=new URLSearchParams(location.search).has('snapshot')||
@@ -437,8 +442,8 @@ function birthEvidenceBadge(item){
 function ownerWatchlistItems(tickers){
   return WatchlistStore.normalizeItems((tickers||[]).map(ticker=>({
     ticker,
-    addedAt:new Date().toISOString(),
-    addedSession:state.data?.source?.sessionDate||null
+    addedAt:state.watchlist.find(item=>item.ticker===ticker)?.addedAt||new Date().toISOString(),
+    addedSession:state.watchlist.find(item=>item.ticker===ticker)?.addedSession||state.data?.source?.sessionDate||null
   })));
 }
 function updateOwnerSyncUi(){
@@ -466,20 +471,25 @@ function updateOwnerSyncUi(){
   }
   if(note)note.hidden=signedIn;
   if(signOut)signOut.hidden=!signedIn;
+  const importButton=$('#ownerImportLocal');
+  if(importButton)importButton.hidden=!signedIn||!WatchlistStore.load(window.localStorage).length;
 }
 async function reconcileOwnerWatchlist(){
-  if(!state.ownerSync?.signedIn()||state.ownerReconciling)return;
+  if(!state.ownerSync?.signedIn())return;
+  if(state.ownerReconciling||state.watchlistUpdating){state.ownerReconcilePending=true;return}
   state.ownerReconciling=true;state.ownerSyncError='';
   try{
-    const local=state.watchlist.map(item=>item.ticker);
-    const remote=await state.ownerSync.migrate(local);
-    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote));
+    const ownerId=state.ownerSession?.user?.id;
+    const remote=await state.ownerSync.load();
+    if(ownerId!==state.ownerSession?.user?.id)return;
+    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote),state.ownerSession?.user?.id);
     state.ownerSyncMessage='Owner watchlist synced · '+remote.length+' tickera.';
     if(state.data)render();
   }catch(err){
     state.ownerSyncError='Owner sync: '+(err?.message||String(err));
   }finally{
     state.ownerReconciling=false;updateOwnerSyncUi();
+    if(state.ownerReconcilePending){state.ownerReconcilePending=false;queueMicrotask(()=>reconcileOwnerWatchlist())}
   }
 }
 async function resumeOwnerMagicLinkBridge(){
@@ -523,7 +533,12 @@ async function initOwnerWatchlistSync(){
   try{
     state.ownerSync=OwnerWatchlistSync.create({
       onSession:session=>{
+        const previousUser=state.ownerSession?.user?.id;
         state.ownerSession=session;
+        if(previousUser!==session?.user?.id){
+          state.watchlist=WatchlistStore.load(window.localStorage,session?.user?.id);
+          if(state.data)render();
+        }
         state.ownerSyncError='';
         state.ownerSyncMessage=session?.user?'Watchlist sync je aktivan.':'';
         if(session?.user)state.ownerMagicSentTo='';
@@ -543,23 +558,28 @@ async function initOwnerWatchlistSync(){
 }
 const isWatched=ticker=>WatchlistStore.has(state.watchlist,ticker);
 async function toggleWatchlist(ticker){
+  if(state.watchlistUpdating||state.ownerReconciling)return;
+  const ownerId=state.ownerSession?.user?.id;
   const before=state.watchlist.map(item=>({...item}));
   const next=WatchlistStore.toggle(state.watchlist,ticker,{
     addedSession:state.data?.source?.sessionDate||null
   });
   const present=WatchlistStore.has(next,ticker);
-  state.watchlist=WatchlistStore.save(window.localStorage,next);
+  state.watchlist=WatchlistStore.save(window.localStorage,next,state.ownerSession?.user?.id);
   state.ownerSyncError='';state.ownerSyncMessage='';
   render();
   if(!state.ownerSync?.signedIn()){updateOwnerSyncUi();return}
+  state.watchlistUpdating=true;
   try{
     const remote=await state.ownerSync.setTicker(ticker,present);
-    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote));
+    if(ownerId!==state.ownerSession?.user?.id)return;
+    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote),state.ownerSession?.user?.id);
     state.ownerSyncMessage=(present?'Dodano u':'Maknuto iz')+' synced Trend Birth watchliste.';
   }catch(err){
-    state.watchlist=WatchlistStore.save(window.localStorage,before);
+    if(ownerId!==state.ownerSession?.user?.id)return;
+    state.watchlist=WatchlistStore.save(window.localStorage,before,state.ownerSession?.user?.id);
     state.ownerSyncError='Watchlist sync nije uspio: '+(err?.message||String(err));
-  }
+  }finally{state.watchlistUpdating=false;if(state.ownerReconcilePending){state.ownerReconcilePending=false;queueMicrotask(()=>reconcileOwnerWatchlist())}}
   updateOwnerSyncUi();
   render();
 }
@@ -656,9 +676,9 @@ function rowsForPeriod(item){
   const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
   if(period.weekly){
     const weekly=item?.weeklyChartBars?.length>=2?normalizeBars(item.weeklyChartBars):weeklyBars(item?.chartBars||[]);
-    return weekly.slice(-period.weeks);
+    return weekly;
   }
-  return normalizeBars(item?.chartBars||[]).slice(-period.daily);
+  return normalizeBars(item?.chartBars||[]);
 }
 function barDateLabel(value){
   const date=barDate(value);
@@ -679,8 +699,10 @@ function priceLabel(value){
   return n.toFixed(3);
 }
 function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
-  const bars=normalizeBars(rows);
+  const history=normalizeBars(rows);
   const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
+  const bars=history.slice(-(period.weekly?period.weeks:period.daily));
+  const offset=history.length-bars.length;
   const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1;
   canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
@@ -704,7 +726,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     ctx.fillStyle='#8ea0b7';ctx.textAlign='left';ctx.fillText(priceLabel(value),w-right+6,yy);
   }
 
-  const closes=bars.map(b=>b.close),e10=avg(closes,10,true),e20=avg(closes,20,true),s50=avg(closes,50,false);
+  const closes=history.map(b=>b.close),e10=avg(closes,10,true).slice(offset),e20=avg(closes,20,true).slice(offset),s50=avg(closes,50,false).slice(offset);
   const candleW=Math.max(1,Math.min(5,plotW/bars.length*.7));
   bars.forEach((b,i)=>{
     const xx=x(i),up=b.close>=b.open;ctx.strokeStyle=up?'#35d78b':'#ff6d7a';ctx.fillStyle=ctx.strokeStyle;
@@ -713,7 +735,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     ctx.fillRect(xx-candleW/2,yy,candleW,bh);
   });
   const maLines=period.weekly
-    ?[[e10,'#e9bd62'],[e20,'#56a8ff'],[avg(closes,30),'#a67cff'],[avg(closes,40),'#35d78b']]
+    ?[[e10,'#e9bd62'],[e20,'#56a8ff'],[avg(closes,30).slice(offset),'#a67cff'],[avg(closes,40).slice(offset),'#35d78b']]
     :[[e10,'#e9bd62'],[e20,'#56a8ff'],[s50,'#a67cff']];
   maLines.forEach(([series,color])=>{
     ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.beginPath();let started=false;
@@ -741,7 +763,7 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
 }
 function badges(item){
   const sources=(item.sources||[]).map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
-  const score=Number(item.kell_score);
+  const score=numberOrNaN(item.kell_score);
   const kell=Number.isFinite(score)?'<span class="badge kell-score">Kell '+fmt(score,0)+'</span>':'';
   const tb=trendBirthStage(item)>=2?'<span class="badge kell-score">TB '+trendBirthStage(item)+'/4</span>':'';
   const evidence=birthEvidenceBadge(item);
@@ -764,7 +786,7 @@ function kellBreakdownText(item){
   const lines=[
     'Focus '+fmt(item.kell_score,1)+' · raw '+fmt(b.raw_composite,1)+' · stage cap '+fmt(b.stage_cap??item.kell_stage_cap,0),
     'Quality '+fmt(item.kell_quality_score,1)+' · Readiness '+fmt(item.kell_readiness_score,1)+' · Context '+fmt(item.kell_context_score,1),
-    'Evidence '+fmt(item.kell_evidence_coverage,0)+'%'+(Number.isFinite(Number(item.kell_structural_risk_score))?' · Structural risk '+fmt(item.kell_structural_risk_score,0):''),
+    'Evidence '+fmt(item.kell_evidence_coverage,0)+'%'+(Number.isFinite(numberOrNaN(item.kell_structural_risk_score))?' · Structural risk '+fmt(item.kell_structural_risk_score,0):''),
   ];
   if(Number.isFinite(Number(ready.structural_risk_atr)))lines.push('Natural invalidation distance '+fmt(ready.structural_risk_atr,2)+' ATR');
   if(Number.isFinite(Number(b.legacy_v4_score)))lines.push('Legacy v4 additive score '+fmt(b.legacy_v4_score,1)+' (diagnostic only)');
@@ -774,8 +796,8 @@ function kellBreakdownText(item){
 }
 function slopeIcon(value){return value==='upward'?'↑':value==='downward'?'↓':value==='flat'?'→':'—'}
 function ruleAnalysis(item){
-  const m=item.metrics||{},rvol=Number(m.rvol),rsi=Number(m.rsi14),gap=Math.abs(Number(m.emaGapPct));
-  const readiness=Number(item.kell_readiness_score),stage=primaryStage(item);
+  const m=item.metrics||{},rvol=numberOrNaN(m.rvol),rsi=numberOrNaN(m.rsi14),gap=Math.abs(numberOrNaN(m.emaGapPct));
+  const readiness=numberOrNaN(item.kell_readiness_score),stage=primaryStage(item);
   if(Number.isFinite(readiness)&&item.kell_stage){
     if(stage==='wedge_drop')return{status:'REVIEW',state:'KELL WEDGE DROP',preferredTrade:'Nema novog long entryja; čekati repair i novi Wedge Pop/reclaim.',summary:'Kasna/risk-off faza Kell ciklusa. Stage cap sprječava da jaki discovery signali prikriju lošu trenutnu lokaciju.'};
     if(stage==='exhaustion_extension')return{status:'WATCH',state:'KELL EXHAUSTION',preferredTrade:'Ne chaseati extension; čekati re-base, EMA reset ili novi low-risk setup.',summary:'Leader može ostati kvalitetan, ali trenutni entry readiness je namjerno ograničen late-cycle capom.'};
@@ -919,8 +941,18 @@ function updateFilterCounts(){
     button.textContent=button.dataset.baseLabel+' ('+count+')';
   });
 }
+async function ensureResearchData(){
+  if(state.data?.schemaVersion!=='trend-birth-review-bootstrap-v1')return state.data;
+  if(!state.researchLoading){
+    state.researchLoading=ReviewSnapshots.loadResearch(fetch,state.data).then(data=>{
+      state.data=data;return data;
+    }).finally(()=>{state.researchLoading=null});
+  }
+  return state.researchLoading;
+}
 async function ensureKellData(){
   if(state.kellData)return state.kellData;
+  if(Array.isArray(state.data?.kellCandidates)){state.kellData=state.data;return state.kellData}
   if(state.kellLoading)return state.kellLoading;
   const reviewSource=state.data?.source||{};
   state.kellLoading=KellDatasets.load(fetch,location.search,reviewSource)
@@ -1024,12 +1056,12 @@ function card(item){
   const sources=item.sources||[];
   if(state.primaryView==='weekly'){
     const w=item.weeklyBirth||{},v=w.metrics||{};
-    const runway=v.runwayPct==null?'Blue sky':pct(v.runwayPct);
+    const runway=runwayLabel(v);
     return '<article class="card weekly-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
       '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">'+fmt(w.score,0)+'/100</span></div></div>'+
       '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Extension <b>'+pct(v.extensionPct)+'</b></span></div>'+
       '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
-      '<div class="analysis-strip"><span>Pivot '+fmt(v.pivotPrice)+' · Resistance '+(v.resistancePrice==null?'no nearby swing':fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
+      '<div class="analysis-strip"><span>Pivot '+fmt(v.pivotPrice)+' · Resistance '+(v.resistancePrice==null?'nije potvrđen':fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
   }
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
@@ -1083,7 +1115,7 @@ function render(){
   updateQuickViews();
   updateMobileFilterToggle();
   updateFilterCounts();
-  document.querySelectorAll('#primaryViews [data-primary-view]').forEach(button=>button.classList.toggle('active',button.dataset.primaryView===state.primaryView));
+  document.querySelectorAll('#primaryViews [data-primary-view]').forEach(button=>{const selected=button.dataset.primaryView===state.primaryView;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected))});
   const items=sourceItems().filter(visible);
   const sortMode=state.sort==='default'&&isKellView()?'kell-score':state.sort;
   const sortValue=(item,mode)=>{
@@ -1182,21 +1214,21 @@ function show(item){
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="detail-snapshot">'+
       '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+
-      '<div><span>Trend Birth</span><strong>'+esc(trendBirthLabel(item))+'</strong></div>'+
+      '<div><span>Daily radar 0–4</span><strong>'+esc(trendBirthLabel(item))+'</strong></div>'+
       '<div><span>Kell Focus</span><strong>'+fmt(item.kell_score,0)+'</strong></div>'+
       '<div><span>Readiness</span><strong>'+fmt(item.kell_readiness_score,0)+'</strong></div>'+
     '</div>'+
-    (weekly.stageLabel?'<div class="detail-tb-note"><span>Weekly Birth</span><strong>'+esc(weekly.stageLabel)+' · '+fmt(weeklyMetrics.baseWeeks,0)+'W base · '+pct(weeklyMetrics.weeklyMaClusterPct)+' MA cluster · '+(weeklyMetrics.runwayPct==null?'Blue sky':pct(weeklyMetrics.runwayPct)+' runway')+'</strong></div>':'')+
-    '<div class="detail-tb-note"><span>TB missing for 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
+    (weekly.stageLabel?'<div class="detail-tb-note"><span>Weekly Birth</span><strong>'+esc(weekly.stageLabel)+' · '+fmt(weeklyMetrics.baseWeeks,0)+'W base · '+pct(weeklyMetrics.weeklyMaClusterPct)+' MA cluster · '+runwayLabel(weeklyMetrics)+'</strong></div>':'')+
+    '<div class="detail-tb-note"><span>Daily radar · nedostaje za 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
     '<div class="detail-tb-note"><span>Birth path</span><strong>'+esc(birthPathText(item))+(trendBirthEvidence(item).primary?' · '+esc(trendBirthEvidence(item).primary):'')+'</strong></div>'+
     '<canvas class="detail-chart"></canvas>'+
     '<details class="detail-more"><summary>More metrics & setup details</summary><div class="detail-grid">'+
       fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
       fact('Weekly base',fmt(weeklyMetrics.baseWeeks,0)+'W · depth '+pct(weeklyMetrics.baseDepthPct))+
-      fact('Weekly MA / runway',pct(weeklyMetrics.weeklyMaClusterPct)+' / '+(weeklyMetrics.runwayPct==null?'Blue sky':pct(weeklyMetrics.runwayPct)))+
+      fact('Weekly MA / runway',pct(weeklyMetrics.weeklyMaClusterPct)+' / '+runwayLabel(weeklyMetrics))+
       fact('Weekly pivot / breakout age',fmt(weeklyMetrics.pivotPrice)+' / '+fmt(weeklyMetrics.weeksSinceBreakout,0)+'W')+
       fact('Quality',fmt(item.kell_quality_score,1))+fact('Context score',fmt(item.kell_context_score,1))+
-      fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+fact('Structural risk',Number.isFinite(Number(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+
+      fact('Evidence coverage',fmt(item.kell_evidence_coverage,0)+'%')+fact('Structural risk',Number.isFinite(numberOrNaN(item.kell_structural_risk_score))?fmt(item.kell_structural_risk_score,0):'—')+
       fact('Stage cap',fmt(item.kell_stage_cap,0))+fact('Stage confidence',item?.kell_stage?.confidence!=null?fmt(Number(item.kell_stage.confidence)*100,0)+'%':'—')+
       fact('Discovery screens',kellScreensText(item))+fact('Setups',kellSetupsText(item))+
       fact('Context flags',kellContextText(item))+fact('Actionability',m.actionability||'—')+
@@ -1380,8 +1412,9 @@ $('#activeFilterBar')?.addEventListener('click',e=>{
   render();
 });
 window.addEventListener('storage',event=>{
-  if(event.key!==WatchlistStore.STORAGE_KEY)return;
-  state.watchlist=WatchlistStore.load(window.localStorage);
+  if(event.key!==WatchlistStore.keyForUser(state.ownerSession?.user?.id))return;
+  state.watchlist=WatchlistStore.load(window.localStorage,state.ownerSession?.user?.id);
+  if(state.ownerSync?.signedIn()){reconcileOwnerWatchlist();return}
   if(state.data)render();
 });
 $('#ownerGoogle')?.addEventListener('click',async()=>{
@@ -1406,28 +1439,47 @@ $('#ownerMagicForm')?.addEventListener('submit',e=>{
     updateOwnerSyncUi();
   }
 });
+$('#ownerImportLocal')?.addEventListener('click',async()=>{
+  if(!state.ownerSync?.signedIn()||state.ownerReconciling)return;
+  state.ownerReconciling=true;
+  try{
+    const ownerId=state.ownerSession?.user?.id;
+    const local=WatchlistStore.load(window.localStorage).map(item=>item.ticker);
+    const remote=await state.ownerSync.migrate(local);
+    if(ownerId!==state.ownerSession?.user?.id)return;
+    state.watchlist=WatchlistStore.save(window.localStorage,ownerWatchlistItems(remote),state.ownerSession?.user?.id);
+    state.ownerSyncError='';state.ownerSyncMessage='Lokalni tickeri dodani su u ovaj račun.';
+  }catch(err){state.ownerSyncError='Uvoz watchliste: '+err.message}
+  finally{state.ownerReconciling=false;updateOwnerSyncUi();render()}
+});
 $('#ownerSignOut')?.addEventListener('click',async()=>{
   if(!state.ownerSync)return;
-  try{await state.ownerSync.signOut();state.ownerSession=null;state.ownerMagicSentTo='';state.ownerSyncMessage='Sync je odjavljen; Watchlist ostaje lokalno spremljen.'}
+  try{await state.ownerSync.signOut();state.ownerSession=null;state.ownerMagicSentTo='';state.ownerSyncMessage='Sync je odjavljen; prikazana je lokalna watchlista ovog preglednika.'}
   catch(err){state.ownerSyncError='Odjava: '+(err?.message||String(err))}
   updateOwnerSyncUi();
 });
 updateOwnerSyncUi();
 initOwnerWatchlistSync();
 $('#chartPeriod').value=state.chartPeriod;
-$('#primaryViews')?.addEventListener('click',e=>{
+$('#primaryViews')?.addEventListener('click',async e=>{
+  const request=state.primaryRequest=(state.primaryRequest||0)+1;
   const button=e.target.closest('[data-primary-view]');
   if(!button)return;
+  if(['research','watchlist'].includes(button.dataset.primaryView)){
+    $('#status').textContent='Učitavam istraživački skup…';
+    try{await ensureResearchData()}catch(error){$('#status').textContent='Research nije dostupan: '+error.message;return}
+  }
+  if(request!==state.primaryRequest)return;
   state.primaryView=button.dataset.primaryView;
-  state.filters=[];state.quickView=null;state.sort='default';state.universe='all';
+  state.filters=[];state.quickView=null;state.sort='default';state.universe=state.primaryView==='watchlist'?'watchlist':'all';
   state.chartPeriod=state.primaryView==='weekly'?'5y':'1y';
   $('#chartPeriod').value=state.chartPeriod;$('#sort').value='default';
-  document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x.dataset.universe==='all'));
+  document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x.dataset.universe===state.universe));
   render();
 });
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
 loadTrendBirthIntelligence(); // tiny payload while heavyweight Review/Kell data loads.
-ReviewSnapshots.load(fetch,location.search)
-  .then(data=>{state.data=data;renderTrendBirthToday();renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render();if(!archived)ensureKellData().then(()=>render()).catch(()=>{})})
+(defaultMode==='legacy'?ReviewSnapshots.load:ReviewSnapshots.loadInitial)(fetch,location.search)
+  .then(data=>{state.data=data;renderTrendBirthToday();renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render()})
   .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});

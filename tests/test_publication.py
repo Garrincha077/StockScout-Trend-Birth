@@ -75,6 +75,21 @@ class PublicationTests(unittest.TestCase):
                 with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                     publisher.publish(snapshot, root)
 
+    def test_compact_startup_preserves_identity_membership_and_original_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshot = fixture()
+            snapshot['shortlists'] = {'schemaVersion': 'stockscout-shortlists-v2',
+                                     'weeklyTrendBirth': snapshot['candidates'], 'kellDaily': []}
+            root = Path(tmp)
+            manifest = publisher.publish(snapshot, root)
+            compact = json.loads((root / manifest['bootstrapPath'].removeprefix('data/')).read_bytes())
+            self.assertEqual(compact['reviewSnapshotId'], manifest['snapshotId'])
+            self.assertEqual(compact['source'], snapshot['source'])
+            self.assertEqual(compact['shortlists'], snapshot['shortlists'])
+            self.assertEqual(compact['candidates'], [])
+            self.assertEqual(json.loads((root / 'latest.json').read_bytes()), snapshot)
+            self.assertFalse(publisher.publish(snapshot, root)['changed'])
+
     def test_empty_scan_and_existing_legacy_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

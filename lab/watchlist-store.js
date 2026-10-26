@@ -25,9 +25,11 @@
     return out;
   }
 
-  function load(storage){
+  const keyForUser=userId=>userId?STORAGE_KEY+'.user.'+encodeURIComponent(userId):STORAGE_KEY;
+
+  function load(storage,userId){
     try{
-      const raw=storage?.getItem?.(STORAGE_KEY);
+      const raw=storage?.getItem?.(keyForUser(userId));
       if(!raw)return[];
       const parsed=JSON.parse(raw);
       return normalizeItems(Array.isArray(parsed)?parsed:parsed?.items);
@@ -36,10 +38,10 @@
     }
   }
 
-  function save(storage,items){
+  function save(storage,items,userId){
     const normalized=normalizeItems(items);
     try{
-      storage?.setItem?.(STORAGE_KEY,JSON.stringify({version:1,items:normalized}));
+      storage?.setItem?.(keyForUser(userId),JSON.stringify({version:1,items:normalized}));
     }catch(_err){}
     return normalized;
   }
@@ -66,5 +68,5 @@
     return normalized;
   }
 
-  return{STORAGE_KEY,normalizeTicker,normalizeItems,load,save,has,toggle};
+  return{STORAGE_KEY,keyForUser,normalizeTicker,normalizeItems,load,save,has,toggle};
 });

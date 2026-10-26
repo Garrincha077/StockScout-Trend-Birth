@@ -10,6 +10,11 @@ import math
 from statistics import median
 from typing import Iterable
 
+try:
+    from .market_week import week_is_complete
+except ImportError:
+    from market_week import week_is_complete
+
 LABELS = {0: "Rejected", 1: "Long Base", 2: "Compressed", 3: "Ready", 4: "Trigger"}
 
 
@@ -67,9 +72,8 @@ def completed_weekly_bars(rows: Iterable) -> list[dict]:
                 "open": opened, "high": high, "low": low, "close": close,
                 "volume": _number(volume) or 0,
             })
-    # A Monday-Thursday terminal week has not settled. Earlier weeks are complete
-    # because a later week's bar is present.
-    if weeks and weeks[-1]["lastDay"].weekday() < 4:
+    # A holiday week can settle on Thursday; use the versioned XNYS calendar.
+    if weeks and not week_is_complete(weeks[-1]["lastDay"]):
         weeks.pop()
     return weeks
 
@@ -120,6 +124,9 @@ def _resistance(weeks: list[dict], base_weeks: int, pivot: float) -> float | Non
         highs[index] for index in range(2, len(highs) - 2)
         if highs[index] >= max(highs[index - 2:index] + highs[index + 1:index + 3])
     ]
+    # Boundary highs matter too: a monotonic decline has no interior swing high.
+    # Without these, known overhead history was incorrectly labeled as blue sky.
+    swings.extend([highs[0], highs[-1]])
     above = sorted(high for high in swings if high > pivot * 1.01)
     return above[0] if above else None
 
@@ -200,6 +207,7 @@ def evaluate_weekly_birth(rows: Iterable) -> dict:
         + (15 if checks["nearPivot"] or checks["freshBreakout"] else 0), 1,
     )
     return {
+        "modelVersion": "weekly-birth-v2.1-resistance-boundaries",
         "stage": stage, "stageLabel": LABELS[stage],
         "eligible": (stage >= 2 and checks["notExtended"]) or checks["stage1Watch"],
         "score": score, "checks": checks,
@@ -213,6 +221,11 @@ def evaluate_weekly_birth(rows: Iterable) -> dict:
             "maSlope30wPct4w": round(slope30, 2),
             "pivotPrice": round(pivot, 4), "resistancePrice": round(resistance, 4) if resistance else None,
             "runwayPct": round(runway, 2) if runway is not None else None,
+            "resistanceStatus": "detected" if resistance else "not_detected_in_window",
+            "historyWeeks": len(weeks),
+            "historyStart": weeks[0]["time"],
+            "historyEnd": weeks[-1]["lastDay"].isoformat(),
+            "runwayReference": "pivot",
             "extensionPct": round(extension, 2), "weeksSinceBreakout": breakout_age,
             **{key: round(value, 4) for key, value in ma.items()},
         },
