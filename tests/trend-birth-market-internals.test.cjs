@@ -45,9 +45,12 @@ test('required percentage inputs cannot be missing, null, strings or non-finite'
 });
 test('a supplied exchange calendar must be chronological and current',()=>{
   const data=JSON.parse(fs.readFileSync(path.join(__dirname,'../lab/data/trend-birth-stage-forward.json'),'utf8'));
-  data.exchangeSessions=['2026-10-22','2026-10-23'];
+  // Keep the fixture aligned with the published asOf without weakening the calendar guard.
+  const previousSession='2026-10-23';
+  assert.ok(previousSession<data.asOf);
+  data.exchangeSessions=[previousSession,data.asOf];
   assert.equal(Stats.validateForward(data),data);
-  for(const days of [[],['2026-10-23','2026-10-22'],['2026-10-23','2026-10-23'],['2026-10-22']]){
+  for(const days of [[],[data.asOf,previousSession],[data.asOf,data.asOf],[previousSession]]){
     data.exchangeSessions=days;
     assert.throws(()=>Stats.validateForward(data),/kalendar/);
   }
