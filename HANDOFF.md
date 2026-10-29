@@ -1,3 +1,11 @@
+## 2026-10-26 — Outcome tracking implementation prepared
+
+- **Topic:** `feature/retain-outcome-quotes-20261026`, based on production `b3fa64c`. New implementation is not yet deployed; earlier production verification remains `2008e44` / `dpl_4EZvE9XHcUeMMYwdNXJHjUjAMSis` (18:44 UTC checkpoint, not a fresh READY assertion).
+- **Cause:** frozen V3's 109 missing 5D outcomes =107 ticker/date absences from the evaluated pool +2 unavailable technical cases, across 66 tickers /118 distinct quote gaps. Current V2 tracking demand 1,177; primary archive covers 1,122, 55 need supplemental quotes. Existing Unified chart scope supplies only one of these 55.
+- **Change:** derive open tracked tickers through the next-close +60D exit; reuse primary closes and collect missing current-session prices via the existing Yahoo provider under strict same-New-York-day/close-plus-20-minute validation. Small append-only content-addressed quote evidence and separate health; no Google Sheets/DB, new credentials, schedule, ranking or scoring changes. Starts only after Oct23; original V2/V3 archives and old 109 gaps are not backfilled.
+- **Checks:** 213 Python +108 Node +10 Chromium pass; actual Oct23 replay preserves every original V2 report value apart from additive health and passes the full EOD gate. Six publication-shell regressions pass. Both Yahoo hosts HTTP200 during open market; premature capture denied. No future close claimed. Method/rollback: `docs/review/OUTCOME_QUOTE_TRACKING_20261026.md`.
+- **Next:** PR CI and deployment, verify the new collector/health in the real source-EOD pipeline. Corporate actions/delistings, historical price reconstruction and physical-phone owner login remain separate verification gaps.
+
 ## 2026-10-26 — V3 comparison and EOD publication guard live
 
 - **Final verification 2026-10-26 18:44 UTC:** PR #71 merged as `2008e445e466cf6f450243fa32c2effd51ceda67`; production Vercel `dpl_4EZvE9XHcUeMMYwdNXJHjUjAMSis` independently READY. Active branch `feature/unified-review-grid-lab`. Final-head CI `40377938425` SUCCESS: 206 Python, 107 Node, 9 real Chromium cases.
