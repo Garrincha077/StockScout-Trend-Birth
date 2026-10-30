@@ -1,6 +1,6 @@
 ## 2026-10-30 — Chart coverage tolerance prepared
 
-- Last verification: 2026-10-30 UTC; implementation topic `fix/partial-chart-coverage-20261030`, based on `e7e5d12a319a39c3fc1d8d1552092f5b67137902`. This topic is not yet deployed; PR checks/rollout remain next.
+- Last verification: 2026-10-30 UTC; implementation topic `fix/partial-chart-coverage-20261030`, based on `e7e5d12a319a39c3fc1d8d1552092f5b67137902`. PR #73 is not yet deployed. Remote model tests passed; browser CI needs the stale-publication fixture pinned alongside its frozen clock after the moving dataset advanced to Oct29. Rerun/rollout remain next.
 - Existing production recovery is verified: Oct29 session, 80 Review candidates/charts, 2,265 Kell candidates/charts, matching public bootstrap, immutable Kell/chart source, market internals and Composite. Production branch remains `feature/unified-review-grid-lab`. A separate historical-calibration job was still running when the production recovery was verified.
 - Prepared change: permit >=99% complete daily/weekly Kell chart coverage, preserve all candidates/scores and explicitly list/label unavailable charts. Wrong source/date/hash, missing entire shards and the independent 99% evaluated-price gate still fail. No new scanner, schedule, notification send or historical rewrite.
 - Local checks: 212 Python, 109 Node, JS syntax/diff checks pass; actual-source offline one-chart/below-threshold replays cover the recovery failure. Full details: latest PROJECT_LOG entry.

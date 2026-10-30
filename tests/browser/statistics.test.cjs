@@ -81,6 +81,10 @@ test('failed V3 request leaves V2 usable and can be retried',async t=>{
 });
 test('stale publication is visible while valid statistics remain available',async t=>{
   const page=await mobile(t);
+  // Pin the stale source as well as the clock: the checked-in latest advances daily.
+  await page.route('**/data/publication.json',route=>route.fulfill({
+    contentType:'application/json',body:JSON.stringify({sessionDate:'2026-10-23'})
+  }));
   await page.clock.setFixedTime(new Date('2026-10-27T00:00:00Z'));
   await ready(page);
   await page.waitForFunction(()=>document.getElementById('eodFreshness').dataset.state==='stale');
