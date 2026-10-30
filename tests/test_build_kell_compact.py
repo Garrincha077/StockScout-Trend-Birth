@@ -3,6 +3,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest.mock import patch
 
 MODULE = pathlib.Path(__file__).parents[1] / "scripts" / "build_kell_compact.py"
 spec = importlib.util.spec_from_file_location("build_kell_compact", MODULE)
@@ -11,6 +12,54 @@ spec.loader.exec_module(compact)
 
 
 class KellCompactTests(unittest.TestCase):
+    def test_partial_charts_preserve_candidates_and_mark_the_missing_ticker(self):
+        bars = [["2026-09-20", 10, 11, 9, 10, 100], ["2026-09-21", 10, 11, 9, 10, 100]]
+        candidates = [{"ticker": f"T{i}", "chartBars": bars, "weeklyChartBars": bars,
+                       "kell_score": i} for i in range(100)]
+        # Normalization removes the invalid OHLC row; raw length must not hide a gap.
+        candidates[-1]["chartBars"] = [bars[0], ["2026-09-21", None, 11, 9, 10, 100]]
+        source = {"source": {"runId": "r1", "sessionDate": "2026-09-21"},
+                  "kellCandidates": candidates, "kellCandidateCount": 100}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "source.json").write_text(json.dumps(source))
+            with patch("sys.argv", ["compact", "--input", str(root / "source.json"),
+                                    "--output", str(root / "out.json"),
+                                    "--charts-dir", str(root / "charts")]):
+                self.assertEqual(compact.main(), 0)
+            out = json.loads((root / "out.json").read_text())
+            self.assertEqual(out["kellCandidateCount"], 100)
+            self.assertEqual([x["ticker"] for x in out["kellCandidates"]], [x["ticker"] for x in candidates])
+            self.assertEqual([x["kell_score"] for x in out["kellCandidates"]], list(range(100)))
+            self.assertEqual(out["kellChartData"]["chartCoveragePct"], 99)
+            self.assertEqual(out["kellChartData"]["missingChartTickers"], ["T99"])
+            missing = out["kellCandidates"][-1]
+            self.assertFalse(missing["chartAvailable"])
+            self.assertEqual(missing["chartBarsCount"], 1)
+            self.assertNotIn("chartShard", missing)
+            charts = {ticker for p in (root / "charts").glob("*.json")
+                      for ticker in json.loads(p.read_text())["charts"]}
+            self.assertEqual(len(charts), 99)
+            self.assertNotIn("T99", charts)
+
+    def test_below_threshold_does_not_replace_existing_chart_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            old = root / "shard-000.json"
+            old.write_text("last-good")
+            with self.assertRaisesRegex(ValueError, "below 99%"):
+                compact.write_chart_shards([{"ticker": "AAA"}], root, {}, 48)
+            self.assertEqual(old.read_text(), "last-good")
+
+    def test_threshold_uses_exact_fraction_and_empty_universe_is_defined(self):
+        expected = {str(i) for i in range(100)}
+        self.assertEqual(compact.chart_coverage(expected, expected - {"1"})["coverageStatus"], "partial")
+        with self.assertRaisesRegex(ValueError, "below 99%"):
+            compact.chart_coverage(expected, expected - {"1", "2"})
+        with self.assertRaisesRegex(ValueError, "below 99%"):
+            compact.chart_coverage({str(i) for i in range(99)}, {str(i) for i in range(98)})
+        self.assertEqual(compact.chart_coverage(set(), set())["chartCoveragePct"], 100)
+
     def test_compact_source_preserves_universe_counts(self):
         source = {
             "source": {
