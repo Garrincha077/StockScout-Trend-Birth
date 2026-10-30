@@ -672,3 +672,11 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Risk/next: this changes publication availability, not source data quality or model definitions. A partially available chart stays unavailable for that immutable snapshot; the next normal publication can restore it. Inspect PR checks, merge to the existing deployment branch and verify published script/data identity.
 
 - PR #73 (`ea15b1cc169f5f6f3b53ab43b8e8f12798fe8858`) remote Python/Node checks passed. Browser CI exposed a pre-existing stale-publication test tied to the old Oct23 moving publication while fixing the clock at Oct27; after this morning's Oct29 recovery it correctly became unknown/future rather than stale. Pin the mocked source date alongside the existing frozen clock. This changes only the test fixture; production freshness logic is unchanged. Remote browser rerun is required before merge.
+
+
+### Chart policy activated — verified 2026-10-30 10:41 UTC
+
+- PR #73 merged at `9ec843ae5d7b69a48eb594eea90786c4f1810149`, reviewed head `060deb4d2bc73a17a800fe613dd8f4d858257adb`. Final-head CI `41040578661` SUCCESS: model tests, all nine browser cases (including the pinned stale-source fixture), read-only build and immutable publication validation. Vercel preview passed.
+- Vercel production `dpl_3t7zULr7evFxzdrmQpCa4Wejps9g` independently READY for the merge and assigned to the public alias. Public HTML uses the new script query and its JS bytes exactly match the reviewed source. Current source remains Oct29, 80 Review candidates/charts.
+- Exact workflow compact validation plus the bundle validator pass an offline copy with one missing chart, 2,264/2,265 (99.9558%); >1% missing is rejected at 2,242/2,265. This replay never removed public data or chart files. Threshold/availability metadata and labels are additive; underlying candidates, scores, source and price protections are unchanged.
+- Automatic publisher `41041775102` was still building stage history at verification; no full-production-workflow success is claimed at this checkpoint. The new policy is active in the production branch, and the last verified publication remains served. Observe the normal publisher completion without introducing another scan or rewriting immutable history.
