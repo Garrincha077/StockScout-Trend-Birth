@@ -1,3 +1,11 @@
+## 2026-10-30 — Chart coverage tolerance ACTIVE
+
+- Verified 2026-10-30 10:41 UTC: PR #73 merged into `feature/unified-review-grid-lab` at `9ec843ae5d7b69a48eb594eea90786c4f1810149`; reviewed head `060deb4d2bc73a17a800fe613dd8f4d858257adb`. Vercel production `dpl_3t7zULr7evFxzdrmQpCa4Wejps9g` independently READY and assigned to the public alias. Public HTML loads `app.js?v=chart-coverage-20261030`; served JS SHA256 exactly matches the reviewed source.
+- Active chart-only gate: >=99% of matched Kell candidates must have complete usable daily/weekly charts. Missing tickers are disclosed, remain in the candidate list with unchanged scores/order and get an unavailable-chart notice. Wrong source/date/hash, missing whole shards and the separate evaluated-price/freshness gate remain blocking.
+- Validation: 212 Python / 109 Node tests; final-head CI `41040578661` SUCCESS including 9 real browser cases and immutable publication validation; Vercel preview succeeded. The exact production compact-validation code and bundle validator pass an OFFLINE COPY of Oct29 with 2,264/2,265 charts (99.9558%) and reject 2,242/2,265. Public data was not deliberately damaged.
+- Public source remains verified Oct29 with 80 Review candidates/charts. New automatic publisher `41041775102` was still building stage history at this checkpoint; this is not a claim that its entire publication/research workflow has completed. The prior verified publication remains available.
+- No scanner/ranking/model weights, notification sender, schedule or historical archive policy changed. The browser stale-publication test now pins its source date along with its clock; production freshness logic is unchanged. Existing research/quote gaps and V3 restrictions remain as documented below.
+
 ## 2026-10-30 — Chart coverage tolerance prepared
 
 - Last verification: 2026-10-30 UTC; implementation topic `fix/partial-chart-coverage-20261030`, based on `e7e5d12a319a39c3fc1d8d1552092f5b67137902`. PR #73 is not yet deployed. Remote model tests passed; browser CI needs the stale-publication fixture pinned alongside its frozen clock after the moving dataset advanced to Oct29. Rerun/rollout remain next.
