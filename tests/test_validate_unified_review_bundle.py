@@ -8,6 +8,7 @@ MODULE = Path(__file__).parents[1] / "scripts" / "validate_unified_review_bundle
 spec = importlib.util.spec_from_file_location("bundle_validator", MODULE)
 validator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(validator)
+from kell_chart_coverage import chart_coverage
 
 
 def write_json(path: Path, value: dict):
@@ -16,6 +17,70 @@ def write_json(path: Path, value: dict):
 
 
 class UnifiedBundleValidatorTests(unittest.TestCase):
+    def partial_fixture(self, root: Path):
+        paths = self.fixture(root)
+        review_path, publication_path, kell_path, charts_dir = paths
+        review = json.loads(review_path.read_text())
+        kell = json.loads(kell_path.read_text())
+        shard_path = charts_dir / "shard-000.json"
+        shard = json.loads(shard_path.read_text())
+        chart = shard["charts"]["AAA"]
+        tickers = [f"T{i}" for i in range(100)]
+        for data in (review, kell):
+            data["kellCandidateCount"] = 100
+            data["kellScoring"]["unifiedCandidateCount"] = 100
+            data["unifiedCandidateIndexCount"] = 100
+            data["unifiedCandidateIndex"] = [{"ticker": t} for t in tickers]
+        kell["kellCandidates"] = [dict(ticker=t, chartAvailable=(i < 99), **({"chartShard": 0} if i < 99 else {}))
+                                  for i, t in enumerate(tickers)]
+        shard["charts"] = {t: chart for t in tickers[:-1]}
+        kell["kellChartData"].update(chart_coverage(set(tickers), set(tickers[:-1])))
+        kell["kellChartData"].update(chartCandidateCount=99, weeklyChartCandidateCount=99)
+        write_json(review_path, review)
+        publication = json.loads(publication_path.read_text())
+        publication["sha256"] = __import__("hashlib").sha256(review_path.read_bytes()).hexdigest()
+        write_json(publication_path, publication)
+        write_json(kell_path, kell)
+        write_json(shard_path, shard)
+        return paths
+
+    def test_one_percent_gap_is_disclosed_and_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = validator.validate(*self.partial_fixture(Path(tmp)))
+            self.assertEqual(result["chartCoveragePct"], 99)
+            self.assertEqual(result["missingChartTickers"], ["T99"])
+
+    def test_partial_coverage_does_not_allow_hidden_gaps_or_downgraded_policy(self):
+        for field, value in [("missingChartTickers", []), ("minimumCoveragePct", 95), ("chartCoveragePct", 100)]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as tmp:
+                paths = self.partial_fixture(Path(tmp))
+                data = json.loads(paths[2].read_text())
+                data["kellChartData"][field] = value
+                write_json(paths[2], data)
+                with self.assertRaisesRegex(ValueError, "coverage metadata mismatch"):
+                    validator.validate(*paths)
+
+    def test_missing_shard_and_wrong_source_still_fail_within_chart_budget(self):
+        for failure in ("shard", "source", "bars", "candidate"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                paths = self.partial_fixture(Path(tmp))
+                shard_path = paths[3] / "shard-000.json"
+                shard = json.loads(shard_path.read_text())
+                if failure == "shard":
+                    shard_path.unlink()
+                elif failure == "source":
+                    shard["source"]["runId"] = "other-run"
+                    write_json(shard_path, shard)
+                elif failure == "bars":
+                    shard["charts"]["T0"]["weekly"] = []
+                    write_json(shard_path, shard)
+                else:
+                    data = json.loads(paths[2].read_text())
+                    data["kellCandidates"][-1]["chartAvailable"] = True
+                    write_json(paths[2], data)
+                with self.assertRaises(ValueError):
+                    validator.validate(*paths)
+
     def fixture(self, root: Path):
         source = {
             "repo": "Garrincha077/StockScout-Unified",
@@ -78,7 +143,10 @@ class UnifiedBundleValidatorTests(unittest.TestCase):
                 "sessionDate": source["sessionDate"],
                 "unifiedManifestSha256": source["unifiedManifestSha256"],
             },
-            "charts": {"AAA": {"daily": [["2026-09-22", 1, 2, 1, 2, 100]]}},
+            "charts": {"AAA": {
+                "daily": [["2026-09-21", 1, 2, 1, 2, 100], ["2026-09-22", 1, 2, 1, 2, 100]],
+                "weekly": [["2026-09-11", 1, 2, 1, 2, 100], ["2026-09-18", 1, 2, 1, 2, 100]],
+            }},
         })
         return review_path, publication_path, kell_path, charts_dir
 

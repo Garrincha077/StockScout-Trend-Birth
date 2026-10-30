@@ -1,3 +1,11 @@
+## 2026-10-30 — Chart coverage tolerance prepared
+
+- Last verification: 2026-10-30 UTC; implementation topic `fix/partial-chart-coverage-20261030`, based on `e7e5d12a319a39c3fc1d8d1552092f5b67137902`. This topic is not yet deployed; PR checks/rollout remain next.
+- Existing production recovery is verified: Oct29 session, 80 Review candidates/charts, 2,265 Kell candidates/charts, matching public bootstrap, immutable Kell/chart source, market internals and Composite. Production branch remains `feature/unified-review-grid-lab`. A separate historical-calibration job was still running when the production recovery was verified.
+- Prepared change: permit >=99% complete daily/weekly Kell chart coverage, preserve all candidates/scores and explicitly list/label unavailable charts. Wrong source/date/hash, missing entire shards and the independent 99% evaluated-price gate still fail. No new scanner, schedule, notification send or historical rewrite.
+- Local checks: 212 Python, 109 Node, JS syntax/diff checks pass; actual-source offline one-chart/below-threshold replays cover the recovery failure. Full details: latest PROJECT_LOG entry.
+- Next: PR validation, merge to the existing production branch, confirm the new UI script and publisher job. Previously documented research/quote gaps and V3 restrictions remain unchanged.
+
 ## 2026-10-26 — V3 comparison and EOD publication guard live
 
 - **Final verification 2026-10-26 18:44 UTC:** PR #71 merged as `2008e445e466cf6f450243fa32c2effd51ceda67`; production Vercel `dpl_4EZvE9XHcUeMMYwdNXJHjUjAMSis` independently READY. Active branch `feature/unified-review-grid-lab`. Final-head CI `40377938425` SUCCESS: 206 Python, 107 Node, 9 real Chromium cases.

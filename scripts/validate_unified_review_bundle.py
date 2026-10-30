@@ -7,6 +7,9 @@ import hashlib
 import json
 import re
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 EXPECTED_UNIFIED_REPO = "Garrincha077/StockScout-Unified"
@@ -26,6 +29,10 @@ def identity(source: dict) -> tuple[str, str, str]:
 
 
 def validate(review_path: Path, publication_path: Path, kell_path: Path, charts_dir: Path) -> dict:
+    # identity() is also used by the independent price/publication gate.
+    from build_kell_compact import compact_bar
+    from kell_chart_coverage import chart_coverage
+
     review_bytes = review_path.read_bytes()
     review = json.loads(review_bytes)
     publication = load(publication_path)
@@ -89,12 +96,36 @@ def validate(review_path: Path, publication_path: Path, kell_path: Path, charts_
         shard = load(path)
         if identity(shard.get("source") or {}) != review_id:
             raise ValueError(f"{path.name}: source identity mismatch")
-        chart_tickers.update((shard.get("charts") or {}).keys())
+        for ticker, chart in (shard.get("charts") or {}).items():
+            if ticker in chart_tickers:
+                raise ValueError("Duplicate ticker in Kell chart shards")
+            if not isinstance(chart, dict) or any(
+                len([bar for row in (chart.get(period) or []) if (bar := compact_bar(row)) is not None]) < 2
+                for period in ("daily", "weekly")
+            ):
+                raise ValueError(f"{ticker}: invalid daily/weekly chart in published shard")
+            chart_tickers.add(ticker)
 
     expected_tickers = {str(item.get("ticker") or "") for item in kell.get("kellCandidates") or []}
     expected_tickers.discard("")
-    if chart_tickers != expected_tickers:
-        raise ValueError("Kell chart coverage does not exactly match compact candidates")
+    if len(expected_tickers) != kell.get("kellCandidateCount"):
+        raise ValueError("Duplicate or empty Kell candidate tickers")
+    coverage = chart_coverage(expected_tickers, chart_tickers)
+    # Legacy complete bundles remain valid; partial bundles must disclose every gap.
+    if coverage["missingChartCount"] or "coverageStatus" in chart_meta:
+        for key, value in coverage.items():
+            if chart_meta.get(key) != value:
+                raise ValueError(f"Kell chart coverage metadata mismatch: {key}")
+        if chart_meta.get("chartCandidateCount") != len(chart_tickers):
+            raise ValueError("Kell chart count mismatch")
+        if chart_meta.get("weeklyChartCandidateCount") != len(chart_tickers):
+            raise ValueError("Kell weekly chart count mismatch")
+        for item in kell.get("kellCandidates") or []:
+            available = item["ticker"] in chart_tickers
+            if item.get("chartAvailable") is not available:
+                raise ValueError("Kell candidate chart availability mismatch")
+            if not available and "chartShard" in item:
+                raise ValueError("Unavailable Kell chart must not reference a shard")
 
     return {
         "status": "ok",
@@ -105,6 +136,7 @@ def validate(review_path: Path, publication_path: Path, kell_path: Path, charts_
         "reviewCandidateCount": review.get("candidateCount"),
         "kellCandidateCount": kell.get("kellCandidateCount"),
         "chartTickerCount": len(chart_tickers),
+        **coverage,
     }
 
 
