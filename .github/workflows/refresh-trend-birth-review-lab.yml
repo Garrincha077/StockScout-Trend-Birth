@@ -27,7 +27,7 @@ on:
       - "tests/test_refresh_review_publication.py"
       - "tests/test_public_bootstrap.py"
   push:
-    branches: [main, codex/eod-linked-refresh-20261002]
+    branches: [main, codex/eod-linked-refresh-20261002, fix/verify-public-bootstrap-20261031]
     paths:
       - ".github/workflows/refresh-trend-birth-review-lab.yml"
       - "scripts/refresh_review_publication.py"
@@ -52,7 +52,7 @@ concurrency:
 
 jobs:
   validate_pr:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/fix/verify-public-bootstrap-20261031'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -68,7 +68,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
 
   dispatch:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref != 'refs/heads/fix/verify-public-bootstrap-20261031'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
