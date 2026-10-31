@@ -610,6 +610,18 @@
         !value.exchangeSessions.length || value.exchangeSessions.at(-1)!==value.asOf ||
         value.exchangeSessions.some((day,i)=>!/^\d{4}-\d{2}-\d{2}$/.test(day) ||
           (i&&value.exchangeSessions[i-1]>=day)))) throw Error('Neispravan burzovni kalendar ishoda');
+    if(value.outcomeTracking!==undefined){
+      const t=value.outcomeTracking;
+      if(t?.schemaVersion!=='trend-birth-outcome-tracking-v1'||t.asOf!==value.asOf||
+         !['waiting-for-next-session','partial','complete'].includes(t.status)||typeof t.enabled!=='boolean'||
+         !/^\d{4}-\d{2}-\d{2}$/.test(t.startAfterSessionDate)||t.enabled!==(t.asOf>t.startAfterSessionDate)||
+         ![t.trackedCount,t.primaryCoveredCount,t.supplementalCount,t.missingCount].every(n=>Number.isInteger(n)&&n>=0)||
+         t.primaryCoveredCount>t.trackedCount||
+         (t.enabled&&t.primaryCoveredCount+t.supplementalCount+t.missingCount!==t.trackedCount)||
+         t.status!==(!t.enabled?'waiting-for-next-session':t.missingCount?'partial':'complete')||
+         t.calibrationApproved!==false||t.historyBackfilled!==false)
+        throw Error('Neusklađeno praćenje cijena otvorenih ishoda');
+    }
     return value;
   }
   function validateRecovery(value){
@@ -701,6 +713,12 @@
         fmt(quality.sourcePriceCoveragePct,'%')+' ('+FMT.format(quality.actualSourceQuotes)+
         ' / '+FMT.format(quality.expectedSourceQuotes)+'). Rupe u datumima nisu isto što i nestali tickeri.'
       : 'Dijagnostika rupa u EOD kalendaru bit će dostupna nakon sljedeće objave podataka.';
+    const tracking=data.outcomeTracking;
+    if(tracking)el('siForwardQuality').textContent+=tracking.enabled
+      ? ' Otvoreni ishodi: '+FMT.format(tracking.trackedCount)+' dionica ostaje u praćenju do 60D ishoda; '+
+        FMT.format(tracking.supplementalCount)+' dodatnih cijena izvan dnevnog skupa, '+
+        FMT.format(tracking.missingCount)+' cijena nedostaje. Stare arhive nisu prepisane.'
+      : ' Dodatno praćenje cijena otvorenih ishoda počinje nakon '+tracking.startAfterSessionDate+'.';
     const table=el('siForwardTable');
     table.replaceChildren();
     const thead=document.createElement('thead'), tr=document.createElement('tr');

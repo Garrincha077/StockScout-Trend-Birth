@@ -91,6 +91,18 @@ test('stale publication is visible while valid statistics remain available',asyn
   assert.match(await page.locator('#eodFreshness').innerText(),/Očekivana sesija: 2026-10-26/);
   assert.equal(await page.locator('#siForwardTable tbody tr').count(),15);
 });
+test('Statistics discloses missing tracked-outcome quotes separately from primary source coverage',async t=>{
+  const page=await mobile(t);
+  const data=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));
+  data.outcomeTracking={schemaVersion:'trend-birth-outcome-tracking-v1',asOf:data.asOf,
+    startAfterSessionDate:'2026-09-23',enabled:true,status:'partial',trackedCount:1177,
+    primaryCoveredCount:1122,supplementalCount:50,missingCount:5,calibrationApproved:false,historyBackfilled:false};
+  await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({json:data}));
+  await ready(page);
+  await page.waitForFunction(()=>document.getElementById('siForwardQuality').textContent.includes('50 dodatnih'));
+  assert.match(await page.locator('#siForwardQuality').innerText(),/5 cijena nedostaje/);
+  assert.equal(await page.locator('#siForwardTable tbody tr').count(),15);
+});
 test('mobile shows the latest markers and follows a selected historical EOD without moving the page',async t=>{
   const page=await mobile(t);await ready(page);
   assert.equal(await selectedPointVisible(page,'siHeatChart'),true);
