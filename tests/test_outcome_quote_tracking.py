@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 import json
 from pathlib import Path
 import sys
@@ -103,6 +103,25 @@ class OutcomeTrackingTests(unittest.TestCase):
         with patch.object(tracking.urllib.request, 'urlopen', side_effect=AssertionError('must not fetch old history')):
             self.assertEqual(tracking.fetch_quote('AAA',day,close,after+timedelta(days=1))[1],
                              'outside_same_market_day_capture_window')
+
+    def test_next_ny_morning_before_open_can_capture_previous_eod(self):
+        day = DATES[7]
+        close = datetime.fromisoformat(dict(CALENDAR["sessions"])[day])
+        close_ny = close.astimezone(tracking.NY)
+        next_date = close_ny.date() + timedelta(days=1)
+        morning = datetime.combine(next_date, time(8, 15), tzinfo=tracking.NY)
+        opening = datetime.combine(next_date, time(9, 30), tzinfo=tracking.NY)
+        self.assertTrue(tracking.capture_window(day, close.isoformat(), morning))
+        self.assertFalse(tracking.capture_window(day, close.isoformat(), opening))
+        self.assertFalse(tracking.capture_window(day, close.isoformat(), morning + timedelta(days=1)))
+        self.assertIsNotNone(tracking.parse_quote(payload("AAA", day, 12), "AAA", day,
+                                                close.isoformat(), morning,
+                                                "query1.finance.yahoo.com")[0])
+        with patch.object(tracking.urllib.request, "urlopen",
+                          side_effect=AssertionError("do not backfill historical quotes")):
+            self.assertEqual(tracking.fetch_quote("AAA", day, close.isoformat(),
+                                                  opening)[1],
+                             "outside_same_market_day_capture_window")
 
     def test_cutoff_makes_no_historical_provider_calls_or_archive_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
