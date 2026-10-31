@@ -49,21 +49,22 @@ class RefreshTests(unittest.TestCase):
         gh.assert_not_called()
 
     def test_matching_publication_is_noop_and_checks_upstream_again(self):
-        with patch.object(refresh, "read_target", return_value=TARGET) as read, patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", return_value=json.dumps(pointer()).encode()), patch.object(refresh, "publisher_runs") as runs, patch.object(refresh, "start_publisher") as start:
+        with patch.object(refresh, "verify_public_bootstrap", return_value={"candidateCount": 81}) as bootstrap, patch.object(refresh, "read_target", return_value=TARGET) as read, patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", return_value=json.dumps(pointer()).encode()), patch.object(refresh, "publisher_runs") as runs, patch.object(refresh, "start_publisher") as start:
             report = refresh.refresh("owner/repo")
         self.assertEqual("fresh", report["status"])
         self.assertEqual(2, read.call_count)
+        bootstrap.assert_called_once()
         runs.assert_not_called()
         start.assert_not_called()
 
     def test_changed_activation_during_noop_verification_is_rejected(self):
-        with patch.object(refresh, "read_target", side_effect=[TARGET, {**TARGET, "runId": "changed"}]), patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", return_value=json.dumps(pointer()).encode()), self.assertRaisesRegex(ValueError, "changed"):
+        with patch.object(refresh, "verify_public_bootstrap", return_value={}), patch.object(refresh, "read_target", side_effect=[TARGET, {**TARGET, "runId": "changed"}]), patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", return_value=json.dumps(pointer()).encode()), self.assertRaisesRegex(ValueError, "changed"):
             refresh.refresh("owner/repo")
 
     def test_new_activation_dispatches_once_and_waits_for_success(self):
         run = {"id": 43, "event": "workflow_dispatch", "status": "completed", "conclusion": "success"}
         old = {**pointer(), "runId": "old"}
-        with patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", side_effect=[old, pointer()]), patch.object(refresh, "fetch_bytes", side_effect=[json.dumps(old).encode(), json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", side_effect=[[], [run]]), patch.object(refresh, "gh", return_value="") as gh, patch.object(refresh, "api", return_value=run):
+        with patch.object(refresh, "verify_public_bootstrap", return_value={}), patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", side_effect=[old, pointer()]), patch.object(refresh, "fetch_bytes", side_effect=[json.dumps(old).encode(), json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", side_effect=[[], [run]]), patch.object(refresh, "gh", return_value="") as gh, patch.object(refresh, "api", return_value=run):
             report = refresh.refresh("owner/repo")
         self.assertTrue(report["dispatched"])
         self.assertEqual(43, report["publisherRunId"])
@@ -71,12 +72,12 @@ class RefreshTests(unittest.TestCase):
 
     def test_running_publisher_is_reused_without_second_dispatch(self):
         running = {"id": 43, "status": "in_progress"}
-        with patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", side_effect=[{}, pointer()]), patch.object(refresh, "fetch_bytes", side_effect=[b'{}', json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", return_value=[running]), patch.object(refresh, "start_publisher") as start, patch.object(refresh, "api", return_value={"status": "completed", "conclusion": "success"}):
+        with patch.object(refresh, "verify_public_bootstrap", return_value={}), patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", side_effect=[{}, pointer()]), patch.object(refresh, "fetch_bytes", side_effect=[b'{}', json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", return_value=[running]), patch.object(refresh, "start_publisher") as start, patch.object(refresh, "api", return_value={"status": "completed", "conclusion": "success"}):
             self.assertEqual("fresh", refresh.refresh("owner/repo")["status"])
         start.assert_not_called()
 
     def test_deployment_lag_never_rebuilds_already_committed_data(self):
-        with patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", side_effect=[b'{}', json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", return_value=[]), patch.object(refresh, "start_publisher") as start:
+        with patch.object(refresh, "verify_public_bootstrap", return_value={}), patch.object(refresh, "read_target", return_value=TARGET), patch.object(refresh, "committed_pointer", return_value=pointer()), patch.object(refresh, "fetch_bytes", side_effect=[b'{}', json.dumps(pointer()).encode()]), patch.object(refresh, "publisher_runs", return_value=[]), patch.object(refresh, "start_publisher") as start:
             self.assertEqual("fresh", refresh.refresh("owner/repo")["status"])
         start.assert_not_called()
 

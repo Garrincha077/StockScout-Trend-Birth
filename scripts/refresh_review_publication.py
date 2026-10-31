@@ -25,6 +25,7 @@ BRANCH = "feature/unified-review-grid-lab"
 WORKFLOW = "unified-review-grid-lab.yml"
 UNIFIED = "https://garrincha077.github.io/StockScout-Unified/data/"
 DEPLOYED = "https://stockscout-trend-birth-review-lab.vercel.app/data/publication.json"
+PUBLIC_ROOT = "https://stockscout-trend-birth-review-lab.vercel.app/"
 
 
 def latest_completed_session(now: datetime | None = None) -> str:
@@ -105,6 +106,44 @@ def pointer_matches(pointer: dict, target: dict) -> bool:
             and type(count) is int and count >= 0 and pointer.get("chartCount") == count)
 
 
+
+def verify_public_bootstrap(pointer: dict, target: dict) -> dict:
+    """Require the exact publicly served startup payload, not only matching pointers.
+
+    This verifies the small public UI bootstrap, never downloads the multi-MB
+    research snapshot, and does not activate, dispatch or send anything.
+    """
+    snapshot_id = pointer.get("snapshotId", "")
+    expected = f"data/review-bootstrap-v1/{snapshot_id}.json"
+    if pointer.get("bootstrapPath") != expected:
+        raise ValueError("PUBLIC_BOOTSTRAP_PATH_MISMATCH")
+    payload = json.loads(fetch_bytes(urljoin(PUBLIC_ROOT, expected)))
+    if (payload.get("schemaVersion") != "trend-birth-review-bootstrap-v1"
+            or payload.get("reviewSnapshotId") != snapshot_id
+            or payload.get("candidateCount") != pointer.get("candidateCount")):
+        raise ValueError("PUBLIC_BOOTSTRAP_IDENTITY_MISMATCH")
+    source = payload.get("source") or {}
+    if any(source.get(key) != value for key, value in target.items()):
+        raise ValueError("PUBLIC_BOOTSTRAP_SOURCE_MISMATCH")
+    shortlists = payload.get("shortlists") or {}
+    if (shortlists.get("schemaVersion") != "stockscout-shortlists-v2"
+            or not isinstance(shortlists.get("weeklyTrendBirth"), list)
+            or not isinstance(shortlists.get("kellDaily"), list)):
+        raise ValueError("PUBLIC_BOOTSTRAP_SHORTLISTS_MISSING")
+    radar = payload.get("trendBirthRadar") or {}
+    counts = radar.get("stageCounts") or {}
+    evaluated = radar.get("evaluatedCount")
+    if (radar.get("schemaVersion") != "trend-birth-radar-v1"
+            or set(counts) != {"0", "1", "2", "3", "4"}
+            or any(type(value) is not int or value < 0 for value in counts.values())
+            or type(evaluated) is not int
+            or sum(counts.values()) != evaluated):
+        raise ValueError("PUBLIC_BOOTSTRAP_RADAR_INVALID")
+    return {"snapshotId": snapshot_id, "candidateCount": pointer["candidateCount"],
+            "evaluatedCount": evaluated}
+
+
+
 def publisher_runs(repo: str) -> list[dict]:
     query = urlencode({"branch": BRANCH, "per_page": 30})
     return api(repo, f"actions/workflows/{WORKFLOW}/runs?{query}")["workflow_runs"]
@@ -132,6 +171,7 @@ def refresh(repo: str, *, dry_run: bool = False, force: bool = False,
     aligned = pointer_matches(committed, target) and deployed == committed
     report = {**target, "status": "fresh" if aligned else "refresh_needed", "dispatched": False}
     if aligned and not force:
+        report["publicBootstrap"] = verify_public_bootstrap(committed, target)
         if read_target(expected_session, expected_run) != target:
             raise ValueError("Unified activation changed during verification")
         return report
@@ -154,6 +194,14 @@ def refresh(repo: str, *, dry_run: bool = False, force: bool = False,
         committed = committed_pointer(repo)
         deployed = json.loads(fetch_bytes(DEPLOYED))
         if pointer_matches(committed, target) and deployed == committed and (not run or run["status"] == "completed"):
+            # Publishing and CDN propagation can finish at different times.
+            # A missing bootstrap is NOT ready; retain the last-good pointer.
+            try:
+                report["publicBootstrap"] = verify_public_bootstrap(committed, target)
+            except (ValueError, OSError, json.JSONDecodeError) as error:
+                report["bootstrapPending"] = str(error)
+                time.sleep(15)
+                continue
             if read_target(expected_session, expected_run) != target:
                 raise ValueError("Unified activation changed while refreshing")
             report["status"] = "fresh"
