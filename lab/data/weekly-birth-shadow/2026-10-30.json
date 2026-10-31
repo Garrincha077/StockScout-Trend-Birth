@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "weekly-birth-shadow-audit-v1",
+  "sessionDate": "2026-10-30",
+  "runId": "2026-10-30-eod-41152740415-1",
+  "unifiedManifestSha256": "740709677f5e94c34c8429627b70ddfa5dad14e5c8938b2dcea9d3ab67da60a5",
+  "evaluatedCount": 2613,
+  "eligibleCount": 63,
+  "selectedCount": 15,
+  "stageCounts": {
+    "Ready": 13,
+    "Trigger": 2
+  },
+  "rejectionReasonCounts": {
+    "aboveSma30w": 229,
+    "clearRunway": 216,
+    "launchNotChased": 36,
+    "maSlopeTurn": 165,
+    "no_recent_52_to_104_week_base": 1995,
+    "notExtended": 30,
+    "recentBaseTight": 232,
+    "weeklyMaNear": 77,
+    "weekly_history_under_156_weeks": 152
+  },
+  "added": [
+    "AER",
+    "DRI",
+    "JOE",
+    "KMI",
+    "RSG",
+    "WEC",
+    "XEL"
+  ],
+  "removed": [
+    "BCPC",
+    "BKH",
+    "ITW",
+    "MCO",
+    "MGRC",
+    "SPGI",
+    "UGI"
+  ],
+  "previousSessionDate": "2026-10-29",
+  "selected": [
+    {
+      "ticker": "BRK.B",
+      "stage": "Trigger",
+      "score": 85.9,
+      "baseWeeks": 104,
+      "baseDepthPct": 19.22,
+      "weeklyMaClusterPct": 4.5,
+      "recentBaseRangePct26w": 10.22,
+      "runwayPct": null,
+      "extensionPct": 7.35
+    },
+    {
+      "ticker": "ED",
+      "stage": "Trigger",
+      "score": 85.0,
+      "baseWeeks": 63,
+      "baseDepthPct": 19.35,
+      "weeklyMaClusterPct": 1.66,
+      "recentBaseRangePct26w": 7.96,
+      "runwayPct": null,
+      "extensionPct": 7.35
+    },
+    {
+      "ticker": "AIG",
+      "stage": "Ready",
+      "score": 92.4,
+      "baseWeeks": 104,
+      "baseDepthPct": 22.34,
+      "weeklyMaClusterPct": 2.43,
+      "recentBaseRangePct26w": 9.98,
+      "runwayPct": null,
+      "extensionPct": 6.31
+    },
+    {
+      "ticker": "XEL",
+      "stage": "Ready",
+      "score": 88.1,
+      "baseWeeks": 81,
+      "baseDepthPct": 23.99,
+      "weeklyMaClusterPct": 2.04,
+      "recentBaseRangePct26w": 7.92,
+      "runwayPct": null,
+      "extensionPct": 3.82
+    },
+    {
+      "ticker": "TXNM",
+      "stage": "Ready",
+      "score": 88.0,
+      "baseWeeks": 63,
+      "baseDepthPct": 7.13,
+      "weeklyMaClusterPct": 0.7,
+      "recentBaseRangePct26w": 4.37,
+      "runwayPct": null,
+      "extensionPct": 1.35
+    },
+    {
+      "ticker": "CPK",
+      "stage": "Ready",
+      "score": 87.1,
+      "baseWeeks": 82,
+      "baseDepthPct": 20.42,
+      "weeklyMaClusterPct": 2.43,
+      "recentBaseRangePct26w": 11.18,
+      "runwayPct": null,
+      "extensionPct": 5.33
+    },
+    {
+      "ticker": "FTS",
+      "stage": "Ready",
+      "score": 86.7,
+      "baseWeeks": 58,
+      "baseDepthPct": 17.68,
+      "weeklyMaClusterPct": 0.71,
+      "recentBaseRangePct26w": 7.1,
+      "runwayPct": null,
+      "extensionPct": 4.72
+    },
+    {
+      "ticker": "MSCI",
+      "stage": "Ready",
+      "score": 85.4,
+      "baseWeeks": 65,
+      "baseDepthPct": 22.87,
+      "weeklyMaClusterPct": 1.67,
+      "recentBaseRangePct26w": 17.4,
+      "runwayPct": null,
+      "extensionPct": 8.1
+    },
+    {
+      "ticker": "RSG",
+      "stage": "Ready",
+      "score": 85.4,
+      "baseWeeks": 104,
+      "baseDepthPct": 23.54,
+      "weeklyMaClusterPct": 4.69,
+      "recentBaseRangePct26w": 10.56,
+      "runwayPct": null,
+      "extensionPct": 11.54
+    },
+    {
+      "ticker": "SWX",
+      "stage": "Ready",
+      "score": 84.9,
+      "baseWeeks": 54,
+      "baseDepthPct": 20.27,
+      "weeklyMaClusterPct": 0.98,
+      "recentBaseRangePct26w": 10.84,
+      "runwayPct": null,
+      "extensionPct": 5.63
+    },
+    {
+      "ticker": "WEC",
+      "stage": "Ready",
+      "score": 82.0,
+      "baseWeeks": 55,
+      "baseDepthPct": 16.05,
+      "weeklyMaClusterPct": 1.99,
+      "recentBaseRangePct26w": 10.09,
+      "runwayPct": null,
+      "extensionPct": 6.09
+    },
+    {
+      "ticker": "KMI",
+      "stage": "Ready",
+      "score": 81.8,
+      "baseWeeks": 57,
+      "baseDepthPct": 28.28,
+      "weeklyMaClusterPct": 2.21,
+      "recentBaseRangePct26w": 8.02,
+      "runwayPct": null,
+      "extensionPct": 5.51
+    },
+    {
+      "ticker": "DRI",
+      "stage": "Ready",
+      "score": 81.7,
+      "baseWeeks": 67,
+      "baseDepthPct": 28.13,
+      "weeklyMaClusterPct": 3.0,
+      "recentBaseRangePct26w": 15.88,
+      "runwayPct": null,
+      "extensionPct": 6.96
+    },
+    {
+      "ticker": "AER",
+      "stage": "Ready",
+      "score": 80.7,
+      "baseWeeks": 53,
+      "baseDepthPct": 24.49,
+      "weeklyMaClusterPct": 2.24,
+      "recentBaseRangePct26w": 13.68,
+      "runwayPct": null,
+      "extensionPct": 8.41
+    },
+    {
+      "ticker": "JOE",
+      "stage": "Ready",
+      "score": 80.5,
+      "baseWeeks": 52,
+      "baseDepthPct": 24.38,
+      "weeklyMaClusterPct": 2.23,
+      "recentBaseRangePct26w": 14.52,
+      "runwayPct": null,
+      "extensionPct": 6.27
+    }
+  ],
+  "manualChartReviewComplete": false
+}

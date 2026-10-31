@@ -1,15 +1,15 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-10-23",
+  "sessionDate": "2026-10-30",
   "baselineOnly": false,
-  "readyCount": 17,
-  "triggerCount": 62,
-  "invalidatedCount": 15,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-23-eod-40042215150-1--d89c28ed39d89b42332fa5b701eddfccc51a7bd3b6c1169ed02ce0eeb2476d5b",
+  "readyCount": 22,
+  "triggerCount": 38,
+  "invalidatedCount": 25,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-30-eod-41152740415-1--3bce005d95b8c47e4532fbd8116d88d20716f262a61ad406a6364f5af1ba09f2",
   "messages": [
     {
       "kind": "intelligence-eod",
-      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-10-23\n📊 EOD setupi (Unified + watchlist)\n0/4: 2222 · 1/4: 182 · 2/4: 47 · 3/4: 58 · 4/4: 105\nAnalizirano 2614/2615; bez podataka 1\nUsporedba: 2026-10-22 → 2026-10-23\nZajednički evaluirano: 2602\nNova 4/4: 60 · Prelazak na 3/4: 16\nNapredovalo: 144 · Nazadovalo: 93\nStabilni 3+/4 (≥3 EOD): 69 · 4/4 (≥3 EOD): 21\nZadnji padovi: iz 3+/4 38 · iz 4/4 39\nPovijesni ostanak idući EOD: 3+/4 69.7% (3576 usporedbi) · 4/4 56.9% (2069 usporedbi)\nNova 4/4 · cijeli univerzum (60): VCYT, TRGP, AZTA, TXN, SCSC, DLO, DDOG, BWLP, NU, OKTA, CVE, DDS, ZBRA, PTEN (+46 ostalih)\nNovi 3/4 · cijeli univerzum (16): TXNM, KROS, NEOG, NTNX, TITN, STNG, S, BIO, EC, PRCH (+6 ostalih)\nKell/tracked 4/4 (62): OKTA, DDOG, TRGP, TXN, VCYT, AZTA, TALO, SCSC, BWLP, DVN, ZETA, ASC, CVE, PACS (+48 ostalih)\nKell/tracked 3/4 (17): NTNX, S, TXNM, NEOG, STNG, BIO, EC, PRCH, KROS, TITN (+7 ostalih)\nKell/tracked invalidirani (15): TENB, LNG, IOT, OKE, ESTC, SDRL, VIST, MEDP, FLYW, NSIT (+5 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-23-eod-40042215150-1--d89c28ed39d89b42332fa5b701eddfccc51a7bd3b6c1169ed02ce0eeb2476d5b"
+      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-10-30\n📊 EOD setupi (Unified + watchlist)\n0/4: 2142 · 1/4: 263 · 2/4: 61 · 3/4: 77 · 4/4: 69\nAnalizirano 2612/2613; bez podataka 1\nUsporedba: 2026-10-29 → 2026-10-30\nZajednički evaluirano: 2593\nNova 4/4: 38 · Prelazak na 3/4: 22\nNapredovalo: 157 · Nazadovalo: 161\nStabilni 3+/4 (≥3 EOD): 63 · 4/4 (≥3 EOD): 13\nZadnji padovi: iz 3+/4 64 · iz 4/4 71\nPovijesni ostanak idući EOD: 3+/4 69.2% (4360 usporedbi) · 4/4 55.6% (2582 usporedbi)\nNova 4/4 · cijeli univerzum (38): BEKE, BSM, PFG, EPC, STLD, WMB, SWKS, ENTG, CAL, NEO, SDGR, DVA, HAFC, CPF (+24 ostalih)\nNovi 3/4 · cijeli univerzum (22): CVE, RDVT, LUV, HELE, NAT, TLN, CAKE, CNC, MSFT, SENS (+12 ostalih)\nKell/tracked 4/4 (38): VSXY, BEKE, STLD, DVA, SEPN, GH, ENTG, JOE, VCYT, SLF, WMB, CAL, NEO, HAFC (+24 ostalih)\nKell/tracked 3/4 (22): CVE, RXRX, RDVT, LUV, HELE, CAKE, CNC, NAT, OBE, MSFT (+12 ostalih)\nKell/tracked invalidirani (25): VRTX, FLYW, AIN, CHPT, LTC, OKE, MD, TGTX, OGN, XZO (+15 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-30-eod-41152740415-1--3bce005d95b8c47e4532fbd8116d88d20716f262a61ad406a6364f5af1ba09f2"
     }
   ],
   "v2": {
@@ -20,14 +20,14 @@
     "messages": [
       {
         "kind": "weekly",
-        "text": "🌱 WEEKLY BIRTH — early trend shortlist\n15 candidates\n\nED · Trigger · 62W base · 0.6% MA · blue sky\nBRK.B · Trigger · 103W base · 3.93% MA · blue sky\nBKH · Trigger · 53W base · 2.44% MA · blue sky\nCPK · Ready · 81W base · 1.96% MA · blue sky\nTXNM · Ready · 62W base · 0.47% MA · blue sky\nMSCI · Ready · 64W base · 0.82% MA · blue sky\nBCPC · Ready · 63W base · 1.3% MA · blue sky\nFTS · Ready · 57W base · 1.48% MA · blue sky\nSWX · Ready · 53W base · 1.54% MA · blue sky\nUGI · Ready · 74W base · 3.99% MA · blue sky\nITW · Compressed · 104W base · 1.21% MA · blue sky\nMGRC · Compressed · 104W base · 1.2% MA · blue sky\nAIG · Compressed · 104W base · 1.82% MA · blue sky\nSPGI · Compressed · 104W base · 1.99% MA · blue sky\nMCO · Compressed · 104W base · 2.32% MA · blue sky\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-23-eod-40042215150-1--d89c28ed39d89b42332fa5b701eddfccc51a7bd3b6c1169ed02ce0eeb2476d5b"
+        "text": "🌱 WEEKLY BIRTH — early trend shortlist\n15 candidates\n\nBRK.B · Trigger · 104W base · 4.5% MA · blue sky\nED · Trigger · 63W base · 1.66% MA · blue sky\nAIG · Ready · 104W base · 2.43% MA · blue sky\nXEL · Ready · 81W base · 2.04% MA · blue sky\nTXNM · Ready · 63W base · 0.7% MA · blue sky\nCPK · Ready · 82W base · 2.43% MA · blue sky\nFTS · Ready · 58W base · 0.71% MA · blue sky\nMSCI · Ready · 65W base · 1.67% MA · blue sky\nRSG · Ready · 104W base · 4.69% MA · blue sky\nSWX · Ready · 54W base · 0.98% MA · blue sky\nWEC · Ready · 55W base · 1.99% MA · blue sky\nKMI · Ready · 57W base · 2.21% MA · blue sky\nDRI · Ready · 67W base · 3.0% MA · blue sky\nAER · Ready · 53W base · 2.24% MA · blue sky\nJOE · Ready · 52W base · 2.23% MA · blue sky\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-30-eod-41152740415-1--3bce005d95b8c47e4532fbd8116d88d20716f262a61ad406a6364f5af1ba09f2"
       },
       {
         "kind": "kell-daily",
-        "text": "⚡ KELL DAILY — new or improved setups\n\nTXNM · ema crossback · readiness 96\nWFC · ema crossback · readiness 96\nIVT · ema crossback · readiness 96\nCF · ema crossback · readiness 96\nRWAY · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-23-eod-40042215150-1--d89c28ed39d89b42332fa5b701eddfccc51a7bd3b6c1169ed02ce0eeb2476d5b"
+        "text": "⚡ KELL DAILY — new or improved setups\n\nHUM · ema crossback · readiness 96\nCMBT · ema crossback · readiness 96\nSTEP · ema crossback · readiness 96\nUBS · ema crossback · readiness 96\nCBL · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-10-30-eod-41152740415-1--3bce005d95b8c47e4532fbd8116d88d20716f262a61ad406a6364f5af1ba09f2"
       }
     ]
   },
-  "previousSessionDate": "2026-10-22",
-  "previousPath": "lab/data/kell-history/2026-10-22.json"
+  "previousSessionDate": "2026-10-29",
+  "previousPath": "lab/data/kell-history/2026-10-29.json"
 }

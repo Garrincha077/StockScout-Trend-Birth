@@ -1000,6 +1000,7 @@ function changeStrip(item){
 }
 async function ensureChartData(item){
   if(rowsForPeriod(item).length>=2)return rowsForPeriod(item);
+  if(item?.chartAvailable===false)return [];
   const data=state.kellData;
   const meta=data?.kellChartData;
   const shard=Number(item?.chartShard);
@@ -1066,6 +1067,7 @@ function card(item){
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
     (missing?'<div class="watchlist-missing">Nije u današnjem Unified scanu · ostaje spremljen dok ga ručno ne ukloniš</div>':item.watchlistUnifiedOnly?'<div class="watchlist-current">U današnjem Unified scanu · trenutačno nema aktivni Review/Kell hit</div>':'')+
+    (item.chartAvailable===false?'<div class="watchlist-current" role="status">Graf trenutačno nije dostupan u ovoj objavi</div>':'')+
     '<div class="metrics"><span>Px <b>'+fmt(m.price)+'</b></span><span>RVOL <b>'+fmt(m.rvol)+'x</b></span><span>RSI <b>'+fmt(m.rsi14,1)+'</b></span><span>EMA gap <b>'+pct(m.emaGapPct)+'</b></span><span>Kell <b>'+fmt(item.kell_score,0)+'</b></span><span>TB <b>'+trendBirthStage(item)+'/4</b></span>'+(sources.includes('kell-gap')?'<span>Gap <b>'+pct(gap.gapPct)+'</b></span>':'')+'</div>'+
     '<div class="metrics kell-dimensions"><span>Stage <b>'+esc(stage)+'</b></span><span>Q / R / C <b>'+fmt(item.kell_quality_score,0)+' / '+fmt(item.kell_readiness_score,0)+' / '+fmt(item.kell_context_score,0)+'</b></span><span>Evidence <b>'+fmt(item.kell_evidence_coverage,0)+'%</b></span></div>'+
     '<div class="metrics kell-dimensions"><span>Setup <b>'+esc(setups)+'</b></span></div>'+
@@ -1159,6 +1161,8 @@ function render(){
   }else{
     $('#status').textContent=items.length+' review kandidata · Universe '+universeText+' · odaberi više Screen / Stage / Setup filtera za AND presjek';
   }
+  const missingCharts=state.kellData?.kellChartData?.missingChartCount||0;
+  if(missingCharts)$('#status').textContent+=' · '+missingCharts+' nedostupnih grafova u objavi';
   observer?.disconnect();
   const lookup=new Map(items.map(item=>[item.ticker,item]));
   observer=new IntersectionObserver(entries=>{

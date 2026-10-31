@@ -191,7 +191,8 @@ jobs:
           assert len(data["kellCandidates"]) == data["kellCandidateCount"]
           chart_meta = data["kellChartData"]
           assert chart_meta["schemaVersion"] == "kell-chart-shard-v2"
-          assert chart_meta["chartCandidateCount"] == data["kellCandidateCount"]
+          # The builder and bundle validator enforce the shared >=99% chart policy.
+          # Missing charts remain explicit candidates; no scores or prices are invented.
           assert chart_meta["weeklyChartCandidateCount"] > 0
           assert chart_meta["shardCount"] > 0
           chart_files = sorted(Path("lab/data/kell-charts").glob("shard-*.json"))
@@ -205,7 +206,9 @@ jobs:
                   assert len(chart.get("daily") or []) >= 2
                   assert len(chart.get("weekly") or []) >= 2
                   chart_tickers.add(ticker)
-          assert len(chart_tickers) == data["kellCandidateCount"]
+          assert len(chart_tickers) == chart_meta["chartCandidateCount"]
+          assert data["kellCandidateCount"] - len(chart_tickers) == chart_meta["missingChartCount"]
+          assert set(chart_meta["missingChartTickers"]) == {item["ticker"] for item in data["kellCandidates"]} - chart_tickers
           assert data["kellScoring"]["modelVersion"] == "kell-overlay-v5-quality-readiness-context"
           assert data["kellScoring"]["unifiedCandidateCount"] >= len(data["kellCandidates"])
           assert "kell_doubler_ytd" in data["kellScoring"]["screenCounts"]
@@ -233,10 +236,14 @@ jobs:
               assert 0 <= float(item.get("kell_context_score") or 0) <= 100
               assert 0 <= float(item.get("kell_evidence_coverage") or 0) <= 100
               assert float(item.get("kell_score") or 0) <= float(item.get("kell_stage_cap") or 100)
-              assert isinstance(item.get("chartShard"), int)
-              assert item.get("chartBarsCount", 0) >= 2
-              assert item.get("weeklyChartBarsCount", 0) >= 2
-              assert item["ticker"] in chart_tickers
+              if item["chartAvailable"]:
+                  assert isinstance(item.get("chartShard"), int)
+                  assert item.get("chartBarsCount", 0) >= 2
+                  assert item.get("weeklyChartBarsCount", 0) >= 2
+                  assert item["ticker"] in chart_tickers
+              else:
+                  assert "chartShard" not in item
+                  assert item["ticker"] not in chart_tickers
           print({
               "sessionDate": data["source"]["sessionDate"],
               "kellCandidates": len(data["kellCandidates"]),

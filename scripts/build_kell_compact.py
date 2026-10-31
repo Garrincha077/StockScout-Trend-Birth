@@ -11,6 +11,10 @@ import argparse
 import json
 import math
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kell_chart_coverage import chart_coverage
 
 METRIC_KEYS = (
     "price", "rvol", "rsi14", "emaGapPct", "slope50", "slope30w",
@@ -76,7 +80,8 @@ def compact_candidate(
     chart_shard: int | None = None,
     include_bars: bool = False,
 ) -> dict:
-    bars = item.get("chartBars") or []
+    bars = [bar for row in (item.get("chartBars") or []) if (bar := compact_bar(row)) is not None]
+    weekly = [bar for row in (item.get("weeklyChartBars") or []) if (bar := compact_bar(row)) is not None]
     out = {
         "ticker": item.get("ticker"),
         "sources": list(item.get("sources") or []),
@@ -104,18 +109,15 @@ def compact_candidate(
         "weeklyBirth": item.get("weeklyBirth") or {},
         "trendBirthEvidence": item.get("trendBirthEvidence") or {},
         "chartBarsCount": len(bars),
-        "weeklyChartBarsCount": len(item.get("weeklyChartBars") or []),
+        "weeklyChartBarsCount": len(weekly),
     }
     if chart_shard is not None:
-        out["chartShard"] = chart_shard
+        out["chartAvailable"] = len(bars) >= 2 and len(weekly) >= 2
+        if out["chartAvailable"]:
+            out["chartShard"] = chart_shard
     if include_bars:
-        out["chartBars"] = [
-            bar for row in bars if (bar := compact_bar(row)) is not None
-        ]
-        out["weeklyChartBars"] = [
-            bar for row in (item.get("weeklyChartBars") or [])
-            if (bar := compact_bar(row)) is not None
-        ]
+        out["chartBars"] = bars
+        out["weeklyChartBars"] = weekly
     return out
 
 
@@ -127,6 +129,18 @@ def write_chart_shards(
 ) -> dict:
     if chunk_size < 1:
         raise ValueError("chart chunk size must be positive")
+    tickers = [str(item.get("ticker") or "") for item in candidates]
+    if any(not ticker for ticker in tickers) or len(set(tickers)) != len(tickers):
+        raise ValueError("Kell candidates must have unique nonempty tickers")
+    normalized = []
+    available = set()
+    for item, ticker in zip(candidates, tickers):
+        daily = [bar for row in (item.get("chartBars") or []) if (bar := compact_bar(row)) is not None]
+        weekly = [bar for row in (item.get("weeklyChartBars") or []) if (bar := compact_bar(row)) is not None]
+        normalized.append((ticker, daily, weekly))
+        if len(daily) >= 2 and len(weekly) >= 2:
+            available.add(ticker)
+    coverage = chart_coverage(set(tickers), available)
     charts_dir.mkdir(parents=True, exist_ok=True)
     for stale in charts_dir.glob("shard-*.json"):
         stale.unlink()
@@ -137,13 +151,10 @@ def write_chart_shards(
     weekly_chart_candidate_count = 0
     weekly_chart_bar_count = 0
     for shard_index in range(shard_count):
-        chunk = candidates[shard_index * chunk_size:(shard_index + 1) * chunk_size]
+        chunk = normalized[shard_index * chunk_size:(shard_index + 1) * chunk_size]
         charts: dict[str, list] = {}
-        for item in chunk:
-            ticker = str(item.get("ticker") or "")
-            daily = [bar for row in (item.get("chartBars") or []) if (bar := compact_bar(row)) is not None]
-            weekly = [bar for row in (item.get("weeklyChartBars") or []) if (bar := compact_bar(row)) is not None]
-            if ticker and len(daily) >= 2:
+        for ticker, daily, weekly in chunk:
+            if ticker in available:
                 charts[ticker] = {"daily": daily, "weekly": weekly}
                 chart_candidate_count += 1
                 chart_bar_count += len(daily)
@@ -173,6 +184,7 @@ def write_chart_shards(
         "chartBarCount": chart_bar_count,
         "weeklyChartCandidateCount": weekly_chart_candidate_count,
         "weeklyChartBarCount": weekly_chart_bar_count,
+        **coverage,
     }
 
 
