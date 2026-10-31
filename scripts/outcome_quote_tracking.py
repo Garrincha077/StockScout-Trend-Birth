@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 from hashlib import sha256
 import json
 import math
@@ -66,9 +66,19 @@ def active_tickers(points, calendar, day):
 
 
 def capture_window(day, close, now):
-    # Let delayed daily feeds settle; never label a just-closed intraday bar EOD.
-    return (now >= datetime.fromisoformat(close) + timedelta(minutes=20) and
-            now.astimezone(NY).date().isoformat() == day)
+    """After-close capture through the next NY morning, before the next cash open.
+
+    Production's Zagreb morning run is commonly the next calendar date in NY.
+    Ticker/day/regular-close evidence is checked independently by parse_quote.
+    This window permits that run without enabling historical Yahoo backfills.
+    """
+    if now < datetime.fromisoformat(close) + timedelta(minutes=20):
+        return False
+    ny_now = now.astimezone(NY)
+    market_day = datetime.fromisoformat(day).date()
+    return (ny_now.date() == market_day or
+            (ny_now.date() == market_day + timedelta(days=1)
+             and ny_now.time() < time(9, 30)))
 
 
 def parse_quote(payload, ticker, day, close, now, host):
