@@ -149,3 +149,16 @@ Run all browser regressions with
 `STATISTICS_CHROMIUM_PATH=/usr/bin/chromium node --test tests/browser/*.test.cjs`.
 See `docs/review/IMPLEMENTATION_20261026.md` for measured payload sizes, the
 bounded weekly-definition comparison, calendar regeneration and rollout checks.
+
+
+## Lossless oversized Review archives
+
+After all Review, Kell and EOD validation, scripts/pack_review_storage.py
+stores Review JSON larger than 96 MiB in deterministic .json.gz files.
+Snapshot IDs, raw SHA-256 digests, session identity, candidate/chart counts and
+point-in-time content stay unchanged. The browser resolves exact pinned
+snapshot/date links and transparently decompresses only on demand. Earlier
+plain JSON archives remain immutable. Python history readers support both
+formats and reject ambiguous duplicate dates. Historical-calibration restores
+the raw latest JSON only in the isolated runner checkout. No scanning, ranking,
+market-data calculations or alert policy change.

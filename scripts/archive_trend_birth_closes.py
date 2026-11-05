@@ -11,6 +11,8 @@ import json
 import math
 from pathlib import Path
 
+from review_archive_io import archive_for_day, read_archive
+
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
 
 SCHEMA = "trend-birth-close-month-v1"
@@ -88,10 +90,8 @@ def build(latest_path: Path, history_dir: Path, stages_dir: Path,
         if day == latest_day:
             snapshot = current
         else:
-            source = history_dir / (day + ".json")
-            if not source.is_file():
-                raise ValueError("Source EOD snapshot missing: " + str(source))
-            snapshot = json.loads(source.read_text(encoding="utf-8"))
+            source = archive_for_day(history_dir, day)
+            snapshot = read_archive(source)
         archived[day] = extract(snapshot, point)
     grouped: dict[str, list[dict]] = {}
     for day in sorted(archived):

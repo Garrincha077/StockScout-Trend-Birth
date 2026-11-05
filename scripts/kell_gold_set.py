@@ -27,6 +27,8 @@ def _load_json(path: Path) -> dict:
     if path.name.endswith(".json.gz.b64"):
         raw = base64.b64decode(path.read_text(encoding="utf-8"))
         return json.loads(gzip.decompress(raw).decode("utf-8"))
+    if path.name.endswith(".json.gz"):
+        return json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -157,7 +159,7 @@ def _load_raw_snapshots(snapshots_dir: Path | None) -> dict[str, dict]:
     snapshots: dict[str, dict] = {}
     if not snapshots_dir or not snapshots_dir.exists():
         return snapshots
-    for path in sorted(snapshots_dir.glob("*.json")):
+    for path in sorted([*snapshots_dir.glob("*.json"), *snapshots_dir.glob("*.json.gz")]):
         try:
             snapshot = _load_json(path)
         except Exception:

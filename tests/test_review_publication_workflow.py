@@ -48,7 +48,8 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
             (checkout / "scripts").mkdir()
             for name in ["trend_birth_quality_history.py", "validate_eod_publication.py",
                          "archive_trend_birth_closes.py", "trend_birth_intelligence.py",
-                         "validate_unified_review_bundle.py"]:
+                         "validate_unified_review_bundle.py",
+                         "pack_review_storage.py", "review_archive_io.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")
 
@@ -66,8 +67,14 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 write("lab/data/latest.json", latest)
                 write("lab/data/history/" + day + ".json", latest)
                 import hashlib
+                raw = (checkout / "lab/data/latest.json").read_bytes()
+                sha = hashlib.sha256(raw).hexdigest()
+                sid = latest["source"]["runId"] + "--" + sha
+                write("lab/data/snapshots/" + sid + ".json", latest)
                 write("lab/data/publication.json", {**latest["source"],
-                    "sha256": hashlib.sha256((checkout / "lab/data/latest.json").read_bytes()).hexdigest()})
+                    "schemaVersion": "trend-birth-publication-v1",
+                    "snapshotId": sid, "snapshotPath": "data/snapshots/" + sid + ".json",
+                    "sha256": sha})
                 import sys
                 sys.path.insert(0, str(ROOT / "scripts"))
                 from trend_birth_intelligence import point_from_snapshot

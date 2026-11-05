@@ -9,6 +9,7 @@ and duplicate chart storage.
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import re
@@ -80,8 +81,9 @@ def matching_review_snapshot_ids(directory: Path, run_id: str, current_snapshot_
     ids = {current_snapshot_id}
     snapshots_dir = directory / "snapshots"
     if snapshots_dir.exists():
-        for path in snapshots_dir.glob(f"{run_id}--*.json"):
-            snapshot_id = path.stem
+        for path in [*snapshots_dir.glob(f"{run_id}--*.json"),
+                     *snapshots_dir.glob(f"{run_id}--*.json.gz")]:
+            snapshot_id = path.name.removesuffix(".json.gz").removesuffix(".json")
             if SNAPSHOT_ID_RE.fullmatch(snapshot_id):
                 ids.add(snapshot_id)
     return sorted(ids)
@@ -141,8 +143,10 @@ def companion_payload(kell: dict, snapshot_id: str, chart_base_path: str) -> dic
 def date_snapshot_id(directory: Path, publication: dict) -> str | None:
     history_path = directory / "history" / f"{publication['sessionDate']}.json"
     if not history_path.exists():
+        history_path = history_path.with_suffix(".json.gz")
+    if not history_path.exists():
         return None
-    raw = history_path.read_bytes()
+    raw = gzip.decompress(history_path.read_bytes()) if history_path.suffix == ".gz" else history_path.read_bytes()
     try:
         source = json.loads(raw).get("source") or {}
     except json.JSONDecodeError:

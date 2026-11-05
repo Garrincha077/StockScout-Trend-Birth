@@ -118,7 +118,7 @@ def publish(snapshot: dict, directory: Path) -> dict:
     changed = write_changed(archive, content) or changed
     # Preserve existing date links forever, including the pre-v1 archives.
     date_archive = directory / "history" / f"{session}.json"
-    if not date_archive.exists():
+    if not date_archive.exists() and not date_archive.with_suffix(".json.gz").exists():
         changed = write_changed(date_archive, content) or changed
     changed = write_changed(latest, content) or changed
     # Commit all files together. Consumers use the pointer only after deployment.

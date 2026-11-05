@@ -1,5 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
+const {gzipSync} = require('node:zlib');
 const {load} = require('../lab/snapshot-loader.js');
 const id = 'run-1--' + 'a'.repeat(64);
 test('old links request only their exact archive', async () => {
@@ -11,7 +12,7 @@ test('old links request only their exact archive', async () => {
 test('missing archive never silently loads latest', async () => {
   let calls=0;
   await assert.rejects(load(async()=>{calls++;return {ok:false,status:404}}, '?snapshot='+id));
-  assert.equal(calls,1);
+  assert.equal(calls,2); // exact plain then gzip, never latest
 });
 test('reject traversal without fetching', async () => {
   await assert.rejects(load(()=>assert.fail('must not fetch'), '?snapshot=../latest'));
@@ -50,4 +51,26 @@ test('explicit legacy mode bypasses compact startup and retains the full source'
   const paths=[];
   await loadInitial(async path=>{paths.push(path);return{ok:true,json:async()=>path.endsWith('publication.json')?manifest:{source}}},'?mode=legacy');
   assert.deepEqual(paths,['data/publication.json','data/snapshots/'+id+'.json']);
+});
+
+
+test('compressed full Review remains pinned and lossless', async () => {
+  const {load, loadResearch} = require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-11-04',unifiedManifestSha256:'a'.repeat(64)};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,
+    snapshotPath:'data/snapshots/'+id+'.json.gz'};
+  const snapshot={source,candidates:[{ticker:'AAA',chartBars:[[1,2]]}],candidateCount:1,chartCount:1};
+  const compressed=gzipSync(JSON.stringify(snapshot),{mtime:0});
+  const paths=[];
+  const fetcher=async path=>{
+    paths.push(path);
+    return path==='data/publication.json' ? {ok:true,json:async()=>manifest} :
+      path.endsWith('.json') ? {ok:false,status:404} :
+      new Response(compressed,{status:200});
+  };
+  assert.deepEqual(await load(fetcher,''),snapshot);
+  const original={schemaVersion:'trend-birth-review-bootstrap-v1',reviewSnapshotId:id,source};
+  assert.deepEqual(await loadResearch(fetcher,original),snapshot);
+  assert.deepEqual(paths,['data/publication.json',manifest.snapshotPath,
+    'data/snapshots/'+id+'.json',manifest.snapshotPath]);
 });

@@ -6,6 +6,8 @@ import datetime as dt
 import json
 from pathlib import Path
 
+from review_archive_io import archive_day, archive_paths, read_archive
+
 SCHEMA = "trend-birth-quality-history-v1"
 STAGES = tuple(str(value) for value in range(5))
 
@@ -43,15 +45,15 @@ def point_from_snapshot(snapshot: dict) -> dict | None:
 def build_history(directory: Path) -> dict:
     points = []
     scope = None
-    for path in sorted(directory.glob("????-??-??.json")):
+    for path in archive_paths(directory):
         try:
-            snapshot = json.loads(path.read_text(encoding="utf-8"))
+            snapshot = read_archive(path)
         except json.JSONDecodeError:
             continue  # Legacy pre-radar non-JSON archive.
         point = point_from_snapshot(snapshot)
         if point is None:
             continue  # Never fabricate zero observations before radar existed.
-        if point["sessionDate"] != path.stem or not point["scope"]:
+        if point["sessionDate"] != archive_day(path) or not point["scope"]:
             raise ValueError("Invalid dated archive: " + path.name)
         if scope is not None and scope != point["scope"]:
             raise ValueError("Incompatible historical Trend Birth scopes")

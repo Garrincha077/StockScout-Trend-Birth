@@ -11,6 +11,8 @@ import datetime as dt
 import json
 from pathlib import Path
 
+from review_archive_io import archive_day, archive_paths, read_archive
+
 SCHEMA = "trend-birth-ticker-month-v1"
 SUMMARY_SCHEMA = "trend-birth-intelligence-v1"
 RADAR_SCHEMA = "trend-birth-radar-v1"
@@ -403,17 +405,18 @@ def build(latest_path: Path, history_dir: Path, month_dir: Path, summary_path: P
     retained_days = {p["sessionDate"] for p in all_points(months)}
     merge_point(months, latest)
     retained_days.add(latest["sessionDate"])
-    for path in sorted(history_dir.glob("????-??-??.json")):
-        if path.stem > latest["sessionDate"] or path.stem in retained_days:
+    for path in archive_paths(history_dir):
+        day = archive_day(path)
+        if day > latest["sessionDate"] or day in retained_days:
             continue  # Reuse durable compact points, avoid rereading multi-GB archives daily.
         try:
-            snapshot = json.loads(path.read_text(encoding="utf-8"))
+            snapshot = read_archive(path)
         except json.JSONDecodeError:
             continue  # Legacy snapshots preceding the radar contract.
         point = point_from_snapshot(snapshot)
         if point is None:
             continue
-        if point["sessionDate"] != path.stem:
+        if point["sessionDate"] != day:
             raise ValueError("Misdated raw archive: " + path.name)
         merge_point(months, point)
         retained_days.add(point["sessionDate"])
