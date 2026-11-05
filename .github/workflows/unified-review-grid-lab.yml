@@ -152,6 +152,8 @@ jobs:
             --history-dir lab/data/history \
             --stages-dir lab/data/trend-birth-ticker-history \
             --prices-dir lab/data/trend-birth-price-history
+      - name: Retain closes for open stage outcomes after candidate eligibility ends
+        run: python scripts/outcome_quote_tracking.py
       - name: Mature point-in-time Trend Birth stage-entry outcomes
         run: |
           python scripts/trend_birth_stage_forward.py \
@@ -159,7 +161,11 @@ jobs:
             --stages-dir lab/data/trend-birth-ticker-history \
             --prices-dir lab/data/trend-birth-price-history \
             --outcomes-dir lab/data/trend-birth-forward-eod-history \
-            --output lab/data/trend-birth-stage-forward.json
+            --output lab/data/trend-birth-stage-forward.json \
+            --tracking-dir lab/data/trend-birth-outcome-quotes \
+            --tracking-policy lab/data/trend-birth-outcome-policy.json \
+            --tracking-calendar lab/data/exchange-sessions-v1.json \
+            --tracking-health lab/data/trend-birth-outcome-tracking.json
       - name: Refresh historical-proxy Composite Score from local EOD archive
         run: python scripts/backtest_market_internals.py --refresh-actual-only
       - name: Build compact Kell preview dataset
@@ -274,6 +280,9 @@ jobs:
           cp lab/data/trend-birth-market-internals.json /tmp/trend-birth-market-internals.json
           cp lab/data/trend-birth-composite-backtest.json /tmp/trend-birth-composite-backtest.json
           cp lab/data/trend-birth-stage-forward.json /tmp/trend-birth-stage-forward.json
+          cp lab/data/trend-birth-outcome-tracking.json /tmp/trend-birth-outcome-tracking.json
+          rm -rf /tmp/trend-birth-outcome-quotes
+          cp -R lab/data/trend-birth-outcome-quotes /tmp/trend-birth-outcome-quotes
           rm -rf /tmp/trend-birth-price-history
           cp -R lab/data/trend-birth-price-history /tmp/trend-birth-price-history
           rm -rf /tmp/trend-birth-forward-eod-history
@@ -320,6 +329,9 @@ jobs:
           cp /tmp/trend-birth-market-internals.json lab/data/trend-birth-market-internals.json
           cp /tmp/trend-birth-composite-backtest.json lab/data/trend-birth-composite-backtest.json
           cp /tmp/trend-birth-stage-forward.json lab/data/trend-birth-stage-forward.json
+          cp /tmp/trend-birth-outcome-tracking.json lab/data/trend-birth-outcome-tracking.json
+          mkdir -p lab/data/trend-birth-outcome-quotes
+          cp -R /tmp/trend-birth-outcome-quotes/. lab/data/trend-birth-outcome-quotes/
           mkdir -p lab/data/trend-birth-price-history
           cp -R /tmp/trend-birth-price-history/. lab/data/trend-birth-price-history/
           mkdir -p lab/data/trend-birth-forward-eod-history
@@ -363,7 +375,7 @@ jobs:
           python scripts/validate_eod_publication.py --previous-publication /tmp/review-publication/previous-publication.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/trend-birth-outcome-tracking.json lab/data/trend-birth-outcome-quotes lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
             exit 0

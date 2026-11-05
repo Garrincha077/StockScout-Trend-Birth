@@ -246,7 +246,7 @@ def _data_quality(calendar: list[str], archived: dict[str, dict]) -> dict:
 
 
 def report(sessions: list[dict], calendar: list[str], as_of: str,
-           archived: dict[str, dict]) -> dict:
+           archived: dict[str, dict], outcome_prices=None) -> dict:
     all_events = sum(len(row["events"]) for row in sessions)
     data_quality = _data_quality(calendar, archived)
     by_horizon: dict[str, dict] = {}
@@ -268,7 +268,7 @@ def report(sessions: list[dict], calendar: list[str], as_of: str,
                 for event in session["events"] if event[2] == stage
             )
             stats = _stats(values)
-            stats.update(_missing_reasons(sessions, calendar, archived, h, stage))
+            stats.update(_missing_reasons(sessions, calendar, outcome_prices or archived, h, stage))
             stats.update({
                 "expectedMatured": eligible,
                 "missingMatured": eligible - len(values),
@@ -302,7 +302,8 @@ def report(sessions: list[dict], calendar: list[str], as_of: str,
     }
 
 
-def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path, output: Path) -> dict:
+def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path, output: Path,
+          tracking_dir=None, tracking_policy=None, tracking_calendar=None, tracking_health=None) -> dict:
     latest = json.loads(latest_path.read_text(encoding="utf-8"))
     as_of = str((latest.get("source") or {}).get("sessionDate") or "")
     points = all_points(load_months(stages_dir))
@@ -323,7 +324,16 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
         if (close.get("runId") != point["runId"] or
             close.get("expectedEvaluated") != point["evaluatedCount"]):
             raise ValueError("EOD close provenance mismatch: " + point["sessionDate"])
-    prices = _price_series(closed)
+    observed = closed
+    tracking = None
+    if tracking_dir is not None:
+        from outcome_quote_tracking import load_observations, merged_closes, validate_health
+        supplemental = load_observations(tracking_dir, closed, tracking_policy, tracking_calendar)
+        source = {key: latest["source"][key] for key in ("runId", "sessionDate", "unifiedManifestSha256")}
+        tracking = validate_health(tracking_health, source, tracking_policy, points, closed,
+                                   supplemental, tracking_calendar)
+        observed = merged_closes(closed, supplemental)
+    prices = _price_series(observed)
     sessions = _merge(_events(points), _load_archive(outcomes_dir))
     _mature(sessions, prices, calendar)
     grouped: dict[str, list[dict]] = {}
@@ -334,7 +344,11 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
             "schemaVersion": SCHEMA, "month": month, "scope": SCOPE,
             "sessions": rows,
         })
-    result = report(sessions, calendar, as_of, closed)
+    result = report(sessions, calendar, as_of, closed, observed)
+    if tracking is not None:
+        result["outcomeTracking"] = tracking
+        if tracking["enabled"]:
+            result["priceSource"] += "; supplemental as-observed regular closes after " + tracking["startAfterSessionDate"]
     write_json(output, result)
     return {"asOf": as_of, "transitions": result["stageTransitions"],
             "archivedDays": len(sessions),
@@ -348,8 +362,19 @@ def main() -> None:
     parser.add_argument("--prices-dir", type=Path, required=True)
     parser.add_argument("--outcomes-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--tracking-dir", type=Path)
+    parser.add_argument("--tracking-policy", type=Path)
+    parser.add_argument("--tracking-calendar", type=Path)
+    parser.add_argument("--tracking-health", type=Path)
     args = parser.parse_args()
-    print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir, args.outcomes_dir, args.output)))
+    options = [args.tracking_dir, args.tracking_policy, args.tracking_calendar, args.tracking_health]
+    if any(x is not None for x in options) and not all(x is not None for x in options):
+        parser.error("All four tracking options are required together")
+    values = [args.tracking_dir] + [json.loads(path.read_text()) if path else None for path in options[1:]]
+    if args.tracking_policy:
+        from outcome_quote_tracking import load_policy
+        values[1] = load_policy(args.tracking_policy)
+    print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir, args.outcomes_dir, args.output, *values)))
 
 
 if __name__ == "__main__":

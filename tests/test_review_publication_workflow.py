@@ -48,9 +48,10 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
             (checkout / "scripts").mkdir()
             for name in ["trend_birth_quality_history.py", "validate_eod_publication.py",
                          "archive_trend_birth_closes.py", "trend_birth_intelligence.py",
-                         "validate_unified_review_bundle.py"]:
+                         "validate_unified_review_bundle.py", "outcome_quote_tracking.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")
+            shutil.copy2(ROOT / "lab/data/trend-birth-outcome-policy.json", checkout / "lab/data")
 
             def snapshot(day):
                 source = {"sessionDate": day, "runId": day + "-eod-42-1", "unifiedManifestSha256": "a" * 64}
@@ -81,7 +82,15 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                         "schemaVersion": schema, "scope": "unified-plus-tracked-watchlist", "month": day[:7], "sessions": []}
                     payload["sessions"].append(point)
                     write(str(target.relative_to(checkout)), payload)
-                write("lab/data/trend-birth-stage-forward.json", {"asOf": day, "exchangeSessions": [day]})
+                from outcome_quote_tracking import build as track, load_policy
+                health = track(checkout / "lab/data/latest.json",
+                    checkout / "lab/data/trend-birth-ticker-history",
+                    checkout / "lab/data/trend-birth-price-history",
+                    checkout / "lab/data/trend-birth-outcome-quotes",
+                    load_policy(checkout / "lab/data/trend-birth-outcome-policy.json"),
+                    json.loads((checkout / "lab/data/exchange-sessions-v1.json").read_text()),
+                    checkout / "lab/data/trend-birth-outcome-tracking.json")
+                write("lab/data/trend-birth-stage-forward.json", {"asOf": day, "exchangeSessions": [day], "outcomeTracking": health})
                 write("lab/data/kell-latest.json", {"source": latest["source"]})
                 write("lab/data/trend-birth-market-internals.json", {
                     "latestSessionDate": day, "latestRunId": latest["source"]["runId"]})

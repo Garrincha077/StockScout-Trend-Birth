@@ -82,6 +82,16 @@ def validate(directory, calendar, now, previous=None):
         raise ValueError("Composite latest/history mismatch")
     if forward.get("asOf") != day or forward.get("exchangeSessions", [None])[-1] != day:
         raise ValueError("Forward EOD/calendar mismatch")
+    policy_path = directory / "trend-birth-outcome-policy.json"
+    if policy_path.exists():
+        from outcome_quote_tracking import load_policy, load_observations, validate_health
+        policy = load_policy(policy_path)
+        observations = load_observations(directory / "trend-birth-outcome-quotes", quotes, policy, calendar)
+        health = read(directory / "trend-birth-outcome-tracking.json")
+        source_id = {key: source[key] for key in ("runId", "sessionDate", "unifiedManifestSha256")}
+        validate_health(health, source_id, policy, points, quotes, observations, calendar)
+        if forward.get("outcomeTracking") != health:
+            raise ValueError("Forward outcome tracking health mismatch")
     return {"status": "ok", "sessionDate": day, "runId": run,
             "expectedSessionDate": expected, "priceCount": point["priceCount"],
             "expectedEvaluated": expected_quotes, "minimumPriceCoveragePct": 99,
