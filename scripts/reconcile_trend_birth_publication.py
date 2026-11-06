@@ -91,7 +91,7 @@ def reconcile() -> None:
         raise RuntimeError("Refusing to roll back a newer Trend Birth publication")
 
     runs = github(
-        f"/repos/{REPO}/actions/workflows/unified-review-grid-lab.yml/runs"
+        f"/repos/{REPO}/actions/runs"
         f"?branch={urllib.parse.quote(BRANCH, safe='')}&per_page=50"
     ).get("workflow_runs", [])
     active_runs = [r for r in runs if r.get("status") != "completed"
