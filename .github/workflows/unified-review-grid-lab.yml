@@ -364,7 +364,12 @@ jobs:
           python scripts/pack_review_storage.py --directory lab/data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/latest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-chart-runs lab/data/kell-history
+          git add lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-history
+          # pack_review_storage.py may losslessly replace latest.json with latest.json.gz.
+          # Stage tracked removal and whichever exact payload is physically present.
+          if git ls-files --error-unmatch lab/data/latest.json >/dev/null 2>&1; then git add -u -- lab/data/latest.json; fi
+          if [ -f lab/data/latest.json ]; then git add lab/data/latest.json; fi
+          if [ -d lab/data/kell-chart-runs ]; then git add lab/data/kell-chart-runs; fi
           if [ -f lab/data/latest.json.gz ]; then git add lab/data/latest.json.gz; fi
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."

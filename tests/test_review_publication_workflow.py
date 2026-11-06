@@ -140,6 +140,20 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
             published = json.loads(git("show", "HEAD:lab/data/trend-birth-composite-backtest.json"))
             return result, published, git("rev-parse", "HEAD") == baseline
 
+    def test_lossless_gzip_staging_does_not_require_deleted_plain_json(self):
+        script = publication_script()
+        import shlex
+        required = shlex.split(next(line for line in script.splitlines()
+                                      if line.startswith("git add ")))[2:]
+        self.assertNotIn("lab/data/latest.json", required)
+        self.assertNotIn("lab/data/kell-chart-runs", required)
+        self.assertIn("git add -u -- lab/data/latest.json", script)
+        self.assertIn("if [ -f lab/data/latest.json ]; then git add lab/data/latest.json; fi", script)
+        self.assertIn("if [ -f lab/data/latest.json.gz ]; then git add lab/data/latest.json.gz; fi", script)
+        self.assertIn("if [ -d lab/data/kell-chart-runs ]; then git add lab/data/kell-chart-runs; fi", script)
+        self.assertLess(script.index("python scripts/validate_eod_publication.py"),
+                        script.index("python scripts/pack_review_storage.py"))
+
     def test_new_composite_survives_reset_checkout_commit_and_push(self):
         result, published, unchanged = self.publish()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
