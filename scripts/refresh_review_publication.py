@@ -102,7 +102,7 @@ def pointer_matches(pointer: dict, target: dict) -> bool:
     count = pointer.get("candidateCount")
     return (bool(re.fullmatch(r"[a-f0-9]{64}", digest))
             and pointer.get("snapshotId") == identity
-            and pointer.get("snapshotPath") == f"data/snapshots/{identity}.json"
+            and pointer.get("snapshotPath") in (f"data/snapshots/{identity}.json", f"data/snapshots/{identity}.json.gz")
             and type(count) is int and count >= 0 and pointer.get("chartCount") == count)
 
 

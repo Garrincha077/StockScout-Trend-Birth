@@ -94,6 +94,18 @@ class RefreshTests(unittest.TestCase):
             refresh.start_publisher("owner/repo", [])
         gh.assert_called_once()
 
+    def test_compressed_archive_pointer_keeps_exact_identity_and_chart_coverage(self):
+        packed = {**pointer(), "snapshotPath": pointer()["snapshotPath"] + ".gz"}
+        self.assertTrue(refresh.pointer_matches(packed, TARGET))
+        for wrong_path in (
+            packed["snapshotPath"] + ".gz",
+            packed["snapshotPath"] + ".bak",
+            packed["snapshotPath"].replace(TARGET["runId"], "wrong-run"),
+        ):
+            self.assertFalse(refresh.pointer_matches({**packed, "snapshotPath": wrong_path}, TARGET))
+        self.assertFalse(refresh.pointer_matches({**packed, "chartCount": 80}, TARGET))
+        self.assertFalse(refresh.pointer_matches({**packed, "unifiedManifestSha256": "0" * 64}, TARGET))
+
     def test_pointer_rejects_wrong_source_hash_path_or_chart_count(self):
         for field, value in [("unifiedManifestSha256", "c" * 64), ("snapshotPath", "data/latest.json"), ("chartCount", 80), ("candidateCount", True)]:
             self.assertFalse(refresh.pointer_matches({**pointer(), field: value}, TARGET))
