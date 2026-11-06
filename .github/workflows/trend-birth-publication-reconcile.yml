@@ -1,0 +1,46 @@
+name: Trend Birth Production Publication Reconciler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/reconcile_trend_birth_publication.py"
+      - ".github/workflows/trend-birth-publication-reconcile.yml"
+  workflow_dispatch:
+  schedule:
+    # Scheduled Actions run on the default branch, which can safely update
+    # the existing production-branch refresh trigger after Unified EOD.
+    # Two local-time opportunities absorb ordinary GitHub cron delays.
+    - cron: "17 8 * * 2-6"
+      timezone: "Europe/Zagreb"
+    - cron: "17 10 * * 2-6"
+      timezone: "Europe/Zagreb"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: trend-birth-production-publication-reconciler
+  cancel-in-progress: false
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compile infrastructure-only reconciler
+        run: python -m py_compile scripts/reconcile_trend_birth_publication.py
+
+  reconcile:
+    needs: syntax
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Unified exact-run Pages and notification gates, reconcile if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/reconcile_trend_birth_publication.py
