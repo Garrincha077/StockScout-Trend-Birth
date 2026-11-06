@@ -10,10 +10,11 @@ on:
   schedule:
     # Scheduled Actions run on the default branch, which can safely update
     # the existing production-branch refresh trigger after Unified EOD.
-    # Two local-time opportunities absorb ordinary GitHub cron delays.
-    - cron: "17 8 * * 2-6"
+    # Fallback slots after the existing 08:17 production refresher.
+    # Never compete with its ordinary on-time execution.
+    - cron: "37 9 * * 2-6"
       timezone: "Europe/Zagreb"
-    - cron: "17 10 * * 2-6"
+    - cron: "37 10 * * 2-6"
       timezone: "Europe/Zagreb"
 
 permissions:
