@@ -1,15 +1,15 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-11-04",
+  "sessionDate": "2026-11-05",
   "baselineOnly": false,
-  "readyCount": 10,
-  "triggerCount": 55,
-  "invalidatedCount": 49,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-04-eod-41949556694-1--5985bfaf31de78985950f901ccc4285069ed6c477c04641075dc692c6daa6de8",
+  "readyCount": 26,
+  "triggerCount": 33,
+  "invalidatedCount": 16,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-05-eod-42145517622-1--4929ed41702687f82e92d74f57738b827bdf03c99c31715083ae968725af234c",
   "messages": [
     {
       "kind": "intelligence-eod",
-      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-04\n📊 EOD setupi (Unified + watchlist)\n0/4: 2263 · 1/4: 186 · 2/4: 84 · 3/4: 24 · 4/4: 79\nAnalizirano 2636/2637; bez podataka 1\nUsporedba: 2026-11-03 → 2026-11-04\nZajednički evaluirano: 2599\nNova 4/4: 53 · Prelazak na 3/4: 10\nNapredovalo: 121 · Nazadovalo: 279\nStabilni 3+/4 (≥3 EOD): 42 · 4/4 (≥3 EOD): 12\nZadnji padovi: iz 3+/4 69 · iz 4/4 49\nPovijesni ostanak idući EOD: 3+/4 67.9% (4767 usporedbi) · 4/4 54.4% (2793 usporedbi)\nNova 4/4 · cijeli univerzum (53): PAYS, PLSE, NBBK, WABC, USPH, WLTH, ACHC, PFBC, AMTB, CAKE, CHCO, DVA, TASK, FSCO (+39 ostalih)\nNovi 3/4 · cijeli univerzum (10): WDAY, PCVX, UTZ, EXPD, ADI, STLD, UGI, COKE, NEOG, HRTG\nKell/tracked 4/4 (55): PAYS, PLSE, ACHC, NBBK, CAKE, USPH, KMTS, AMTB, WABC, WLTH, RAL, CNK, BLLN, BRKR (+41 ostalih)\nKell/tracked 3/4 (10): WDAY, EXPD, PCVX, ADI, STLD, UGI, COKE, NEOG, HRTG, UTZ\nKell/tracked invalidirani (49): VCYT, AVAH, NX, COR, GFF, YETI, STAG, OHI, CWST, MSGK (+39 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-04-eod-41949556694-1--5985bfaf31de78985950f901ccc4285069ed6c477c04641075dc692c6daa6de8"
+      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-05\n📊 EOD setupi (Unified + watchlist)\n0/4: 2137 · 1/4: 297 · 2/4: 70 · 3/4: 70 · 4/4: 45\nAnalizirano 2619/2620; bez podataka 1\nUsporedba: 2026-11-04 → 2026-11-05\nZajednički evaluirano: 2598\nNova 4/4: 33 · Prelazak na 3/4: 28\nNapredovalo: 256 · Nazadovalo: 183\nStabilni 3+/4 (≥3 EOD): 33 · 4/4 (≥3 EOD): 5\nZadnji padovi: iz 3+/4 48 · iz 4/4 66\nPovijesni ostanak idući EOD: 3+/4 67.6% (4869 usporedbi) · 4/4 53.3% (2871 usporedbi)\nNova 4/4 · cijeli univerzum (33): GABC, MSGK, OBK, THC, MSFT, DG, MOH, OMCL, LUV, SPNT, OHI, WMK, DAL, YMM (+19 ostalih)\nNovi 3/4 · cijeli univerzum (28): L, PFG, WFC, AAPL, TXNM, ELF, RVTY, EMBJ, AZTA, CBLL (+18 ostalih)\nKell/tracked 4/4 (33): LTC, MSGK, THC, OBK, MSFT, DG, ROKU, OMCL, LUV, GABC, AVAH, SPNT, AMPH, FWRG (+19 ostalih)\nKell/tracked 3/4 (26): PFG, L, ELF, RVTY, AAPL, WFC, EMBJ, AZTA, CBLL, PNTG (+16 ostalih)\nKell/tracked invalidirani (16): LILA, LILAK, ACHC, JOE, CAKE, FITB, USPH, TASK, FSBC, ROK (+6 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-05-eod-42145517622-1--4929ed41702687f82e92d74f57738b827bdf03c99c31715083ae968725af234c"
     }
   ],
   "v2": {
@@ -20,10 +20,10 @@
     "messages": [
       {
         "kind": "kell-daily",
-        "text": "⚡ KELL DAILY — new or improved setups\n\nRVMD · ema crossback · readiness 96\nPAYS · ema crossback · readiness 96\nCMC · ema crossback · readiness 96\nHUM · ema crossback · readiness 96\nCTOS · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-04-eod-41949556694-1--5985bfaf31de78985950f901ccc4285069ed6c477c04641075dc692c6daa6de8"
+        "text": "⚡ KELL DAILY — new or improved setups\n\nWFG · ema crossback · readiness 96\nTIMB · ema crossback · readiness 96\nVEEV · ema crossback · readiness 96\nCAAP · ema crossback · readiness 96\nSWBI · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-05-eod-42145517622-1--4929ed41702687f82e92d74f57738b827bdf03c99c31715083ae968725af234c"
       }
     ]
   },
-  "previousSessionDate": "2026-11-03",
-  "previousPath": "lab/data/kell-history/2026-11-03.json"
+  "previousSessionDate": "2026-11-04",
+  "previousPath": "lab/data/kell-history/2026-11-04.json"
 }
