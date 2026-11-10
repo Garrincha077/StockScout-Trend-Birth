@@ -1,15 +1,15 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-11-06",
+  "sessionDate": "2026-11-09",
   "baselineOnly": false,
-  "readyCount": 32,
-  "triggerCount": 28,
-  "invalidatedCount": 16,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-06-eod-42321712302-1--112094c952904b3d5d8ba3984dc4bae89a102eac693dfe9d04804ecc0100884e",
+  "readyCount": 3,
+  "triggerCount": 64,
+  "invalidatedCount": 31,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-09-eod-42751073616-1--f8fcdb3ed6a2bf16f275e358f8ef436e4b3538002bfc09baf79f0ddc2973aa9d",
   "messages": [
     {
       "kind": "intelligence-eod",
-      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-06\n📊 EOD setupi (Unified + watchlist)\n0/4: 2093 · 1/4: 329 · 2/4: 97 · 3/4: 76 · 4/4: 42\nAnalizirano 2637/2638; bez podataka 1\nUsporedba: 2026-11-05 → 2026-11-06\nZajednički evaluirano: 2601\nNova 4/4: 27 · Prelazak na 3/4: 28\nNapredovalo: 189 · Nazadovalo: 105\nStabilni 3+/4 (≥3 EOD): 40 · 4/4 (≥3 EOD): 6\nZadnji padovi: iz 3+/4 44 · iz 4/4 29\nPovijesni ostanak idući EOD: 3+/4 67.5% (4982 usporedbi) · 4/4 53.0% (2914 usporedbi)\nNova 4/4 · cijeli univerzum (27): BTSG, HUM, AZTA, DE, GRDN, GSAT, TEM, JNJ, MQ, BRKR, TRLV, FSCO, JOE, WELL (+13 ostalih)\nNovi 3/4 · cijeli univerzum (28): JOYY, RGA, CNC, PUBM, COKE, DNA, UVE, CDW, FCF, CI (+18 ostalih)\nKell/tracked 4/4 (28): HUM, BTSG, AZTA, ELF, TEM, LILAK, GRDN, LILA, DGX, WELL, JNJ, DE, MQ, BRKR (+14 ostalih)\nKell/tracked 3/4 (32): JOYY, OABI, CHA, RGA, ATLC, CNC, PUBM, COKE, DNA, UVE (+22 ostalih)\nKell/tracked invalidirani (16): PROF, DAL, OHI, SBAC, XMTR, YMM, TNC, AMPH, AVAH, PPLI (+6 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-06-eod-42321712302-1--112094c952904b3d5d8ba3984dc4bae89a102eac693dfe9d04804ecc0100884e"
+      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-09\n📊 EOD setupi (Unified + watchlist)\n0/4: 2172 · 1/4: 279 · 2/4: 106 · 3/4: 22 · 4/4: 76\nAnalizirano 2655/2656; bez podataka 1\nUsporedba: 2026-11-06 → 2026-11-09\nZajednički evaluirano: 2613\nNova 4/4: 64 · Prelazak na 3/4: 3\nNapredovalo: 126 · Nazadovalo: 160\nStabilni 3+/4 (≥3 EOD): 37 · 4/4 (≥3 EOD): 4\nZadnji padovi: iz 3+/4 61 · iz 4/4 28\nPovijesni ostanak idući EOD: 3+/4 67.0% (5098 usporedbi) · 4/4 52.7% (2954 usporedbi)\nNova 4/4 · cijeli univerzum (64): BB, GME, A, DSP, BCAL, REXR, OABI, EMBJ, AAPL, IQV, EPC, MBWM, MSFT, SFNC (+50 ostalih)\nNovi 3/4 · cijeli univerzum (3): ABSI, WFG, SKWD\nKell/tracked 4/4 (64): BB, A, GME, OABI, DSP, EMBJ, SFNC, MSGK, CNO, PFG, CNK, AAPL, NX, MSFT (+50 ostalih)\nKell/tracked 3/4 (3): ABSI, WFG, SKWD\nKell/tracked invalidirani (31): SDGR, DGX, ADPT, JNJ, JOE, FSCO, BTSG, BANF, WELL, FAST (+21 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-09-eod-42751073616-1--f8fcdb3ed6a2bf16f275e358f8ef436e4b3538002bfc09baf79f0ddc2973aa9d"
     }
   ],
   "v2": {
@@ -19,15 +19,11 @@
     "kellDailyCount": 5,
     "messages": [
       {
-        "kind": "weekly",
-        "text": "🌱 WEEKLY BIRTH — early trend shortlist\n15 candidates\n\nFTS · Trigger · 59W base · 0.78% MA · blue sky\nCPK · Trigger · 83W base · 3.21% MA · blue sky\nED · Trigger · 64W base · 2.73% MA · blue sky\nXEL · Ready · 82W base · 1.47% MA · blue sky\nTXNM · Ready · 64W base · 0.77% MA · blue sky\nSWX · Ready · 61W base · 0.78% MA · blue sky\nIDA · Ready · 63W base · 1.15% MA · blue sky\nAEE · Ready · 61W base · 1.01% MA · blue sky\nWM · Ready · 63W base · 1.34% MA · blue sky\nDUK · Ready · 62W base · 1.3% MA · blue sky\nWEC · Ready · 56W base · 1.42% MA · blue sky\nRSG · Ready · 104W base · 5.55% MA · blue sky\nLLYVA · Ready · 56W base · 2.47% MA · blue sky\nDRI · Ready · 68W base · 3.88% MA · blue sky\nJOE · Ready · 53W base · 2.9% MA · blue sky\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-06-eod-42321712302-1--112094c952904b3d5d8ba3984dc4bae89a102eac693dfe9d04804ecc0100884e"
-      },
-      {
         "kind": "kell-daily",
-        "text": "⚡ KELL DAILY — new or improved setups\n\nFOXA · ema crossback · readiness 96\nEYE · ema crossback · readiness 96\nCBRE · ema crossback · readiness 96\nSJM · ema crossback · readiness 96\nFOX · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-06-eod-42321712302-1--112094c952904b3d5d8ba3984dc4bae89a102eac693dfe9d04804ecc0100884e"
+        "text": "⚡ KELL DAILY — new or improved setups\n\nJOYY · ema crossback · readiness 96\nSVRA · ema crossback · readiness 96\nABSI · ema crossback · readiness 96\nBB · ema crossback · readiness 96\nGME · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-09-eod-42751073616-1--f8fcdb3ed6a2bf16f275e358f8ef436e4b3538002bfc09baf79f0ddc2973aa9d"
       }
     ]
   },
-  "previousSessionDate": "2026-11-05",
-  "previousPath": "lab/data/kell-history/2026-11-05.json"
+  "previousSessionDate": "2026-11-06",
+  "previousPath": "lab/data/kell-history/2026-11-06.json"
 }
