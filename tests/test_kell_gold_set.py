@@ -141,6 +141,38 @@ class KellGoldSetTests(unittest.TestCase):
         self.assertEqual(report["summary"]["evaluated"], 1)
         self.assertEqual(report["summary"]["unavailable"], 1)
 
+    def test_bounded_raw_snapshot_loading_keeps_last_winner_and_session_count(self):
+        # Unlabeled 100MB historical sessions must not accumulate in Gold Set RAM.
+        # Duplicated immutable snapshots still use the same sorted last winner.
+        import json
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def write(name, session, rows):
+                (root / name).write_text(
+                    json.dumps({"source": {"sessionDate": session}, "candidates": rows}),
+                    encoding="utf-8",
+                )
+            write("2026-09-21-eod-a.json", "2026-09-21",
+                  [{"ticker": "AAA", "chartBars": [[1]]}, {"ticker": "UNLABELED", "chartBars": [[2]]}])
+            write("2026-09-21-eod-z.json", "2026-09-21",
+                  [{"ticker": "AAA", "chartBars": [[3]]}, {"ticker": "UNLABELED", "chartBars": [[4]]}])
+            write("2026-09-22-eod-a.json", "2026-09-22",
+                  [{"ticker": "OTHER", "chartBars": [[5]]}])
+            eager = gold._load_raw_snapshots(root)
+            bounded = gold._load_raw_snapshots(root, {"2026-09-21": {"AAA"}})
+            self.assertEqual(set(bounded), set(eager))
+            self.assertEqual(len(bounded), 2)
+            self.assertEqual(
+                bounded["2026-09-21"]["candidates"],
+                [eager["2026-09-21"]["candidates"][0]],
+            )
+            self.assertEqual(bounded["2026-09-22"]["candidates"], [])
+            self.assertEqual(
+                gold._rescore_raw_candidate(bounded["2026-09-21"], "MISSING", "setup", "x"),
+                gold._rescore_raw_candidate(eager["2026-09-21"], "MISSING", "setup", "x"),
+            )
+
     def test_raw_snapshot_rescore_recovers_missing_setup_archive(self):
         bars = [
             [f"2026-08-{day:02d}", 100.0, 101.0, 99.0, 100.0, 1_000_000]

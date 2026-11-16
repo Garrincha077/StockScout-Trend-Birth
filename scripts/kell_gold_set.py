@@ -155,7 +155,16 @@ def _load_session_payloads(current: dict | None, scores_dir: Path | None) -> dic
     return payloads
 
 
-def _load_raw_snapshots(snapshots_dir: Path | None) -> dict[str, dict]:
+def _load_raw_snapshots(
+    snapshots_dir: Path | None,
+    required_tickers: dict[str, set[str]] | None = None,
+) -> dict[str, dict]:
+    """Keep exact session/winner semantics, without retaining GBs of unused EOD bars.
+
+    The unfiltered mode retains the original behavior for audit callers.
+    Gold Set evaluation only reads each label's ticker and chartBars, so its
+    bounded mode keeps those candidates while counting *all* archived sessions.
+    """
     snapshots: dict[str, dict] = {}
     if not snapshots_dir or not snapshots_dir.exists():
         return snapshots
@@ -166,9 +175,22 @@ def _load_raw_snapshots(snapshots_dir: Path | None) -> dict[str, dict]:
             continue
         session = _session(snapshot)
         if session:
-            # Filenames include the run id; sorted order makes the last snapshot for
-            # a session win deterministically when multiple immutable runs exist.
-            snapshots[session] = snapshot
+            # Last immutable run for a session wins, just as before.
+            if required_tickers is None:
+                snapshots[session] = snapshot
+            else:
+                tickers = required_tickers.get(session, set())
+                snapshots[session] = {
+                    "source": {"sessionDate": session},
+                    "candidates": [
+                        item for item in _candidates(snapshot)
+                        if str(item.get("ticker") or "") in tickers
+                    ] if tickers else [],
+                }
+        # Ensure the next large JSON decode cannot keep the previous full
+        # snapshot alive; only tiny labeled rows survive in bounded mode.
+        if required_tickers is not None:
+            del snapshot
     return snapshots
 
 
@@ -316,7 +338,10 @@ def evaluate_gold_set(
 ) -> dict:
     errors = validate_gold_set(gold)
     payloads = _load_session_payloads(current, scores_dir)
-    raw_snapshots = _load_raw_snapshots(snapshots_dir)
+    required_tickers: dict[str, set[str]] = defaultdict(set)
+    for label in gold.get("labels") or []:
+        required_tickers[str(label["sessionDate"])].add(str(label["ticker"]))
+    raw_snapshots = _load_raw_snapshots(snapshots_dir, required_tickers)
     indexes = {
         session: {str(item.get("ticker") or ""): item for item in _candidates(payload)}
         for session, payload in payloads.items()
