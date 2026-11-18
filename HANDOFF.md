@@ -1,3 +1,9 @@
+## 2026-11-18 — Kell Swing execution by setup and radar breadth
+
+- Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siKellCohorts) at 16:04 Europe/Zagreb, preview commit `7a520fe`, deployment `dpl_HMvFg1dCKRUSTBm6AzDppdNQ9dgk`. Archived and reconstructed plans have separate group views, with the same 5/10/20-session and 20/50 bp controls. Breadth is the matched-ticker change in 3+/4 at the signal EOD with a 0.5 percentage point threshold.
+- The November 17 bundle has five archived plans awaiting maturity. The historical 5-session sample has 190 selections, 170 evaluable plans and 117 fills across 33 fill dates. Net R is 0.102–0.217 at 20 bp and −0.036 to 0.079 at 50 bp. Group results are descriptive and mix different setup composition across breadth states.
+- Actual archives and the aligned EOD publication gate passed. Passed 258 Python cases, 120 Node tests and 20 Chromium tests. The preceding matched-cohort PR head passed [CI 44328752307](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44328752307). Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) remains the working branch. Next: extend date-aligned SPY history and run a cohesive Android/mobile workflow audit.
+
 ## 2026-11-18 — Trend Birth outcomes against same-session controls
 
 - Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics) at 15:49 Europe/Zagreb, Vercel deployment `dpl_5huzbjt4fz49j7RojQ74GZLksYuk`, preview commit `b5a6f5e`, November 17 EOD. Controls match the previous radar phase, prior price and 20-session return. Selection is fixed before outcomes and uses the same-date evaluated universe. Archived sectors and liquidity are unavailable.

@@ -438,6 +438,8 @@ def main() -> int:
     parser.add_argument("--publication", type=Path, help="Verify the latest score archive against this Review publication")
     parser.add_argument("--include-swing-statistics", action="store_true",
                         help="Attach reconstructed comparisons and published plan execution counts")
+    parser.add_argument("--market-internals", type=Path,
+                        help="Use the dated Review breadth archive to group Kell plans")
     parser.add_argument(
         "--min-outcome-coverage-pct",
         type=float,
@@ -492,11 +494,15 @@ def main() -> int:
     if publication:
         report["source"].update({key: publication[key] for key in keys})
     if args.include_swing_statistics:
-        from replay_kell_swing import ACTIONS_PATH, build_statistics
+        from replay_kell_swing import ACTIONS_PATH, breadth_index, build_statistics
         from market_actions import read_actions
 
         actions, _ = read_actions(ACTIONS_PATH)
-        report["swingStatistics"] = build_statistics(snapshots, charts, sessions, actions)
+        breadth = None
+        if args.market_internals:
+            context = json.loads(args.market_internals.read_bytes())
+            breadth = breadth_index(context, as_of, snapshots[-1]["runId"])
+        report["swingStatistics"] = build_statistics(snapshots, charts, sessions, actions, breadth=breadth)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

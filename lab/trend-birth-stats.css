@@ -28,6 +28,13 @@
 .si-match-results div{padding:8px;border:1px solid #294863;border-radius:8px;background:#11253b}
 .si-match-results dt{color:#a5b7cc;font-size:11px}
 .si-match-results dd{margin:3px 0 0;font-size:clamp(14px,4vw,21px);font-weight:700;font-variant-numeric:tabular-nums}
+.si-kell-cohorts{margin-top:18px;padding-top:12px;border-top:1px solid #294863}
+.si-kell-cohorts h3{margin:0 0 9px;font-size:15px}
+#siKellGroupList{display:grid;gap:6px}
+.si-kell-group{padding:8px 9px;border:1px solid #294863;border-radius:8px;background:#0c1b2e}
+.si-kell-group header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.si-kell-group header b{font-size:13px;color:#c9e3fc;font-variant-numeric:tabular-nums}
+.si-kell-group p{margin:3px 0 0;color:#a5b7cc;font-size:11px;line-height:1.4}
 .si-chart{width:100%;overflow-x:auto;background:#0a1726;border-radius:9px;border:1px solid #233951}
 .si-chart svg{display:block;min-width:100%;height:auto;max-height:315px}
 .si-table-scroll{width:100%;overflow:auto}

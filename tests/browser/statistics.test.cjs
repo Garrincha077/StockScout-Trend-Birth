@@ -99,12 +99,26 @@ test('Kell Swing separates archived fills from reconstructed returns and applies
   const outcome={selected:3,pending:3,missingBars:0,unmatchedClose:0,corporateAction:0,invalidLevels:0,
     evaluable:0,fills:0,netRByCost:{'20bp':null,'50bp':null}};
   const filled={...outcome,pending:0,evaluable:3,fills:2,netRByCost:{'20bp':[-.3,.5],'50bp':[-.5,.3]}};
+  const detailedPending={...outcome,signalDates:1,fillDates:0,ambiguousFills:0};
+  const detailedFilled={...filled,signalDates:1,fillDates:1,ambiguousFills:1};
+  const empty={...detailedPending,selected:0,pending:0,signalDates:0};
+  const emptyHorizons={5:empty,10:empty,20:empty};
+  const groups=(outcomes,setup,regime)=>({
+    outcomes,bySetup:Object.fromEntries(['ema_crossback','wedge_pop','base_n_break','buyable_gap_proxy','tightening']
+      .map(key=>[key,key===setup?outcomes:emptyHorizons])),
+    byBreadth:Object.fromEntries(['rising','steady','falling','unknown'].map(key=>[key,key===regime?outcomes:emptyHorizons]))
+  });
+  const published=groups({5:detailedFilled,10:detailedPending,20:detailedPending},'wedge_pop','falling');
+  const historical=groups({5:{...detailedFilled,netRByCost:{'20bp':[.25,.45],'50bp':[.12,.32]}},
+    10:detailedPending,20:detailedPending},'ema_crossback','rising');
   const result={pairedDates:1,selectedDates:2,pairedSelectionsPerStrategy:2,returnPctByCost:{
     '20bp':{swing:.25,legacy:-.5,momentum:0},'50bp':{swing:-.05,legacy:-.8,momentum:-.3}
   }};
   const report={schemaVersion:'kell-swing-statistics-v1',asOf:source.sessionDate,horizons:[5,10,20],
-    maxSelectionsPerSession:5,published:{firstSession:source.sessionDate,sessionCount:2,outcomes:{5:filled,10:outcome,20:outcome}},
-    reconstructed:{sessionCount:3,comparisons:{5:result,10:result,20:result}}};
+    maxSelectionsPerSession:5,published:{firstSession:source.sessionDate,sessionCount:2,...published},
+    reconstructed:{sessionCount:3,comparisons:{5:result,10:result,20:result}},
+    executionCohorts:{schemaVersion:'kell-swing-execution-cohorts-v1',asOf:source.sessionDate,
+      breadthThresholdPp:.5,historical}};
   const schemaVersion='trend-birth-review-research-v1';
   const body=JSON.stringify({schemaVersion,reviewSnapshotId:snapshotId,source,
     reports:{trendBirthForward:forward,kellForward:{swingStatistics:report}}});
@@ -117,10 +131,17 @@ test('Kell Swing separates archived fills from reconstructed returns and applies
   await page.locator('#siKellContent').waitFor();
   assert.match(await page.locator('#siKellPublished').innerText(),/2 \/ 3 simuliranih izvršenja/);
   assert.match(await page.locator('#siKellComparison').innerText(),/Kell Swing\s+0,25%/);
+  assert.match(await page.locator('#siKellGroupList').innerText(),/Izlaz iz klina/);
+  assert.match(await page.locator('#siKellGroupList').innerText(),/1 dvosmislenih/);
   await page.selectOption('#siKellCost','50bp');
   assert.match(await page.locator('#siKellComparison').innerText(),/Kell Swing\s+[-−]0,05%/);
+  await page.selectOption('#siKellGroupSample','historical');
+  assert.match(await page.locator('#siKellGroupList').innerText(),/Povrat iznad EMA\s+0,12R do 0,32R/);
+  await page.selectOption('#siKellGroupDimension','byBreadth');
+  assert.match(await page.locator('#siKellGroupList').innerText(),/Rast širine/);
   await page.selectOption('#siKellHorizon','20');
   assert.match(await page.locator('#siKellPublished').innerText(),/3 na čekanju/);
+  assert.match(await page.locator('#siKellGroupList').innerText(),/3 na čekanju/);
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));
 });
 

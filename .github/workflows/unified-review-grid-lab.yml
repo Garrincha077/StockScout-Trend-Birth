@@ -273,6 +273,7 @@ jobs:
             --charts-dir lab/data/kell-charts \
             --publication lab/data/publication.json \
             --include-swing-statistics \
+            --market-internals lab/data/trend-birth-market-internals.json \
             --output lab/data/kell-forward-validation.json
           python scripts/publish_review_research.py --directory lab/data
       - name: Publish aligned Review + Kell data atomically

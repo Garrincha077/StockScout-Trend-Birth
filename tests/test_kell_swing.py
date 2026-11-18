@@ -63,17 +63,20 @@ class KellSwingTests(unittest.TestCase):
                   for ticker in ("P1", "P2", "OLD1", "OLD2")}
         for ticker in ("P1", "P2"):
             charts[ticker][63].update(close=102, high=103)
+            charts[ticker][64].update(open=101.1, high=102, low=100.9, close=101.75)
         charts["OLD2"].pop(65)
         candidates = [{"ticker": ticker, "kell_readiness_score": 20, "stage": "wedge_pop",
                        "setups": ["kell_wedge_pop"]} for ticker in ("P1", "P2")] + [
                       {"ticker": ticker, "kell_readiness_score": 99} for ticker in ("OLD1", "OLD2")]
         snapshot = {"sessionDate": signal, "source": {}, "candidates": candidates}
         original = replay_kell_swing.replay([snapshot], charts, days, [], top=2)
-        strict = replay_kell_swing.replay([snapshot], charts, days, [], top=2, complete_pairs=True)
+        strict = replay_kell_swing.replay([snapshot], charts, days, [], top=2, complete_pairs=True, breadth={})
         self.assertEqual(original["comparisons"]["5"]["pairedDates"], 1)
         self.assertEqual(strict["comparisons"]["5"]["selectedDates"], 1)
         self.assertEqual(strict["comparisons"]["5"]["pairedDates"], 0)
         self.assertIsNone(strict["comparisons"]["5"]["returnPctByCost"]["20bp"])
+        self.assertEqual(strict["planExecution"]["byBreadth"]["unknown"]["5"]["selected"], 2)
+        self.assertEqual(strict["planExecution"]["bySetup"]["wedge_pop"]["5"]["fills"], 2)
 
     def test_actual_orders_report_pending_exclusions_basis_and_fills_separately(self):
         days = tuple((date(2026, 11, 9) + timedelta(days=i)).isoformat() for i in range(9))
@@ -82,7 +85,7 @@ class KellSwingTests(unittest.TestCase):
         snapshots = [{"source": {}, "sessionDate": days[0], "candidates": [
             {"ticker": "A", "swing": plan},
             {"ticker": "B", "swing": {**plan, "signalClose": 20.4}},
-            {"ticker": "C", "swing": plan},
+            {"ticker": "C", "swing": {**plan, "setup": "base_n_break"}},
             {"ticker": "D", "swing": plan},
         ]}]
         chart = [{"date": day, "open": 10, "high": 11, "low": 9.9, "close": 10.2, "volume": 1000}
@@ -97,3 +100,31 @@ class KellSwingTests(unittest.TestCase):
                           outcome["missingBars"], outcome["unmatchedClose"], outcome["fills"]), (4, 0, 1, 1, 1, 1))
         self.assertEqual(outcome["netRByCost"]["20bp"], [0.18, 0.18])
         self.assertEqual(data["published"]["outcomes"]["20"]["pending"], 4)
+        self.assertEqual(data["published"]["bySetup"]["base_n_break"]["5"]["corporateAction"], 1)
+        self.assertEqual(data["published"]["byBreadth"]["unknown"]["5"], outcome)
+
+    def test_breadth_requires_the_same_activation_and_an_unbroken_market_session_pair(self):
+        days = ("2026-11-13", "2026-11-16", "2026-11-17")
+        snapshot = {"sessionDate": days[-1], "source": {"runId": "same-run"}}
+        point = {"sessionDate": days[-1], "runId": "same-run", "previousSessionDate": days[-2],
+                 "matchedQualityDeltaPp": -0.5}
+        data = {"schemaVersion": "trend-birth-market-internals-v1", "latestSessionDate": days[-1],
+                "latestRunId": "same-run", "points": [point]}
+        index = replay_kell_swing.breadth_index(data, days[-1], "same-run")
+        self.assertEqual(replay_kell_swing.breadth_regime(snapshot, days, 2, index), "falling")
+        point["previousSessionDate"] = days[0]
+        self.assertEqual(replay_kell_swing.breadth_regime(snapshot, days, 2, index), "unknown")
+        point["previousSessionDate"] = days[-2]
+        point["matchedQualityDeltaPp"] = 0.2
+        self.assertEqual(replay_kell_swing.breadth_regime(snapshot, days, 2, index), "steady")
+        snapshot["source"]["runId"] = "other-revision"
+        self.assertEqual(replay_kell_swing.breadth_regime(snapshot, days, 2, index), "unknown")
+        with self.assertRaisesRegex(ValueError, "does not match the active EOD"):
+            replay_kell_swing.breadth_index(data, days[-1], "other-revision")
+
+    def test_group_summary_retains_intraday_ambiguity_and_cost_sensitivity(self):
+        rows = [("2026-11-13", "wedge_pop", "rising", "evaluable", ((-1, 2), 10)),
+                ("2026-11-13", "wedge_pop", "rising", "evaluable", None)]
+        result = replay_kell_swing.execution_summary(rows)
+        self.assertEqual((result["evaluable"], result["ambiguousFills"], result["fillDates"]), (2, 1, 1))
+        self.assertEqual(result["netRByCost"], {"20bp": [-1.02, 1.98], "50bp": [-1.05, 1.95]})

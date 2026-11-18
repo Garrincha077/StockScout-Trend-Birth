@@ -4,17 +4,18 @@ from bisect import bisect_left
 from collections import Counter, defaultdict
 import argparse
 import json
+from math import isfinite
 from pathlib import Path
 from statistics import fmean
 
 try:
     from .kell_scoring import _ema
-    from .kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
+    from .kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, SETUPS, build_plan, priority
     from .market_actions import read_actions
     from .market_sessions import exchange_sessions
 except ImportError:
     from kell_scoring import _ema
-    from kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
+    from kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, SETUPS, build_plan, priority
     from market_actions import read_actions
     from market_sessions import exchange_sessions
 
@@ -22,6 +23,37 @@ SCENARIOS = {"20bp": 0.2, "50bp": 0.5}
 HORIZONS = (5, 10, 20)
 STRATEGIES = ("swing", "legacy", "momentum")
 ACTIONS_PATH = Path(__file__).with_name("data") / "review-market-actions-v1.json"
+BREADTH_THRESHOLD_PP = 0.5
+BREADTH_REGIMES = ("rising", "steady", "falling", "unknown")
+EXECUTION_STATUSES = ("pending", "corporateAction", "missingBars", "unmatchedClose", "invalidLevels", "evaluable")
+COHORT_SCHEMA = "kell-swing-execution-cohorts-v1"
+
+
+def breadth_index(payload, day, run):
+    points = payload.get("points") or []
+    days = [point["sessionDate"] for point in points]
+    if (payload.get("schemaVersion") != "trend-birth-market-internals-v1"
+            or (payload.get("latestSessionDate"), payload.get("latestRunId")) != (day, run)
+            or not points or days != sorted(set(days)) or (days[-1], points[-1]["runId"]) != (day, run)):
+        raise ValueError("Kell breadth history does not match the active EOD")
+    return dict(zip(days, points))
+
+
+def breadth_regime(snapshot, days, index, context):
+    day = snapshot["sessionDate"]
+    point = context.get(day)
+    run = snapshot["source"].get("runId")
+    if (not point or not index or not run or point.get("runId") != run
+            or point.get("previousSessionDate") != days[index - 1]):
+        return "unknown"
+    delta = point.get("matchedQualityDeltaPp")
+    if not isinstance(delta, (int, float)) or not isfinite(delta):
+        return "unknown"
+    if delta >= BREADTH_THRESHOLD_PP:
+        return "rising"
+    if delta <= -BREADTH_THRESHOLD_PP:
+        return "falling"
+    return "steady"
 
 
 def setup_flags(row):
@@ -73,7 +105,7 @@ def fills(plan, window):
     return tuple((close - entry) / risk for close in (min(possible), max(possible))), entry / risk
 
 
-def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
+def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False, breadth=None):
     history = history_index(charts)
     calendar_index = {day: i for i, day in enumerate(days)}
     exclusions = defaultdict(set)
@@ -84,6 +116,7 @@ def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
     execution = {key: [] for key in SCENARIOS}
     matched_picks = Counter()
     selected_dates = Counter()
+    plan_rows = {horizon: [] for horizon in HORIZONS}
     for snapshot in snapshots:
         day = snapshot["sessionDate"]
         index = calendar_index.get(day)
@@ -120,8 +153,14 @@ def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
         legacy = sorted(candidates, key=lambda row: (-float(row.get("kell_readiness_score") or 0),
                                                      -float(row.get("kell_score") or 0), row["ticker"]))[:count]
         momentum = sorted(candidates, key=lambda row: (-row["momentum"], row["ticker"]))[:count]
+        regime = breadth_regime(snapshot, days, index, breadth) if breadth is not None else None
         for horizon in HORIZONS:
             window = days[index + 1:index + horizon + 1]
+            if regime is not None:
+                for item in proposed:
+                    result = check_execution(item["kellSwing"], day, window, horizon, item["future"],
+                                             exclusions[item["ticker"]])
+                    plan_rows[horizon].append((day, item["kellSwing"]["setup"], regime, *result))
             if len(window) != horizon:
                 continue
             selected_dates[horizon] += 1
@@ -161,7 +200,7 @@ def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
                 for label, cost in SCENARIOS.items()
             },
         }
-    return {
+    result = {
         "schemaVersion": "kell-swing-replay-v1", "asOf": days[-1],
         "comparisons": comparison,
         "execution5": {
@@ -174,6 +213,9 @@ def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
                    "New strategy controls the matched shortlist size. Known action windows are excluded after selection. "
                    "Historical charts come from the pinned last-day store. Publication before entry is assumed."),
     }
+    if breadth is not None:
+        result["planExecution"] = execution_cohorts(plan_rows)
+    return result
 
 
 def has_published_plan(snapshot):
@@ -196,14 +238,54 @@ def _scenario_results(filled):
     return results
 
 
-def published_execution(snapshots, charts, days, actions, top):
+def check_execution(plan, day, window, horizon, bars, action_days):
+    if len(window) < horizon:
+        return "pending", None
+    if any(session in action_days for session in window):
+        return "corporateAction", None
+    if not _valid_bar(bars.get(day)) or any(not _valid_bar(bars.get(session)) for session in window):
+        return "missingBars", None
+    if not _matches_anchor(bars[day]["close"], plan.get("signalClose")):
+        return "unmatchedClose", None
+    stop, pivot, limit = (plan.get(key) for key in ("stop", "pivot", "maxEntry"))
+    if not all(isinstance(level, (int, float)) and isfinite(level) for level in (stop, pivot, limit)) or not 0 < stop < pivot <= limit:
+        return "invalidLevels", None
+    return "evaluable", fills(plan, [bars[session] for session in window])
+
+
+def execution_summary(rows):
+    count = Counter(row[3] for row in rows)
+    executed = [row[4] for row in rows if row[4] is not None]
+    return {
+        "selected": len(rows), **{key: count[key] for key in EXECUTION_STATUSES},
+        "signalDates": len({row[0] for row in rows}),
+        "fillDates": len({row[0] for row in rows if row[4] is not None}),
+        "fills": len(executed), "ambiguousFills": sum(bounds[0] != bounds[1] for bounds, _ in executed),
+        "netRByCost": _scenario_results(executed),
+    }
+
+
+def execution_cohorts(rows):
+    return {
+        "outcomes": {str(horizon): execution_summary(rows[horizon]) for horizon in HORIZONS},
+        "bySetup": {
+            name: {str(horizon): execution_summary([row for row in rows[horizon] if row[1] == name])
+                   for horizon in HORIZONS} for name in SETUPS
+        },
+        "byBreadth": {
+            name: {str(horizon): execution_summary([row for row in rows[horizon] if row[2] == name])
+                   for horizon in HORIZONS} for name in BREADTH_REGIMES
+        },
+    }
+
+
+def published_execution(snapshots, charts, days, actions, top, breadth):
     calendar_index = {day: index for index, day in enumerate(days)}
     bars_by_ticker = {ticker: {bar["date"]: bar for bar in rows} for ticker, rows in charts.items()}
     exclusions = defaultdict(set)
     for action in actions:
         exclusions[action.ticker].add(action.day)
-    counts = {horizon: Counter() for horizon in HORIZONS}
-    executions = {horizon: [] for horizon in HORIZONS}
+    rows = {horizon: [] for horizon in HORIZONS}
     observations = []
     for snapshot in snapshots:
         day = snapshot["sessionDate"]
@@ -214,47 +296,23 @@ def published_execution(snapshots, charts, days, actions, top):
                      if (row.get("swing") or {}).get("state") == "triggered"
                      and row["swing"].get("model") == MODEL and row["swing"].get("sessionDate") == day]
         selections = sorted(proposals, key=priority)[:top]
-        start = calendar_index[day] + 1
+        index = calendar_index[day]
+        start = index + 1
+        regime = breadth_regime(snapshot, days, index, breadth)
         for horizon in HORIZONS:
-            count = counts[horizon]
-            count["selected"] += len(selections)
             window = days[start:start + horizon]
-            if len(window) < horizon:
-                count["pending"] += len(selections)
-                continue
             for item in selections:
                 ticker, plan = item["ticker"], item["kellSwing"]
-                bars = bars_by_ticker.get(ticker, {})
-                if any(session in exclusions[ticker] for session in window):
-                    count["corporateAction"] += 1
-                    continue
-                if not _valid_bar(bars.get(day)) or any(not _valid_bar(bars.get(session)) for session in window):
-                    count["missingBars"] += 1
-                    continue
-                if not _matches_anchor(bars[day]["close"], plan.get("signalClose")):
-                    count["unmatchedClose"] += 1
-                    continue
-                stop, pivot, limit = (plan.get(key) for key in ("stop", "pivot", "maxEntry"))
-                if not all(isinstance(level, (int, float)) for level in (stop, pivot, limit)) or not 0 < stop < pivot <= limit:
-                    count["invalidLevels"] += 1
-                    continue
-                count["evaluable"] += 1
-                if result := fills(plan, [bars[session] for session in window]):
-                    executions[horizon].append(result)
-    fields = ("selected", "pending", "corporateAction", "missingBars", "unmatchedClose", "invalidLevels", "evaluable")
+                result = check_execution(plan, day, window, horizon, bars_by_ticker.get(ticker, {}), exclusions[ticker])
+                rows[horizon].append((day, plan["setup"], regime, *result))
     return {
         "firstSession": observations[0] if observations else None,
         "sessionCount": len(observations),
-        "outcomes": {
-            str(horizon): {**{field: counts[horizon][field] for field in fields},
-                           "fills": len(executions[horizon]),
-                           "netRByCost": _scenario_results(executions[horizon])}
-            for horizon in HORIZONS
-        },
+        **execution_cohorts(rows),
     }
 
 
-def build_statistics(snapshots, charts, days, actions, top=5):
+def build_statistics(snapshots, charts, days, actions, top=5, *, breadth=None):
     calendar = set(days)
     observed = [snapshot for snapshot in snapshots if snapshot["sessionDate"] in calendar
                 and not snapshot["source"].get("recovered")]
@@ -262,14 +320,20 @@ def build_statistics(snapshots, charts, days, actions, top=5):
     # Use only sessions preceding the first real plan publication for reconstruction.
     boundary = published[0]["sessionDate"] if published else None
     historical = [snapshot for snapshot in observed if boundary is None or snapshot["sessionDate"] < boundary]
-    reconstructed = replay(historical, charts, days, actions, top, complete_pairs=True)
+    context = breadth or {}
+    reconstructed = replay(historical, charts, days, actions, top, complete_pairs=True, breadth=context)
+    execution = published_execution(published, charts, days, actions, top, context)
     return {
         "schemaVersion": "kell-swing-statistics-v1",
         "asOf": days[-1],
         "horizons": list(HORIZONS),
         "maxSelectionsPerSession": top,
-        "published": published_execution(published, charts, days, actions, top),
+        "published": execution,
         "reconstructed": {"sessionCount": len(historical), "comparisons": reconstructed["comparisons"]},
+        "executionCohorts": {
+            "schemaVersion": COHORT_SCHEMA, "asOf": days[-1], "breadthThresholdPp": BREADTH_THRESHOLD_PP,
+            "historical": reconstructed["planExecution"],
+        },
     }
 
 

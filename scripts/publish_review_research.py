@@ -39,6 +39,12 @@ def research_snapshot(directory: Path, publication: dict) -> bytes:
     swing = reports["kellForward"].get("swingStatistics")
     if swing is not None and (swing.get("schemaVersion") != "kell-swing-statistics-v1" or swing.get("asOf") != day):
         raise ValueError("Kell swing statistics differ from the Review publication")
+    execution_cohorts = (swing or {}).get("executionCohorts")
+    if execution_cohorts is not None and (
+        execution_cohorts.get("schemaVersion") != "kell-swing-execution-cohorts-v1"
+        or execution_cohorts.get("asOf") != day
+    ):
+        raise ValueError("Kell execution cohorts differ from the Review publication")
     matched = (reports["trendBirthForward"].get("earlyTrend") or {}).get("matched")
     if matched is not None and (matched.get("schemaVersion") != "trend-birth-matched-cohorts-v1" or
                                 matched.get("asOf") != day):
