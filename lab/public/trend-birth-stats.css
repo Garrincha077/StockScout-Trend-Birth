@@ -20,6 +20,14 @@
 .si-controls{display:flex;flex-wrap:wrap;gap:12px;padding:4px 0 11px}
 .si-controls label{display:flex;flex-direction:column;gap:4px;color:#a9bfd6;font-size:12px}
 .si-controls select{border:1px solid #37516f;background:#0c192b;color:#e7f0fb;border-radius:8px;font:14px system-ui;padding:9px 12px;min-height:40px}
+.si-match-panel{margin-top:16px;padding:12px;border:1px solid #294863;border-radius:11px;background:#0c1b2e}
+.si-match-panel h3{margin:0 0 9px;font-size:15px}
+.si-match-panel [role="status"]{margin:0 0 8px;font-size:13px}
+.si-match-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}
+.si-match-results[hidden]{display:none}
+.si-match-results div{padding:8px;border:1px solid #294863;border-radius:8px;background:#11253b}
+.si-match-results dt{color:#a5b7cc;font-size:11px}
+.si-match-results dd{margin:3px 0 0;font-size:clamp(14px,4vw,21px);font-weight:700;font-variant-numeric:tabular-nums}
 .si-chart{width:100%;overflow-x:auto;background:#0a1726;border-radius:9px;border:1px solid #233951}
 .si-chart svg{display:block;min-width:100%;height:auto;max-height:315px}
 .si-table-scroll{width:100%;overflow:auto}

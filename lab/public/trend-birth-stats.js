@@ -684,7 +684,37 @@
       finally{loading=false;}
     });
   }
-  function renderEarlyOutcomes(data){
+  function renderMatchedOutcomes(data,asOf){
+    if(data?.schemaVersion!=='trend-birth-matched-cohorts-v1'||data.asOf!==asOf)return;
+    const cohort=el('siMatchedCohort'),horizon=el('siMatchedHorizon'),results=el('siMatchedResults');
+    const count=value=>FMT.format(value);
+    el('siMatchedMethod').textContent='Kontrola dolazi iz istog skena i ima istu fazu dnevnog radara u prethodnoj sesiji. '+
+      'Koriste se samo prethodna cijena (omjer do '+count(data.maxPriceRatio)+'×) i prinos zadnjih '+
+      count(data.lookbackSessions)+' sesija (razlika do '+count(data.maxMomentumGapPp)+' p. b.). '+
+      'Uparuje se najbliža dostupna dionica bez istog signala, najviše jednom po datumu.';
+    function renderSelection(){
+      const group=data.groups?.[cohort.value],outcome=group?.outcomes?.[horizon.value];
+      if(!outcome)return;
+      const sessions=cohort.value==='early'?data.earlyObservedSessions:data.dailyObservedSessions;
+      const coverage=count(sessions)+' arhiviranih sesija · '+count(group.paired)+' / '+count(group.signals)+' uparenih signala.';
+      el('siMatchedCoverage').textContent=coverage+' '+(!group.signals?
+        'Još nema novih potvrđenih ulazaka u uzastopnim sesijama.':
+        count(group.missingFeatures)+' bez prethodnih podataka · '+count(group.unmatched)+' bez slične dionice.');
+      const dateLabel=horizon.value+'D · '+count(outcome.observed)+' s ishodom · '+
+        count(outcome.pending)+' na čekanju · '+count(outcome.missingPairPrices)+' bez cijene za par.';
+      el('siMatchedDates').textContent=dateLabel+(outcome.observedDates?
+        ' Signal ispred kontrole na '+count(outcome.positiveDates)+' / '+count(outcome.observedDates)+' datuma.':'');
+      results.hidden=!outcome.observed;
+      el('siMatchedSignal').textContent=fmt(outcome.signalReturnPct,'%');
+      el('siMatchedControl').textContent=fmt(outcome.controlReturnPct,'%');
+      el('siMatchedDifference').textContent=(outcome.differencePp>0?'+':'')+fmt(outcome.differencePp,' p. b.');
+    }
+    cohort.onchange=renderSelection;
+    horizon.onchange=renderSelection;
+    renderSelection();
+    el('siMatched').hidden=false;
+  }
+  function renderEarlyOutcomes(data,asOf){
     if(data?.schemaVersion!=='early-trend-outcomes-v1')return;
     const cohorts=[['early','Trend Birth'],['daily4','Dnevno 4/4'],['weekly','Tjedna baza']];
     const lead=cohorts.slice(1).map(([key,label])=>{
@@ -716,6 +746,7 @@
     }
     select.onchange=renderHorizon;
     renderHorizon();
+    renderMatchedOutcomes(data.matched,asOf);
     el('siEarly').hidden=false;
   }
   const kellHorizons=[5,10,20],kellCosts=['20bp','50bp'];
@@ -832,7 +863,7 @@
       tbody.appendChild(r);
     }
     table.appendChild(tbody);
-    renderEarlyOutcomes(data.earlyTrend);
+    renderEarlyOutcomes(data.earlyTrend,data.asOf);
   }
 
   async function start() {

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=recovery-20261026">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=matched-cohorts-20261118">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -170,6 +170,30 @@
       <div class="si-table-scroll"><table class="si-matrix" id="siEarlyTable">
         <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
       </table></div>
+      <section id="siMatched" class="si-match-panel" aria-labelledby="siMatchedTitle" hidden>
+        <h3 id="siMatchedTitle">Usporedba sa sličnim dionicama</h3>
+        <div class="si-controls">
+          <label>Signal <select id="siMatchedCohort">
+            <option value="early">Early Trend Birth</option><option value="daily4">Dnevni radar 4/4</option>
+          </select></label>
+          <label>Sesije držanja <select id="siMatchedHorizon">
+            <option value="5">5</option><option value="20" selected>20</option><option value="63">63</option>
+            <option value="126">126</option><option value="252">252</option>
+          </select></label>
+        </div>
+        <p id="siMatchedCoverage" role="status"></p>
+        <dl class="si-match-results" id="siMatchedResults" hidden>
+          <div><dt>Signal</dt><dd id="siMatchedSignal"></dd></div>
+          <div><dt>Kontrolna skupina</dt><dd id="siMatchedControl"></dd></div>
+          <div><dt>Razlika</dt><dd id="siMatchedDifference"></dd></div>
+        </dl>
+        <p class="si-muted" id="siMatchedDates"></p>
+        <details class="si-composite-definitions">
+          <summary>Kako se biraju parovi</summary>
+          <p id="siMatchedMethod" class="si-muted"></p>
+          <p class="si-muted">Par se zadržava kroz sve horizonte. Mjerenje počinje na zatvaranju iduće sesije. Svaki datum ima jednaku težinu. Razdoblja držanja mogu se preklapati. Prikaz su bruto prinosi uz evidentirane korporativne akcije. Sektor i likvidnost nisu kriteriji uparivanja u ovoj arhivi.</p>
+        </details>
+      </section>
     </section>
     <section class="si-panel" id="siKell" aria-labelledby="siKellTitle">
       <h2 id="siKellTitle">Kell Swing · provjera planova</h2>
@@ -238,6 +262,6 @@
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
-  <script src="trend-birth-stats.js?v=kell-outcomes-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=matched-cohorts-20261118" defer></script>
 </body>
 </html>
