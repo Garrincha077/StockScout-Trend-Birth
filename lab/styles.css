@@ -61,10 +61,15 @@
 .review-change-ticker small{grid-column:1/-1;color:#aabbd0;font-size:11px}
 .review-change-kind{color:#a9c7e5;font-size:12px}
 .review-change-price{color:#c9e3fc;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.detail-evidence{margin:0 0 12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#0b1725}
+.detail-evidence{margin:0 0 12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#0b1725;scroll-margin-top:64px}
 .detail-evidence-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .detail-evidence-head h2{margin:0;font-size:15px}
-.detail-evidence-head select{max-width:100%;min-height:42px;padding:7px 9px;border:1px solid #36516f;border-radius:8px;background:#122339;color:var(--text);font:inherit}
+.detail-evidence select{max-width:100%;min-height:42px;padding:7px 9px;border:1px solid #36516f;border-radius:8px;background:#122339;color:var(--text);font:inherit}
+.chart-plan-control{display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px;margin:0 0 8px}
+.chart-plan-control label,.chart-plan-message{color:#aabbd0;font-size:12px}
+.chart-plan-key ul{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 8px;padding:0;list-style:none;font-size:12px;font-variant-numeric:tabular-nums}
+.chart-plan-key span{font-weight:700}
+.chart-plan-key small{color:#aabbd0}
 .detail-chart-meta{margin:6px 0;color:#aabbd0;font-size:12px}
 .chart-track{position:relative;touch-action:manipulation}
 .detail-evidence[data-chart-cursor] .chart-track:not([hidden])::after{content:'';position:absolute;inset:7px auto 8px var(--candle-x);border-left:1px dashed #e3edf7b0;pointer-events:none}
@@ -283,5 +288,7 @@
 .saved-plan-journal ol{display:grid;gap:8px;margin:0 0 6px;padding-left:22px;font-size:.85rem}
 .saved-plan-journal time{font-variant-numeric:tabular-nums}
 .saved-plan-journal li span{display:block;color:#b7c5d5}
+.saved-plan-journal button{display:block;width:100%;min-height:44px;padding:6px 8px;text-align:left;border:1px solid #36516f;border-radius:7px;background:#0d2031;color:#9ed3ff;cursor:pointer}
+.saved-plan-journal button:hover,.saved-plan-journal button:focus-visible{border-color:var(--accent)}
 #savedPlanArchive{margin-top:12px}
 .analysis-jump{color:#9ed3ff}

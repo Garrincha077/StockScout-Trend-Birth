@@ -1,3 +1,9 @@
+## 2026-11-18 — Saved plan levels and daily candle jumps
+
+- Verified at 17:07 Europe/Zagreb on the [isolated Watchlist preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist), preview commit `271ffe2` and READY deployment `dpl_BkXkUCP7EXo6PNLMUpkPpK8kjsgp`. Mobile Chromium at 390 px rendered actual November 17 saved levels for CAKE Kell Swing and KLAR Early Trend Birth. The chart selector can return to the displayed EOD levels.
+- A journal row selects its original saved plan and focuses the exact daily candle, extending the daily period when needed. If the source close basis or later daily coverage is unavailable, the saved overlay requires a verified series before drawing. The Kell zone starts at the plan date.
+- Passed 126 Node and 24 Chromium cases, including card and dialog jumps, a weekly-to-daily switch and a later scan with a changed pivot. The earlier journal head `ca4efab` passed [CI 44341431100](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44341431100). Source changes are in draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Test the first later comparable actual EOD and evaluate keeping journal milestones after archiving.
+
 ## 2026-11-18 — Watchlist plan journal
 
 - Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist) at 16:55 Europe/Zagreb, preview commit `d849968` and READY deployment `dpl_DKVUk8ptCqgTpRMBqPQ3GUxE1z3e`. Saved actual November 17 Early plan KLAR and Kell plan CAKE in a disposable mobile Chromium context. Both correctly awaited the first later close. The CAKE link opened its ticker in the exact November 17 archive.

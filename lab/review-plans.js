@@ -60,6 +60,9 @@
     if(plan.maxEntry!=null&&close>plan.maxEntry)return 'extended';
     return close>=plan.pivot?'abovePivot':'belowPivot';
   }
+  function samePriceBasis(plan,close){
+    return validPrice(close)&&Math.abs(close-plan.price)<=Math.max(.005,plan.price*.00005);
+  }
   function assess(plan,quotes,asOf,calendar,snapshotId){
     if(!validDay(asOf)||asOf<plan.sessionDate)return {state:'earlier'};
     if(asOf===plan.sessionDate)return {state:snapshotId&&snapshotId!==plan.snapshotId?'revision':'saved'};
@@ -69,7 +72,7 @@
     const window=quotes.filter(quote=>quote.day>=plan.sessionDate&&quote.day<=asOf);
     if(window.length!==days.length||window.some((quote,i)=>quote.day!==days[i]||!validPrice(quote.close)))return {state:'coverage'};
     // A different close on the saved session can indicate a corrected or split-adjusted series.
-    if(Math.abs(window[0].close-plan.price)>Math.max(.005,plan.price*.00005))return {state:'priceBasis'};
+    if(!samePriceBasis(plan,window[0].close))return {state:'priceBasis'};
     const current=window.at(-1);
     let previous=level(plan,window[0].close);
     let changed=null;
@@ -89,5 +92,5 @@
     }
     return {state:previous,asOf,close:current.close,changed,lastPivot,pivotDeltaPct:100*(current.close/plan.pivot-1),events};
   }
-  return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess};
+  return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess,samePriceBasis};
 });

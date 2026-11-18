@@ -805,7 +805,7 @@ function chartLevels(item,view=state.primaryView){
   ];
   return [];
 }
-function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[],base=null,periodKey=state.chartPeriod){
+function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[],base=null,periodKey=state.chartPeriod,savedPlan=null){
   const history=normalizeBars(rows);
   const period=chartPeriods[periodKey]||chartPeriods['1y'];
   const count=periodKey==='base'&&base?base.weeks:period.weekly?period.weeks:period.daily;
@@ -823,11 +823,12 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
   }
   const top=large?32:24,bottom=large?46:38,left=large?10:8,right=large?72:60;
   const rawLo=Math.min(...bars.map(b=>b.low)),high=Math.max(...bars.map(b=>b.high));
-  const nearLevels=base?levels.map(([price])=>price).filter(price=>
-    Number.isFinite(price)&&price>=high&&price-high<=(high-rawLo)*.2):[];
-  const rawHi=Math.max(high,...nearLevels);
-  const rawRange=Math.max(rawHi-rawLo,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
-  const lo=rawLo-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
+  const levelMargin=(high-rawLo)*.2;
+  const nearLevels=levels.map(([price])=>price).filter(price=>Number.isFinite(price)&&
+    (savedPlan?price>=rawLo-levelMargin&&price<=high+levelMargin:base&&price>=high&&price<=high+levelMargin));
+  const rawHi=Math.max(high,...nearLevels),floor=Math.min(rawLo,...nearLevels);
+  const rawRange=Math.max(rawHi-floor,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
+  const lo=floor-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
   const axis=large?ChartEvidence.axis(w,bars.length):null;
   const plotW=axis?.plotWidth??Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
   const x=axis?.x??(i=>left+i*plotW/(bars.length-1)),y=v=>top+(hi-v)*plotH/range;
@@ -843,6 +844,21 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
       description.push('Zona baze '+barDateLabel(base.start)+' – '+barDateLabel(base.end),
         'Zadnji dovršeni tjedan '+barDateLabel(base.cutoff),bars.length+' svijeća');
     }
+  }
+  const planStart=savedPlan?bars.findIndex(bar=>chartDay(bar.time)>=savedPlan.sessionDate):-1;
+  if(planStart>=0&&savedPlan.maxEntry>savedPlan.pivot){
+    const lower=Math.max(lo,savedPlan.pivot),upper=Math.min(hi,savedPlan.maxEntry);
+    if(upper>lower){
+      ctx.fillStyle='#80c7ff24';
+      ctx.fillRect(x(planStart),y(upper),Math.max(1,x(bars.length-1)-x(planStart)),y(lower)-y(upper));
+    }
+  }
+  if(planStart>=0&&chartDay(bars[planStart].time)===savedPlan.sessionDate){
+    const anchor=x(planStart);
+    ctx.strokeStyle='#a4c4de80';
+    ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(anchor,top);ctx.lineTo(anchor,top+plotH);ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   ctx.lineWidth=1;ctx.textBaseline='middle';
@@ -868,9 +884,9 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
     series.forEach((v,i)=>{if(v==null)return;const xx=x(i),yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
     if(started)ctx.stroke();
   });
-  const marked=levels.filter(([price])=>Number.isFinite(price)&&price>=lo&&price<=hi);
+  const marked=savedPlan&&planStart<0?[]:levels.filter(([price])=>Number.isFinite(price)&&price>=lo&&price<=hi);
   if(marked.length){
-    const lineStart=x(Math.floor(bars.length/2));
+    const lineStart=x(savedPlan?0:Math.floor(bars.length/2));
     ctx.lineWidth=1;
     ctx.setLineDash([4,4]);
     for(const [price,,color] of marked){
@@ -879,13 +895,16 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
       ctx.moveTo(lineStart,yy);ctx.lineTo(w-right,yy);ctx.stroke();
     }
     ctx.setLineDash([]);
-    ctx.textAlign='right';
-    ctx.textBaseline='middle';
-    let labelY=top-13;
-    for(const [price,label,color] of marked.sort((a,b)=>b[0]-a[0])){
-      labelY=Math.max(labelY+13,y(price));
-      ctx.fillStyle=color;ctx.fillText(label,lineStart-6,labelY);
+    if(!savedPlan){
+      ctx.textAlign='right';
+      ctx.textBaseline='middle';
+      let labelY=top-13;
+      for(const [price,label,color] of marked.sort((a,b)=>b[0]-a[0])){
+        labelY=Math.max(labelY+13,y(price));
+        ctx.fillStyle=color;ctx.fillText(label,lineStart-6,labelY);
+      }
     }
+    if(savedPlan)description.push('Spremljeni '+planNames[savedPlan.strategy]+' · '+savedPlan.sessionDate);
     description.push(...marked.map(([price,label])=>label+' '+priceLabel(price)));
   }
   if(description.length)canvas.setAttribute('aria-description',description.join('. '));
@@ -907,7 +926,7 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
     ctx.textAlign='right';
     ctx.fillText(bars.length+(period.weekly?' weeks':' sessions'),w-right,14);
   }
-  return {history,bars,axis};
+  return {history,bars,axis,marked};
 }
 function drawTickerChart(canvas,item,rows,large=false){
   const period=chartPeriods[state.chartPeriod];
@@ -1319,10 +1338,12 @@ function renderPlanArchive(){
 function updateSavedPlanStatuses(host,item){
   if(!item.savedPlans?.length)return;
   const quotes=planQuotes(item);
+  const assessments=new Map();
   for(const section of host.querySelectorAll('[data-saved-plan]')){
     const plan=item.savedPlans.find(entry=>ReviewPlans.planId(entry)===section.dataset.savedPlan);
     if(!plan)continue;
     const result=ReviewPlans.assess(plan,quotes,state.data.source?.sessionDate,freshnessCalendar,state.snapshotId);
+    assessments.set(section.dataset.savedPlan,result);
     const node=section.querySelector('[data-plan-status]');
     const journal=section.querySelector('[data-plan-journal]');
     node.dataset.state=result.state;
@@ -1337,9 +1358,15 @@ function updateSavedPlanStatuses(host,item){
       extended:'Prvo zatvaranje iznad maksimalnog ulaza',invalidated:'Prvo zatvaranje na ili ispod zaštitne razine'};
     journal.hidden=!result.events?.length;
     journal.querySelector('ol').innerHTML=(result.events||[]).map(event=>
-      '<li><time datetime="'+esc(event.day)+'">'+esc(event.day)+'</time> · <strong>'+fmt(event.close)+'</strong>'+
-      '<span>'+labels[event.state]+'</span></li>').join('');
+      '<li><button type="button" data-plan-candle="'+esc(event.day)+'" aria-label="Otvori svijeću '+esc(event.day)+
+      ' · '+labels[event.state]+'"><time datetime="'+esc(event.day)+'">'+esc(event.day)+'</time> · <strong>'+fmt(event.close)+'</strong>'+
+      '<span>'+labels[event.state]+'</span></button></li>').join('');
   }
+  return assessments;
+}
+function planCandleTarget(event){
+  const button=event.target.closest('[data-plan-candle]');
+  if(button)return {day:button.dataset.planCandle,id:button.closest('[data-saved-plan]').dataset.savedPlan};
 }
 function planAction(event,item){
   const button=event.target.closest('[data-plan-action]');
@@ -1611,7 +1638,12 @@ function render(){
     const star=cardEl.querySelector('[data-watch-ticker]');
     star?.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();if(star.disabled)return;star.disabled=true;try{await toggleWatchlist(star.dataset.watchTicker)}finally{star.disabled=false}});
     canvas.addEventListener('click',e=>{e.stopPropagation();open()});
-    cardEl.addEventListener('click',e=>{if(e.target.closest('[data-watch-ticker]')||e.target.closest('a,[data-plan-journal]')||planAction(e,item))return;open()});
+    cardEl.addEventListener('click',e=>{
+      const jump=planCandleTarget(e);
+      if(jump){show(item,state.primaryView,{period:'1y',jump});return}
+      if(e.target.closest('[data-watch-ticker]')||e.target.closest('a,[data-plan-journal]')||planAction(e,item))return;
+      open();
+    });
     cardEl.addEventListener('keydown',e=>{if(e.target.closest('[data-watch-ticker],[data-plan-action],a,[data-plan-journal]'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
   });
 }
@@ -1793,7 +1825,7 @@ async function copyDetailLink(button){
   const section=button.closest('.detail-link'),field=section.querySelector('input'),status=section.querySelector('[role="status"]');
   const detailView=state.detailView,view=['watchlist','research'].includes(detailView)?'early':detailView;
   const link=ReviewNavigation.tickerLink(location.href,{view,detailView,ticker:state.detailTicker,
-    period:$('#detail .detail-evidence select').value}).href;
+    period:$('#detail [data-chart-period]').value}).href;
   try{
     await navigator.clipboard.writeText(link);
     status.textContent='Poveznica je kopirana.';
@@ -1809,10 +1841,16 @@ function detailEvidence(item,periodKey){
   const choices=[['3m','Dnevni · 3 mj.'],['6m','Dnevni · 6 mj.'],['1y','Dnevni · 1 g.']];
   if(item.weeklyBirth?.metrics?.baseWeeks>=9)choices.push(['base','Tjedni · zona baze']);
   choices.push(['5y','Tjedni · do 5 g.']);
-  return '<section class="detail-evidence" aria-labelledby="detailChartTitle">'+
+  const savedChoices=(item.savedPlans||[]).map(plan=>
+    '<option value="'+esc(ReviewPlans.planId(plan))+'">'+planNames[plan.strategy]+' · '+esc(plan.sessionDate)+'</option>');
+  return '<section class="detail-evidence" aria-labelledby="detailChartTitle" tabindex="-1">'+
     '<div class="detail-evidence-head"><h2 id="detailChartTitle">Cijena i tržišni kontekst</h2>'+
-      '<select aria-label="Razdoblje detaljnog grafa">'+choices.map(([key,label])=>
+      '<select data-chart-period aria-label="Razdoblje detaljnog grafa">'+choices.map(([key,label])=>
         '<option value="'+key+'"'+(key===periodKey?' selected':'')+'>'+label+'</option>').join('')+'</select></div>'+
+    (savedChoices.length?'<div class="chart-plan-control"><label for="detailPlanLevels">Razine na grafu</label>'+
+      '<select id="detailPlanLevels" data-chart-plan><option value="">Razine iz prikazanog EOD-a</option>'+
+      savedChoices.join('')+'</select></div><div class="chart-plan-key" data-chart-plan-key hidden></div>'+
+      '<p class="chart-plan-message" data-chart-plan-message role="status" hidden></p>':'')+
     '<div class="chart-track"><canvas class="detail-chart" aria-label="'+esc(item.ticker)+' detaljni graf"></canvas></div>'+
     '<p class="detail-chart-meta" role="status"></p>'+
     '<button type="button" class="watchlist-retry detail-chart-retry" hidden>Ponovi učitavanje grafa</button>'+
@@ -1850,11 +1888,23 @@ function ensureChartSpy(manifest){
   return chartSpyRequests.get(manifest);
 }
 function chartDay(time){return barDate(time)?.toISOString().slice(0,10)??''}
-function renderDetailEvidence(section,item,rows,periodKey,view,benchmark){
+function renderDetailEvidence(section,item,rows,periodKey,view,benchmark,savedPlan){
   const period=chartPeriods[periodKey],canvas=section.querySelector('.detail-chart');
   const base=period.weekly?weeklyBaseRange(item,rows):null;
   const context=view==='weekly'&&!period.weekly?'early':view;
-  const result=draw(canvas,rows,true,undefined,chartLevels(item,context),base,periodKey);
+  const levels=savedPlan?[
+    [savedPlan.pivot,'Pivot','#80c7ff'],
+    [savedPlan.maxEntry,'Maks. ulaz','#e9bd62'],
+    [savedPlan.invalidation,savedPlan.strategy==='kell'?'Stop':'Poništenje','#ff8b99']
+  ].filter(([price])=>Number.isFinite(price)):chartLevels(item,context);
+  const result=draw(canvas,rows,true,undefined,levels,base,periodKey,savedPlan);
+  const key=section.querySelector('[data-chart-plan-key]');
+  if(key){
+    key.hidden=!savedPlan||!result;
+    key.innerHTML=key.hidden?'':'<ul aria-label="Izvorne razine spremljenog plana">'+levels.map(([price,label,color])=>
+      '<li><span style="color:'+color+'">'+label+' '+fmt(price)+'</span>'+
+      (result.marked.some(([value,name])=>value===price&&name===label)?'':' <small>izvan grafa</small>')+'</li>').join('')+'</ul>';
+  }
   const indicators=section.querySelector('.chart-indicators');
   const meta=section.querySelector('.detail-chart-meta');
   indicators.hidden=!result;
@@ -1901,15 +1951,19 @@ function showDetailCandle(section,evidence,index){
   section.toggleAttribute('data-chart-cursor',index!==null);
   section.style.setProperty('--candle-x',axis.x(selected)+'px');
 }
-function mountDetailEvidence(section,item,view){
-  const select=section.querySelector('select'),canvas=section.querySelector('.detail-chart');
+function mountDetailEvidence(section,item,view,initialJump){
+  const select=section.querySelector('[data-chart-period]'),canvas=section.querySelector('.detail-chart');
+  const planSelect=section.querySelector('[data-chart-plan]'),planKey=section.querySelector('[data-chart-plan-key]');
+  const planMessage=section.querySelector('[data-chart-plan-message]');
+  const plans=new Map((item.savedPlans||[]).map(plan=>[ReviewPlans.planId(plan),plan]));
   const meta=section.querySelector('.detail-chart-meta'),indicators=section.querySelector('.chart-indicators');
   const retry=section.querySelector('.detail-chart-retry');
   const controls=section.querySelector('.chart-inspection'),slider=controls.querySelector('input');
   const floor=controls.querySelector('[data-candle-floor]');
   const dialog=$('#detail'),manifest=state.publication;
   let revision=0,lastRender=null,lastWidth=null;
-  let evidence=null,selected=null,benchmark=null;
+  let evidence=null,selected=null,benchmark=null,pendingJump=initialJump,jumpNotice='';
+  if(pendingJump&&planSelect)planSelect.value=pendingJump.id;
   function pick(index){
     if(!evidence)return;
     selected=Math.max(0,Math.min(evidence.bars.length-1,index));
@@ -1934,6 +1988,26 @@ function mountDetailEvidence(section,item,view){
   observer.observe(section);
   dialog.addEventListener('close',()=>observer.disconnect(),{once:true,signal:section.cleanup.signal});
   section.cleanup.signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
+  function setPeriod(period){
+    select.value=period;
+    writeReviewLocation(item,view,period);
+    refresh();
+  }
+  $('#detailBody').addEventListener('click',event=>{
+    const target=planCandleTarget(event);
+    if(!target||!plans.has(target.id))return;
+    planSelect.value=target.id;
+    pendingJump=target;
+    jumpNotice='';
+    if(evidence&&!evidence.period.weekly&&evidence.bars.some(bar=>chartDay(bar.time)===target.day))lastRender();
+    else setPeriod('1y');
+  },{signal:section.cleanup.signal});
+  planSelect?.addEventListener('change',()=>{
+    pendingJump=null;
+    jumpNotice='';
+    if(planSelect.value&&chartPeriods[select.value].weekly)setPeriod('1y');
+    else lastRender?.();
+  });
   async function refresh(){
     const current=++revision,periodKey=select.value;
     const isCurrent=()=>active()&&current===revision;
@@ -1941,6 +2015,8 @@ function mountDetailEvidence(section,item,view){
     evidence=null;
     selected=null;
     section.removeAttribute('data-chart-cursor');
+    if(planKey)planKey.hidden=true;
+    if(planMessage)planMessage.hidden=true;
     indicators.hidden=true;
     controls.hidden=true;
     retry.hidden=true;
@@ -1955,7 +2031,7 @@ function mountDetailEvidence(section,item,view){
         const row=rows.get(item.ticker);
         lookup.rows.set(item.ticker,row);
         if(!lookup.request)render();
-        show({...item,...row,watchlistUnavailable:false,watchlistMissing:!row},view);
+        show({...item,...row,watchlistUnavailable:false,watchlistMissing:!row},view,{period:periodKey,jump:pendingJump});
         return;
       }
       let cutoff=null;
@@ -1978,16 +2054,38 @@ function mountDetailEvidence(section,item,view){
       }
       const rows=await ensureChartData(item,periodKey,cutoff);
       if(!isCurrent())return;
+      if(!freshnessCalendar&&item.savedPlans?.some(plan=>plan.sessionDate<state.data.source?.sessionDate)){
+        try{freshnessCalendar=await ReviewFreshness.loadCalendar(fetch)}catch{/* Status reports missing calendar. */}
+        if(!isCurrent())return;
+      }
+      const assessments=updateSavedPlanStatuses($('#detailBody'),item);
       lastRender=()=>{
-        evidence=renderDetailEvidence(section,item,rows,periodKey,view,benchmark);
+        const plan=plans.get(planSelect?.value),assessment=plan&&assessments.get(planSelect.value);
+        const sameClose=assessment?.state==='saved'&&ReviewPlans.samePriceBasis(plan,
+          rows.find(bar=>chartDay(bar.time)===plan.sessionDate)?.close);
+        const overlay=!chartPeriods[periodKey].weekly&&(assessment?.events||sameClose)?plan:null;
+        evidence=renderDetailEvidence(section,item,rows,periodKey,view,benchmark,overlay);
         controls.hidden=!evidence;
+        const target=pendingJump;
+        if(target){
+          const verified=overlay&&assessment.events?.some(event=>event.day===target.day);
+          const index=verified?evidence?.bars.findIndex(bar=>chartDay(bar.time)===target.day):-1;
+          selected=index>=0?index:null;
+          jumpNotice=selected===null?'Svijeća za '+target.day+' nije dostupna u dnevnom grafu.':'';
+          pendingJump=null;
+          section.focus({preventScroll:true});
+          section.scrollIntoView({block:'start'});
+        }
+        if(planMessage){
+          planMessage.textContent=jumpNotice||(plan&&!overlay?'Izvorne razine nisu potvrđene za prikazani niz cijena.':'');
+          planMessage.hidden=!planMessage.textContent;
+        }
         if(!evidence)return;
         slider.max=String(evidence.bars.length-1);
         floor.hidden=evidence.floorIndex<0;
         showDetailCandle(section,evidence,selected);
       };
       lastRender();
-      updateSavedPlanStatuses($('#detailBody'),item);
       if(!benchmark&&evidence&&evidence.relative.count<evidence.bars.length){
         const request=ensureChartSpy(manifest);
         if(!request)return;
@@ -2005,13 +2103,15 @@ function mountDetailEvidence(section,item,view){
     }
   }
   select.addEventListener('change',()=>{
-    writeReviewLocation(item,view,select.value);
-    refresh();
+    pendingJump=null;
+    jumpNotice='';
+    if(planSelect&&chartPeriods[select.value].weekly)planSelect.value='';
+    setPeriod(select.value);
   });
   retry.addEventListener('click',refresh);
   refresh();
 }
-function show(item,view=state.primaryView,{period=null,fromLocation=false}={}){
+function show(item,view=state.primaryView,{period=null,fromLocation=false,jump=null}={}){
   if(!fromLocation)++reviewLocationRevision;
   const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
@@ -2025,7 +2125,7 @@ function show(item,view=state.primaryView,{period=null,fromLocation=false}={}){
   const body=$('#detailBody'),dialog=$('#detail');
   const fresh=!dialog.open;
   const previous=body.querySelector('.detail-evidence');
-  let periodKey=period||(dialog.open?previous?.querySelector('select')?.value:null);
+  let periodKey=period||(dialog.open?previous?.querySelector('[data-chart-period]')?.value:null);
   periodKey=periodKey||(weeklyMode?state.chartPeriod:view==='kell-daily'?'3m':'6m');
   if(periodKey==='base'&&!(weeklyMetrics.baseWeeks>=9))periodKey='5y';
   previous?.cleanup?.abort();
@@ -2076,7 +2176,7 @@ function show(item,view=state.primaryView,{period=null,fromLocation=false}={}){
   if(!fromLocation)writeReviewLocation(item,view,periodKey,fresh&&!ReviewNavigation.read(location.search).ticker);
   if(!dialog.open)dialog.showModal();
   requestAnimationFrame(()=>{
-    if(section.isConnected&&dialog.open)mountDetailEvidence(section,item,view);
+    if(section.isConnected&&dialog.open)mountDetailEvidence(section,item,view,jump);
   });
 }
 $('#changeHighlights')?.addEventListener('click',e=>{

@@ -489,6 +489,18 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   assert.equal(await journal.locator('li').isVisible(),true);
   assert.match(await journal.locator('li').innerText(),/2026-11-18 · 105\.00\s+Prvo zatvaranje na pivotu/);
   assert.equal(await page.locator('#detail').isVisible(),false);
+  await journal.getByRole('button',{name:/Otvori svijeću 2026-11-18/}).tap();
+  const detail=page.locator('#detail'),chart=detail.locator('.detail-evidence');
+  await chart.locator('[data-chart-plan-key]:visible').waitFor();
+  assert.match(await chart.locator('[data-chart-plan-key]').innerText(),/Pivot 105\.00/);
+  assert.match(await chart.locator('.detail-chart').getAttribute('aria-description'),/Spremljeni Early Trend Birth.*Pivot 105\.0/);
+  assert.match(await chart.locator('.detail-chart-meta').innerText(),/^Sesija 18\.11\.26 · zatvaranje 105\.0/);
+  assert.equal(await chart.evaluate(node=>node===document.activeElement),true);
+  await chart.locator('[data-chart-plan]').selectOption('');
+  assert.equal(await chart.locator('[data-chart-plan-key]').isVisible(),false);
+  assert.equal((await chart.locator('.detail-chart').getAttribute('aria-description')||'').includes('Spremljeni'),false);
+  await page.locator('#closeDetail').click();
+  await detail.waitFor({state:'hidden'});
 
   active=make(breach,'c',[...pivotBars,[breach,99,101,91,92,100]],110);
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
@@ -496,9 +508,14 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   assert.match(await card.locator('.saved-plan').innerText(),/Pivot 105\.00/);
   assert.match(await card.locator('[data-plan-status]').innerText(),/2026-11-19 · 92\.00/);
   await card.locator('canvas').tap();
-  const detail=page.locator('#detail');
   await detail.locator('[data-plan-journal][open] li').nth(1).waitFor();
   assert.deepEqual(await detail.locator('[data-plan-journal] time').allTextContents(),[next,breach]);
+  await chart.locator('[data-chart-period]').selectOption('5y');
+  await detail.getByRole('button',{name:/Otvori svijeću 2026-11-19/}).tap();
+  await detail.locator('.detail-evidence[data-chart-cursor]').waitFor();
+  assert.equal(await chart.locator('[data-chart-period]').inputValue(),'1y');
+  assert.match(await chart.locator('.detail-chart-meta').innerText(),/^Sesija 19\.11\.26 · zatvaranje 92\.00/);
+  assert.match(await chart.locator('[data-chart-plan-key]').innerText(),/Poništenje 95\.00/);
   await page.locator('#closeDetail').click();
   await card.getByRole('button',{name:'Arhiviraj plan'}).click();
   await page.locator('#savedPlanArchive summary').click();
