@@ -8,20 +8,20 @@ from pathlib import Path
 from statistics import fmean
 
 try:
-    from .kell_forward_validation import load_chart_store, load_score_snapshots
     from .kell_scoring import _ema
-    from .kell_swing import MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
+    from .kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
     from .market_actions import read_actions
     from .market_sessions import exchange_sessions
 except ImportError:
-    from kell_forward_validation import load_chart_store, load_score_snapshots
     from kell_scoring import _ema
-    from kell_swing import MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
+    from kell_swing import MODEL, MIN_DOLLAR_VOLUME, MIN_PRICE, build_plan, priority
     from market_actions import read_actions
     from market_sessions import exchange_sessions
 
 SCENARIOS = {"20bp": 0.2, "50bp": 0.5}
 HORIZONS = (5, 10, 20)
+STRATEGIES = ("swing", "legacy", "momentum")
+ACTIONS_PATH = Path(__file__).with_name("data") / "review-market-actions-v1.json"
 
 
 def setup_flags(row):
@@ -73,7 +73,7 @@ def fills(plan, window):
     return tuple((close - entry) / risk for close in (min(possible), max(possible))), entry / risk
 
 
-def replay(snapshots, charts, days, actions, top=5):
+def replay(snapshots, charts, days, actions, top=5, *, complete_pairs=False):
     history = history_index(charts)
     calendar_index = {day: i for i, day in enumerate(days)}
     exclusions = defaultdict(set)
@@ -82,6 +82,8 @@ def replay(snapshots, charts, days, actions, top=5):
     paired = defaultdict(list)
     totals = defaultdict(Counter)
     execution = {key: [] for key in SCENARIOS}
+    matched_picks = Counter()
+    selected_dates = Counter()
     for snapshot in snapshots:
         day = snapshot["sessionDate"]
         index = calendar_index.get(day)
@@ -122,6 +124,7 @@ def replay(snapshots, charts, days, actions, top=5):
             window = days[index + 1:index + horizon + 1]
             if len(window) != horizon:
                 continue
+            selected_dates[horizon] += 1
             cohorts = {}
             for name, picks in (("swing", proposed), ("legacy", legacy), ("momentum", momentum)):
                 totals[horizon][name + "Selected"] += len(picks)
@@ -141,17 +144,20 @@ def replay(snapshots, charts, days, actions, top=5):
                                 execution[label].append(tuple(value - cost / 100 * entry_risk_ratio for value in bounds))
                 totals[horizon][name + "Observed"] += len(returns)
                 cohorts[name] = returns
-            if all(cohorts.values()):
+            if all(cohorts.values()) and (not complete_pairs or all(len(rows) == count for rows in cohorts.values())):
+                matched_picks[horizon] += count
                 paired[horizon].append({key: fmean(value) for key, value in cohorts.items()})
     comparison = {}
     for horizon in HORIZONS:
         rows = paired[horizon]
         comparison[str(horizon)] = {
             "pairedDates": len(rows),
+            "selectedDates": selected_dates[horizon],
+            "pairedSelectionsPerStrategy": matched_picks[horizon] if complete_pairs else None,
             "coverage": dict(totals[horizon]),
             "returnPctByCost": {
                 label: {key: round(fmean(row[key] for row in rows) - cost, 3)
-                        for key in ("swing", "legacy", "momentum")} if rows else None
+                        for key in STRATEGIES} if rows else None
                 for label, cost in SCENARIOS.items()
             },
         }
@@ -170,15 +176,115 @@ def replay(snapshots, charts, days, actions, top=5):
     }
 
 
+def has_published_plan(snapshot):
+    return any("swing" in row for row in snapshot["candidates"])
+
+
+def _matches_anchor(actual, stored):
+    return isinstance(stored, (int, float)) and stored > 0 and abs(actual - stored) <= max(0.005, stored * .00005)
+
+
+def _valid_bar(bar):
+    return bar and bar["low"] <= min(bar["open"], bar["close"]) <= max(bar["open"], bar["close"]) <= bar["high"]
+
+
+def _scenario_results(filled):
+    results = {}
+    for label, cost in SCENARIOS.items():
+        values = [tuple(value - cost / 100 * ratio for value in bounds) for bounds, ratio in filled]
+        results[label] = [round(fmean(side), 3) for side in zip(*values)] if values else None
+    return results
+
+
+def published_execution(snapshots, charts, days, actions, top):
+    calendar_index = {day: index for index, day in enumerate(days)}
+    bars_by_ticker = {ticker: {bar["date"]: bar for bar in rows} for ticker, rows in charts.items()}
+    exclusions = defaultdict(set)
+    for action in actions:
+        exclusions[action.ticker].add(action.day)
+    counts = {horizon: Counter() for horizon in HORIZONS}
+    executions = {horizon: [] for horizon in HORIZONS}
+    observations = []
+    for snapshot in snapshots:
+        day = snapshot["sessionDate"]
+        if day not in calendar_index:
+            continue
+        observations.append(day)
+        proposals = [{**row, "kellSwing": row["swing"]} for row in snapshot["candidates"]
+                     if (row.get("swing") or {}).get("state") == "triggered"
+                     and row["swing"].get("model") == MODEL and row["swing"].get("sessionDate") == day]
+        selections = sorted(proposals, key=priority)[:top]
+        start = calendar_index[day] + 1
+        for horizon in HORIZONS:
+            count = counts[horizon]
+            count["selected"] += len(selections)
+            window = days[start:start + horizon]
+            if len(window) < horizon:
+                count["pending"] += len(selections)
+                continue
+            for item in selections:
+                ticker, plan = item["ticker"], item["kellSwing"]
+                bars = bars_by_ticker.get(ticker, {})
+                if any(session in exclusions[ticker] for session in window):
+                    count["corporateAction"] += 1
+                    continue
+                if not _valid_bar(bars.get(day)) or any(not _valid_bar(bars.get(session)) for session in window):
+                    count["missingBars"] += 1
+                    continue
+                if not _matches_anchor(bars[day]["close"], plan.get("signalClose")):
+                    count["unmatchedClose"] += 1
+                    continue
+                stop, pivot, limit = (plan.get(key) for key in ("stop", "pivot", "maxEntry"))
+                if not all(isinstance(level, (int, float)) for level in (stop, pivot, limit)) or not 0 < stop < pivot <= limit:
+                    count["invalidLevels"] += 1
+                    continue
+                count["evaluable"] += 1
+                if result := fills(plan, [bars[session] for session in window]):
+                    executions[horizon].append(result)
+    fields = ("selected", "pending", "corporateAction", "missingBars", "unmatchedClose", "invalidLevels", "evaluable")
+    return {
+        "firstSession": observations[0] if observations else None,
+        "sessionCount": len(observations),
+        "outcomes": {
+            str(horizon): {**{field: counts[horizon][field] for field in fields},
+                           "fills": len(executions[horizon]),
+                           "netRByCost": _scenario_results(executions[horizon])}
+            for horizon in HORIZONS
+        },
+    }
+
+
+def build_statistics(snapshots, charts, days, actions, top=5):
+    calendar = set(days)
+    observed = [snapshot for snapshot in snapshots if snapshot["sessionDate"] in calendar
+                and not snapshot["source"].get("recovered")]
+    published = [snapshot for snapshot in observed if has_published_plan(snapshot)]
+    # Use only sessions preceding the first real plan publication for reconstruction.
+    boundary = published[0]["sessionDate"] if published else None
+    historical = [snapshot for snapshot in observed if boundary is None or snapshot["sessionDate"] < boundary]
+    reconstructed = replay(historical, charts, days, actions, top, complete_pairs=True)
+    return {
+        "schemaVersion": "kell-swing-statistics-v1",
+        "asOf": days[-1],
+        "horizons": list(HORIZONS),
+        "maxSelectionsPerSession": top,
+        "published": published_execution(published, charts, days, actions, top),
+        "reconstructed": {"sessionCount": len(historical), "comparisons": reconstructed["comparisons"]},
+    }
+
+
 def main():
+    try:
+        from .kell_forward_validation import load_chart_store, load_score_snapshots
+    except ImportError:
+        from kell_forward_validation import load_chart_store, load_score_snapshots
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scores-dir", type=Path, required=True)
     parser.add_argument("--charts-dir", type=Path, required=True)
     parser.add_argument("--as-of", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--top", type=int, default=5)
-    parser.add_argument("--actions", type=Path,
-                        default=Path(__file__).with_name("data") / "review-market-actions-v1.json")
+    parser.add_argument("--actions", type=Path, default=ACTIONS_PATH)
     args = parser.parse_args()
     if args.top < 1:
         parser.error("--top must be positive")

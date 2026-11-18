@@ -1,3 +1,9 @@
+## 2026-11-18 — Kell Swing statistics enter the signed research bundle
+
+- Verified locally at 14:43 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Statistics page separates archived plan execution from reconstructed selection results and lets readers choose horizon and cost. The Kell tab links directly to the report.
+- Preview fixture uses the November 17 activation. Five archived plans await outcomes. The reconstructed 5-session comparison uses 34 complete EOD pairs and 170 selections per strategy. Data source/cutoff validation passed against the exact staged publication.
+- Verified with 238 local Python cases excluding the Linux shell fixture, 116 Node tests and 19 Chromium tests. The previous saved-plan change also passed [remote CI 44314215530](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44314215530). Preview smoke for the new panel follows.
+
 ## 2026-11-18 — Saved plans and readable Early Trend Birth outcomes
 
 - Verified locally at 14:27 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Early Trend Birth and Kell can save the original close and levels against the exact snapshot. Active plans appear in Watchlist and can move to a local archive. Plans use account-scoped browser storage.

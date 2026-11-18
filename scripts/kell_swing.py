@@ -61,6 +61,7 @@ def build_plan(bars, setup_flags, stage, ema10, ema20, expected_session=None):
     return {
         "model": MODEL, "setup": setup, "phase": stage, "sessionDate": day,
         "state": state, "reason": reason, "pivot": round(pivot, 4),
+        "signalClose": round(price, 6),
         "stop": round(stop, 4), "maxEntry": round(max_entry, 4) if max_entry >= pivot else None,
         "riskPct": round(risk_pct, 2) if risk_pct is not None else None,
         "gapPct": round(gap, 2) if gap is not None else None,

@@ -36,6 +36,9 @@ def research_snapshot(directory: Path, publication: dict) -> bytes:
             reports["kellForward"]["source"].get("lastSignalDate") != day or
             reports["alerts"].get("reviewSnapshotId") != snapshot_id):
         raise ValueError("Research cutoff, latest score or alert target differs from Review publication")
+    swing = reports["kellForward"].get("swingStatistics")
+    if swing is not None and (swing.get("schemaVersion") != "kell-swing-statistics-v1" or swing.get("asOf") != day):
+        raise ValueError("Kell swing statistics differ from the Review publication")
     return encode({
         "schemaVersion": SCHEMA,
         "reviewSnapshotId": snapshot_id,

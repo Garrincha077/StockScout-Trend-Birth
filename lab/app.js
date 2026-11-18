@@ -1512,6 +1512,11 @@ function render(){
     $('#status').textContent=Array.isArray(state.data?.shortlists?.kellSwing)
       ?items.length+' swing planova · '+active+' s potvrđenim pivotom'
       :items.length+' arhivskih Kell kandidata';
+    const link=document.createElement('a');
+    link.href='statistics.html#siKell';
+    link.textContent='Provjera planova';
+    link.className='analysis-jump';
+    $('#status').append(' · ',link);
   }else if(state.quickView==='changed'){
     const changeSummary=KellChanges.summary(items);
     const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate||'—';

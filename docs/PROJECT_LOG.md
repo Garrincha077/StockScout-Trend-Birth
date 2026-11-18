@@ -742,3 +742,10 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - The comparison uses dated daily closes and the authoritative market calendar. Unchanged original price is a required check. Missing or disjoint history does not classify a trade outcome. A later close-level violation persists through recovery. Plans describe EOD observations.
 - Statistics reports selected 20/63/126/252-session cohorts, sample maturity, the leader share among observed signals and signed lead. Rankings and archived market data remain unchanged. Verified 116 Node and 18 Chromium tests, including saving and archiving, crossing a new EOD with changed model levels, and horizon selection.
 - Next: verify the preview with actual data and improve strategy-specific evidence and simulated executions.
+
+## 2026-11-18 — Separate Kell Swing execution and reconstructed comparisons
+
+- Verified locally 14:43 Europe/Zagreb. Draft PR #76. Statistics now exposes the swing simulations and matched retrospective comparison independently of Kell overlay score calibration. The EOD workflow adds both to the bound research report. Published plans retain the original signal close for later data-basis checks.
+- Strict retrospective comparisons require complete windows for every selection on each common date. Published selections count pending plans, missing OHLC, corporate actions, unmatched signal closes, invalid levels and evaluable plans separately. Net-R ranges reflect uncertainty about within-day order. Rankings are preserved.
+- On the pinned November 17 preview, five plans are pending and 34/34 matured reconstructed dates have complete 5-session samples. At 0.20% and 0.50% round-trip cost the reconstructed Kell Swing means are +0.197% and -0.103% respectively. The isolated EOD publication check passed with 2,592/2,592 evaluated quotes.
+- Verified 238 Python excluding the Linux shell fixture, 116 Node, and 19 Chromium. The previous saved-plan GitHub run 44314215530 passed. Next: check preview behavior with real published research and continue ticker-level evidence improvements.

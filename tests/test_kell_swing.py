@@ -1,7 +1,9 @@
 import unittest
+from datetime import date, timedelta
 
-from scripts.kell_swing import build_plan, priority
+from scripts.kell_swing import MODEL, build_plan, priority
 from scripts import replay_kell_swing
+from scripts.market_actions import MarketAction
 
 
 def candles(close, volume=900_000):
@@ -52,3 +54,46 @@ class KellSwingTests(unittest.TestCase):
         ])
         self.assertEqual(bounds, (-1, 2))
         self.assertEqual(ratio, 10)
+
+    def test_reconstruction_pairs_identical_counts_or_drops_date(self):
+        days = [(date(2026, 7, 1) + timedelta(days=i)).isoformat() for i in range(85)]
+        signal = days[63]
+        charts = {ticker: [{"date": day, "open": 100, "high": 101, "low": 99, "close": 100, "volume": 1_000_000}
+                           for day in days]
+                  for ticker in ("P1", "P2", "OLD1", "OLD2")}
+        for ticker in ("P1", "P2"):
+            charts[ticker][63].update(close=102, high=103)
+        charts["OLD2"].pop(65)
+        candidates = [{"ticker": ticker, "kell_readiness_score": 20, "stage": "wedge_pop",
+                       "setups": ["kell_wedge_pop"]} for ticker in ("P1", "P2")] + [
+                      {"ticker": ticker, "kell_readiness_score": 99} for ticker in ("OLD1", "OLD2")]
+        snapshot = {"sessionDate": signal, "source": {}, "candidates": candidates}
+        original = replay_kell_swing.replay([snapshot], charts, days, [], top=2)
+        strict = replay_kell_swing.replay([snapshot], charts, days, [], top=2, complete_pairs=True)
+        self.assertEqual(original["comparisons"]["5"]["pairedDates"], 1)
+        self.assertEqual(strict["comparisons"]["5"]["selectedDates"], 1)
+        self.assertEqual(strict["comparisons"]["5"]["pairedDates"], 0)
+        self.assertIsNone(strict["comparisons"]["5"]["returnPctByCost"]["20bp"])
+
+    def test_actual_orders_report_pending_exclusions_basis_and_fills_separately(self):
+        days = tuple((date(2026, 11, 9) + timedelta(days=i)).isoformat() for i in range(9))
+        plan = {"state": "triggered", "model": MODEL, "sessionDate": days[0], "setup": "wedge_pop",
+                "pivot": 10, "stop": 9, "maxEntry": 10.5, "signalClose": 10.2}
+        snapshots = [{"source": {}, "sessionDate": days[0], "candidates": [
+            {"ticker": "A", "swing": plan},
+            {"ticker": "B", "swing": {**plan, "signalClose": 20.4}},
+            {"ticker": "C", "swing": plan},
+            {"ticker": "D", "swing": plan},
+        ]}]
+        chart = [{"date": day, "open": 10, "high": 11, "low": 9.9, "close": 10.2, "volume": 1000}
+                 for day in days]
+        split = MarketAction("C", days[2], "split", 2, None)
+        data = replay_kell_swing.build_statistics(snapshots, {ticker: chart for ticker in ("A", "B", "C")},
+                                                  days, [split])
+        self.assertEqual(data["reconstructed"]["sessionCount"], 0)
+        self.assertEqual(data["published"]["sessionCount"], 1)
+        outcome = data["published"]["outcomes"]["5"]
+        self.assertEqual((outcome["selected"], outcome["pending"], outcome["corporateAction"],
+                          outcome["missingBars"], outcome["unmatchedClose"], outcome["fills"]), (4, 0, 1, 1, 1, 1))
+        self.assertEqual(outcome["netRByCost"]["20bp"], [0.18, 0.18])
+        self.assertEqual(data["published"]["outcomes"]["20"]["pending"], 4)

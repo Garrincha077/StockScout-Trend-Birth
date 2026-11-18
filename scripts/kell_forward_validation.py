@@ -436,6 +436,8 @@ def main() -> int:
     parser.add_argument("--calendar", type=Path, default=CALENDAR_PATH)
     parser.add_argument("--as-of", help="Latest completed XNYS session represented in the chart inputs")
     parser.add_argument("--publication", type=Path, help="Verify the latest score archive against this Review publication")
+    parser.add_argument("--include-swing-statistics", action="store_true",
+                        help="Attach reconstructed comparisons and published plan execution counts")
     parser.add_argument(
         "--min-outcome-coverage-pct",
         type=float,
@@ -489,6 +491,12 @@ def main() -> int:
     }
     if publication:
         report["source"].update({key: publication[key] for key in keys})
+    if args.include_swing_statistics:
+        from replay_kell_swing import ACTIONS_PATH, build_statistics
+        from market_actions import read_actions
+
+        actions, _ = read_actions(ACTIONS_PATH)
+        report["swingStatistics"] = build_statistics(snapshots, charts, sessions, actions)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

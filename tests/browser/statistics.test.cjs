@@ -2,6 +2,7 @@
 const {test,before,after}=require('node:test');
 const assert=require('node:assert/strict');
 const {createServer}=require('node:http');
+const {createHash}=require('node:crypto');
 const {readFile}=require('node:fs/promises');
 const {resolve,sep,extname}=require('node:path');
 const {chromium}=require('playwright');
@@ -67,6 +68,40 @@ test('Early Trend Birth statistics separate horizons and describe a later median
   await page.selectOption('#siEarlyHorizon','252');
   assert.match(await page.locator('#siEarlyMaturity').innerText(),/Još nema dospjelih ishoda za 252 sesija/);
   assert.match(await page.locator('#siEarlyTable').innerText(),/252D · Trend Birth/);
+});
+
+test('Kell Swing separates archived fills from reconstructed returns and applies selected costs',async t=>{
+  const page=await mobile(t);
+  const forward=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));
+  const history=JSON.parse(await readFile(resolve(root,'data/trend-birth-market-internals.json'),'utf8'));
+  const source={sessionDate:history.latestSessionDate,runId:history.latestRunId,unifiedManifestSha256:'b'.repeat(64)};
+  const snapshotId=source.runId+'--'+'a'.repeat(64);
+  const outcome={selected:3,pending:3,missingBars:0,unmatchedClose:0,corporateAction:0,invalidLevels:0,
+    evaluable:0,fills:0,netRByCost:{'20bp':null,'50bp':null}};
+  const filled={...outcome,pending:0,evaluable:3,fills:2,netRByCost:{'20bp':[-.3,.5],'50bp':[-.5,.3]}};
+  const result={pairedDates:1,selectedDates:2,pairedSelectionsPerStrategy:2,returnPctByCost:{
+    '20bp':{swing:.25,legacy:-.5,momentum:0},'50bp':{swing:-.05,legacy:-.8,momentum:-.3}
+  }};
+  const report={schemaVersion:'kell-swing-statistics-v1',asOf:source.sessionDate,horizons:[5,10,20],
+    maxSelectionsPerSession:5,published:{firstSession:source.sessionDate,sessionCount:2,outcomes:{5:filled,10:outcome,20:outcome}},
+    reconstructed:{sessionCount:3,comparisons:{5:result,10:result,20:result}}};
+  const schemaVersion='trend-birth-review-research-v1';
+  const body=JSON.stringify({schemaVersion,reviewSnapshotId:snapshotId,source,
+    reports:{trendBirthForward:forward,kellForward:{swingStatistics:report}}});
+  const sha256=createHash('sha256').update(body).digest('hex');
+  const path='data/research-runs/'+snapshotId+'--'+sha256+'.json';
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{...source,snapshotId,
+    schemaVersion:'trend-birth-publication-v1',research:{path,sha256,schemaVersion}}}));
+  await page.route('**/'+path,route=>route.fulfill({contentType:'application/json',body}));
+  await ready(page);
+  await page.locator('#siKellContent').waitFor();
+  assert.match(await page.locator('#siKellPublished').innerText(),/2 \/ 3 simuliranih izvršenja/);
+  assert.match(await page.locator('#siKellComparison').innerText(),/Kell Swing\s+0,25%/);
+  await page.selectOption('#siKellCost','50bp');
+  assert.match(await page.locator('#siKellComparison').innerText(),/Kell Swing\s+[-−]0,05%/);
+  await page.selectOption('#siKellHorizon','20');
+  assert.match(await page.locator('#siKellPublished').innerText(),/3 na čekanju/);
+  assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));
 });
 
 test('mobile recovery comparison loads only on demand, uses a frozen date and preserves V2',async t=>{

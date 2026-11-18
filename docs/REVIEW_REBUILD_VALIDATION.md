@@ -35,6 +35,12 @@ python scripts/replay_kell_swing.py \
   --as-of 2026-11-17 --output kell-swing-replay.json
 ```
 
+### Published plan execution and matched retrospective results
+
+The bound research artifact includes the previous Kell score diagnostics and a separate swing report. The swing report's published cohort takes up to five triggered archived plans per session. It tracks pending horizons, missing candles, changes in the original close, covered corporate actions, invalid price levels and verified fills. Order simulation models a capped entry during the next session, a stop and a 2R target. A recorded first-session gap can rule out a fill. Publication before next open is assumed. Scenario ranges reflect ambiguous event ordering in daily OHLC.
+
+The reconstructed cohort uses only sessions before the first publication of genuine swing plans. It pairs dates only when prices cover every selected stock for all three same-count strategies. For the November 17 preview all 34 selected and matured 5-session dates are complete. The five genuine pending plans belong to the separate archived cohort.
+
 ## Early Trend Birth
 
 The independent early model looks for repair near a 41-session support region following at least a 15% decline from the preceding structural high. It requires recovering price and two corroborating observations, including a level-based observation. The card shows price evidence, 20-session performance relative to SPY, support, invalidation and the reclaim pivot. Confirmed candidates have cleared their pivot and reached stage 3 or higher in the daily or weekly model. The daily EOD archive preserves the early selection and the comparison shortlist before any outcome can mature.
