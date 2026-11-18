@@ -1057,7 +1057,7 @@
       const spread=paired.length?paired.reduce((sum,row)=>sum+(row.signal.returnPct-row.control.returnPct),0)/paired.length:null;
       el('siWeeklyCaseCounts').textContent='Izmjereno '+FMT.format(measured.length)+' od '+FMT.format(cases.length)+
         ' uvrštenja · u usporedbi '+FMT.format(paired.length)+
-        (paired.length?' · razlika za ovaj datum '+(spread>0?'+':'')+fmt(spread,' p. b.'):'')+'.';
+        (paired.length?' · razlika za ovaj datum '+(spread>0?'+':'')+fmt(spread,' p. b.'):'.');
       el('siWeeklyCaseList').replaceChildren(...cases.map(row=>weeklyCaseRow(row,horizon)));
       status.textContent='';
       content.hidden=false;
