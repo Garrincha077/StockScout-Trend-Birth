@@ -89,6 +89,60 @@ test('empty mobile watchlist uses no full archive and keeps the current snapshot
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('/data/kell-latest')),false);
 });
 
+test('dated EOD changes load on demand and open an out-of-list ticker without a full archive',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',request=>requests.push(request.url()));
+  const schemaVersion='trend-birth-review-changes-v1',ticker='OFFLIST';
+  const day=bootstrap.source.sessionDate,prior='2026-11-16';
+  const event={ticker,kind:'level_broken',priorLevel:12,
+    before:{close:14,state:'reclaim',listed:true},after:{close:11,state:null,listed:false}};
+  const payload=JSON.stringify({schemaVersion,source:bootstrap.source,snapshotId:manifest.snapshotId,
+    previousSession:prior,baseline:{sessionDate:prior},strategies:{
+      early:{status:'compared',count:1,compared:230,events:[event],current:[]},
+      kell:{status:'no_baseline',count:0,compared:0,events:[],current:[]}}});
+  const sha256=createHash('sha256').update(payload).digest('hex');
+  const ref={schemaVersion,sha256,path:'data/review-change-runs/'+manifest.snapshotId+'--'+sha256+'.json'};
+  const index=Array.from(ticker).reduce((value,char)=>(31*value+char.charCodeAt(0))%64,0);
+  const watchSchema='trend-birth-watchlist-bucket-v1',watchBase='data/watchlist-runs/'+manifest.snapshotId;
+  const chartBase='data/kell-chart-runs/read-only-test';
+  const buckets=Array.from({length:64},(_,bucket)=>JSON.stringify({schemaVersion:watchSchema,source:bootstrap.source,
+    snapshotId:manifest.snapshotId,bucket,rows:bucket===index?{[ticker]:{
+      ticker,sources:[],metrics:{price:11},chartAvailable:true,chartShard:3}}:{}}));
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{...manifest,changes:ref,watchlist:{
+    schemaVersion:watchSchema,basePath:watchBase,chartBasePath:chartBase,
+    sha256:buckets.map(raw=>createHash('sha256').update(raw).digest('hex'))
+  }}}));
+  await page.route('**/'+watchBase+'/'+index.toString(16).padStart(2,'0')+'.json',
+    route=>route.fulfill({contentType:'application/json',body:buckets[index]}));
+  await page.route('**/'+chartBase+'/shard-003.json',route=>route.fulfill({json:{
+    schemaVersion:'kell-chart-shard-v2',source:bootstrap.source,
+    charts:{[ticker]:{daily:[[prior,14,15,13,14,100],[day,13,14,10,11,250]]}}
+  }}));
+  let corrupt=true;
+  await page.route('**/'+ref.path,route=>route.fulfill({contentType:'application/json',body:payload+(corrupt?' ':'')}));
+  await page.goto(base+'/');
+  const panel=page.locator('#reviewChanges');
+  await panel.waitFor();
+  assert.equal(requests.some(url=>url.includes('/review-change-runs/')),false);
+  await panel.locator('summary').click();
+  const retry=panel.getByRole('button',{name:'Pokušaj ponovno'});
+  await retry.waitFor();
+  corrupt=false;
+  await retry.click();
+  await panel.getByRole('button',{name:/OFFLIST/}).waitFor();
+  assert.match(await panel.innerText(),/230 uspoređenih tickera/);
+  assert.match(await panel.innerText(),/Prethodna zaštitna razina 12.00/);
+  assert.match(await panel.innerText(),/Izvan kratke liste/);
+  await panel.getByRole('button',{name:'Kell Swing'}).click();
+  assert.match(await panel.innerText(),/nema usporedivu verziju/);
+  await panel.getByRole('button',{name:'Early Trend Birth'}).click();
+  await panel.getByRole('button',{name:/OFFLIST/}).click();
+  await page.waitForFunction(()=>document.querySelector('.detail-chart-meta')?.textContent.includes('zatvaranje 11.00'));
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+  assert.equal(requests.filter(url=>url.includes('/watchlist-runs/')).length,1);
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
+});
+
 test('Trend Birth opens directly to dated evidence, invalidation and chart',async t=>{
   const page=await pageFor(t),requests=[];
   page.on('request',r=>requests.push(r.url()));

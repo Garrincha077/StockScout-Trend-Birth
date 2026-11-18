@@ -132,6 +132,24 @@
     }
     return artifact.reports;
   }
+  async function loadChanges(fetcher,manifest) {
+    const ref=manifest?.changes, schema='trend-birth-review-changes-v1';
+    const path='data/review-change-runs/'+manifest?.snapshotId+'--'+ref?.sha256+'.json';
+    if(!validId(manifest?.snapshotId)||ref?.schemaVersion!==schema||
+        !/^[a-f0-9]{64}$/.test(ref.sha256)||ref.path!==path)throw Error('Neispravna poveznica pregleda promjena.');
+    const result=aligned(await verifiedJson(fetcher,path,ref.sha256,'Pregled promjena'),manifest);
+    const prior=result.previousSession;
+    if(result.schemaVersion!==schema||result.snapshotId!==manifest.snapshotId||
+        (prior!==null&&(!/^\d{4}-\d{2}-\d{2}$/.test(prior)||prior>=manifest.sessionDate))||
+        (result.baseline!==null&&result.baseline?.sessionDate!==prior)||
+        !['early','kell'].every(key=>{
+          const strategy=result.strategies?.[key];
+          return strategy&&['compared','no_baseline','no_overlap','unavailable'].includes(strategy.status)&&
+            Array.isArray(strategy.events)&&Array.isArray(strategy.current)&&Number.isInteger(strategy.count)&&
+            strategy.count>=strategy.events.length&&Number.isInteger(strategy.compared)&&strategy.compared>=0;
+        }))throw Error('Pregled promjena i prikazana EOD objava nisu usklađeni.');
+    return result;
+  }
   async function loadResearch(fetcher,data) {
     if(data?.schemaVersion!=='trend-birth-review-bootstrap-v1')return data;
     if(!validId(data.reviewSnapshotId))throw new Error('Neispravan research snapshot.');
@@ -173,6 +191,6 @@
     }));
     return new Map(rows);
   }
-  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadShortlist,loadWatchlist,watchlistBucket};
+  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadChanges,loadShortlist,loadWatchlist,watchlistBucket};
   if (typeof module !== 'undefined') module.exports = root.ReviewSnapshots;
 })(globalThis);

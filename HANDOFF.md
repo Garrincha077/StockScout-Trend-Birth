@@ -1,3 +1,9 @@
+## 2026-11-18 — Strategy changes since the previous exchange session
+
+- Verified the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) on November 17 EOD data at 15:21 Europe/Zagreb, preview commit `58602b6`, Vercel deployment `dpl_FakbPaFKvaZY8RD4Qren8ZodZq47`. Opening the mobile panel fetches one 2.9 KB feed. A ticker outside the loaded shortlist opens through its checksum-verified ticker bucket and chart shard.
+- The feed compares Early Trend Birth and Kell Swing independently on the intersection with verified closes, including tickers outside the shortlists. The November 16 canonical archive lacks both strategy contracts. The November 17 preview shows the baseline limitation and the day's actual selections.
+- The draft implementation is [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Production requires owner approval. The previous ticker chart change passed [GitHub CI 44320163598](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44320163598). Next: verify the first pair of actual comparable sessions and continue chart evidence and outcome-cohort improvements.
+
 ## 2026-11-18 — Ticker chart evidence
 
 - Verified locally at 15:00 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The ticker dialog pairs price with aligned volume and SPY relative strength and has its own daily/weekly selector. Weekly Base opens on the model range. Kell opens on three months and Early Trend Birth on six months.
