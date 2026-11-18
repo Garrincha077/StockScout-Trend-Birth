@@ -1,1 +1,24 @@
-{"id": "./", "name": "StockScout Trend Birth Preview", "short_name": "Trend Birth Preview", "description": "Rani Trend Birth, Kell Swing, tjedne baze i Watchlista.", "lang": "hr", "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#08111d", "theme_color": "#08111d", "categories": ["finance", "productivity"], "icons": [{"src": "icons/trendbirth-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}, {"src": "icons/trendbirth-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}, {"src": "icons/trendbirth-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
+{
+  "id": "./",
+  "name": "StockScout Trend Birth",
+  "short_name": "Trend Birth",
+  "description": "Rani Trend Birth, Kell Swing, tjedne baze i Watchlista.",
+  "lang": "hr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08111d",
+  "theme_color": "#08111d",
+  "categories": ["finance", "productivity"],
+  "shortcuts": [
+    {"name": "Early Trend Birth", "url": "./?view=early"},
+    {"name": "Kell Swing", "url": "./?view=kell"},
+    {"name": "Watchlista", "url": "./?view=watchlist"},
+    {"name": "Statistika", "url": "./statistics.html"}
+  ],
+  "icons": [
+    {"src": "icons/trendbirth-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/trendbirth-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/trendbirth-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
