@@ -1,3 +1,8 @@
+## 2026-11-18 — Strategy levels plotted on mobile
+
+- EOD chart cards and ticker details mark the current strategy's support, pivot and invalidation, or Kell pivot, maximum entry and stop. Level labels and values are available in the canvas description. The same prices are retained in the cards when a level is beyond the plotted range.
+- Previous feature CI [44302473539](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44302473539) passed all GitHub Python, Node, Chromium and real-source checks. The isolated full EOD replay passed 2,592/2,592 close and 2,126/2,126 Kell chart checks. Staged preview uses November 17 data.
+
 ## 2026-11-18 — Watchlist ticker lookups and PWA update
 
 - Last verified locally 2026-11-18 13:16 Europe/Zagreb on `codex/review-lab-rebuild` (draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76)). The previous head's Linux, browser and real-source build checks passed in [run 44300636976](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44300636976).

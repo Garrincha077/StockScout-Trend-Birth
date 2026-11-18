@@ -92,9 +92,12 @@ test('empty mobile watchlist uses no full archive and keeps the current snapshot
 test('Trend Birth opens directly to dated evidence, invalidation and chart',async t=>{
   const page=await pageFor(t),requests=[];
   page.on('request',r=>requests.push(r.url()));
-  const row={...bootstrap.shortlists.weeklyTrendBirth[0],earlyTrend:{
+  const sample=bootstrap.shortlists.weeklyTrendBirth[0];
+  const price=sample.chartBars.at(-1)[4];
+  const row={...sample,earlyTrend:{
     sessionDate:bootstrap.source.sessionDate,phase:'reclaim',evidence:['support_reclaim','relative_strength_turn'],
-    baseSupport:20,invalidation:19.7,reclaimPivot:23,relativeStrength20Pct:3.1,weeklyBaseWeeks:32,dailyStage:2
+    baseSupport:price,invalidation:price*.999,reclaimPivot:price*1.001,
+    relativeStrength20Pct:3.1,weeklyBaseWeeks:32,dailyStage:2
   }};
   await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:{
     ...bootstrap,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[row]}
@@ -106,6 +109,7 @@ test('Trend Birth opens directly to dated evidence, invalidation and chart',asyn
   assert.match(await page.locator('#grid').innerText(),/RS prema SPY-u/);
   assert.match(await page.locator('#grid').innerText(),new RegExp(bootstrap.source.sessionDate));
   assert.equal(await page.locator('#grid canvas').count(),1);
+  await page.waitForSelector('#grid canvas[aria-description*="Poništenje"]');
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
 });
 

@@ -720,3 +720,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Added immutable, individually checksummed Watchlist buckets and reused the exact Kell chart archive. Watchlist membership remains in the existing browser/account store. Serving a prior archive needs no new lookup index. Partial request, retry, missing and tracked-only cases remain explicit.
 - The EOD publisher builds the buckets and verifies path, digest, source, ticker counts and chart references after restoring the bundle. It stages the data and pointer together. The PWA worker advances its install-art cache while keeping market data network-only.
 - Local validation: 235 Python outside the Linux shell fixture, 113 Node, 15 Chromium. Next: installable preview and direct before/after mobile network measurements.
+
+## 2026-11-18 — Plot decision levels on strategy charts
+
+- The chart displays the active strategy's levels on the card and in the detail view. Early Trend Birth labels support, reclaim pivot and invalidation; Kell labels pivot, maximum entry and stop. Hover-free labels and accessible canvas descriptions expose the prices. Archive charts without plans continue to render normally.
+- The earlier deployment worktree built the full November 17 bundle with 81/81 Review charts, 2,126/2,126 Kell charts, 2,592/2,592 evaluated quotes and aligned immutable research and Watchlist references. Node and mobile browser regressions passed locally; GitHub run 44302473539 was green on the previous feature head. Mobile deployment verification is pending.

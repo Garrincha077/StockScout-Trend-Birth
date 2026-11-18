@@ -740,7 +740,18 @@ function priceLabel(value){
   if(Math.abs(n)>=10)return n.toFixed(2);
   return n.toFixed(3);
 }
-function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
+function chartLevels(item){
+  const early=item?.earlyTrend,swing=item?.kellSwing;
+  if(early&&state.primaryView!=='kell-daily')return [
+    [early.reclaimPivot,'Pivot','#80c7ff'],[early.baseSupport,'Podrška','#e9bd62'],
+    [early.invalidation,'Poništenje','#ff8b99']
+  ];
+  if(swing)return [
+    [swing.maxEntry,'Maks. ulaz','#e9bd62'],[swing.pivot,'Pivot','#80c7ff'],[swing.stop,'Stop','#ff8b99']
+  ];
+  return [];
+}
+function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable',levels=[]){
   const history=normalizeBars(rows);
   const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
   const bars=history.slice(-(period.weekly?period.weeks:period.daily));
@@ -784,6 +795,26 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable'){
     series.forEach((v,i)=>{if(v==null)return;const xx=x(i),yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
     if(started)ctx.stroke();
   });
+  const marked=levels.filter(([price])=>Number.isFinite(price)&&price>=lo&&price<=hi);
+  if(marked.length){
+    const lineStart=x(Math.floor(bars.length/2));
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    for(const [price,,color] of marked){
+      const yy=y(price);
+      ctx.strokeStyle=color;ctx.beginPath();
+      ctx.moveTo(lineStart,yy);ctx.lineTo(w-right,yy);ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.textAlign='right';
+    ctx.textBaseline='middle';
+    let labelY=top-13;
+    for(const [price,label,color] of marked.sort((a,b)=>b[0]-a[0])){
+      labelY=Math.max(labelY+13,y(price));
+      ctx.fillStyle=color;ctx.fillText(label,lineStart-6,labelY);
+    }
+    canvas.setAttribute('aria-description',marked.map(([price,label])=>label+' '+priceLabel(price)).join(', '));
+  }
 
   const tickIndexes=[0,Math.floor((bars.length-1)/2),bars.length-1];
   const aligns=['left','center','right'];
@@ -1306,10 +1337,10 @@ function render(){
       const canvas=entry.target,cardEl=canvas.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
       observer.unobserve(canvas);
       const ready=rowsForPeriod(item);
-      if(ready.length>=2){draw(canvas,ready);continue}
+      if(ready.length>=2){draw(canvas,ready,false,undefined,chartLevels(item));continue}
       draw(canvas,[],false,'Loading chart…');
       ensureChartData(item)
-        .then(rows=>{if(canvas.isConnected)draw(canvas,rows,false,rows.length>=2?'':'Chart data unavailable')})
+        .then(rows=>{if(canvas.isConnected)draw(canvas,rows,false,rows.length>=2?'':'Chart data unavailable',chartLevels(item))})
         .catch(err=>{if(canvas.isConnected){canvas.title='Chart load error: '+err.message;draw(canvas,[],false,'Chart load failed')}})
     }
   },{rootMargin:'240px'});
@@ -1393,10 +1424,10 @@ function show(item){
   requestAnimationFrame(()=>{
     const canvas=$('#detailBody canvas');
     const ready=rowsForPeriod(item);
-    if(ready.length>=2){draw(canvas,ready,true);return}
+    if(ready.length>=2){draw(canvas,ready,true,undefined,chartLevels(item));return}
     draw(canvas,[],true,'Loading chart…');
     ensureChartData(item)
-      .then(rows=>draw(canvas,rows,true,rows.length>=2?'':'Chart data unavailable'))
+      .then(rows=>{if(canvas.isConnected)draw(canvas,rows,true,rows.length>=2?'':'Chart data unavailable',chartLevels(item))})
       .catch(err=>{canvas.title='Chart load error: '+err.message;draw(canvas,[],true,'Chart load failed')});
   });
 }
