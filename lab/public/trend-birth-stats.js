@@ -755,12 +755,52 @@
   const kellHorizons=[5,10,20],kellCosts=['20bp','50bp'];
   const kellCohorts=[['swing','Kell Swing'],['legacy','Raniji odabir'],['momentum','Momentum · 63 sesije']];
   const kellExcluded=['missingBars','corporateAction','unmatchedClose','invalidLevels'];
+  const kellGroupLabels={
+    bySetup:{ema_crossback:'Povrat iznad EMA',wedge_pop:'Izlaz iz klina',base_n_break:'Baza i proboj',
+      buyable_gap_proxy:'Proboj s gapom',tightening:'Sužavanje raspona'},
+    byBreadth:{rising:'Rast širine',steady:'Mala promjena širine',falling:'Pad širine',unknown:'Bez potvrđene širine'}
+  };
+  const executionCounts=['selected','pending','evaluable','fills',...kellExcluded];
+  const kellCount=value=>Number.isInteger(value)&&value>=0;
+  function validateKellExecution(outcome,detailed=false){
+    if(!outcome||!executionCounts.every(key=>kellCount(outcome[key]))||outcome.fills>outcome.evaluable||
+        outcome.pending+outcome.evaluable+kellExcluded.reduce((sum,key)=>sum+outcome[key],0)!==outcome.selected)
+      throw Error('Neusklađeni brojevi Kell Swing uzorka.');
+    if(detailed&&(!['signalDates','fillDates','ambiguousFills'].every(key=>kellCount(outcome[key]))||
+        outcome.signalDates>outcome.selected||outcome.fillDates>Math.min(outcome.signalDates,outcome.fills)||
+        (outcome.selected>0)!==(outcome.signalDates>0)||(outcome.fills>0)!==(outcome.fillDates>0)||
+        outcome.ambiguousFills>outcome.fills))
+      throw Error('Neusklađeni datumi Kell simulacije.');
+    for(const cost of kellCosts){
+      const range=outcome.netRByCost?.[cost];
+      if(outcome.fills?(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||range[0]>range[1]):range!==null)
+        throw Error('Neusklađen raspon simulacije Kell Swinga.');
+    }
+  }
+  function validateKellGroups(data){
+    const cohorts=data.executionCohorts;
+    if(!cohorts)return;
+    if(cohorts.schemaVersion!=='kell-swing-execution-cohorts-v1'||cohorts.asOf!==data.asOf||
+        !Number.isFinite(cohorts.breadthThresholdPp)||cohorts.breadthThresholdPp<=0)
+      throw Error('Neusklađena izvedba po Kell skupinama.');
+    for(const sample of [data.published,cohorts.historical]){
+      for(const horizon of kellHorizons){
+        const aggregate=sample?.outcomes?.[horizon];
+        validateKellExecution(aggregate,true);
+        for(const [dimension,labels] of Object.entries(kellGroupLabels)){
+          const rows=Object.keys(labels).map(key=>sample[dimension]?.[key]?.[horizon]);
+          rows.forEach(row=>validateKellExecution(row,true));
+          if(![...executionCounts,'ambiguousFills'].every(key=>rows.reduce((sum,row)=>sum+row[key],0)===aggregate[key]))
+            throw Error('Kell skupine se ne zbrajaju u ukupni uzorak.');
+        }
+      }
+    }
+  }
   function validateKellSwing(data,eodDate){
-    const count=value=>Number.isInteger(value)&&value>=0;
     if(data?.schemaVersion!=='kell-swing-statistics-v1'||data.asOf!==eodDate||
         !Array.isArray(data.horizons)||data.horizons.join(',')!==kellHorizons.join(',')||
-        !count(data.maxSelectionsPerSession)||data.maxSelectionsPerSession<1||
-        !count(data.published?.sessionCount)||!count(data.reconstructed?.sessionCount)){
+        !kellCount(data.maxSelectionsPerSession)||data.maxSelectionsPerSession<1||
+        !kellCount(data.published?.sessionCount)||!kellCount(data.reconstructed?.sessionCount)){
       throw Error('Neusklađena Kell Swing statistika.');
     }
     const firstSession=data.published.firstSession;
@@ -768,26 +808,51 @@
       firstSession!==null)throw Error('Nedostaje početni EOD arhiviranih Kell planova.');
     for(const horizon of kellHorizons){
       const outcome=data.published.outcomes?.[horizon],comparison=data.reconstructed.comparisons?.[horizon];
-      if(!outcome||!comparison||!['selected','pending','evaluable','fills',...kellExcluded].every(key=>count(outcome[key]))||
-          outcome.fills>outcome.evaluable||
-          outcome.pending+outcome.evaluable+kellExcluded.reduce((sum,key)=>sum+outcome[key],0)!==outcome.selected||
-          !['pairedDates','selectedDates','pairedSelectionsPerStrategy'].every(key=>count(comparison[key]))||
+      validateKellExecution(outcome);
+      if(!comparison||!['pairedDates','selectedDates','pairedSelectionsPerStrategy'].every(key=>kellCount(comparison[key]))||
           comparison.pairedDates>comparison.selectedDates||
           comparison.pairedSelectionsPerStrategy<comparison.pairedDates||
           comparison.pairedSelectionsPerStrategy>comparison.pairedDates*data.maxSelectionsPerSession){
         throw Error('Neusklađeni brojevi Kell Swing uzorka.');
       }
       for(const cost of kellCosts){
-        const range=outcome.netRByCost?.[cost],ret=comparison.returnPctByCost?.[cost];
-        if(outcome.fills?(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||range[0]>range[1]):range!==null){
-          throw Error('Neusklađen raspon simulacije Kell Swinga.');
-        }
+        const ret=comparison.returnPctByCost?.[cost];
         if(comparison.pairedDates?!kellCohorts.every(([key])=>Number.isFinite(ret?.[key])):ret!==null){
           throw Error('Neusklađena usporedba Kell Swinga.');
         }
       }
     }
     return data;
+  }
+  function renderKellGroups(data,horizon,cost){
+    const report=data.executionCohorts;
+    if(!report)return;
+    const sample=el('siKellGroupSample').value==='published'?data.published:report.historical;
+    const dimension=el('siKellGroupDimension').value,aggregate=sample.outcomes[horizon];
+    const host=el('siKellGroupList');
+    host.replaceChildren();
+    for(const [key,label] of Object.entries(kellGroupLabels[dimension])){
+      const row=sample[dimension][key][horizon];
+      if(!row.selected)continue;
+      const article=document.createElement('article');
+      article.className='si-kell-group';
+      const header=document.createElement('header'),title=document.createElement('strong'),net=document.createElement('b');
+      title.textContent=label;
+      const range=row.netRByCost[cost];
+      net.textContent=range?(range[0]===range[1]?fmt(range[0],'R'):fmt(range[0],'R')+' do '+fmt(range[1],'R')):'—';
+      header.append(title,net);
+      const coverage=document.createElement('p'),counts=document.createElement('p');
+      coverage.textContent=FMT.format(row.fills)+' / '+FMT.format(row.evaluable)+' izvršenja · '+
+        FMT.format(row.fillDates)+' / '+FMT.format(row.signalDates)+' datuma s izvršenjem';
+      const unavailable=kellExcluded.reduce((sum,key)=>sum+row[key],0);
+      counts.textContent=FMT.format(row.selected)+' planova · '+FMT.format(row.pending)+' na čekanju · '+
+        FMT.format(unavailable)+' isključeno · '+FMT.format(row.ambiguousFills)+' dvosmislenih';
+      article.append(header,coverage,counts);
+      host.append(article);
+    }
+    el('siKellGroupStatus').textContent=horizon+' sesija · '+FMT.format(cost==='20bp'?.2:.5)+'% troška. '+
+      (aggregate.selected?FMT.format(aggregate.selected)+' planova na '+FMT.format(aggregate.signalDates)+' datuma.':
+        'U ovom uzorku nema odabranih planova.');
   }
   function renderKellSwing(raw,eodDate){
     const status=el('siKellStatus');
@@ -797,6 +862,23 @@
     }
     const data=validateKellSwing(raw,eodDate);
     const horizon=el('siKellHorizon'),cost=el('siKellCost');
+    const groupPanel=el('siKellCohorts');
+    let groups=false;
+    if(data.executionCohorts){
+      try{
+        validateKellGroups(data);
+        groups=true;
+        const delta=fmt(data.executionCohorts.breadthThresholdPp,' p. b.');
+        el('siKellGroupMethod').textContent='Širina mjeri promjenu udjela 3+/4 među tickerima evaluiranima u obje uzastopne sesije. '+
+          'Rast i pad su promjene od najmanje '+delta+' u odgovarajućem smjeru na datum potvrde plana. Bez uparenog EOD-a kontekst ostaje nepoznat.';
+        el('siKellGroupSample').value=data.published.outcomes[horizon.value].fills||
+          !data.executionCohorts.historical.outcomes[horizon.value].fills?'published':'historical';
+        for(const id of ['siKellGroupSample','siKellGroupDimension']){
+          el(id).onchange=()=>renderKellGroups(data,horizon.value,cost.value);
+        }
+      }catch(error){el('siKellGroupStatus').textContent=error.message}
+      groupPanel.hidden=false;
+    }
     function renderSelection(){
       const outcome=data.published.outcomes[horizon.value],comparison=data.reconstructed.comparisons[horizon.value];
       const net=outcome.netRByCost[cost.value];
@@ -813,6 +895,7 @@
         ' zrelih datuma s potpunim parovima · '+FMT.format(comparison.pairedSelectionsPerStrategy)+' odabira po strategiji.';
       const returns=comparison.returnPctByCost[cost.value];
       comparisonTable('siKellComparison',['Strategija','Neto prosjek'],kellCohorts.map(([key,label])=>[label,fmt(returns?.[key],'%')]));
+      if(groups)renderKellGroups(data,horizon.value,cost.value);
     }
     horizon.onchange=renderSelection;
     cost.onchange=renderSelection;
@@ -823,6 +906,7 @@
     renderSelection();
     el('siKellContent').hidden=false;
     if(location.hash==='#siKell')el('siKell').scrollIntoView();
+    if(location.hash==='#siKellCohorts'&&!groupPanel.hidden)groupPanel.scrollIntoView();
   }
   function renderForward(raw, eodDate) {
     const data=validateForward(raw);

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=matched-cohorts-20261118">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=kell-cohorts-20261118">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -216,6 +216,26 @@
           <caption class="sr-only">Prinos odabira na zajedničkim potpunim datumima</caption>
         </table></div>
         <p class="si-muted">Svaki uspoređeni EOD ima jednako velike liste s potpunim cijenama. Mjerenje ide od sljedećeg otvaranja do zatvaranja na kraju odabranog horizonta. Povijesni grafovi mogu sadržavati naknadne revizije.</p>
+        <section class="si-kell-cohorts" id="siKellCohorts" aria-labelledby="siKellCohortsTitle" hidden>
+          <h3 id="siKellCohortsTitle">Izvršenja po setupu i širini radara</h3>
+          <div class="si-controls">
+            <label>Uzorak <select id="siKellGroupSample">
+              <option value="published">Arhivirani planovi</option>
+              <option value="historical">Povijesna simulacija</option>
+            </select></label>
+            <label>Grupiraj po <select id="siKellGroupDimension">
+              <option value="bySetup">Vrsti setupa</option>
+              <option value="byBreadth">Promjeni širine 3+/4</option>
+            </select></label>
+          </div>
+          <p id="siKellGroupStatus" class="si-muted" role="status"></p>
+          <div id="siKellGroupList"></div>
+          <details class="si-composite-definitions">
+            <summary>Kako čitati rezultate skupina</summary>
+            <p id="siKellGroupMethod" class="si-muted"></p>
+            <p class="si-muted">Neto R je prosjek po simuliranom izvršenju nakon odabranog troška. Dvosmisleno izvršenje ima više mogućih ishoda zbog nepoznatog redoslijeda cijena unutar svijeće. Povijesna simulacija obnavlja plan iz tada arhiviranog setupa i naknadno dostupnih dnevnih svijeća.</p>
+          </details>
+        </section>
       </div>
     </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
@@ -262,6 +282,6 @@
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
-  <script src="trend-birth-stats.js?v=matched-cohorts-v1-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=kell-cohorts-20261118" defer></script>
 </body>
 </html>
