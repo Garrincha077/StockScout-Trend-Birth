@@ -850,8 +850,9 @@
       article.append(header,coverage,counts);
       host.append(article);
     }
+    const dates=aggregate.signalDates===1?'jednom datumu':FMT.format(aggregate.signalDates)+' datuma';
     el('siKellGroupStatus').textContent=horizon+' sesija · '+FMT.format(cost==='20bp'?.2:.5)+'% troška. '+
-      (aggregate.selected?FMT.format(aggregate.selected)+' planova na '+FMT.format(aggregate.signalDates)+' datuma.':
+      (aggregate.selected?FMT.format(aggregate.selected)+' planova na '+dates+'.':
         'U ovom uzorku nema odabranih planova.');
   }
   function renderKellSwing(raw,eodDate){
