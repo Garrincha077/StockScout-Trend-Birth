@@ -291,4 +291,15 @@
 .saved-plan-journal button{display:block;width:100%;min-height:44px;padding:6px 8px;text-align:left;border:1px solid #36516f;border-radius:7px;background:#0d2031;color:#9ed3ff;cursor:pointer}
 .saved-plan-journal button:hover,.saved-plan-journal button:focus-visible{border-color:var(--accent)}
 #savedPlanArchive{margin-top:12px}
+#archivedPlanList{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+#archivedPlanList details{border:1px solid #2d5772;border-radius:8px;background:#112639}
+#archivedPlanList summary{min-height:44px;padding:10px;cursor:pointer}
+#archivedPlanList summary span{display:block;margin-left:17px;color:#b7c5d5;font-size:12px}
+.archived-plan-body{padding:0 10px 10px}
+.archived-plan-body p{margin:4px 0 8px}
+.archived-plan-links{display:flex;flex-wrap:wrap;gap:0 14px}
+.archived-plan-links a{display:inline-block;padding:8px 0}
+.archived-plan-events{display:grid;gap:6px;margin:8px 0 0;padding-left:22px;font-size:.85rem}
+.archived-plan-events span{display:block;color:#b7c5d5}
+.archived-plan-note{color:#b7c5d5}
 .analysis-jump{color:#9ed3ff}
