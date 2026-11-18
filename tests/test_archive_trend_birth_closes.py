@@ -69,6 +69,16 @@ class ArchiveClosesTests(unittest.TestCase):
             close.build(last, history, stages, prices)
             self.assertEqual(saved, (prices / "2026-10.json").read_bytes())
             payload = json.loads((stages / "2026-10.json").read_text())
+            revision = snapshot(days[-1], "corrected-source")
+            revision["trendBirthCandidateIndex"][0]["metrics"]["price"] = 11.75
+            payload["sessions"][1] = point(days[-1], "corrected-source")
+            (stages / "2026-10.json").write_text(json.dumps(payload))
+            last.write_text(json.dumps(revision))
+            close.build(last, history, stages, prices)
+            retained = close.load_prices(prices)
+            self.assertEqual(retained[days[0]]["prices"]["AAA"], 10.5)
+            self.assertEqual(retained[days[1]]["prices"]["AAA"], 11.75)
+            self.assertEqual(retained[days[1]]["runId"], "corrected-source")
             payload["sessions"][0]["runId"] = "modified"
             (stages / "2026-10.json").write_text(json.dumps(payload))
             with self.assertRaisesRegex(ValueError, "Conflicting immutable"):

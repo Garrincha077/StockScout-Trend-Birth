@@ -109,14 +109,14 @@ def _load_archive(directory: Path, schema: str = SCHEMA) -> dict[str, dict]:
     return rows
 
 
-def _merge(events: list[dict], archived: dict[str, dict]) -> list[dict]:
+def _merge(events: list[dict], archived: dict[str, dict], *, revised_session: str | None = None) -> list[dict]:
     valid_days = {row["sessionDate"] for row in events}
     if set(archived) - valid_days:
         raise ValueError("Forward event archive has dates absent from stage archive")
     for day in events:
         date = day["sessionDate"]
         stored = archived.get(date)
-        if stored is None:
+        if stored is None or date == revised_session:
             archived[date] = day
             continue
         if (stored.get("runId") != day["runId"] or
@@ -328,7 +328,8 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
             raise ValueError("EOD close provenance mismatch: " + point["sessionDate"])
     prices = _price_series(closed)
     sessions = _merge(_events(points, calendar if actions is not None else None),
-                      _load_archive(outcomes_dir, schema))
+                      _load_archive(outcomes_dir, schema),
+                      revised_session=as_of if actions is not None else None)
     _mature(sessions, prices, calendar, actions)
     grouped: dict[str, list[dict]] = {}
     for session in sessions:

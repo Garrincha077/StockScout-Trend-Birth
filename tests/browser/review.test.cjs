@@ -133,6 +133,26 @@ test('historical link shows its own session and stays pinned after a focus event
   assert.equal(seen.some(url=>url.endsWith('/data/publication.json')),false);
 });
 
+test('Kell Swing renders pivot, stop, maximum entry and confirmed state on mobile',async t=>{
+  const page=await pageFor(t);
+  const item={...bootstrap.shortlists.kellDaily[0],kellSwing:{
+    setup:'ema_crossback',phase:'ema_crossback',sessionDate:manifest.sessionDate,state:'triggered',
+    reason:'pivot_closed_above',pivot:83.38,stop:79.51,maxEntry:85.31,gapPct:0.6,riskPct:4.64
+  }};
+  await page.route('**/'+manifest.bootstrapPath,route=>route.fulfill({
+    json:{...bootstrap,shortlists:{...bootstrap.shortlists,kellSwing:[item]}}
+  }));
+  await page.goto(base+'/');
+  await page.locator('[data-primary-view="kell-daily"]').click();
+  const card=page.locator('#grid .swing-card');
+  await card.waitFor();
+  const content=await card.innerText();
+  for(const text of ['EMA Crossback','Pivot potvrđen','83.38','79.51','85.31','0.6%','iduće sesije']){
+    assert.ok(content.includes(text),content);
+  }
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+});
+
 test('auth reconciliation respects remote deletions and keeps accounts and anonymous items separate',async t=>{
   const page=await pageFor(t);
   await page.addInitScript(()=>localStorage.setItem('stockscout.review.watchlist.v1',JSON.stringify({items:['LOCAL']})));

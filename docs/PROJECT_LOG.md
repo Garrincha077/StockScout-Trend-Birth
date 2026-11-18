@@ -1,5 +1,13 @@
 # StockScout Trend Birth — Persistent Project Log
 
+## 2026-11-18 — Same-session revisions and Kell swing plan
+
+- Topic `codex/review-lab-rebuild`, [draft PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76), last local verification 12:49 Europe/Zagreb. The previous commit's GitHub validation passed.
+- The publisher accepts the latest verified attempt for the current market session, checks regression against the prior run and preserves its original date link. Corrected stage and close summaries are re-derived for the latest session. The quality history preserves its original daily evidence and carries the displayed latest reading separately. Kell charts use a hash of the exact shard bytes, so one upstream run can have multiple independent chart revisions.
+- Added a separate Kell Swing view with EOD setup, pivot, maximum entry, gap, stop and risk state. The shortlist ranks confirmed pivots before watch cases and keeps Kell candidate generation and the pre-existing score available. The archived rank replay is reproducible with `scripts/replay_kell_swing.py`. See [review rebuild validation](REVIEW_REBUILD_VALIDATION.md) for 5-, 10- and 20-session comparisons, transaction costs and 117 simulated limit/stop fills.
+- Tests cover same-day correction, replaying original inputs, no rollback to the old attempt, chart revision hashes, visible swing plan, missing quote and liquidity rules, and simulated stop/target ambiguity. Local verification is 231 Python outside Linux shell tests, 113 Node and 13 Chromium.
+- Continue with early Trend Birth discovery, longer-horizon evidence and missing-data diagnostics, mobile watchlist payloads, and remote preview review.
+
 ## 2026-11-18 — Publish matched research and display the loaded EOD session
 
 - Branch `codex/review-lab-rebuild`, draft PR #76. Local verification at 12:32 Europe/Zagreb.

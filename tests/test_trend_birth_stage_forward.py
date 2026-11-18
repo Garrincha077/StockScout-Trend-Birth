@@ -35,6 +35,17 @@ def point(day, aaa, bbb, run="r"):
 
 
 class ForwardStageTests(unittest.TestCase):
+    def test_corrected_current_session_replaces_its_events_only(self):
+        original = {"sessionDate": "2026-10-23", "previousSessionDate": "2026-10-22",
+                    "runId": "prior", "events": [["AAA", 3, 4, {}]]}
+        corrected = {**original, "runId": "corrected", "events": [["BBB", 2, 4, {}]]}
+        archive = {original["sessionDate"]: original}
+        with self.assertRaisesRegex(ValueError, "Conflicting"):
+            forward._merge([corrected], archive)
+        actual = forward._merge([corrected], archive, revised_session=corrected["sessionDate"])
+        self.assertEqual(actual, [corrected])
+        self.assertEqual(original["events"], [["AAA", 3, 4, {}]])
+
     def test_corrected_history_uses_split_and_keeps_legacy_values_separate(self):
         dates = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
                  "2026-11-13", "2026-11-16", "2026-11-17"]

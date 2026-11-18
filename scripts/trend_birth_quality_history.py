@@ -103,11 +103,24 @@ def verify_latest_point(payload: dict, latest_snapshot: dict) -> None:
     if latest is None or not latest["scope"] or not latest["runId"]:
         raise ValueError("Latest EOD snapshot has no verifiable Trend Birth radar reading")
     points = payload["points"]
-    if not points or points[-1] != latest:
+    displayed = payload.get("activePoint") or (points[-1] if points else None)
+    if displayed != latest:
         raise ValueError(
             "Latest EOD reading does not match the last retained history point: "
             + latest["sessionDate"]
         )
+
+
+def attach_active_point(payload: dict, latest_snapshot: dict) -> None:
+    latest = point_from_snapshot(latest_snapshot)
+    points = payload["points"]
+    if (latest and points and latest != points[-1] and latest["scope"] == payload["scope"] and
+            latest["sessionDate"] == points[-1]["sessionDate"]):
+        from publish_review_snapshot import validate_revision
+
+        validate_revision(points[-1], latest["sessionDate"], latest["runId"])
+        payload["activePoint"] = latest
+    verify_latest_point(payload, latest_snapshot)
 
 
 def main() -> None:
@@ -120,7 +133,7 @@ def main() -> None:
     retained = json.loads(args.output.read_text(encoding='utf-8')) if args.output.exists() else None
     payload = merge_history(retained, observed)
     if args.latest is not None:
-        verify_latest_point(payload, json.loads(args.latest.read_text(encoding="utf-8")))
+        attach_active_point(payload, json.loads(args.latest.read_text(encoding="utf-8")))
     data = (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if not args.output.exists() or args.output.read_bytes() != data:

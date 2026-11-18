@@ -56,6 +56,22 @@ class PublicationTests(unittest.TestCase):
             )
             self.assertEqual(second["unifiedManifestSha256"], "a" * 64)
 
+    def test_same_session_upstream_attempt_activates_and_original_date_link_survives(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot = fixture()
+            first = publisher.publish(snapshot, root)
+            latest = copy.deepcopy(snapshot)
+            latest["source"]["runId"] = "2026-09-18-eod-123-2"
+            latest["source"]["unifiedManifestSha256"] = "b" * 64
+            second = publisher.publish(latest, root)
+            self.assertNotEqual(first["snapshotId"], second["snapshotId"])
+            self.assertFalse(publisher.publish(latest, root)["changed"])
+            with self.assertRaisesRegex(ValueError, "newer activation of the same"):
+                publisher.publish(snapshot, root)
+            self.assertEqual(json.loads((root / "history/2026-09-18.json").read_bytes()), snapshot)
+            self.assertEqual(json.loads((root / "latest.json").read_bytes()), latest)
+
     def test_rejects_rollback_missing_charts_duplicates_and_bad_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

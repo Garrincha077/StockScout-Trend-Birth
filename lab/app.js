@@ -888,7 +888,7 @@ function matchesFilters(item,filters=activeFilters()){
 function sourceItems(filters=activeFilters()){
   if(state.universe==='watchlist')return watchlistItems();
   if(state.primaryView==='weekly')return state.data?.shortlists?.weeklyTrendBirth||[];
-  if(state.primaryView==='kell-daily')return state.data?.shortlists?.kellDaily||[];
+  if(state.primaryView==='kell-daily')return state.data?.shortlists?.kellSwing??state.data?.shortlists?.kellDaily??[];
   return isKellView(filters)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
@@ -1064,6 +1064,32 @@ function visible(item){
   if(!universeMatch(item))return false;
   return matchesFilters(item);
 }
+const swingStates={watch:'Za praćenje',triggered:'Pivot potvrđen',extended:'Iznad prihvatljivog ulaza',invalidated:'Setup poništen'};
+const swingReasons={
+  price_or_cycle_invalidation:'Cijena ili faza poništava plan.',
+  insufficient_liquidity:'Promet ili cijena ispod praga.',
+  risk_too_wide:'Stop je preširok za ovaj plan.',
+  above_max_entry:'Zatvaranje iznad granice ulaza.',
+  pivot_closed_above:'Potvrđeno na zatvaranju. Prvi mogući nalog je iduće sesije.',
+  below_pivot:'Cijena je ispod pivota.',
+};
+function swingPlan(item){
+  const plan=item.kellSwing;
+  if(!plan)return '';
+  const setup=(kellSetupLabels['kell_'+plan.setup]||plan.setup).replace(/ setup$/,'');
+  return '<section class="swing-plan" aria-label="Kell swing plan">'+
+    '<div class="swing-plan-title"><strong>'+esc(setup)+'</strong><span data-swing-state="'+esc(plan.state)+'">'+
+    esc(swingStates[plan.state]||'—')+'</span></div>'+
+    '<small>'+esc(stageName(plan.phase))+' · '+esc(plan.sessionDate)+'</small>'+
+    '<div class="swing-levels">'+
+      '<div><small>Pivot</small><b>'+fmt(plan.pivot)+'</b></div>'+
+      '<div><small>Stop</small><b>'+fmt(plan.stop)+'</b></div>'+
+      '<div><small>Maks. ulaz</small><b>'+fmt(plan.maxEntry)+'</b></div>'+
+      '<div><small>Rizik kod pivota</small><b>'+pct(plan.riskPct)+'</b></div>'+
+      '<div><small>Gap sesije</small><b>'+pct(plan.gapPct)+'</b></div>'+
+    '</div><small>'+esc(swingReasons[plan.reason]||'')+'</small></section>';
+}
+
 function card(item){
   const m=item.metrics||{},a=analysisFor(item),missing=item.watchlistMissing===true;
   const status=missing?'SAVED':String(a.status||'REVIEW').toUpperCase();
@@ -1080,6 +1106,15 @@ function card(item){
       '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Extension <b>'+pct(v.extensionPct)+'</b></span></div>'+
       '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
       '<div class="analysis-strip"><span>Pivot '+fmt(v.pivotPrice)+' · Resistance '+(v.resistancePrice==null?'nije potvrđen':fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
+  }
+  if(state.primaryView==='kell-daily'&&item.kellSwing){
+    return '<article class="card swing-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
+      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+
+      '" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+
+      esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+String(watched)+'">'+
+      (watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div>'+
+      '<b>'+fmt(m.price)+'</b></div>'+swingPlan(item)+
+      '<canvas aria-label="'+esc(item.ticker)+' dnevni graf"></canvas></article>';
   }
   return '<article class="card'+(missing?' watchlist-stale':'')+'" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
     '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges">'+badges(item)+'</div></div>'+changeStrip(item)+
@@ -1164,7 +1199,10 @@ function render(){
   if(state.primaryView==='weekly'){
     $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
   }else if(state.primaryView==='kell-daily'){
-    $('#status').textContent=items.length+' Kell Daily kandidata · svježi dnevni setupovi, odvojeno od weekly izbora';
+    const active=items.filter(item=>item.kellSwing?.state==='triggered').length;
+    $('#status').textContent=Array.isArray(state.data?.shortlists?.kellSwing)
+      ?items.length+' swing planova · '+active+' s potvrđenim pivotom'
+      :items.length+' arhivskih Kell kandidata';
   }else if(state.quickView==='changed'){
     const changeSummary=KellChanges.summary(items);
     const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate||'—';
@@ -1233,6 +1271,7 @@ function show(item){
   const weekly=item.weeklyBirth||{},weeklyMetrics=weekly.metrics||{};
   $('#detailBody').innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
+    swingPlan(item)+
     '<div class="detail-snapshot">'+
       '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+
       '<div><span>Daily radar 0–4</span><strong>'+esc(trendBirthLabel(item))+'</strong></div>'+

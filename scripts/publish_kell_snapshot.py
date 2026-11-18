@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Publish immutable Kell companions for immutable Review snapshots.
 
-The moving kell-latest payload is only for the latest UI. Every archived Review
-snapshot for the same Unified run gets a compact Kell companion. All companions
-for one run share one immutable chart archive, preventing both mixed-run reads
-and duplicate chart storage.
+The moving kell-latest payload is only for the latest UI. Archived Review
+snapshots use compact companions and byte-addressed charts. Unchanged chart
+bundles share storage, while a revision keeps its own chart bytes.
 """
 from __future__ import annotations
 
@@ -116,7 +115,12 @@ def ensure_shared_chart_archive(
             f"Kell chart shard count mismatch: expected {expected}, found {len(chart_files)}"
         )
 
-    run_key = f"{publication['runId']}--{publication['unifiedManifestSha256']}"
+    digest = hashlib.sha256()
+    for path in chart_files:
+        digest.update(path.name.encode("ascii") + b"\0")
+        with path.open("rb") as handle:
+            digest.update(hashlib.file_digest(handle, "sha256").digest())
+    run_key = f"{publication['runId']}--{digest.hexdigest()}"
     chart_root = directory / "kell-chart-runs"
     immutable_chart_dir = chart_root / run_key
     if not immutable_chart_dir.exists():
@@ -182,13 +186,17 @@ def publish(
 
     created: list[str] = []
     reused: list[str] = []
+    exact = snapshot_dir / f"{publication['snapshotId']}.json"
+    exact_kell = load_json(exact) if exact.exists() else kell
     for snapshot_id in snapshot_ids:
         target = snapshot_dir / f"{snapshot_id}.json"
         if target.exists():
-            validate_existing(target, publication, snapshot_id, directory)
+            prior = load_json(target).get("source") or {}
+            if snapshot_id == publication["snapshotId"] or prior.get("unifiedManifestSha256") == publication["unifiedManifestSha256"]:
+                validate_existing(target, publication, snapshot_id, directory)
             reused.append(snapshot_id)
             continue
-        write_json(target, companion_payload(kell, snapshot_id, chart_base_path))
+        write_json(target, companion_payload(exact_kell, snapshot_id, chart_base_path))
         created.append(snapshot_id)
 
     history_path = history_dir / f"{publication['sessionDate']}.json"

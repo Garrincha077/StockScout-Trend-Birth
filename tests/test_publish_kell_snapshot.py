@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import pathlib
 import tempfile
@@ -77,10 +78,12 @@ class KellSnapshotPublicationTests(unittest.TestCase):
                 current_payload["kellChartData"]["basePath"],
                 old_payload["kellChartData"]["basePath"],
             )
-            expected_base = "data/kell-chart-runs/run-1--" + "b" * 64
+            shard_name = b"shard-000.json\0"
+            shard_sha = hashlib.sha256((charts / "shard-000.json").read_bytes()).digest()
+            expected_base = "data/kell-chart-runs/run-1--" + hashlib.sha256(shard_name + shard_sha).hexdigest()
             self.assertEqual(current_payload["kellChartData"]["basePath"], expected_base)
             self.assertTrue(
-                (root / "kell-chart-runs" / ("run-1--" + "b" * 64) / "shard-000.json").exists()
+                (root / expected_base.removeprefix("data/") / "shard-000.json").exists()
             )
             self.assertTrue((root / "kell-history" / "2026-09-23.json").exists())
 
@@ -115,6 +118,24 @@ class KellSnapshotPublicationTests(unittest.TestCase):
             kell_path.write_text(json.dumps(kell))
             with self.assertRaisesRegex(ValueError, "sessionDate"):
                 publisher.publish(publication_path, kell_path, charts, root)
+
+    def test_revised_snapshot_at_same_unified_run_keeps_its_chart_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            publication, _, path, kell_path, charts = self.make_fixture(root)
+            before = publisher.publish(path, kell_path, charts, root)
+            first_chart = root / before["chartBasePath"].removeprefix("data/") / "shard-000.json"
+            original = first_chart.read_bytes()
+            shard = json.loads(original)
+            shard["charts"]["AAA"] = {"daily": [["2026-09-23", 10, 12, 9, 11, 100]]}
+            (charts / "shard-000.json").write_text(json.dumps(shard))
+            publication["snapshotId"] = "run-1--" + "d" * 64
+            path.write_text(json.dumps(publication))
+            after = publisher.publish(path, kell_path, charts, root)
+            self.assertNotEqual(after["chartBasePath"], before["chartBasePath"])
+            self.assertEqual(first_chart.read_bytes(), original)
+            revised = root / after["chartBasePath"].removeprefix("data/") / "shard-000.json"
+            self.assertEqual(json.loads(revised.read_bytes()), shard)
 
 
 if __name__ == "__main__":

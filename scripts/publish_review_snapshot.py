@@ -10,6 +10,20 @@ import os
 import re
 from pathlib import Path
 
+EOD_RUN = re.compile(r"^(\d{4}-\d{2}-\d{2})-eod-(\d+)-(\d+)$")
+
+
+def validate_revision(previous: dict, session: str, run: str) -> None:
+    previous_session = previous.get("sessionDate", "")
+    if session < previous_session:
+        raise ValueError("Refusing to roll back the latest market session")
+    if session != previous_session:
+        return
+    before = EOD_RUN.fullmatch(str(previous.get("runId") or ""))
+    after = EOD_RUN.fullmatch(run)
+    if before and after and (int(after[2]), int(after[3])) < (int(before[2]), int(before[3])):
+        raise ValueError("Refusing to roll back a newer activation of the same EOD session")
+
 
 def encode(value: dict) -> bytes:
     return json.dumps(
@@ -96,11 +110,10 @@ def publish(snapshot: dict, directory: Path) -> dict:
     pointer = directory / "publication.json"
     latest = directory / "latest.json"
     previous = json.loads(pointer.read_bytes()) if pointer.exists() else None
-    previous_session = previous["sessionDate"] if previous else ""
-    if not previous_session and latest.exists():
-        previous_session = json.loads(latest.read_bytes())["source"]["sessionDate"]
-    if previous_session and session < previous_session:
-        raise ValueError("Refusing to roll back the latest market session")
+    if previous is None and latest.exists():
+        previous = json.loads(latest.read_bytes())["source"]
+    if previous:
+        validate_revision(previous, session, run)
     if archive.exists() and archive.read_bytes() != content:
         raise ValueError("Immutable snapshot collision")
     manifest = {
@@ -115,6 +128,8 @@ def publish(snapshot: dict, directory: Path) -> dict:
         "chartCount": snapshot["chartCount"],
     }
     changed = publish_bootstrap(snapshot, manifest, directory)
+    if previous and previous.get("snapshotId") == snapshot_id and "research" in previous:
+        manifest["research"] = previous["research"]
     changed = write_changed(archive, content) or changed
     # Preserve existing date links forever, including the pre-v1 archives.
     date_archive = directory / "history" / f"{session}.json"

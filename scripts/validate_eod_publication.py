@@ -10,6 +10,7 @@ from pathlib import Path
 
 from archive_trend_birth_closes import extract, load_prices
 from publish_review_research import validate_research
+from publish_review_snapshot import validate_revision
 from trend_birth_intelligence import all_points, load_months, point_from_snapshot
 from validate_unified_review_bundle import identity
 
@@ -66,8 +67,7 @@ def validate(directory, calendar, now, previous=None, require_research=False):
         raise ValueError("Current evaluated-ticker price coverage below 99%")
     if previous:
         prior = previous["sessionDate"]
-        if day < prior:
-            raise ValueError("EOD rollback")
+        validate_revision(previous, day, run)
         gaps = [session for session in closes if prior < session <= day and session not in quotes]
         if gaps:
             raise ValueError("New EOD session gap: " + ", ".join(gaps))

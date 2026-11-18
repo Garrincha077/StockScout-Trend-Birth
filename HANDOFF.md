@@ -1,3 +1,11 @@
+## 2026-11-18 — Same-session corrections and Kell Swing
+
+- Last verified locally 2026-11-18 12:49 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). [Previous head CI](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44296002903) passed the unit, Linux publication shell, Chromium and verified read-only snapshot steps.
+- Same-day correction switches the latest stage, price and corrected outcome artifacts. Dated Review links keep their initial bytes. The latest quality reading can show a revision without modifying the date history. A rollback to an older attempt is rejected. Kell graph shards are addressed by bytes so different chart contents under one Unified run are preserved separately.
+- Kell Swing is a separate shortlist with price pivot, stop, maximum entry, gap and explicit watch/confirmed/extended/invalidated state. Existing shortlist fields remain for older archive readers. The replay in [the validation report](docs/REVIEW_REBUILD_VALIDATION.md) measures matched rank selection and costs on the pinned EOD archives.
+- Local verification includes 231 Python tests outside the Linux fixture, 113 Node and 13 mobile Chromium tests. The next PR CI must cover the exact new head. Development work on the production controller uses a separate topic based on `main`.
+- Next: independent early Trend Birth scanner, maturing long-horizon results and before/after cohort comparison, followed by per-ticker watchlist loading, installable preview and release verification.
+
 ## 2026-11-18 — Snapshot-bound research and mobile freshness
 
 - Verified locally 2026-11-18 12:32 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).

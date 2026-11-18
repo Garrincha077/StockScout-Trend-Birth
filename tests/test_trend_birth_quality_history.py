@@ -85,6 +85,16 @@ class HistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no verifiable"):
             history.verify_latest_point(payload, {"source": {"sessionDate": "2026-10-23"}})
 
+    def test_newest_revision_is_an_overlay_and_first_daily_point_is_preserved(self):
+        first = history.point_from_snapshot(snapshot())
+        payload = {"schemaVersion": history.SCHEMA, "scope": first["scope"], "points": [first]}
+        revision = snapshot(counts={"0": 9, "1": 8, "2": 6, "3": 3, "4": 2})
+        revision["source"]["runId"] = "2026-10-23-eod-42-2"
+        history.attach_active_point(payload, revision)
+        self.assertEqual(payload["points"], [first])
+        self.assertEqual(payload["activePoint"], history.point_from_snapshot(revision))
+        history.verify_latest_point(payload, revision)
+
     def test_latest_eod_rejects_stale_history_and_conflicting_counts(self):
         earlier = history.point_from_snapshot(snapshot("2026-10-22"))
         payload = {"schemaVersion": history.SCHEMA, "scope": earlier["scope"],

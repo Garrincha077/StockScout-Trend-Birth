@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
+from kell_swing import priority as swing_priority
 from market_sessions import bar_session_date, session_date as normalize_session_date
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
 from weekly_birth import evaluate_weekly_birth, weekly_shortlist
@@ -1256,6 +1257,8 @@ def build_snapshot(
         rows = kell_unified_charts.get(ticker, [])
         raw = pool_item.get("raw") or {}
         scored = score_candidate(rows, benchmark_rows, raw)
+        if scored.get("kellSwing") and scored["kellSwing"]["sessionDate"] != session_date:
+            scored["kellSwing"] = None
         summary = _summary(raw, rows)
         trend_birth = evaluate_trend_birth(rows, session_date)
         weekly_birth = evaluate_weekly_birth(rows, session_date)
@@ -1287,6 +1290,7 @@ def build_snapshot(
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
             "kellContext": hit_context,
+            "kellSwing": scored.get("kellSwing"),
             "trendBirth": trend_birth,
             "weeklyBirth": weekly_birth,
             "trendBirthEvidence": trend_birth_evidence,
@@ -1330,6 +1334,8 @@ def build_snapshot(
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
         item.update(score_candidate(rows, benchmark_rows, raw))
+        if item.get("kellSwing") and item["kellSwing"]["sessionDate"] != session_date:
+            item["kellSwing"] = None
         candidates.append(item)
     candidates.sort(key=lambda item: (
         0 if str(item.get("analysis", {}).get("status") or "").upper() == "ACTION" else 1,
@@ -1368,6 +1374,10 @@ def build_snapshot(
             item["ticker"],
         ),
     )[:5]
+    kell_swing_selected = sorted(
+        (item for item in kell_candidates if item.get("kellSwing")),
+        key=swing_priority,
+    )[:12]
     trend_birth_evidence_counts = {
         bucket: sum(
             bool((item.get("trendBirthEvidence") or {}).get(bucket))
@@ -1460,6 +1470,7 @@ def build_snapshot(
             "schemaVersion": "stockscout-shortlists-v2",
             "weeklyTrendBirth": weekly_selected,
             "kellDaily": kell_daily_selected,
+            "kellSwing": kell_swing_selected,
         },
         "trendBirthCandidateIndex": trend_birth_candidate_index,
         "unifiedCandidateIndexCount": len(unified_candidate_index),

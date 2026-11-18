@@ -158,6 +158,33 @@ class IntelligenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "newest"):
             intel.build_summary(current, points)
 
+    def test_same_day_latest_revision_does_not_overwrite_first_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            daily = root / "history"
+            daily.mkdir()
+            latest = root / "latest.json"
+            first = snapshot(rows=[item("AAA", 3)])
+            first["source"]["runId"] = "2026-10-23-eod-1-1"
+            original = json.dumps(first)
+            dated = daily / "2026-10-23.json"
+            dated.write_text(original)
+            latest.write_text(original)
+            months = root / "months"
+            output = root / "summary.json"
+            intel.build(latest, daily, months, output)
+            revision = snapshot(rows=[item("AAA", 4)])
+            revision["source"]["runId"] = "2026-10-23-eod-1-2"
+            latest.write_text(json.dumps(revision))
+            intel.build(latest, daily, months, output)
+            retained = intel.all_points(intel.load_months(months))
+            self.assertEqual(retained, [intel.point_from_snapshot(revision)])
+            self.assertEqual(json.loads(output.read_text())["source"]["runId"], revision["source"]["runId"])
+            self.assertEqual(dated.read_text(), original)
+            latest.write_text(original)
+            with self.assertRaisesRegex(ValueError, "newer activation"):
+                intel.build(latest, daily, months, output)
+
     def test_incremental_monthly_files_retain_old_days(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
