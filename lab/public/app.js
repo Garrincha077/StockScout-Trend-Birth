@@ -2254,7 +2254,7 @@ function mountDetailEvidence(section,item,view,initialJump){
     setPeriod(select.value);
   });
   retry.addEventListener('click',refresh);
-  refresh();
+  requestAnimationFrame(()=>{if(active()&&revision===0)refresh()});
 }
 function show(item,view=state.primaryView,{period=null,fromLocation=false,jump=null}={}){
   if(!fromLocation)++reviewLocationRevision;
@@ -2320,9 +2320,7 @@ function show(item,view=state.primaryView,{period=null,fromLocation=false,jump=n
   section.cleanup=new AbortController();
   if(!fromLocation)writeReviewLocation(item,view,periodKey,fresh&&!ReviewNavigation.read(location.search).ticker);
   if(!dialog.open)dialog.showModal();
-  requestAnimationFrame(()=>{
-    if(section.isConnected&&dialog.open)mountDetailEvidence(section,item,view,jump);
-  });
+  mountDetailEvidence(section,item,view,jump);
 }
 $('#changeHighlights')?.addEventListener('click',e=>{
   const more=e.target.closest('[data-change-more]');
