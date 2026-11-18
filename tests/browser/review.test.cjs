@@ -25,8 +25,8 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server)await new Promise(done=>server.close(done))});
 
-async function pageFor(t, serviceWorkers='block'){
-  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers});
+async function pageFor(t, serviceWorkers='block', options={}){
+  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers,...options});
   t.after(()=>context.close());
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -144,7 +144,7 @@ test('dated EOD changes load on demand and open an out-of-list ticker without a 
 });
 
 test('Trend Birth opens directly to dated evidence, invalidation and chart',async t=>{
-  const page=await pageFor(t),requests=[];
+  const page=await pageFor(t,'block',{hasTouch:true,isMobile:true}),requests=[];
   page.on('request',r=>requests.push(r.url()));
   const sample=bootstrap.shortlists.weeklyTrendBirth[0];
   const price=sample.chartBars.at(-1)[4];
@@ -170,8 +170,29 @@ test('Trend Birth opens directly to dated evidence, invalidation and chart',asyn
   await detail.locator('[data-volume-readout]').waitFor();
   assert.match(await detail.locator('[data-volume-readout]').innerText(),/prethodni 20D/);
   assert.match(await detail.locator('[data-relative-readout]').innerText(),/100 na/);
+  const slider=detail.getByRole('slider',{name:'Svijeća na grafu'});
+  const priceChart=detail.locator('.detail-chart');
+  const barCount=Number(await slider.getAttribute('max'))+1;
+  const visible=sample.chartBars.slice(-barCount),index=40;
+  const width=(await priceChart.boundingBox()).width;
+  const x=10+index*(width-82)/(barCount-1);
+  await priceChart.tap({position:{x,y:90}});
+  await page.waitForFunction(i=>document.querySelector('.chart-inspection-controls input').value===String(i),index);
+  const date=String(visible[index][0]).slice(0,10).split('-');
+  assert.ok((await detail.locator('.detail-chart-meta').innerText()).includes(date[2]+'.'+date[1]+'.'+date[0].slice(2)));
+  const priorVolume=visible.slice(index-20,index).reduce((sum,bar)=>sum+bar[5],0)/20;
+  assert.ok((await detail.locator('[data-volume-readout]').innerText()).includes((visible[index][5]/priorVolume).toFixed(2)+'×'));
+  const ref=visible.find(bar=>bar[6]>0)[6];
+  assert.match(await detail.locator('[data-relative-readout]').innerText(),new RegExp('^'+(100*visible[index][6]/ref).toFixed(1)));
+  assert.ok(await detail.evaluate(e=>e.querySelectorAll('.chart-track:not([hidden])').length===3&&
+    [...e.querySelectorAll('.chart-track:not([hidden])')].every(track=>
+      Math.abs(parseFloat(getComputedStyle(track,'::after').left)-parseFloat(e.style.getPropertyValue('--candle-x')))<.01)));
+  await slider.press('ArrowRight');
+  assert.equal(await slider.inputValue(),String(index+1));
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),sample.ticker);
   await detail.locator('select').selectOption('5y');
   await page.waitForFunction(()=>document.querySelector('.detail-chart-meta').textContent.includes('tjedna svijeća'));
+  assert.equal(await detail.getAttribute('data-chart-cursor'),null);
   assert.match(await detail.locator('[data-volume-readout]').innerText(),/prethodni 10W/);
   await detail.locator('select').selectOption('3m');
   await page.waitForFunction(()=>document.querySelector('.detail-chart-meta').textContent.includes('prikazana sesija'));
@@ -214,6 +235,13 @@ test('modern startup fetches the weekly view and its charts only on selection',a
   const dialogChart=page.locator('#detail canvas[aria-description*="Zona baze"]');
   await dialogChart.waitFor();
   assert.equal(await dialogChart.getAttribute('aria-description'),focused);
+  const modal=page.locator('#detail');
+  const floor=modal.getByRole('button',{name:'Dno baze'});
+  await floor.click();
+  const summary=await modal.locator('.weekly-evidence').innerText();
+  const floorDate=summary.match(/Dno baze [\d.]+ · (\d{2}\.\d{2}\.\d{2})/)[1];
+  assert.ok((await modal.locator('.detail-chart-meta').innerText()).startsWith('Tjedan do '+floorDate));
+  assert.match(summary,/Prvi otpor/);
 });
 
 test('nonempty Watchlist resolves saved symbols only and retains them after a failed ticker request',async t=>{

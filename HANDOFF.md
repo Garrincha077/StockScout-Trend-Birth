@@ -1,3 +1,9 @@
+## 2026-11-18 — Candle inspection and Weekly Base decision levels
+
+- Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 15:34 Europe/Zagreb on November 17 EOD data, preview commit `1606a9f`, deployment `dpl_C9A6HZc2wcXRovqXA2e7wCBP7Uvq`. A tap, slider or arrow selects one bar across price, volume and SPY relative strength. Price shows the selected close, OHLC and change from the prior close. The range selection resets to the latest bar.
+- Weekly Base shows percent distance from the last completed weekly close to the pivot and first detected resistance. The floor link selects the latest bar that touched the model's pre-launch window low. Volume and RS show unavailable states for unmatched dates.
+- Passed 120 Node cases and 20 Chromium cases. The EOD change feed head passed [GitHub CI 44323799663](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44323799663). Active branch is `codex/review-lab-rebuild`, draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next priorities are outcome cohorts with matched controls and wider date-aligned RS coverage.
+
 ## 2026-11-18 — Strategy changes since the previous exchange session
 
 - Verified the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) on November 17 EOD data at 15:21 Europe/Zagreb, preview commit `58602b6`, Vercel deployment `dpl_FakbPaFKvaZY8RD4Qren8ZodZq47`. Opening the mobile panel fetches one 2.9 KB feed. A ticker outside the loaded shortlist opens through its checksum-verified ticker bucket and chart shard.
