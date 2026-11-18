@@ -4,6 +4,13 @@ This file is the durable handoff for `Garrincha077/StockScout-Trend-Birth`.
 
 Update it after every meaningful code, workflow, data-contract, research-methodology or product-architecture change.
 
+## 2026-11-18 — Reconcile exact same-session activation revisions
+
+- Topic `codex/review-lab-rebuild-controller` from `b90b99b`. Companion to Review Lab rebuild #76. It changes the default-branch controller only.
+- Reuse the morning controller's exact Unified mode and publication hash checks. Verify the matching run attempt and jobs, reuse an in-flight publisher, and deduplicate by run ID and Unified manifest digest instead of calendar date.
+- Dispatch the existing Review publisher explicitly. A commit written by the workflow's repository token does not trigger a push workflow. Keep the recorded dispatch ID and protect production steps with a main-branch gate. Pull requests exercise local fixtures without dispatching.
+- Proposed rollout follows Review Lab rebuild approval. Keep both branches in draft until release review. No production dispatcher was invoked during testing.
+
 
 ## 2026-10-22 — Single daily verified refresh and 21 October recovery
 

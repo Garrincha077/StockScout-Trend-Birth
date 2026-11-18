@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Idempotent infrastructure-only reconciliation of the production Trend Birth branch.
 
-Reads the active, fully verified Unified Pages publication. Only updates the existing
-lab/refresh-trigger.txt; Review/Kell builds, Vercel, and Telegram retain their own gates.
+Reads the active, fully verified Unified Pages publication. Dispatches the existing
+Review publisher once per exact activation and records the attempt.
 """
 from __future__ import annotations
 
@@ -15,13 +15,14 @@ import sys
 import urllib.parse
 import urllib.request
 
+from refresh_review_publication import read_target, publisher_runs, start_publisher
+
 UPSTREAM = "Garrincha077/StockScout-Unified"
 REPO = "Garrincha077/StockScout-Trend-Birth"
 BRANCH = "feature/unified-review-grid-lab"
 TRIGGER_PATH = "lab/refresh-trigger.txt"
 PUB_PATH = "lab/data/publication.json"
 API = "https://api.github.com"
-PUBLIC = "https://garrincha077.github.io/StockScout-Unified/data/manifest.json"
 RUN_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2})-eod-(\d+)-(\d+)$")
 TOKEN = os.environ.get("GH_TOKEN", "")
 
@@ -55,17 +56,19 @@ def contents(path: str) -> tuple[str, str]:
     return base64.b64decode(data["content"]).decode("utf-8"), data["sha"]
 
 
-def verify_unified() -> tuple[str, str, int]:
-    active = json_request(PUBLIC + "?check=" + dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M"))
-    session, run_id = active.get("sessionDate"), active.get("runId")
-    match = RUN_PATTERN.fullmatch(str(run_id))
-    if active.get("status") != "healthy" or not match or match.group(1) != session:
-        raise RuntimeError(f"Upstream public manifest not an exact healthy EOD publication: {session} {run_id}")
+def verify_unified() -> dict:
+    target = read_target()
+    run_id = target["runId"]
+    match = RUN_PATTERN.fullmatch(run_id)
+    if not match:
+        raise RuntimeError("Invalid active Unified run")
     run_number = int(match.group(2))
+    attempt = int(match.group(3))
     run = json_request(f"{API}/repos/{UPSTREAM}/actions/runs/{run_number}")
-    if (run.get("status"), run.get("conclusion"), run.get("head_branch")) != ("completed", "success", "main"):
+    if (run.get("status"), run.get("conclusion"), run.get("head_branch"), run.get("run_attempt")) != (
+            "completed", "success", "main", attempt):
         raise RuntimeError(f"Upstream EOD run is not complete and successful: {run.get('html_url')}")
-    jobs_data = json_request(f"{API}/repos/{UPSTREAM}/actions/runs/{run_number}/jobs?per_page=100")
+    jobs_data = json_request(f"{API}/repos/{UPSTREAM}/actions/runs/{run_number}/attempts/{attempt}/jobs?per_page=100")
     jobs = {job["name"]: job for job in jobs_data.get("jobs", [])}
     for name, step in (
         ("deploy-pages / smoke", "Verify exact remote run and every mode hash"),
@@ -77,23 +80,33 @@ def verify_unified() -> tuple[str, str, int]:
         if not any(s.get("name") == step and s.get("conclusion") == "success"
                    for s in job.get("steps", [])):
             raise RuntimeError(f"Upstream {name}/{step} not SUCCESS in EOD {run_number}")
-    return str(session), str(run_id), run_number
+    return target
+
+
+def has_marker(existing: str, run_id: str, manifest: str) -> bool:
+    marker = re.compile(r"^unified-recovery\s+\S+\s+session=\S+\s+activation=" +
+                        re.escape(run_id) + r"\s+manifest=" + re.escape(manifest) + r"(?:\s|$)", re.M)
+    return marker.search(existing) is not None
 
 
 def reconcile() -> None:
-    session, run_id, upstream_id = verify_unified()
+    target = verify_unified()
+    session, run_id = target["sessionDate"], target["runId"]
+    manifest = target["unifiedManifestSha256"]
     pub_text, _ = contents(PUB_PATH)
     pub = json.loads(pub_text)
-    if pub.get("sessionDate") == session and pub.get("runId") == run_id:
+    if all(pub.get(key) == value for key, value in target.items()):
         print(f"CURRENT: Review production publication already matches Unified {session} / {run_id}")
         return
     if str(pub.get("sessionDate", "")) > session:
         raise RuntimeError("Refusing to roll back a newer Trend Birth publication")
+    before = RUN_PATTERN.fullmatch(str(pub.get("runId") or ""))
+    after = RUN_PATTERN.fullmatch(run_id)
+    if (pub.get("sessionDate") == session and before and after and
+            tuple(map(int, before.groups()[1:])) > tuple(map(int, after.groups()[1:]))):
+        raise RuntimeError("Refusing to roll back a newer Unified attempt")
 
-    runs = github(
-        f"/repos/{REPO}/actions/runs"
-        f"?branch={urllib.parse.quote(BRANCH, safe='')}&per_page=50"
-    ).get("workflow_runs", [])
+    runs = publisher_runs(REPO)
     active_runs = [r for r in runs if r.get("status") != "completed"
                    and r.get("head_branch") == BRANCH]
     if active_runs:
@@ -102,15 +115,17 @@ def reconcile() -> None:
         return
 
     existing, sha = contents(TRIGGER_PATH)
-    marker = re.compile(r"^unified-recovery\s+\S+\s+session=" + re.escape(session) + r"(?:\s|$)", re.M)
-    if marker.search(existing):
+    if has_marker(existing, run_id, manifest):
         recent = next((r for r in runs if r.get("name") == "Unified Review Grid Lab"), None)
         raise RuntimeError(
-            f"Unresolved Review for {session}: previous trigger exists but publication still differs. "
-            f"Investigate {recent.get('html_url') if recent else 'Review Lab runs'}; will not blindly replay."
+            f"Unresolved Review for {run_id}: exact activation already dispatched. "
+            f"Investigate {recent.get('html_url') if recent else 'Review Lab runs'}."
         )
+    if read_target(session, run_id) != target:
+        raise RuntimeError("Unified activation changed before Review dispatch")
+    publisher_id = start_publisher(REPO, runs)
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    new_line = f"unified-recovery {now} session={session} source-run={upstream_id}"
+    new_line = f"unified-recovery {now} session={session} activation={run_id} manifest={manifest} publisher={publisher_id}"
     new_content = existing.rstrip("\n") + "\n" + new_line + "\n"
     result = github(f"/repos/{REPO}/contents/{TRIGGER_PATH}", method="PUT", data={
         "message": f"ops: reconcile verified Unified session {session} into Trend Birth",
@@ -118,7 +133,7 @@ def reconcile() -> None:
         "sha": sha,
         "branch": BRANCH,
     })
-    print(f"TRIGGERED: {session} / {run_id}; commit {result['commit']['sha']}")
+    print(f"TRIGGERED: {session} / {run_id}; publisher {publisher_id}; commit {result['commit']['sha']}")
     print("Follow the Unified Review Grid Lab workflow to terminal state. This check sends no alerts.")
 
 
