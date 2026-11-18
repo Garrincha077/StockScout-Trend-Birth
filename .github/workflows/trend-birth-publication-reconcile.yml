@@ -1,6 +1,11 @@
 name: Trend Birth Production Publication Reconciler
 
 on:
+  pull_request:
+    paths:
+      - "scripts/reconcile_trend_birth_publication.py"
+      - "tests/test_reconcile_trend_birth_publication.py"
+      - ".github/workflows/trend-birth-publication-reconcile.yml"
   push:
     branches: [main]
     paths:
@@ -18,8 +23,7 @@ on:
       timezone: "Europe/Zagreb"
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 concurrency:
   group: trend-birth-production-publication-reconciler
@@ -31,16 +35,27 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Compile infrastructure-only reconciler
-        run: python -m py_compile scripts/reconcile_trend_birth_publication.py
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-refresh.lock
+      - name: Exercise reconciler with local fixtures
+        run: python -m unittest discover -s tests -p 'test_reconcile_trend_birth_publication.py' -v
 
   reconcile:
     needs: syntax
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+      actions: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-refresh.lock
       - name: Verify Unified exact-run Pages and notification gates, reconcile if needed
         env:
           GH_TOKEN: ${{ github.token }}
