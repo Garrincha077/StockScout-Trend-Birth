@@ -10,6 +10,8 @@ const root=resolve(__dirname,'../../lab');
 let browser,server,base,manifest,bootstrap;
 before(async()=>{
   manifest=JSON.parse(await readFile(resolve(root,'data/publication.json'),'utf8'));
+  // Individual tests control deferred loading explicitly.
+  delete manifest.deferredBootstrapPath;
   bootstrap=JSON.parse(await readFile(resolve(root,manifest.bootstrapPath),'utf8'));
   const types={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css'};
   server=createServer(async(req,res)=>{
@@ -31,6 +33,7 @@ async function pageFor(t, serviceWorkers='block', options={}){
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   t.after(()=>assert.deepEqual(errors,[]));
+  await page.route('**/data/publication.json',route=>route.fulfill({json:manifest}));
   // A local auth simulator: no mail, RPC or external account is contacted.
   await page.route('https://cdn.jsdelivr.net/**',route=>route.fulfill({contentType:'text/javascript',body:`
     window.authTest={session:null,rows:{A:['AAA'],B:['BBB']},writes:[],listener:null};
@@ -86,7 +89,8 @@ test('initial mobile view is bounded and never fetches full Review or Kell data 
   assert.ok(await page.locator('[data-primary-view="watchlist"]').evaluate(e=>e.getBoundingClientRect().right<=innerWidth));
   assert.doesNotMatch(await page.locator('#grid').innerText(),/Blue sky/);
   await page.locator('[data-primary-view="kell-daily"]').click();
-  assert.equal(await page.locator('#grid .card').count(),5);
+  assert.equal(await page.locator('#grid .card').count(),
+    (bootstrap.shortlists.kellSwing??bootstrap.shortlists.kellDaily).length);
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
   // A full source fixture becomes available only when Research is requested.
   let fullReads=0;
@@ -256,7 +260,7 @@ test('the PWA keeps a ticker shortcut intact across an offline launch and retry'
   assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
   assert.equal(await page.locator('#detail .detail-evidence select').inputValue(),'3m');
   assert.equal(await page.evaluate(()=>caches.keys()).then(keys=>keys.filter(name=>name.startsWith('trendbirth-install-')).join()),
-    'trendbirth-install-v3');
+    'trendbirth-install-v4');
 });
 
 test('dated EOD changes load on demand and open an out-of-list ticker without a full archive',async t=>{

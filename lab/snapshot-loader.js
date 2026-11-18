@@ -87,7 +87,10 @@
     const expected=['v1','v2'].map(version=>'data/review-bootstrap-'+version+'/'+manifest.snapshotId+'.json');
     if(manifest.bootstrapPath===undefined)return aligned(await json(fetcher,snapshotPath(manifest)),manifest);
     if(!expected.includes(manifest.bootstrapPath))throw new Error('Neispravan put početnog pregleda.');
-    const data=aligned(await json(fetcher,manifest.bootstrapPath),manifest);
+    const deferred=manifest.deferredBootstrapPath;
+    if(deferred!==undefined&&(manifest.bootstrapPath!==expected[0]||deferred!==expected[1]))
+      throw new Error('Neispravan put sažetog pregleda.');
+    const data=aligned(await json(fetcher,deferred??manifest.bootstrapPath),manifest);
     if(data.schemaVersion!=='trend-birth-review-bootstrap-v1'||data.reviewSnapshotId!==manifest.snapshotId||
         data.shortlists?.schemaVersion!=='stockscout-shortlists-v2'||
         !Array.isArray(data.shortlists.weeklyTrendBirth)||!Array.isArray(data.shortlists.kellDaily)){

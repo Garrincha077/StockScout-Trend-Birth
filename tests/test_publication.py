@@ -115,7 +115,10 @@ class PublicationTests(unittest.TestCase):
                                       "earlyTrendBirth": snapshot["candidates"],
                                       "weeklyTrendBirth": snapshot["candidates"], "kellDaily": []}
             manifest = publisher.publish(snapshot, root)
-            compact = json.loads((root / manifest["bootstrapPath"].removeprefix("data/")).read_bytes())
+            legacy = json.loads((root / manifest["bootstrapPath"].removeprefix("data/")).read_bytes())
+            self.assertTrue(manifest["bootstrapPath"].startswith("data/review-bootstrap-v1/"))
+            self.assertEqual(legacy["shortlists"], snapshot["shortlists"])
+            compact = json.loads((root / manifest["deferredBootstrapPath"].removeprefix("data/")).read_bytes())
             self.assertEqual(compact["shortlists"]["earlyTrendBirth"], snapshot["candidates"])
             self.assertEqual(compact["shortlists"]["weeklyTrendBirth"], [])
             publisher.validate_shortlists(root, manifest)

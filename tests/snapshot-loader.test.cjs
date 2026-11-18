@@ -75,6 +75,21 @@ test('compact initial load is pinned and Research fetches that exact full source
 });
 
 
+test('a dual publication keeps the original startup path and the modern app fetches only its deferred path',async()=>{
+  const {loadInitial}=require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,
+    bootstrapPath:'data/review-bootstrap-v1/'+id+'.json',deferredBootstrapPath:'data/review-bootstrap-v2/'+id+'.json'};
+  const compact={schemaVersion:'trend-birth-review-bootstrap-v1',reviewSnapshotId:id,source,
+    shortlists:{schemaVersion:'stockscout-shortlists-v2',weeklyTrendBirth:[],kellDaily:[]}};
+  const paths=[];
+  const fetcher=async path=>{paths.push(path);return {ok:true,json:async()=>path==='data/publication.json'?manifest:compact}};
+  assert.equal(await loadInitial(fetcher,''),compact);
+  assert.deepEqual(paths,['data/publication.json',manifest.deferredBootstrapPath]);
+  manifest.deferredBootstrapPath=manifest.bootstrapPath;
+  await assert.rejects(loadInitial(fetcher,''),/put sažetog pregleda/);
+});
+
 test('explicit legacy mode bypasses compact startup and retains the full source',async()=>{
   const {loadInitial}=require('../lab/snapshot-loader.js');
   const source={runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};

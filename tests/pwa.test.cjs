@@ -28,7 +28,7 @@ function workerHarness() {
     },
     caches: {
       open: async () => cache,
-      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1', 'trendbirth-install-v2', 'trendbirth-install-v3'],
+      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1', 'trendbirth-install-v2', 'trendbirth-install-v3', 'trendbirth-install-v4'],
       delete: async key => { deleted.push(key); }
     },
     fetch: async request => {
@@ -85,7 +85,7 @@ test('installation precaches only artwork, manifest and offline screen', async (
 test('activation removes only older Trend Birth install caches', async () => {
   const worker = workerHarness();
   await worker.lifecycle('activate');
-  assert.deepEqual(worker.deleted, ['trendbirth-install-v0', 'trendbirth-install-v1', 'trendbirth-install-v2']);
+  assert.deepEqual(worker.deleted, ['trendbirth-install-v0', 'trendbirth-install-v1', 'trendbirth-install-v2', 'trendbirth-install-v3']);
   await worker.lifecycle('message', {type: 'ACTIVATE_UPDATE'});
   assert.equal(worker.activated(), true);
 });

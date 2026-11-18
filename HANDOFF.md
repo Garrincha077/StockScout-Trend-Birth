@@ -1,3 +1,9 @@
+## 2026-11-18 — Android and production release candidate
+
+- Release target is the existing [production app](https://stockscout-trend-birth-review-lab.vercel.app/) on `feature/unified-review-grid-lab`, via PR #76. At 18:47 Europe/Zagreb the release assets passed the full EOD and Research checks for November 17, Unified run `2026-11-17-eod-44227241477-1`, with 2,592 of 2,592 close observations and 2,126 of 2,126 Kell charts.
+- The manifest keeps a complete v1 startup asset for the installed app and also lists the compact v2 asset for the new client. Cache v4 advances the service worker with the same PWA identity and origin. A simulated release in 390 px Chromium used the original production client, activated the update button, loaded v2 and retained its browser-local Watchlist. The current full snapshot and latest fallback use lossless gzip and the original November 17 dated archive is preserved.
+- The release uses the existing signed-in Watchlist and browser-local plan storage. Cross-device plan sync requires deployment of its separate Supabase migration. Verify the production alias and the startup, Statistics and service-worker update after the exact release commit deploys.
+
 ## 2026-11-18 — Inspect individual Weekly Base outcomes
 
 - Verified at 18:17 Europe/Zagreb on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siWeeklyBase), preview commit `70d35c1` and READY deployment `dpl_4d8atw59Nae7mKok526G7qbLE2Lx`. Expand **Pojedinačni slučajevi** and choose a signal date. The selected phase and horizon apply to both the case list and the aggregate above.

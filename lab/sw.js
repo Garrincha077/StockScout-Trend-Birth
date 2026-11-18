@@ -1,6 +1,6 @@
 'use strict';
 const CACHE_PREFIX = 'trendbirth-install-';
-const CACHE = CACHE_PREFIX + 'v3';
+const CACHE = CACHE_PREFIX + 'v4';
 const assetUrl = path => new URL(path, self.registration.scope).href;
 // Only install artwork and the offline screen are stored. Market data, HTML,
 // app/auth scripts, callbacks and publication pointers always use the network.

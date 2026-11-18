@@ -92,7 +92,8 @@ def publish_bootstrap(snapshot: dict, manifest: dict, directory: Path) -> bool:
         return False
     snapshot_id = manifest["snapshotId"]
     relative = "review-bootstrap-v1/" + snapshot_id + ".json"
-    changed = False
+    changed = _write_bootstrap(directory / relative, compact)
+    manifest["bootstrapPath"] = "data/" + relative
     if snapshot.get("earlyTrendResearch"):
         relative = "review-bootstrap-v2/" + snapshot_id + ".json"
         lists = compact["shortlists"].copy()
@@ -113,21 +114,34 @@ def publish_bootstrap(snapshot: dict, manifest: dict, directory: Path) -> bool:
             changed |= write_changed(target, payload)
             lists[view] = []
             compact["deferredShortlists"][view] = {"path": "data/" + shard, "sha256": digest}
-    content = encode(compact)
-    target = directory / relative
+        changed |= _write_bootstrap(directory / relative, compact)
+        manifest["deferredBootstrapPath"] = "data/" + relative
+    return changed
+
+
+def _write_bootstrap(target: Path, bootstrap_data: dict) -> bool:
+    content = encode(bootstrap_data)
     if target.exists() and target.read_bytes() != content:
         raise ValueError("Immutable bootstrap collision")
-    changed |= write_changed(target, content)
-    manifest["bootstrapPath"] = "data/" + relative
-    return changed
+    return write_changed(target, content)
 
 
 def validate_shortlists(directory: Path, publication: dict) -> None:
     snapshot_id = publication.get("snapshotId")
     base = f"review-bootstrap-v2/{snapshot_id}"
-    if publication.get("bootstrapPath") != "data/" + base + ".json":
+    deferred = publication.get("deferredBootstrapPath")
+    if deferred is None and publication.get("bootstrapPath") != "data/" + base + ".json":
         return
     bootstrap = json.loads((directory / (base + ".json")).read_bytes())
+    legacy = None
+    if deferred is not None:
+        legacy_path = f"review-bootstrap-v1/{snapshot_id}.json"
+        if deferred != "data/" + base + ".json" or publication.get("bootstrapPath") != "data/" + legacy_path:
+            raise ValueError("Review bootstrap compatibility paths differ from publication")
+        legacy = json.loads((directory / legacy_path).read_bytes())
+        if (legacy.get("reviewSnapshotId") != snapshot_id or legacy.get("source") != bootstrap["source"] or
+                not isinstance(legacy.get("shortlists"), dict)):
+            raise ValueError("Compatible Review bootstrap differs from publication")
     for view, ref in bootstrap["deferredShortlists"].items():
         if view not in {"weeklyTrendBirth", "kellSwing", "kellDaily"}:
             raise ValueError("Unexpected deferred Review shortlist")
@@ -141,6 +155,8 @@ def validate_shortlists(directory: Path, publication: dict) -> None:
                 payload["snapshotId"] != snapshot_id or payload["source"] != bootstrap["source"] or
                 not isinstance(payload["items"], list)):
             raise ValueError("Deferred Review shortlist differs from publication")
+        if legacy is not None and payload["items"] != legacy["shortlists"].get(view):
+            raise ValueError("Compatible Review shortlist differs from publication")
 
 
 def publish(snapshot: dict, directory: Path) -> dict:

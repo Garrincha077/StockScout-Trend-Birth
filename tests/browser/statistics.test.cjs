@@ -41,6 +41,11 @@ async function ready(page){
   await page.waitForFunction(()=>document.querySelector('#siCompositeFactorTable tbody')&&
     document.querySelector('#siHeatFactorTable tbody'));
 }
+async function useLegacyResearch(page){
+  const publication=JSON.parse(await readFile(resolve(root,'data/publication.json'),'utf8'));
+  delete publication.research;
+  await page.route('**/data/publication.json',route=>route.fulfill({json:publication}));
+}
 async function selectedPointVisible(page,id){
   return page.evaluate(id=>{
     const host=document.getElementById(id),marker=host.querySelector('circle:last-of-type');
@@ -50,6 +55,7 @@ async function selectedPointVisible(page,id){
 }
 test('Early Trend Birth statistics separate horizons and describe a later median honestly',async t=>{
   const page=await mobile(t);
+  await useLegacyResearch(page);
   const forward=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));
   const pending={observed:0,matured:0,pending:4,leadersCaptured:0,leadersMissed:0,leaderOpportunities:0,
     belowUniverseMedian:0,excessPct:null};
@@ -261,6 +267,7 @@ test('failed V3 request leaves V2 usable and can be retried',async t=>{
 });
 test('stale publication is visible while valid statistics remain available',async t=>{
   const page=await mobile(t);
+  await useLegacyResearch(page);
   const internals=JSON.parse(await readFile(resolve(root,'data/trend-birth-market-internals.json'),'utf8'));
   internals.points=internals.points.filter(point=>point.sessionDate<='2026-10-23');
   internals.latestSessionDate=internals.points.at(-1).sessionDate;
@@ -306,6 +313,7 @@ test('date and range remain synchronized while ETF proxy stays independent',asyn
 });
 test('a late calendar response preserves the already selected ETF source',async t=>{
   const page=await mobile(t);
+  await useLegacyResearch(page);
   let release;
   const gate=new Promise(done=>{release=done;});
   t.after(()=>release());
@@ -320,6 +328,7 @@ test('a late calendar response preserves the already selected ETF source',async 
 });
 test('unavailable calendar keeps heat evidence visible without claiming verified continuity',async t=>{
   const page=await mobile(t);
+  await useLegacyResearch(page);
   await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({status:503,body:'Unavailable'}));
   await ready(page);
   assert.match(await page.locator('#siForwardStatus').textContent(),/503/);
