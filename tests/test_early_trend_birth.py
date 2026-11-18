@@ -1,8 +1,9 @@
 from datetime import date, timedelta
+from math import log
 import unittest
 
 from scripts.early_trend_birth import HISTORY, MODEL, evaluate, priority
-from scripts.early_trend_outcomes import report
+from scripts.early_trend_outcomes import matched_outcomes, pair_signals, report
 
 
 def days(count):
@@ -74,3 +75,47 @@ class EarlyTrendOutcomesTest(unittest.TestCase):
         del prices[leader][calendar[254]]
         incomplete = report(points, prices, calendar, [])
         self.assertEqual(incomplete["horizons"]["252"]["early"]["missingMatured"], 1)
+
+    def test_matches_respect_both_calipers_and_use_each_control_once(self):
+        prices = [("A", 100, 0, 2), ("B", 100, 0, 2), ("PEER", 100, 0, 2),
+                  ("LOW", 49, 0, 2), ("FAST", 100, 11, 2), ("OTHER_STAGE", 100, 0, 3)]
+        features = {ticker: (stage, log(price), momentum) for ticker, price, momentum, stage in prices}
+        self.assertEqual(pair_signals({"A", "B"}, set(), features), [("A", "PEER")])
+
+    def test_frozen_control_is_not_replaced_when_its_exit_price_is_missing(self):
+        calendar = days(45)
+        prior, signal_day, entry, exit_day = calendar[21:24] + [calendar[28]]
+        names = {"A": 100, "B": 101, "FAR": 145, "ANOTHER_SIGNAL": 100, "OTHER_STAGE": 100}
+        stages = {ticker: [3 if ticker == "OTHER_STAGE" else 2] for ticker in names}
+        points = [
+            {"sessionDate": prior, "stages": stages, "earlyTrend": {"model": MODEL, "shortlist": [], "weekly": []}},
+            {"sessionDate": signal_day, "stages": stages, "earlyTrend": {
+                "model": MODEL, "shortlist": ["A"], "weekly": [], "candidates": {"A": 99, "ANOTHER_SIGNAL": 99}}},
+        ]
+        prices = {ticker: dict.fromkeys(calendar, price) for ticker, price in names.items()}
+        # These signal-day values are not available to the matching algorithm.
+        prices["B"][signal_day] = 1000
+        prices["A"][exit_day] = 110
+        prices["B"][entry], prices["B"][exit_day] = 100, 95
+        outcome = matched_outcomes(points, prices, calendar, [])["groups"]["early"]
+        self.assertEqual((outcome["signals"], outcome["paired"], outcome["unmatched"]), (1, 1, 0))
+        self.assertEqual(outcome["outcomes"]["5"]["differencePp"], 15)
+        self.assertEqual(outcome["outcomes"]["20"]["pending"], 0)
+        self.assertEqual(outcome["outcomes"]["63"]["pending"], 1)
+        del prices["B"][exit_day]
+        outcome = matched_outcomes(points, prices, calendar, [])["groups"]["early"]["outcomes"]["5"]
+        self.assertEqual((outcome["observed"], outcome["missingPairPrices"]), (0, 1))
+        self.assertIsNone(outcome["differencePp"])
+
+    def test_daily_reference_uses_archived_stages_and_first_early_day_establishes_baseline(self):
+        calendar = days(31)
+        points = [
+            {"sessionDate": calendar[21], "stages": {"A": [2], "B": [2]}},
+            {"sessionDate": calendar[22], "stages": {"A": [4], "B": [2]},
+             "earlyTrend": {"model": MODEL, "shortlist": ["A"], "weekly": []}},
+        ]
+        prices = {"A": dict.fromkeys(calendar, 100), "B": dict.fromkeys(calendar, 100)}
+        grouped = matched_outcomes(points, prices, calendar, [])["groups"]
+        self.assertEqual(grouped["early"]["signals"], 0)
+        self.assertEqual(grouped["daily4"]["outcomes"]["5"]["observed"], 1)
+        self.assertEqual(grouped["daily4"]["outcomes"]["5"]["differencePp"], 0)

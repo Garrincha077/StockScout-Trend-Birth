@@ -65,3 +65,15 @@ class ResearchPublicationTests(unittest.TestCase):
         path.write_bytes(b"{}")
         with self.assertRaisesRegex(ValueError, "digest mismatch"):
             validate_research(self.directory, self.read("publication.json"))
+
+    def test_matched_comparison_must_use_the_active_cutoff(self):
+        publish(self.directory)
+        original = self.read("publication.json")
+        filename = REPORTS["trendBirthForward"][0]
+        report = self.read(filename)
+        report["earlyTrend"] = {"matched": {"schemaVersion": "trend-birth-matched-cohorts-v1",
+                                            "asOf": "2026-11-16"}}
+        self.write(filename, report)
+        with self.assertRaisesRegex(ValueError, "Matched Trend Birth cohorts differ"):
+            publish(self.directory)
+        self.assertEqual(self.read("publication.json"), original)

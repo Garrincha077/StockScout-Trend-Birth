@@ -59,12 +59,32 @@ test('Early Trend Birth statistics separate horizons and describe a later median
   forward.earlyTrend={schemaVersion:'early-trend-outcomes-v1',observedSessions:4,lead:{
     daily4:{matched:2,earlier:0,same:0,later:2,medianSessions:-3},weekly:{matched:0}
   },horizons:{20:row(measured),63:row(pending),126:row(pending),252:row(pending)}};
+  const emptyMatch={observed:0,pending:0,missingPairPrices:0,observedDates:0,positiveDates:0,
+    signalReturnPct:null,controlReturnPct:null,differencePp:null};
+  const pendingMatch={...emptyMatch,pending:4};
+  const measuredMatch={...emptyMatch,observed:3,missingPairPrices:1,observedDates:2,positiveDates:0,
+    signalReturnPct:.5,controlReturnPct:.75,differencePp:-.25};
+  const matchGroup={signals:7,signalDates:3,paired:4,missingFeatures:2,unmatched:1,
+    outcomes:{5:measuredMatch,20:pendingMatch,63:pendingMatch,126:pendingMatch,252:pendingMatch}};
+  forward.earlyTrend.matched={schemaVersion:'trend-birth-matched-cohorts-v1',asOf:forward.asOf,
+    earlyObservedSessions:4,dailyObservedSessions:32,lookbackSessions:20,maxPriceRatio:2,maxMomentumGapPp:10,
+    groups:{early:matchGroup,daily4:{...matchGroup,signals:12,unmatched:6}}};
   await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({json:forward}));
   await ready(page);
   await page.locator('#siEarly').waitFor();
   assert.match(await page.locator('#siEarlyLead').innerText(),/kasnije za 3 sesija/);
   assert.equal(await page.locator('#siEarlyTable tbody tr').count(),3);
   assert.match(await page.locator('#siEarlyTable').innerText(),/4 \/ 5/);
+  await page.locator('#siMatched').waitFor();
+  assert.match(await page.locator('#siMatchedCoverage').innerText(),/4 \/ 7 uparenih/);
+  assert.match(await page.locator('#siMatchedDates').innerText(),/4 na čekanju/);
+  assert.equal(await page.locator('#siMatchedResults').isVisible(),false);
+  await page.selectOption('#siMatchedCohort','daily4');
+  assert.match(await page.locator('#siMatchedCoverage').innerText(),/32 arhivirane sesije · 4 \/ 12/);
+  await page.selectOption('#siMatchedHorizon','5');
+  assert.match(await page.locator('#siMatchedDates').innerText(),/3 s ishodom · 0 na čekanju · 1 bez cijene za par/);
+  assert.match(await page.locator('#siMatchedDifference').innerText(),/[-−]0,25 p. b./);
+  assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));
   await page.selectOption('#siEarlyHorizon','252');
   assert.match(await page.locator('#siEarlyMaturity').innerText(),/Još nema dospjelih ishoda za 252 sesija/);
   assert.match(await page.locator('#siEarlyTable').innerText(),/252D · Trend Birth/);

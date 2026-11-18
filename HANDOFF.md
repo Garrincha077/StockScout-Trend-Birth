@@ -1,3 +1,9 @@
+## 2026-11-18 — Trend Birth outcomes against same-session controls
+
+- Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics) at 15:49 Europe/Zagreb, Vercel deployment `dpl_5huzbjt4fz49j7RojQ74GZLksYuk`, preview commit `b5a6f5e`, November 17 EOD. Controls match the previous radar phase, prior price and 20-session return. Selection is fixed before outcomes and uses the same-date evaluated universe. Archived sectors and liquidity are unavailable.
+- Early Trend Birth has one observed session and no measured comparison yet. The independent daily 4/4 reference has 757 new entries across archived history, 264 matched, and 210 matched 5-session outcomes across 12 dates. Average daily gross spread is −1.826 percentage points with seven missing pair outcomes and 47 pending. This is an observed sample with overlapping holds and limited coverage.
+- Local EOD publication gate passed with 2,592 aligned prices. Passed 256 Python cases, 120 Node cases and 20 Chromium cases. The preceding chart change passed [CI 44325828037](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44325828037). Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) remains the working branch. Next: segment verified Kell plan outcomes by setup and market context alongside the aggregate.
+
 ## 2026-11-18 — Candle inspection and Weekly Base decision levels
 
 - Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 15:34 Europe/Zagreb on November 17 EOD data, preview commit `1606a9f`, deployment `dpl_C9A6HZc2wcXRovqXA2e7wCBP7Uvq`. A tap, slider or arrow selects one bar across price, volume and SPY relative strength. Price shows the selected close, OHLC and change from the prior close. The range selection resets to the latest bar.
