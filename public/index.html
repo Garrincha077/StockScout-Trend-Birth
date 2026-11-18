@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111d">
+  <meta name="description" content="Trend Birth — Weekly Birth, Kell Daily i watchlist na mobitelu.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Trend Birth">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>StockScout Trend Birth — Daily Review Lab</title>
+  <link rel="stylesheet" href="styles.css?v=early-trend-20261118">
+  <link rel="stylesheet" href="pwa.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="app-brand">
+      <div class="app-heading">
+        <strong>Trend Birth Review Lab</strong>
+        <button type="button" id="installApp" class="install-app" hidden aria-haspopup="dialog" aria-controls="installDialog">↓ Instaliraj</button>
+      </div>
+      <span id="runMeta">Učitavanje…</span>
+    </div>
+    <div class="top-controls">
+      <select id="chartPeriod" aria-label="Razdoblje charta">
+        <option value="3m">3M · Daily</option>
+        <option value="6m">6M · Daily</option>
+        <option value="1y">1Y · Daily</option>
+        <option value="5y" selected>5Y · Weekly</option>
+      </select>
+      <select id="sort" aria-label="Sortiranje kandidata">
+        <option value="default">Default sort</option>
+        <option value="kell-score">Kell Focus ↓</option>
+        <option value="readiness">Readiness ↓</option>
+        <option value="quality">Quality ↓</option>
+        <option value="trend-birth">Trend Birth stage ↓</option>
+        <option value="evidence">Evidence ↓</option>
+        <option value="rvol">RVOL ↓</option>
+      </select>
+      <input id="search" type="search" placeholder="Ticker…" aria-label="Pretraži ticker">
+      <details id="ownerSync" class="owner-sync">
+        <summary id="ownerSyncSummary">☁ Watchlist: local</summary>
+        <div class="owner-sync-popover">
+          <div class="owner-sync-head">
+            <div>
+              <strong>Sinkroniziraj Watchlist</strong>
+              <small>Prijava bez lozinke</small>
+            </div>
+            <span class="owner-sync-badge">Magic link</span>
+          </div>
+          <p id="ownerSyncStatus" class="owner-sync-status" aria-live="polite">Lokalna zvjezdica radi i bez prijave.</p>
+          <div id="ownerMagicSteps" class="owner-magic-steps">
+            <div class="owner-magic-step"><span>1</span><div><b>Upiši email</b><small>Koristi owner email. Nakon slanja kratko će se otvoriti StockScout Unified kao sigurni auth-most i automatski vratiti ovamo.</small></div></div>
+            <form id="ownerMagicForm">
+              <label for="ownerEmail">Email</label>
+              <div class="owner-magic-input-row">
+                <input id="ownerEmail" type="email" autocomplete="email" inputmode="email" placeholder="tvoj@email.com" aria-label="Owner email" required>
+                <button type="submit" id="ownerMagicSubmit">Pošalji link</button>
+              </div>
+            </form>
+            <div class="owner-magic-step"><span>2</span><div><b>Otvori najnoviji email</b><small>Poruka stiže od Supabasea. Ako pošalješ više linkova, vrijedi najnoviji.</small></div></div>
+            <div class="owner-magic-step"><span>3</span><div><b>Dodirni magic link</b><small>Vrati te na ovu stranicu i Watchlist se automatski sinkronizira.</small></div></div>
+          </div>
+          <div id="ownerMagicSent" class="owner-magic-sent" hidden>
+            <strong>✓ Link je poslan</strong>
+            <p>Otvori <b>najnoviju</b> Supabase poruku na ovom uređaju i dodirni magic link.</p>
+            <small id="ownerMagicSentTo"></small>
+          </div>
+          <p class="owner-auth-note">Google prijava je zasad isključena; magic link je aktivni način prijave.</p>
+          <button type="button" id="ownerImportLocal" hidden>Dodaj lokalne tickere u ovaj račun</button>
+          <button type="button" id="ownerSignOut" hidden>Odjavi sync</button>
+        </div>
+      </details>
+    </div>
+  </header>
+  <nav class="workspace-tabs" aria-label="Glavni tabovi">
+    <a href="index.html" class="active" aria-current="page">Pregled kandidata</a>
+    <a href="statistics.html">Statistika</a>
+  </nav>
+  <div id="connectionNotice" class="app-notice" role="status" hidden>Bez interneta. Prikazani podaci nisu osvježeni. Za aktualnu objavu ponovno se poveži.</div>
+  <p id="eodFreshness" class="eod-freshness" role="status">Provjeravam svježinu EOD objave…</p>
+  <div id="updateNotice" class="app-notice" role="status" hidden>
+    Dostupna je nova verzija aplikacije.
+    <button type="button" id="updateApp">Osvježi aplikaciju</button>
+  </div>
+  <nav id="primaryViews" class="primary-views" aria-label="Pregled kandidata">
+    <button type="button" data-primary-view="early">Trend Birth</button>
+    <button type="button" data-primary-view="kell-daily">Kell Swing</button>
+    <button type="button" data-primary-view="weekly" class="active">Tjedna baza</button>
+    <button type="button" data-primary-view="research">Research Universe</button>
+    <button type="button" data-primary-view="watchlist">★ Watchlist</button>
+  </nav>
+  <nav id="filters" class="filters" aria-label="Filter kandidata">
+    <div class="mobile-filter-head">
+      <strong>Filters</strong>
+      <button type="button" id="mobileFiltersClose">Done</button>
+    </div>
+    <span class="filter-group-label">Universe</span>
+    <button data-universe="all" class="active">All</button>
+    <button data-universe="bottom-fishing">Bottom</button>
+    <button data-universe="next">Next</button>
+    <button data-universe="ryan-original">Ryan</button>
+    <button data-universe="watchlist" id="watchlistUniverse">★ Watchlist (0)</button>
+
+    <span class="filter-group-label">Screens</span>
+    <button data-filter="none" class="active">Clear filters</button>
+    <button data-filter="crash-base">Crash Base</button>
+    <button data-filter="kell-any">Kell Hits</button>
+    <button data-filter="kell_52w_high">52W</button>
+    <button data-filter="kell_unusual_volume">Vol ≥2x</button>
+    <button data-filter="kell_rvol_3x">RVOL ≥3x</button>
+    <button data-filter="kell_rs_leader">RS Leader</button>
+    <button data-filter="kell_bull_snort">Bull Snort</button>
+    <button data-filter="kell_momentum_3m_50">3M +50%</button>
+    <button data-filter="kell_doubler_ytd">Doublers YTD</button>
+    <button data-filter="kell_gapper">Gappers</button>
+    <button data-filter="kell_strength_on_down_day">Strength ↓Day</button>
+
+    <span class="filter-group-label">Trend Birth Radar</span>
+    <button data-filter="tb:2">2/4 Watch Closely</button>
+    <button data-filter="tb:3">3/4 Ready</button>
+    <button data-filter="tb:4">4/4 Trigger</button>
+
+    <span class="filter-group-label">Birth Path Evidence</span>
+    <button data-filter="tb-path:recovery">Recovery</button>
+    <button data-filter="tb-path:compression">Compression</button>
+    <button data-filter="tb-path:ignition">Ignition</button>
+
+    <span class="filter-group-label">Kell Cycle Stage</span>
+    <button data-filter="stage:reversal_extension">Reversal Ext.</button>
+    <button data-filter="stage:wedge_pop">Wedge Pop</button>
+    <button data-filter="stage:ema_crossback">Crossback</button>
+    <button data-filter="stage:base_n_break">Base n' Break</button>
+    <button data-filter="stage:exhaustion_extension">Exhaustion</button>
+    <button data-filter="stage:wedge_drop">Wedge Drop</button>
+    <button data-filter="stage:trend_ema_support">Trend / EMA</button>
+    <button data-filter="stage:downtrend_repair">Repair</button>
+    <button data-filter="stage:transition">Transition</button>
+
+    <span class="filter-group-label">Setups</span>
+    <button data-filter="kell_buyable_gap_proxy">Buyable Gap</button>
+    <button data-filter="kell_wedge_pop">Wedge Pop setup</button>
+    <button data-filter="kell_ema_crossback">Crossback setup</button>
+    <button data-filter="kell_base_n_break">Base n' Break setup</button>
+    <button data-filter="kell_tightening">Tightening</button>
+    <button data-filter="kell_breakout_proximity">Near Breakout</button>
+
+    <span class="filter-group-label">Context</span>
+    <button data-filter="kell_focus">Kell Focus</button>
+    <button data-filter="kell_name_selection_ok">Kell Liquid</button>
+    <button data-filter="kell_growth_context">Growth</button>
+    <button data-filter="kell_rs_divergence">RS Divergence</button>
+    <button data-filter="kell_weekly_trend_ok">Weekly 10EMA</button>
+    <button data-filter="kell_ema_readiness">EMA Ready</button>
+    <button data-filter="kell-score">Kell ≥60</button>
+    <button data-filter="multi">Multi-hit</button>
+    <button data-filter="action">Action</button>
+  </nav>
+  <div id="mobileFilterBackdrop" class="mobile-filter-backdrop" hidden></div>
+  <div id="activeFilterBar" class="active-filter-bar" hidden aria-live="polite"></div>
+  <nav id="quickViews" class="quick-views" aria-label="Brzi pregledi">
+    <span class="quick-view-label">Quick</span>
+    <button type="button" data-quick-view="changed">Changed</button>
+    <button type="button" data-quick-view="ready">Ready</button>
+    <button type="button" data-quick-view="leaders">Leaders</button>
+    <button type="button" data-quick-view="breakout">Breakout</button>
+    <button type="button" data-quick-view="tbready">TB Ready</button>
+    <button type="button" data-quick-view="tbtrigger">TB Trigger</button>
+    <button type="button" data-quick-view="extended">Extended</button>
+    <button type="button" data-quick-view="reset">Reset</button>
+    <button type="button" id="mobileFiltersToggle" class="mobile-filter-toggle" aria-controls="filters" aria-expanded="false">Filters</button>
+  </nav>
+  <main>
+    <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <details class="market-summary" id="marketSummary">
+      <summary>EOD sažetak i povijest setupa</summary>
+    <section id="tbToday" class="tb-quality tb-intelligence" aria-labelledby="tbTodayTitle" hidden>
+      <div class="tb-quality-header">
+        <div>
+          <h2 id="tbTodayTitle">Trend Birth · Today's Opportunities</h2>
+          <p id="tbTodaySource">Provjeravam posljednje EOD očitanje…</p>
+        </div>
+        <span class="tb-intelligence-tag">EOD · 0–4/4</span>
+      </div>
+      <div id="tbTodayMetrics" class="tb-intelligence-metrics" aria-live="polite"></div>
+      <div class="tb-stability-header">
+        <h3>Trajnost setupa · potvrđena EOD očitanja</h3>
+        <small id="tbStabilitySource">Računam iz trajno sačuvane povijesti…</small>
+      </div>
+      <div id="tbTodayStability" class="tb-intelligence-metrics" aria-label="Trajnost setupa"></div>
+      <p id="tbStabilityRetention" class="tb-history-data-note"></p>
+      <div id="tbTodayCandidates" class="tb-opportunity-cards"></div>
+      <p class="tb-quality-footnote">Uzastopno znači uzastopne <em>spremljene EOD sesije</em>, ne kalendarske dane. Nedostupnost ili izostanak iz univerzuma prekida niz. Povijesni ostanak nije prognoza budućeg prinosa. Prijelazi se broje samo za tickere evaluirane u oba uzastopna skena; novi, uklonjeni ili nedostupni tickeri nisu automatski unaprijeđeni. Ovo su tehnički setupi, ne preporuke za kupnju.</p>
+    </section>
+    <div id="tbTickerJourney" class="tb-ticker-drill" hidden aria-live="polite"></div>
+    <section id="trendBirthQuality" class="tb-quality" aria-labelledby="tbQualityTitle" hidden>
+      <div class="tb-quality-header">
+        <div>
+          <h2 id="tbQualityTitle">Trend Birth · kvaliteta setupa</h2>
+          <p id="tbQualitySummary">Dnevni presjek analiziranih dionica</p>
+        </div>
+
+      </div>
+      <div id="tbQualityCounts" class="tb-quality-counts" aria-label="Broj dionica po Trend Birth stupnju"></div>
+      <div class="tb-quality-controls" aria-label="Postavke povijesnog grafa">
+        <div class="tb-stage-picker">
+          <div class="tb-control-title">Istakni razine <button type="button" id="tbStagesAll" class="tb-text-button">Sve</button> <button type="button" id="tbStagesQuality" class="tb-text-button">Istakni 3/4 + 4/4</button></div>
+          <div class="tb-stage-toggles" role="group" aria-label="Boje razina u složenom stupcu">
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="0" checked><span class="tb-stage-dot" data-stage="0"></span>0/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="1" checked><span class="tb-stage-dot" data-stage="1"></span>1/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="2" checked><span class="tb-stage-dot" data-stage="2"></span>2/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="3" checked><span class="tb-stage-dot" data-stage="3"></span>3/4</label>
+            <label class="tb-stage-toggle"><input type="checkbox" data-tb-stage="4" checked><span class="tb-stage-dot" data-stage="4"></span>4/4</label>
+          </div>
+        </div>
+          <div class="tb-history-view-controls">
+            <div class="tb-timeframe-options" role="group" aria-label="Agregacija povijesnih podataka">
+              <span class="tb-control-title">Interval</span>
+              <button type="button" data-tb-timeframe="D" aria-pressed="true">D</button>
+              <button type="button" data-tb-timeframe="W" aria-pressed="false">W</button>
+              <button type="button" data-tb-timeframe="M" aria-pressed="false">M</button>
+            </div>
+            <div class="tb-range-options" role="group" aria-label="Vremenski raspon povijesnog grafa">
+              <span class="tb-control-title">Povijest</span>
+              <button type="button" data-tb-range="1m" aria-pressed="false">1M</button>
+              <button type="button" data-tb-range="3m" aria-pressed="false">3M</button>
+              <button type="button" data-tb-range="1y" aria-pressed="false">1Y</button>
+              <button type="button" data-tb-range="5y" aria-pressed="false">5Y</button>
+              <button type="button" data-tb-range="all" aria-pressed="true">All</button>
+            </div>
+          </div>
+        <div class="tb-history-toolbar">
+          <div class="tb-zoom-options" role="group" aria-label="Raspon okomite osi povijesnog grafa">
+            <span class="tb-control-title">Zoom</span>
+            <button type="button" data-tb-zoom="25" aria-pressed="false">0–25 %</button>
+            <button type="button" data-tb-zoom="50" aria-pressed="false">0–50 %</button>
+            <button type="button" data-tb-zoom="75" aria-pressed="false">0–75 %</button>
+            <button type="button" data-tb-zoom="100" aria-pressed="true">0–100 %</button>
+          </div>
+          <label class="tb-percentile-selector" for="tbPercentileMetric">Povijesni percentil
+            <select id="tbPercentileMetric">
+              <option value="3+">3/4 + 4/4</option>
+              <option value="selected">Označene razine</option>
+              <option value="0">0/4</option><option value="1">1/4</option>
+              <option value="2">2/4</option><option value="3">3/4</option>
+              <option value="4">4/4</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="tbQualityHistory" class="tb-quality-history" aria-live="polite">Učitavam povijest…</div>
+      <div id="tbTickerDrill" class="tb-ticker-drill" hidden>
+        <div class="tb-quality-header">
+          <div>
+            <h3>Tickere iza povijesnog stupca</h3>
+            <p id="tbDrillPeriod">Odaberi stupac na grafu.</p>
+          </div>
+          <label class="tb-percentile-selector" for="tbDrillStage">Razina
+            <select id="tbDrillStage">
+              <option value="4">4/4 · zeleno</option>
+              <option value="3">3/4 · svijetlozeleno</option>
+              <option value="2">2/4 · žuto</option>
+              <option value="1">1/4 · narančasto</option>
+              <option value="0">0/4 · crveno</option>
+            </select>
+          </label>
+        </div>
+        <div id="tbDrillResults" class="tb-drill-results" aria-live="polite"></div>
+      </div>
+      <p class="tb-quality-footnote">Unified kandidati + praćena watchlista. D je jedno EOD očitanje; W i M ponderirani su prosjeci dnevnih raspodjela (dionica-dani, ne jedinstvene dionice). Svaki stupac zbraja se na 100 %, nedostupni podaci nisu 0/4. Zoom skraćuje samo vidljivu os, a percentil se uspoređuje s ranijim očitanjima istog intervala, čak i izvan odabranog raspona. All prikazuje cijelu sačuvanu povijest; nema automatskog brisanja starih očitanja.</p>
+    </section>
+    </details>
+    <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
+    <section id="grid" class="grid" aria-live="polite"></section>
+  </main>
+  <dialog id="detail">
+    <div class="detail-toolbar" aria-label="Navigacija kroz kandidate">
+      <button type="button" id="prevDetail" class="detail-arrow" aria-label="Prethodni kandidat">←</button>
+      <div class="detail-toolbar-center">
+        <strong id="detailToolbarTicker">—</strong>
+        <span id="detailPosition">—</span>
+      </div>
+      <button type="button" id="nextDetail" class="detail-arrow" aria-label="Sljedeći kandidat">→</button>
+      <button id="closeDetail" class="close" aria-label="Zatvori">×</button>
+    </div>
+    <div id="detailBody"></div>
+  </dialog>
+  <dialog id="installDialog" class="install-dialog" aria-labelledby="installTitle">
+    <form method="dialog"><button class="close" aria-label="Zatvori upute za instalaciju">×</button></form>
+    <img src="icons/trendbirth-192.png" alt="" width="64" height="64">
+    <h2 id="installTitle">Trend Birth na mobitelu</h2>
+    <p>Dodaj aplikaciju na početni zaslon za otvaranje u vlastitom prozoru.</p>
+    <p id="installInstructions"></p>
+    <p class="install-note">Za aktualne skenove i grafikone potrebna je internetska veza. Lokalna watchlista ostaje u ovom pregledniku; za postojeću sinkronizaciju koristi isti owner račun.</p>
+    <button type="button" id="confirmInstall" class="install-confirm" hidden>Instaliraj Trend Birth</button>
+    <p id="installResult" role="status"></p>
+  </dialog>
+  <script src="pwa.js?v=1" defer></script>
+  <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
+  <script src="watchlist-store.js?v=reviewfixes-20261026"></script>
+  <script src="owner-watchlist-sync.js?v=reviewfixes-20261026"></script>
+  <script src="snapshot-loader.js?v=ticker-watchlist-20261118"></script>
+  <script src="trend-birth-quality.js?v=dwm-history-20261024"></script>
+  <script src="trend-birth-intelligence.js?v=intelligence-20261024"></script>
+  <script src="kell-dataset-loader.js?v=reviewfixes-20261026"></script>
+  <script src="kell-change-detector.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js?v=review-plan-chart-20261118" defer></script>
+</body>
+</html>

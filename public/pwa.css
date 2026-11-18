@@ -1,0 +1,37 @@
+/* Installable mobile shell; review, chart and watchlist state live in app.js. */
+[hidden].install-app,[hidden].app-notice,[hidden].install-confirm{display:none}
+.app-brand{min-width:0}
+.card-head>.badges{align-self:center}
+.app-heading{display:flex;align-items:center;gap:12px}
+#runMeta{overflow-wrap:anywhere}
+.install-app,.app-notice button,.install-confirm{border:1px solid #276a4d;border-radius:9px;padding:9px 12px;min-height:44px;background:#17392b;color:var(--text);cursor:pointer;font-weight:600}
+.install-app{white-space:nowrap;font-size:12px}
+.app-notice{padding:10px 16px;border-bottom:1px solid #705a2b;background:#241f15;color:var(--amber);font-size:13px}
+.app-notice button{margin-left:8px}
+.install-dialog{max-width:420px;padding:24px;line-height:1.6}
+.install-dialog>img{display:block;border-radius:16px}
+.install-dialog h2{font-size:21px;margin:16px 0 8px}
+.install-dialog p{color:var(--muted)}
+.install-dialog #installInstructions{color:var(--text)}
+.install-dialog .install-note{font-size:12px}
+.install-dialog .install-confirm{width:100%}
+.install-dialog #installResult:empty{display:none}
+.install-dialog .close{min-width:44px;min-height:44px}
+button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+body{padding-bottom:env(safe-area-inset-bottom,0px)}
+.topbar{padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media(max-width:720px){
+  .topbar{display:block;padding:calc(10px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 10px max(10px,env(safe-area-inset-left,0px))}
+  .app-heading{justify-content:space-between;gap:8px}
+  .topbar strong{font-size:16px}
+  #runMeta{font-size:11px;margin-top:3px}
+  .top-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
+  .top-controls>select,.top-controls>input{width:100%;max-width:none;min-width:0;min-height:44px;font-size:16px;padding:9px}
+  .owner-sync>summary{min-height:44px;text-align:center;font-size:13px;padding:11px 5px}
+  .owner-sync-popover{top:calc(12px + env(safe-area-inset-top,0px));max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+  .owner-sync-popover input{font-size:16px}
+  .filters{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  .watch-star{display:grid;place-items:center;min-width:44px;min-height:44px}
+  .app-notice{padding:10px}
+  .app-notice button{display:block;margin:8px 0 0}
+}

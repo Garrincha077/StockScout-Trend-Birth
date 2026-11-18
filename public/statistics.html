@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111d">
+  <meta name="description" content="StockScout Trend Birth — statistika kvalitete svih setupa i povijesni prijelazi.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=recovery-20261026">
+  <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
+  <title>Statistika · StockScout Trend Birth</title>
+</head>
+<body class="statistics-page">
+  <header class="topbar"><div class="app-brand">
+    <div class="app-heading"><strong>Trend Birth Review Lab</strong></div>
+    <span>Market Internals · cijeli skup praćenih setupa</span>
+  </div><div class="top-controls"><a class="si-back" href="index.html">← Dnevni pregled</a></div></header>
+  <nav class="workspace-tabs" aria-label="Glavni tabovi">
+    <a href="index.html">Pregled kandidata</a>
+    <a href="statistics.html" class="active" aria-current="page">Statistika</a>
+  </nav>
+  <main class="si-main">
+    <p id="eodFreshness" class="eod-freshness" role="status">Provjeravam svježinu EOD objave…</p>
+    <div id="siStatus" role="status">Učitavam sažetu arhivu očitanja…</div>
+    <div class="si-title-row">
+      <div><h1>Market Internals</h1><p>Širina, ubrzanje i migracija svih 0/4–4/4 setupa — bez dodatnog skeniranja.</p></div>
+      <div id="siRegime" class="si-regime" aria-live="polite">—</div>
+    </div>
+    <p id="siLatest" class="si-muted" aria-live="polite"></p>
+    <section class="si-kpis" aria-label="Pokazatelji zadnjeg EOD očitanja">
+      <article class="si-card si-heat-card" id="siQualityCard"><h2>Quality breadth 3+/4</h2><strong id="siQuality">—</strong><small id="siQualitySub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siPressureCard"><h2>Setup pressure 0–100</h2><strong id="siPressure">—</strong><small id="siPressureSub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siFourCard"><h2>Udio potpuno spremnih 4/4</h2><strong id="siFour">—</strong><small id="siFourSub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card si-heat-card" id="siPersistenceCard"><h2>Trajnost 3+/4 · 10 EOD</h2><strong id="siPersistence">—</strong><small id="siPersistenceSub"></small><span class="si-heat-pill">—</span></article>
+      <article class="si-card"><h2>Velocity 3+/4</h2><strong id="siVelocity">—</strong><small id="siVelocitySub"></small></article>
+      <article class="si-card"><h2>Acceleration 3+/4</h2><strong id="siAcceleration">—</strong><small id="siAccelerationSub"></small></article>
+      <article class="si-card"><h2>Neto priljev u 3+/4</h2><strong id="siNetFlow">—</strong><small id="siNetFlowSub"></small></article>
+      <article class="si-card"><h2>Percentil zadnjeg EOD</h2><strong id="siPercentile">—</strong><small id="siPercentileSub"></small></article>
+      <article class="si-card"><h2>Preklapanje univerzuma</h2><strong id="siCoverage">—</strong><small id="siCoverageSub"></small></article>
+    </section>
+    <p id="siRegimeDesc" class="si-muted"></p>
+    <section class="si-panel si-heat-panel" aria-labelledby="siHeatTitle">
+      <div class="si-heat-heading">
+        <div><h2 id="siHeatTitle">Market Thermometer · temperatura Trend Birth setupa</h2>
+          <p class="si-muted">Zeleno = relativno hladno, crveno = pregrijano. Temperatura nije isto što i kvaliteta ulaznog signala.</p></div>
+        <span class="si-heat-label" id="siHeatLabel">Čeka povijest</span>
+      </div>
+      <div class="si-kpis si-heat-kpis">
+        <article class="si-card"><h3>Temperatura 0–100</h3><strong id="siHeatScore">—</strong><small id="siHeatConfidence">Provjeravam povijesnu pokrivenost…</small></article>
+        <article class="si-card"><h3>Dinamika setupa · −100…+100</h3><strong id="siHeatMomentum">—</strong><small id="siHeatMovement">—</small></article>
+      </div>
+      <p id="siHeatCoverage" class="si-muted"></p>
+      <div class="si-heat-scale" role="img" aria-label="Pet jednakih temperaturnih zona: 0–20 vrlo hladno, 20–40 hladno, 40–60 neutralno, 60–80 vruće, 80–100 pregrijano">
+        <span>0–20<br>Vrlo hladno</span><span>20–40<br>Hladno</span><span>40–60<br>Neutralno</span><span>60–80<br>Vruće</span><span>80–100<br>Pregrijano</span>
+      </div>
+      <div class="si-heat-history">
+        <h3>Povijesni graf temperature · stvarni EOD</h3>
+        <div class="si-controls"><label>Razdoblje <select id="siHeatRange">
+          <option value="1m">1 mjesec</option><option value="3m">3 mjeseca</option>
+          <option value="1y">1 godina</option><option value="5y">5 godina</option>
+          <option value="all" selected>Sva povijest</option>
+        </select></label></div>
+        <p id="siHeatSyncStatus" class="si-muted">Grafovi koriste istu kalendarsku os i dijele odabrani EOD datum i raspon.</p>
+        <p id="siHeatChartMeta" class="si-muted"></p>
+        <div class="si-chart si-heat-chart" id="siHeatChart" role="region" tabindex="0"
+          aria-label="Temperatura svih stvarnih EOD očitanja u pet jednakih zona"></div>
+        <div class="si-composite-inspect">
+          <label for="siHeatPoint">Odaberi EOD na grafu temperature</label>
+          <input type="range" id="siHeatPoint" min="0" max="0" value="0" step="1">
+          <p id="siHeatSelected" aria-live="polite"></p>
+        </div>
+        <h3>Razrada temperaturnog bodovanja · odabrani EOD</h3>
+        <p id="siHeatFormula" class="si-muted"></p>
+        <div class="si-table-scroll"><table class="si-matrix si-factor-table" id="siHeatFactorTable">
+          <caption class="sr-only">Povijesni percentili, bazne i aktivne težine, doprinosi Market Thermometera</caption>
+        </table></div>
+        <p id="siHeatDynamics" class="si-muted"></p>
+      </div>
+      <aside class="si-note">Market Thermometer koristi isključivo stvarne arhivirane Trend Birth setupove i ranije dostupna opažanja. Prag za izračun je najmanje 12 prethodnih EOD-a po temeljnom faktoru; 12–59 opažanja označeno je kao preliminarno. Nedostajuće burzovne sesije nisu rekonstruirane. Povijesni ETF proxy Composite Scorea odvojen je univerzum i tada se grafovi ne povezuju. Ovo nije indikator procjene vrijednosti tržišta ni dokazan signal za trgovanje.</aside>
+    </section>
+    <section class="si-panel" aria-labelledby="siCompositeTitle">
+      <h2 id="siCompositeTitle">Composite Score · povijesni walk-forward backtest</h2>
+      <p id="siCompositeStatus" class="si-muted">Učitavam validaciju kroz povijesne tržišne režime…</p>
+      <div class="si-kpis">
+        <article class="si-card"><h2>Composite Score 0–100</h2><strong id="siCompositeScore">—</strong><small id="siCompositeScoreSub"></small></article>
+        <article class="si-card"><h2>Izvanuzorački rezultat · H20</h2><strong id="siCompositeSpread">—</strong><small id="siCompositeSpreadSub"></small></article>
+        <article class="si-card"><h2>Uzorak testa</h2><strong id="siCompositeSample">—</strong><small id="siCompositeSampleSub"></small></article>
+      </div>
+      <p id="siCompositeFactors" class="si-muted"></p>
+      <div class="si-composite-detail">
+        <h3>Povijesni graf Composite Scorea</h3>
+        <div class="si-controls" aria-label="Prikaz povijesti Composite Scorea">
+          <label>Izvor serije <select id="siCompositeSeries">
+            <option value="actual" selected>Stvarni Trend Birth EOD</option>
+            <option value="proxy">ETF proxy · povijesni OOS</option>
+          </select></label>
+          <label>Razdoblje <select id="siCompositeRange">
+            <option value="1m">1 mjesec</option><option value="3m">3 mjeseca</option>
+            <option value="1y">1 godina</option><option value="5y">5 godina</option>
+            <option value="all" selected>Sva dostupna povijest</option>
+          </select></label>
+        </div>
+        <p id="siCompositeChartMeta" class="si-muted"></p>
+        <div id="siCompositeChart" class="si-chart si-composite-chart" role="region"
+             aria-label="Povijesni linijski graf Composite Scorea od 0 do 100" tabindex="0"></div>
+        <div class="si-composite-inspect">
+          <label for="siCompositePoint">Odaberi povijesno očitanje</label>
+          <input id="siCompositePoint" type="range" min="0" max="0" value="0" step="1">
+          <p id="siCompositeSelected" aria-live="polite"></p>
+        </div>
+        <h3 id="siCompositeFactorTitle">Razrada bodovanja · odabrani EOD</h3>
+        <p id="siCompositeFormula" class="si-muted"></p>
+        <div class="si-table-scroll"><table id="siCompositeFactorTable" class="si-matrix si-factor-table">
+          <caption class="sr-only">Sirove vrijednosti, povijesni percentili, smjer, težine i doprinos pojedinog faktora Composite Scoreu</caption>
+        </table></div>
+        <p id="siCompositeScoringCaveat" class="si-muted"></p>
+        <details class="si-composite-definitions">
+          <summary>Kako se računa svaki faktor?</summary>
+          <ul>
+            <li><strong>Širina:</strong> udio dionica u fazi 3/4 ili 4/4 (ETF test: udio fondova u proxy fazi ≥ 3).</li>
+            <li><strong>Pressure:</strong> prosječna faza podijeljena s 4, prikazana kao postotak 0–100.</li>
+            <li><strong>Brzina:</strong> linearni nagib širine kroz zadnjih pet zabilježenih sesija, u pp/EOD.</li>
+            <li><strong>Akceleracija:</strong> razlika trenutačnog petodnevnog nagiba i nagiba prethodnog odvojenog petodnevnog prozora.</li>
+            <li><strong>Neto pomak:</strong> promjena kvalitete među istim usporedivim dionicama; ETF proxy koristi promjenu ukupne širine u odnosu na prethodni dan.</li>
+            <li><strong>Trajnost:</strong> prosjek širine u posljednjih deset EOD očitanja, uključujući promatrani dan.</li>
+          </ul>
+          <p>Svaki se faktor pretvara u percentil na najviše 252 <em>prethodna</em> opažanja. Kad nema barem 12 prethodnih valjanih vrijednosti, koristi se neutralnih 50 i to se označava u tablici.</p>
+          <p>Profil <strong>Recovery</strong> posebno obrće širinu i pressure: niža vrijednost ta dva faktora može povećati ukupni Score. To je hipoteza o oporavku iz slabosti, a ne dokaz da je rast započeo.</p>
+        </details>
+      </div>
+      <h3>Rezultati po tržišnim režimima</h3>
+      <div class="si-table-scroll"><table class="si-matrix" id="siCompositeRegimes">
+        <caption class="sr-only">Realizirani prinosi SPY-a 20 trgovinskih dana kasnije, prema povijesnom kvartilu composite scorea</caption>
+      </table></div>
+      <p id="siCompositeMethod" class="si-muted"></p>
+      <aside class="si-note"><strong>Ogranicenje:</strong> test koristi <strong>14 unaprijed odabranih ETF-ova</strong> i rekonstrukciju na temelju prilagođenih dnevnih zatvaranja, a <strong>ne</strong> stvarne povijesne StockScout signale ni potpuni povijesni stock-univerzum. Godisnja optimizacija koristi samo prethodno zavrsene ishode. Score na danasnjoj listi prenosi te težine na znatno kraću stvarnu EOD arhivu. Rezultati nisu dokaz trgovačke prednosti ni preporuka za ulaz.</aside>
+    </section>
+    <section class="si-panel" aria-labelledby="siForwardTitle">
+      <h2 id="siForwardTitle">Stvarni ishodi nakon ulaska u fazu · 5D / 20D / 60D</h2>
+      <p id="siForwardStatus" class="si-muted">Učitavam rezultate arhiviranih prelazaka u nove faze…</p>
+      <p id="siForwardSummary" class="si-muted"></p>
+      <p id="siForwardQuality" class="si-muted" aria-live="polite"></p>
+      <div class="si-table-scroll"><table class="si-matrix si-forward-table" id="siForwardTable">
+        <caption class="sr-only">Povijesni stvarni prinosi dionica nakon prelaska u svaku Trend Birth fazu</caption>
+      </table></div>
+      <p class="si-muted">Prijelaz se računa kad je ticker evaluiran u dvije uzastopne sesije. Mjerenje počinje na <strong>zatvaranju sljedeće sesije</strong> i traje 5, 20 ili 60 sesija. Izračun koristi trajno arhivirane EOD cijene i evidentirane korporativne akcije kad aktivna objava sadrži taj izvještaj. Troškovi trgovanja izostavljeni su iz ovog prikaza.</p>
+      <details id="siRecovery" class="si-composite-definitions">
+        <summary>Usporedi V2 i rekonstruirani V3 · stanje 23.10.2026.</summary>
+        <p id="siRecoveryStatus" role="status">Usporedba se učitava pri otvaranju.</p>
+        <div id="siRecoveryContent" hidden>
+          <p class="si-muted">Zamrznuta usporedba na isti datum prije i nakon rekonstrukcije sesija 15. i 19. listopada.</p>
+          <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix si-recovery-coverage"><caption>Pokrivenost povijesnih podataka</caption></table></div>
+          <div class="si-controls"><label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label></div>
+          <p class="si-muted">Tablicu ishoda možeš pomicati vodoravno za prikaz svih stupaca.</p>
+          <div class="si-table-scroll"><table id="siRecoveryTable" class="si-matrix"><caption>Ishodi po fazama · V2 i V3</caption></table></div>
+          <p class="si-note">V3 uključuje naknadno rekonstruirane sesije. Watchlista se temelji na posljednjem sačuvanom prethodnom EOD-u; točno članstvo na dva nedostajuća dana nije poznato. Nedostupne cijene ostaju prazne. Razlike u prinosima odražavaju i promijenjen skup prijelaza te nisu dokaz poboljšanja modela. Korporativne akcije, delistinzi i neovisni test ostaju otvoreni. V3 nije aktiviran za glavni prikaz ni kalibraciju bodovanja.</p>
+        </div>
+      </details>
+    </section>
+    <section class="si-panel" id="siEarly" aria-labelledby="siEarlyTitle" hidden>
+      <h2 id="siEarlyTitle">Trend Birth · provjera ranih upozorenja</h2>
+      <p id="siEarlyLead" class="si-muted"></p>
+      <p class="si-muted">Vodeći ticker završava među najboljih 10% evaluiranih dionica s dostupnim cijenama za isti datum signala i isti horizont. Prikaz prati nove ulaske na listu. Prinos se mjeri od sljedećeg zatvaranja, uz jednaku težinu svakog dana sa signalom.</p>
+      <div class="si-table-scroll"><table class="si-matrix" id="siEarlyTable">
+        <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
+      </table></div>
+    </section>
+    <section class="si-panel" aria-labelledby="siChartTitle">
+      <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
+      <div class="si-controls">
+        <label>Razdoblje <select id="siRange" aria-label="Povijesni raspon">
+          <option value="1m" selected>1 mjesec</option><option value="3m">3 mjeseca</option>
+          <option value="1y">1 godina</option><option value="5y">5 godina</option>
+          <option value="all">Sva povijest</option>
+        </select></label>
+        <label>Interval <select id="siAggregation" aria-label="Agregacija povijesti">
+          <option value="D" selected>D · dan</option><option value="W">W · tjedan</option><option value="M">M · mjesec</option>
+        </select></label>
+        <label>Pokazatelj <select id="siMetric" aria-label="Pokazatelj povijesti">
+          <option value="qualityBreadthPct" selected>3+/4 širina</option>
+          <option value="pressurePct">Setup pressure</option>
+          <option value="fourBreadthPct">4/4 širina</option>
+          <option value="velocityPp">Velocity 3+/4</option>
+          <option value="accelerationPp">Acceleration 3+/4</option>
+        </select></label>
+        <label>Zoom osi <select id="siZoom" aria-label="Gornja granica grafa">
+          <option value="25" selected>0–25%</option><option value="50">0–50%</option>
+          <option value="75">0–75%</option><option value="100">0–100%</option>
+        </select></label>
+        <label>Nagib prozor <select id="siWindow" aria-label="EOD prozor brzine i akceleracije">
+          <option value="3">3 EOD</option><option value="5" selected>5 EOD</option>
+          <option value="10">10 EOD</option><option value="20">20 EOD</option>
+        </select></label>
+      </div>
+      <p id="siChartMeta" class="si-muted"></p>
+      <div id="siChart" class="si-chart" role="region" aria-label="Graf povijesti setupa" tabindex="0"></div>
+      <p class="si-muted">Pri zumiranju pozitivnih postotnih pokazatelja stupci koji prelaze granicu prikazuju se do vrha osi (crvena točka). Za velocity/acceleration os je simetrična i automatska. Percentil se uspoređuje sa <strong>svim ranijim valjanim dnevnim očitanjima</strong> istog pokazatelja, ne samo s vidljivim razdobljem.</p>
+    </section>
+    <section class="si-panel" aria-labelledby="siMatrixTitle">
+      <h2 id="siMatrixTitle">Matrica prijelaza: prethodni EOD → sljedeći EOD</h2>
+      <p id="siMatrixMeta" class="si-muted"></p>
+      <div class="si-table-scroll"><table id="siMatrix" class="si-matrix"><caption class="sr-only">Postotak prijelaza među fazama 0/4 do 4/4</caption></table></div>
+      <p id="siFlows" class="si-muted"></p>
+      <p id="siPressureDynamics" class="si-muted"></p>
+      <p class="si-muted">Matrica prati <strong>iste evaluirane tickere</strong> u dva uzastopna sačuvana EOD očitanja. Novi, nestali i nedostupni tickeri isključeni su iz prijelaza, ali su vidljivi u pokazatelju pokrivenosti. Postotci u matrici su ponderirani brojem ticker-prijelaza, ne brojem dana.</p>
+    </section>
+    <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
+  </main>
+  <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
+  <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
+  <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=early-outcomes-20261118" defer></script>
+</body>
+</html>
