@@ -1,6 +1,7 @@
 const {test,before,after}=require('node:test');
 const assert=require('node:assert/strict');
 const {createServer}=require('node:http');
+const {createHash}=require('node:crypto');
 const {readFile}=require('node:fs/promises');
 const {resolve,sep,extname}=require('node:path');
 const {gzipSync}=require('node:zlib');
@@ -106,6 +107,56 @@ test('Trend Birth opens directly to dated evidence, invalidation and chart',asyn
   assert.match(await page.locator('#grid').innerText(),new RegExp(bootstrap.source.sessionDate));
   assert.equal(await page.locator('#grid canvas').count(),1);
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
+});
+
+test('nonempty Watchlist resolves saved symbols only and retains them after a failed ticker request',async t=>{
+  const page=await pageFor(t),requests=[];
+  const bucket=ticker=>Array.from(ticker).reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);
+  const selected=['AAA','MISSING'];
+  await page.addInitScript(tickers=>{
+    localStorage.setItem('stockscout.review.watchlist.v1',JSON.stringify({items:tickers}));
+  },selected);
+  page.on('request',request=>requests.push(request.url()));
+  const chartBase='data/kell-chart-runs/read-only-test';
+  const watchBase='data/watchlist-runs/'+manifest.snapshotId;
+  const schemaVersion='trend-birth-watchlist-bucket-v1';
+  const buckets=Array.from({length:64},(_,number)=>JSON.stringify({
+    schemaVersion,source:bootstrap.source,snapshotId:manifest.snapshotId,bucket:number,
+    rows:number===bucket('AAA')?{AAA:{ticker:'AAA',metrics:{price:42},chartShard:1}}:{}
+  }));
+  const digests=buckets.map(payload=>createHash('sha256').update(payload).digest('hex'));
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{...manifest,watchlist:{
+    schemaVersion,basePath:watchBase,chartBasePath:chartBase,sha256:digests
+  }}}));
+  let fail=true;
+  await page.route('**/data/watchlist-runs/**/*.json',route=>{
+    const number=Number.parseInt(new URL(route.request().url()).pathname.split('/').at(-1),16);
+    if(number===bucket('AAA')&&fail)return route.fulfill({status:503});
+    return route.fulfill({contentType:'application/json',body:buckets[number]});
+  });
+  await page.route('**/'+chartBase+'/shard-001.json',route=>route.fulfill({json:{
+    schemaVersion:'kell-chart-shard-v2',source:bootstrap.source,charts:{AAA:{daily:[
+      ['2026-11-16',40,43,39,41,100],['2026-11-17',41,43,40,42,130]
+    ]}}
+  }}));
+  await page.goto(base+'/');
+  await page.waitForSelector('#grid .card');
+  assert.equal(requests.some(url=>url.includes('/data/watchlist-runs/')),false);
+  await page.locator('[data-primary-view="watchlist"]').click();
+  const retry=page.getByRole('button',{name:'Ponovi učitavanje'});
+  await retry.waitFor({timeout:5000}).catch(async error=>{
+    throw new Error((await page.locator('#status').innerText())+' '+JSON.stringify(requests.filter(url=>url.includes('/data/'))),{cause:error});
+  });
+  assert.equal(await page.locator('#grid .card').count(),2);
+  fail=false;
+  const chartRequest=page.waitForRequest('**/shard-001.json');
+  await retry.click();
+  await page.getByText('Nema podataka za ticker u prikazanom EOD-u.').waitFor();
+  await chartRequest;
+  assert.match(await page.locator('.card[data-ticker="AAA"]').innerText(),/42\.00/);
+  assert.match(await page.locator('.card[data-ticker="MISSING"]').innerText(),/Nema podataka/);
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('/data/kell-latest')),false);
+  assert.equal(new Set(requests.filter(url=>url.includes('/data/watchlist-runs/'))).size,2);
 });
 
 test('visible again: incomplete update preserves the old snapshot, complete update replaces it',async t=>{

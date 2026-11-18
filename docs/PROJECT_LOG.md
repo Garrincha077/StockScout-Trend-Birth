@@ -713,3 +713,10 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Added a transparent early repair shortlist, archived EOD memberships, maturing 20/63/126/252-session outcomes and a separate mobile view. This adds a discovery ranking. Existing Daily, Weekly and Kell ranking definitions are preserved.
 - Replay of the pinned Nov17 data produced 36 observation dates, median early lead 6 sessions in 38 matched daily names, and 10/122 top-decile outcomes at 20 sessions. Historical snapshots retain partial coverage, late chart revisions and incomplete market-action information. Details, competing cohorts and reproduction appear in docs/REVIEW_REBUILD_VALIDATION.md.
 - Local validation passed 234 Python excluding the Linux shell fixture, 113 Node and 14 Chromium tests. Next: ticker-scoped Watchlist, installable preview and end-to-end release validation.
+
+## 2026-11-18 — Ticker-scoped Watchlist activation
+
+- Verified locally at 13:16 Europe/Zagreb. Draft PR #76. Previous feature head 0da6dce passed CI in run 44300636976, including the actual read-only data build.
+- Added immutable, individually checksummed Watchlist buckets and reused the exact Kell chart archive. Watchlist membership remains in the existing browser/account store. Serving a prior archive needs no new lookup index. Partial request, retry, missing and tracked-only cases remain explicit.
+- The EOD publisher builds the buckets and verifies path, digest, source, ticker counts and chart references after restoring the bundle. It stages the data and pointer together. The PWA worker advances its install-art cache while keeping market data network-only.
+- Local validation: 235 Python outside the Linux shell fixture, 113 Node, 15 Chromium. Next: installable preview and direct before/after mobile network measurements.

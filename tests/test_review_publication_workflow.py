@@ -50,6 +50,7 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                          "archive_trend_birth_closes.py", "trend_birth_intelligence.py",
                          "validate_unified_review_bundle.py",
                          "pack_review_storage.py", "review_archive_io.py", "market_sessions.py",
+                         "publish_watchlist_snapshot.py", "build_kell_compact.py", "kell_chart_coverage.py",
                          "publish_review_snapshot.py", "publish_review_research.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")

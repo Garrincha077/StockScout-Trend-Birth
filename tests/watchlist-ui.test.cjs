@@ -47,7 +47,7 @@ test('cards expose an accessible star toggle without opening the detail card',()
 
 test('saved tickers survive disappearance from the current daily scan',()=>{
   assert.match(app,/watchlistMissing:true/);
-  assert.match(app,/Nije u današnjem Unified scanu/);
+  assert.match(app,/Nema podataka za ticker u prikazanom EOD-u/);
   assert.match(app,/state\.kellData\?\.trendBirthCandidateIndex\|\|state\.data\?\.trendBirthCandidateIndex/);
   assert.match(app,/tracked\.get\(saved\.ticker\)\|\|unified\.get\(saved\.ticker\)/);
   assert.match(app,/current\?\.trackedWatchlist&&current\?\.chartBars\?\.length\?current\.chartBars/);

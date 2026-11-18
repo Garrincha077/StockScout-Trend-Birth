@@ -28,7 +28,7 @@ function workerHarness() {
     },
     caches: {
       open: async () => cache,
-      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1'],
+      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1', 'trendbirth-install-v2'],
       delete: async key => { deleted.push(key); }
     },
     fetch: async request => {
@@ -83,14 +83,14 @@ test('installation precaches only artwork, manifest and offline screen', async (
 test('activation removes only older Trend Birth install caches', async () => {
   const worker = workerHarness();
   await worker.lifecycle('activate');
-  assert.deepEqual(worker.deleted, ['trendbirth-install-v0']);
+  assert.deepEqual(worker.deleted, ['trendbirth-install-v0', 'trendbirth-install-v1']);
   await worker.lifecycle('message', {type: 'ACTIVATE_UPDATE'});
   assert.equal(worker.activated(), true);
 });
 
 test('current publication, immutable snapshots, auth and app scripts bypass caches', async () => {
   const worker = workerHarness();
-  for (const resource of ['data/publication.json', 'data/latest.json', 'data/snapshots/exact.json', 'data/kell-latest.json', 'data/kell-charts/AAPL.json', 'config.js', 'app.js', 'owner-watchlist-sync.js', 'auth/callback?code=secret']) {
+  for (const resource of ['data/publication.json', 'data/latest.json', 'data/snapshots/exact.json', 'data/watchlist-runs/exact/01.json', 'data/kell-latest.json', 'data/kell-charts/AAPL.json', 'config.js', 'app.js', 'owner-watchlist-sync.js', 'auth/callback?code=secret']) {
     assert.equal(await worker.request(worker.scope + resource), undefined, resource);
   }
   assert.equal(await worker.request('https://auth.example.test/token'), undefined);

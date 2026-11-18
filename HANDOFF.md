@@ -1,3 +1,10 @@
+## 2026-11-18 — Watchlist ticker lookups and PWA update
+
+- Last verified locally 2026-11-18 13:16 Europe/Zagreb on `codex/review-lab-rebuild` (draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76)). The previous head's Linux, browser and real-source build checks passed in [run 44300636976](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44300636976).
+- New EOD publications attach exactly 64 bounded, hashed ticker lookup buckets. The current Watchlist only requests buckets for saved tickers and visible chart shards pinned to the same Review snapshot. A failed refresh keeps the prior published rows. Older archives and older publication manifests use their existing snapshot format.
+- Local checks passed 235 Python outside the Linux shell fixture, 113 Node and 15 Chromium. Cases include failed ticker lookup and retry, missing symbol, no full current archive download, and additive PWA worker cache migration.
+- Next: stage an isolated installable Vercel preview using rebuilt data, compare current mobile transfers to the baseline, and record the approval and rollback procedure.
+
 ## 2026-11-18 — Early Trend Birth and outcome cohorts
 
 - Last verified locally 2026-11-18 13:04 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).

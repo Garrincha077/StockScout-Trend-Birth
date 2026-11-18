@@ -13,6 +13,15 @@
     if (!response.ok) throw new Error('Snapshot nije dostupan (HTTP ' + response.status + ').');
     return decoded(response, path);
   }
+  async function verifiedJson(fetcher,path,hash,label) {
+    const response=await fetcher(path,{cache:'no-store'});
+    if(!response.ok)throw Error(label+' · HTTP '+response.status);
+    const bytes=await response.arrayBuffer();
+    const sum=new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256',bytes));
+    const digest=Array.from(sum,byte=>byte.toString(16).padStart(2,'0')).join('');
+    if(digest!==hash)throw Error(label+' · kontrolni zbroj ne odgovara objavi.');
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
   async function exactArchive(fetcher, base) {
     const path = base + '.json';
     const response = await fetcher(path, {cache: 'no-store'});
@@ -103,13 +112,7 @@
         publication.sessionDate !== expectedDate || publication.runId !== expectedRun) {
       throw new Error('Izvještaji i trenutno prikazani podaci nisu usklađeni.');
     }
-    const response = await fetcher(path, {cache: 'no-store'});
-    if (!response.ok) throw new Error('Izvještaji nisu dostupni (HTTP ' + response.status + ').');
-    const bytes = await response.arrayBuffer();
-    const sum = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', bytes));
-    const digest = [...sum].map(byte => byte.toString(16).padStart(2, '0')).join('');
-    if (digest !== ref.sha256) throw new Error('Kontrolni zbroj izvještaja nije točan.');
-    const artifact = aligned(JSON.parse(new TextDecoder().decode(bytes)), publication);
+    const artifact=aligned(await verifiedJson(fetcher,path,ref.sha256,'Izvještaji'),publication);
     if (artifact.schemaVersion !== ref.schemaVersion || artifact.reviewSnapshotId !== publication.snapshotId ||
         !artifact.reports?.trendBirthForward || !artifact.reports?.kellForward) {
       throw new Error('Neispravni izvještaji objave.');
@@ -123,6 +126,40 @@
     aligned(full,data.source);
     return full;
   }
-  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports};
+  const watchlistSchema='trend-birth-watchlist-bucket-v1';
+  const watchlistBucket=ticker=>new TextEncoder().encode(ticker).reduce((index,byte)=>(index*31+byte)%64,0);
+  async function loadWatchlist(fetcher,manifest,tickers,cache) {
+    const ref=manifest?.watchlist;
+    if(!ref)throw Error('Objava nema indeks Watchliste.');
+    const base='data/watchlist-runs/'+manifest.snapshotId;
+    if(!validId(manifest.snapshotId)||ref.schemaVersion!==watchlistSchema||ref.basePath!==base||
+        !Array.isArray(ref.sha256)||ref.sha256.length!==64||ref.sha256.some(hash=>!/^[a-f0-9]{64}$/.test(hash))||
+        !/^data\/kell-chart-(?:runs|snapshots)\/[A-Za-z0-9][A-Za-z0-9_-]{0,259}$/.test(ref.chartBasePath)){
+      throw Error('Neispravan indeks Watchliste.');
+    }
+    const loadBucket=index=>{
+      if(!cache.has(index)){
+        const path=base+'/'+index.toString(16).padStart(2,'0')+'.json';
+        const request=verifiedJson(fetcher,path,ref.sha256[index],'Podaci za Watchlistu').then(data=>{
+          aligned(data,manifest);
+          if(data.schemaVersion!==watchlistSchema||data.snapshotId!==manifest.snapshotId||
+              data.bucket!==index||!data.rows||Array.isArray(data.rows)||typeof data.rows!=='object'){
+            throw Error('Objava i Watchlista nisu usklađene.');
+          }
+          return data.rows;
+        }).catch(error=>{cache.delete(index);throw error});
+        cache.set(index,request);
+      }
+      return cache.get(index);
+    };
+    const rows=await Promise.all(tickers.map(async ticker=>{
+      const data=await loadBucket(watchlistBucket(ticker));
+      const row=Object.hasOwn(data,ticker)?data[ticker]:null;
+      if(row&&row.ticker!==ticker)throw Error('Neispravan ticker u Watchlisti.');
+      return [ticker,row];
+    }));
+    return new Map(rows);
+  }
+  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadWatchlist,watchlistBucket};
   if (typeof module !== 'undefined') module.exports = root.ReviewSnapshots;
 })(globalThis);

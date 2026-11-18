@@ -255,6 +255,8 @@ jobs:
         run: python scripts/build_kell_calibration_report.py --snapshot lab/data/latest.json --validation lab/data/kell-signal-validation.json --output lab/kell-calibration.html
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
+      - name: Build Watchlist lookups for the active snapshot
+        run: python scripts/publish_watchlist_snapshot.py --directory lab/data
       - name: Build research reports for the active snapshot
         run: |
           python scripts/kell_gold_set.py \
@@ -278,6 +280,7 @@ jobs:
           cp lab/data/publication.json /tmp/review-publication/publication.json
           cp -R lab/data/review-bootstrap-v1 /tmp/review-publication/review-bootstrap-v1
           cp -R lab/data/research-runs /tmp/review-publication/research-runs
+          if [ -d lab/data/watchlist-runs ]; then cp -R lab/data/watchlist-runs /tmp/review-publication/watchlist-runs; fi
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
           cp -R lab/data/history /tmp/review-publication/history
           cp -R lab/data/snapshots /tmp/review-publication/snapshots
@@ -324,6 +327,10 @@ jobs:
           cp -R /tmp/review-publication/review-bootstrap-v1/. lab/data/review-bootstrap-v1/
           mkdir -p lab/data/research-runs
           cp -R /tmp/review-publication/research-runs/. lab/data/research-runs/
+          if [ -d /tmp/review-publication/watchlist-runs ]; then
+            mkdir -p lab/data/watchlist-runs
+            cp -R /tmp/review-publication/watchlist-runs/. lab/data/watchlist-runs/
+          fi
           rm -rf lab/data/history lab/data/snapshots
           cp -R /tmp/review-publication/history lab/data/history
           cp -R /tmp/review-publication/snapshots lab/data/snapshots
@@ -380,6 +387,7 @@ jobs:
           print({"alignedSessionDate": review_date, "runId": review_run, "unifiedManifestSha256": review_unified_sha})
           PY
           python scripts/validate_eod_publication.py --require-research --previous-publication /tmp/review-publication/previous-publication.json
+          python scripts/publish_watchlist_snapshot.py --validate --directory lab/data
           python scripts/pack_review_storage.py --directory lab/data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -389,6 +397,7 @@ jobs:
           if git ls-files --error-unmatch lab/data/latest.json >/dev/null 2>&1; then git add -u -- lab/data/latest.json; fi
           if [ -f lab/data/latest.json ]; then git add lab/data/latest.json; fi
           if [ -d lab/data/kell-chart-runs ]; then git add lab/data/kell-chart-runs; fi
+          if [ -d lab/data/watchlist-runs ]; then git add lab/data/watchlist-runs; fi
           if [ -f lab/data/latest.json.gz ]; then git add lab/data/latest.json.gz; fi
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
