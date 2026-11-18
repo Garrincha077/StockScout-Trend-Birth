@@ -1,3 +1,9 @@
+## 2026-11-18 — Inspect individual Weekly Base outcomes
+
+- Verified at 18:17 Europe/Zagreb on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siWeeklyBase), preview commit `70d35c1` and READY deployment `dpl_4d8atw59Nae7mKok526G7qbLE2Lx`. Expand **Pojedinačni slučajevi** and choose a signal date. The selected phase and horizon apply to both the case list and the aggregate above.
+- The November 17 research bundle includes a separate checksum-verified case file with 29 cases on six dates. It loads on expansion. It records entry and exit dates, quoted closes, gross returns, matched controls and unavailable reasons. Future exit dates are labeled planned and derive from the published exchange calendar.
+- Verified at 390 px. November 6 shows four measured pairs and +3.56 pp for that date. The four October 9 entries expose the missing October 19 exit EOD, and the November 13 cases expose pending outcomes. The report still reconciles to +4.261 pp across the three measured 5-session dates. Passed 131 Node and 26 Chromium tests, focused Python and aligned EOD bundle checks. The previous [CI 44353365455](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44353365455) passed. Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) contains the source.
+
 ## 2026-11-18 — Weekly Base outcomes and matched comparison
 
 - Verified at 17:56 Europe/Zagreb on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siWeeklyBase), preview commit `0b6a315` and READY deployment `dpl_9AWq34H5EwTJVXqrgbioT1chcnhP`. The Weekly Base tab links directly to the panel. Tested the actual archived data, report hash, 5/20/63-session views and mobile navigation at 390 px.

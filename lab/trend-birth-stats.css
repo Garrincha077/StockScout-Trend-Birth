@@ -38,6 +38,17 @@
 .si-weekly-track i{position:absolute;top:0;bottom:0;border-radius:2px;background:#62b6ff}
 #siWeeklyBaseControlBar{background:#61d6bd}
 .si-weekly-zero{display:block;text-align:center;color:#a5b7cc}
+.si-case-retry{min-height:42px;padding:6px 9px;border:1px solid #42668b;border-radius:7px;background:#122339;color:#e5f3ff;cursor:pointer}
+#siWeeklyCasesStatus:empty{display:none}
+.si-composite-definitions .si-weekly-cases{display:grid;gap:8px;margin:8px 0 0;padding:0;list-style:none}
+.si-composite-definitions .si-weekly-cases li{padding:9px;border:1px solid #294863;border-radius:8px;background:#0b1725}
+.si-weekly-cases header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:3px 10px}
+.si-weekly-cases header strong{color:#e8f4ff;font-size:15px}
+.si-weekly-cases dl{margin:7px 0 0;display:grid;gap:6px}
+.si-weekly-cases dl div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:5px 0;border-top:1px solid #22364b}
+.si-weekly-cases dl dt{overflow-wrap:anywhere;color:#c7ddf4}
+.si-weekly-cases dl dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.si-weekly-cases dl small{display:block;color:#a5b7cc}
 .si-kell-cohorts{margin-top:18px;padding-top:12px;border-top:1px solid #294863}
 .si-kell-cohorts h3{margin:0 0 9px;font-size:15px}
 #siKellGroupList{display:grid;gap:6px}

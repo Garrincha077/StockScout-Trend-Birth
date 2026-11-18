@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=weekly-outcomes-20261118">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=weekly-cases-20261118">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -221,6 +221,17 @@
             <div class="si-weekly-track" aria-hidden="true"><i id="siWeeklyBaseControlBar"></i></div></div>
           <small class="si-weekly-zero" aria-hidden="true">0%</small>
         </figure>
+        <details id="siWeeklyCases" class="si-composite-definitions" hidden>
+          <summary>Pojedinačni slučajevi</summary>
+          <p id="siWeeklyCasesStatus" role="status"></p>
+          <button type="button" id="siWeeklyCasesRetry" class="si-case-retry" hidden>Ponovi učitavanje</button>
+          <div id="siWeeklyCasesContent" hidden>
+            <div class="si-controls"><label>Datum uvrštenja <select id="siWeeklyCaseDate"></select></label></div>
+            <p id="siWeeklyCaseWindow"></p>
+            <p id="siWeeklyCaseCounts" role="status"></p>
+            <ul id="siWeeklyCaseList" class="si-weekly-cases"></ul>
+          </div>
+        </details>
         <details class="si-composite-definitions">
           <summary>Pokrivenost i način mjerenja</summary>
           <p id="siWeeklyBaseArchiveGaps"></p>
@@ -315,8 +326,8 @@
   </main>
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
-  <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
+  <script src="snapshot-loader.js?v=weekly-cases-20261118" defer></script>
   <script src="review-navigation.js?v=20261118" defer></script>
-  <script src="trend-birth-stats.js?v=weekly-outcomes-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=weekly-case-detail-20261118" defer></script>
 </body>
 </html>

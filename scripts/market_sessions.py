@@ -35,8 +35,8 @@ def bar_session_date(row: object) -> str | None:
     return None
 
 
-def exchange_sessions(as_of: str, path: Path = CALENDAR_PATH) -> tuple[str, ...]:
-    """Read authoritative session labels through a completed trading date."""
+def exchange_sessions(as_of: str, path: Path = CALENDAR_PATH, *, include_future=False) -> tuple[str, ...]:
+    """Read authoritative session labels, optionally keeping the published schedule."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("schemaVersion") != "xnys-eod-sessions-v1":
         raise ValueError("Unsupported exchange calendar: " + str(path))
@@ -47,4 +47,4 @@ def exchange_sessions(as_of: str, path: Path = CALENDAR_PATH) -> tuple[str, ...]
         raise ValueError("Exchange calendar session labels must be unique and sorted")
     if as_of not in days:
         raise ValueError("Requested date is not an XNYS session: " + as_of)
-    return tuple(day for day in days if day <= as_of)
+    return days if include_future else tuple(day for day in days if day <= as_of)

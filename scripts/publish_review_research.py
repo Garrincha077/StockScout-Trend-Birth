@@ -10,12 +10,32 @@ from publish_review_snapshot import encode, write_changed
 from validate_unified_review_bundle import identity
 
 SCHEMA = "trend-birth-review-research-v1"
+CASE_SCHEMA = "weekly-base-cases-v1"
+CASE_FILE = "weekly-base-cases.json"
 REPORTS = {
     "trendBirthForward": ("trend-birth-stage-forward.json", "trend-birth-stage-forward-v2"),
     "kellForward": ("kell-forward-validation.json", "kell-forward-validation-v1"),
     "kellGoldSet": ("kell-gold-set-eval.json", "kell-gold-set-eval-v2"),
     "alerts": ("trend-birth-alerts.json", "trend-birth-alerts-v1"),
 }
+
+
+def _case_reference(publication: dict, content: bytes) -> dict:
+    digest = hashlib.sha256(content).hexdigest()
+    snapshot_id = publication["snapshotId"]
+    return {"schemaVersion": CASE_SCHEMA, "snapshotId": snapshot_id, "sha256": digest,
+            "path": f"data/research-runs/{snapshot_id}--weekly-cases--{digest}.json"}
+
+
+def _validate_cases(report: dict, cases: dict, publication: dict) -> None:
+    count = report.get("caseCount")
+    days = cases.get("days")
+    if (cases.get("schemaVersion") != CASE_SCHEMA or cases.get("asOf") != report.get("asOf") or
+            identity(cases.get("source") or {}) != identity(publication) or type(count) is not int or count < 0 or
+            cases.get("caseCount") != count or report.get("groups", {}).get("all", {}).get("entries") != count or
+            not isinstance(days, list) or any(not isinstance(day, dict) or not isinstance(day.get("cases"), list) for day in days) or
+            sum(len(day["cases"]) for day in days) != count):
+        raise ValueError("Weekly Base case history differs from the Review publication")
 
 
 def research_snapshot(directory: Path, publication: dict) -> bytes:
@@ -52,6 +72,11 @@ def research_snapshot(directory: Path, publication: dict) -> bytes:
     weekly = reports["trendBirthForward"].get("weeklyBase")
     if weekly is not None and (weekly.get("schemaVersion") != "weekly-base-outcomes-v1" or weekly.get("asOf") != day):
         raise ValueError("Weekly Base outcomes differ from the Review publication")
+    if weekly is not None and "caseCount" in weekly:
+        ref = publication.get("weeklyBaseCases")
+        if not ref or ref.get("schemaVersion") != CASE_SCHEMA or ref.get("snapshotId") != snapshot_id:
+            raise ValueError("Weekly Base case reference differs from the Review publication")
+        weekly["caseReference"] = ref
     return encode({
         "schemaVersion": SCHEMA,
         "reviewSnapshotId": snapshot_id,
@@ -69,8 +94,23 @@ def research_reference(publication: dict, content: bytes) -> dict:
 def publish(directory: Path) -> dict:
     path = directory / "publication.json"
     publication = json.loads(path.read_bytes())
+    forward = json.loads((directory / REPORTS["trendBirthForward"][0]).read_bytes())
+    weekly = forward.get("weeklyBase") or {}
+    case_file = None
+    if "caseCount" in weekly:
+        cases = json.loads((directory / CASE_FILE).read_bytes())
+        _validate_cases(weekly, cases, publication)
+        case_file = encode({**cases, "reviewSnapshotId": publication["snapshotId"]})
+        publication["weeklyBaseCases"] = _case_reference(publication, case_file)
+    else:
+        publication.pop("weeklyBaseCases", None)
     content = research_snapshot(directory, publication)
     reference = research_reference(publication, content)
+    if case_file is not None:
+        case_archive = directory / publication["weeklyBaseCases"]["path"].removeprefix("data/")
+        if case_archive.exists() and case_archive.read_bytes() != case_file:
+            raise ValueError("Immutable Weekly Base case snapshot collision")
+        write_changed(case_archive, case_file)
     archive = directory / reference["path"].removeprefix("data/")
     if archive.exists() and archive.read_bytes() != content:
         raise ValueError("Immutable research snapshot collision")
@@ -88,6 +128,22 @@ def validate_research(directory: Path, publication: dict) -> None:
     archive = directory / reference["path"].removeprefix("data/")
     if not archive.is_file() or archive.read_bytes() != content:
         raise ValueError("Research snapshot missing or content digest mismatch")
+    case_ref = publication.get("weeklyBaseCases")
+    if case_ref is not None:
+        digest = case_ref.get("sha256")
+        snapshot_id = publication["snapshotId"]
+        if (not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest) or
+                case_ref.get("path") != f"data/research-runs/{snapshot_id}--weekly-cases--{digest}.json"):
+            raise ValueError("Invalid Weekly Base case history reference")
+        case_archive = directory / case_ref["path"].removeprefix("data/")
+        case_file = case_archive.read_bytes() if case_archive.is_file() else None
+        if case_file is None or _case_reference(publication, case_file) != case_ref:
+            raise ValueError("Weekly Base case history digest mismatch")
+        cases = json.loads(case_file)
+        if cases.get("reviewSnapshotId") != snapshot_id:
+            raise ValueError("Weekly Base case history points to another snapshot")
+        weekly = json.loads(content)["reports"]["trendBirthForward"]["weeklyBase"]
+        _validate_cases(weekly, cases, publication)
 
 
 def main() -> None:

@@ -106,9 +106,38 @@ test('Weekly Base outcomes expose measured pairs, missing prices and pending hor
     missingSessions:['2026-10-15'],rejectedArchives:[],
     groups:{all:groups(3,2,2,{...measured,pending:1}),1:empty,2:empty,3:groups(2,2,1,measured),4:groups(1,0,1,pending(1,0))}};
   const publication=JSON.parse(await readFile(resolve(root,'data/publication.json'),'utf8'));
-  delete publication.research;
+  const source={runId:publication.runId,sessionDate:publication.sessionDate,unifiedManifestSha256:publication.unifiedManifestSha256};
+  const snapshotId=publication.snapshotId;
+  forward.source=source;
+  const observed=(close,ret)=>({status:'measured',entryClose:100,exitClose:close,returnPct:ret,reasons:[]});
+  const waiting={status:'pending',entryClose:100,exitClose:null,returnPct:null,reasons:[]};
+  const missing={status:'missing',entryClose:100,exitClose:null,returnPct:null,reasons:['exit_quote']};
+  const allLong=first=>({5:first,20:{signal:waiting,control:waiting},63:{signal:waiting,control:waiting},
+    126:{signal:waiting,control:waiting}});
+  const late=Object.fromEntries(['5','20','63','126'].map(key=>[key,{signal:{...waiting,entryClose:null},control:null}]));
+  const casesSchema='weekly-base-cases-v1';
+  const cases=JSON.stringify({schemaVersion:casesSchema,source,asOf:source.sessionDate,reviewSnapshotId:snapshotId,caseCount:3,
+    days:[{signalDate:'2026-11-05',entryDate:'2026-11-06',exitDates:{5:'2026-11-13',20:'2026-12-07',63:null,126:null},
+      cases:[{ticker:'AAA',stage:'3',controlTicker:'PEER',matchStatus:'paired',outcomes:allLong({signal:observed(105,5),control:observed(98,-2)})},
+        {ticker:'BBB',stage:'3',controlTicker:'ALT',matchStatus:'paired',outcomes:allLong({signal:missing,control:observed(98,-2)})}]},
+    {signalDate:source.sessionDate,entryDate:'2026-11-18',exitDates:{5:'2026-11-25',20:'2026-12-17',63:null,126:null},
+      cases:[{ticker:'LATE',stage:'4',controlTicker:null,matchStatus:'missing_features',outcomes:late}]}]});
+  const caseSha=createHash('sha256').update(cases).digest('hex');
+  const casePath='data/research-runs/'+snapshotId+'--weekly-cases--'+caseSha+'.json';
+  forward.weeklyBase.caseCount=3;
+  forward.weeklyBase.caseReference={schemaVersion:casesSchema,snapshotId,sha256:caseSha,path:casePath};
+  const researchSchema='trend-birth-review-research-v1';
+  const research=JSON.stringify({schemaVersion:researchSchema,reviewSnapshotId:snapshotId,source,
+    reports:{trendBirthForward:forward,kellForward:{}}});
+  const researchSha=createHash('sha256').update(research).digest('hex');
+  const researchPath='data/research-runs/'+snapshotId+'--'+researchSha+'.json';
+  publication.research={schemaVersion:researchSchema,sha256:researchSha,path:researchPath};
   await page.route('**/data/publication.json',route=>route.fulfill({json:publication}));
-  await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({json:forward}));
+  await page.route('**/'+researchPath,route=>route.fulfill({contentType:'application/json',body:research}));
+  let caseRequests=0;
+  await page.route('**/'+casePath,route=>route.fulfill({
+    contentType:'application/json',body:++caseRequests===1?cases+' ':cases
+  }));
   await page.goto(base+'/statistics.html#siWeeklyBase');
   await page.locator('#siWeeklyBaseContent').waitFor();
   assert.match(await page.locator('#siWeeklyBaseStatus').innerText(),/3 prvih uvrštenja na 2 datuma/);
@@ -121,7 +150,23 @@ test('Weekly Base outcomes expose measured pairs, missing prices and pending hor
   assert.match(await page.locator('#siWeeklyBaseMatched').innerText(),/2 uparenih od 3.*parovi s ishodom 1 na 1 datum/);
   assert.equal(await page.locator('#siWeeklyBaseDifference').innerText(),'+7 p. b.');
   assert.ok(await page.locator('#siWeeklyBaseControlBar').evaluate(node=>parseFloat(node.style.left)<50));
+  assert.equal(caseRequests,0);
+  await page.getByText('Pojedinačni slučajevi',{exact:true}).click();
+  await page.locator('#siWeeklyCasesRetry').waitFor();
+  assert.match(await page.locator('#siWeeklyCasesStatus').innerText(),/kontrolni zbroj ne odgovara objavi/);
+  await page.locator('#siWeeklyCasesRetry').click();
+  await page.locator('#siWeeklyCasesContent').waitFor();
+  assert.equal(caseRequests,2);
+  assert.equal(await page.locator('#siWeeklyCaseDate').inputValue(),'2026-11-05');
+  assert.match(await page.locator('#siWeeklyCaseCounts').innerText(),/Izmjereno 1 od 2.*razlika za ovaj datum \+7 p. b./);
+  assert.match(await page.locator('#siWeeklyCaseList').innerText(),/Kontrola · PEER/);
+  assert.match(await page.locator('#siWeeklyCaseList').innerText(),/Nedostaje zatvaranje dionice na izlazu/);
+  await page.selectOption('#siWeeklyCaseDate',source.sessionDate);
+  assert.match(await page.locator('#siWeeklyCaseWindow').innerText(),/planirani izlaz 2026-11-25/);
+  assert.match(await page.locator('#siWeeklyCaseList').innerText(),/LATE.*Na čekanju/s);
+  await page.selectOption('#siWeeklyCaseDate','2026-11-05');
   await page.selectOption('#siWeeklyBaseGroup','4');
+  assert.equal(await page.locator('#siWeeklyCaseDate').inputValue(),source.sessionDate);
   assert.equal(await page.locator('#siWeeklyBaseSummary').isVisible(),false);
   assert.equal(await page.locator('#siWeeklyBaseComparison').isVisible(),false);
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));

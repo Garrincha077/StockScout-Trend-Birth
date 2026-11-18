@@ -279,6 +279,7 @@ jobs:
             --market-internals lab/data/trend-birth-market-internals.json \
             --output lab/data/kell-forward-validation.json
           python scripts/publish_review_research.py --directory lab/data
+          rm -f -- lab/data/weekly-base-cases.json
       - name: Publish aligned Review + Kell data atomically
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment' || github.ref == 'refs/heads/feature/persistent-watchlist' || github.ref == 'refs/heads/feature/unified-watchlist-integration')
         run: |

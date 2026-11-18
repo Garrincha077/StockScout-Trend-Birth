@@ -88,3 +88,22 @@ class ResearchPublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Weekly Base outcomes differ"):
             publish(self.directory)
         self.assertEqual(self.read("publication.json"), original)
+
+    def test_case_history_is_a_separately_verified_component_of_the_research_pointer(self):
+        filename = REPORTS["trendBirthForward"][0]
+        forward = self.read(filename)
+        forward["weeklyBase"] = {"schemaVersion": "weekly-base-outcomes-v1", "asOf": self.day,
+                                 "caseCount": 1, "groups": {"all": {"entries": 1}}}
+        self.write(filename, forward)
+        self.write("weekly-base-cases.json", {"schemaVersion": "weekly-base-cases-v1", "source": self.source,
+                    "asOf": self.day, "caseCount": 1, "days": [{"cases": [{"ticker": "AAA"}]}]})
+        research = publish(self.directory)
+        publication = self.read("publication.json")
+        cases = publication["weeklyBaseCases"]
+        bundle = self.read(research["path"].removeprefix("data/"))
+        self.assertEqual(bundle["reports"]["trendBirthForward"]["weeklyBase"]["caseReference"], cases)
+        (self.directory / "weekly-base-cases.json").unlink()
+        validate_research(self.directory, publication)
+        (self.directory / cases["path"].removeprefix("data/")).write_bytes(b"{}")
+        with self.assertRaisesRegex(ValueError, "case history digest mismatch"):
+            validate_research(self.directory, publication)
