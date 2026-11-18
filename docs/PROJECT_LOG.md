@@ -730,3 +730,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 - Verified locally 13:39 Europe/Zagreb. The first cold-load measurement was 0.52 MB on the full staged result. The initial bootstrap now carries the early view. The publisher separates Weekly Base and Kell payloads, with content hashes and activation identity. The browser requests a secondary list only when shown and keeps the last complete view on a failed foreground refresh.
 - Tests passed locally: 236 Python excluding the Linux shell fixture, 113 Node and 16 Chromium. The deployed-source inputs passed the full EOD validator locally at 12:39 UTC with 2,592/2,592 evaluated quotes. The prior chart implementation passed CI 44304479874. The installable deployment and direct network measurements are next.
+
+## 2026-11-18 — Weekly Base display follows the model
+
+- Verified locally at 14:02 Europe/Zagreb. The default Weekly Base chart now zooms to the model window, shades the pre-launch range and labels pivot and detected overhead resistance. The card and detail show the completed weekly close and distance to pivot. Charts use the model cutoff and keep the five-year option.
+- Ranking, eligibility and published EOD data are preserved. The November 17 snapshot evaluates completed weeks through November 13. 113 Node and 16 Chromium tests passed. The staging preview receives the same source files through its isolated branch.

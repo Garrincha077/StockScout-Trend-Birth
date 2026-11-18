@@ -1,6 +1,6 @@
 const requestedMode=new URLSearchParams(location.search).get('mode');
 const defaultMode=requestedMode==='legacy'||requestedMode==='weekly-v2'?requestedMode:(window.StockScoutMode?.defaultMode||'weekly-v2');
-const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',intelligence:null,intelligenceError:'',intelligenceMonths:new Map(),tickerDrill:null,tickerDrillLimit:40,journeyTicker:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'5y',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
+const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',intelligence:null,intelligenceError:'',intelligenceMonths:new Map(),tickerDrill:null,tickerDrillLimit:40,journeyTicker:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'base',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
@@ -677,6 +677,7 @@ function avg(values,n,ema=false){
   return out;
 }
 const chartPeriods={
+  base:{label:'Zona baze · W',weekly:true,weeks:112},
   '3m':{label:'3M · D',daily:63},
   '6m':{label:'6M · D',daily:126},
   '1y':{label:'1Y · D',daily:260},
@@ -718,9 +719,23 @@ function rowsForPeriod(item){
   const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
   if(period.weekly){
     const weekly=item?.weeklyChartBars?.length>=2?normalizeBars(item.weeklyChartBars):weeklyBars(item?.chartBars||[]);
-    return weekly;
+    const cutoff=state.primaryView==='weekly'&&barDate(item?.weeklyBirth?.metrics?.historyEnd);
+    return cutoff ? weekly.filter(bar=>{const day=barDate(bar.time);return day&&day<=cutoff}) : weekly;
   }
   return normalizeBars(item?.chartBars||[]);
+}
+function weeklyBaseRange(item,rows){
+  const metrics=item.weeklyBirth?.metrics||{};
+  const end=barDate(metrics.historyEnd);
+  const length=metrics.baseWeeks;
+  // Weekly Birth reserves the last eight completed weeks for breakout evaluation.
+  if(!end||!Number.isInteger(length)||length<9||rows.length<length||
+      +barDate(rows.at(-1).time)!==+end)return null;
+  const window=rows.slice(-length,-8);
+  const floor=Math.min(...window.map(row=>row.low));
+  if(!Number.isFinite(metrics.pivotPrice)||metrics.pivotPrice<=floor)return null;
+  return {start:window[0].time,end:window.at(-1).time,cutoff:rows.at(-1).time,
+    floor,ceiling:metrics.pivotPrice,weeks:length+8};
 }
 function barDateLabel(value){
   const date=barDate(value);
@@ -741,6 +756,10 @@ function priceLabel(value){
   return n.toFixed(3);
 }
 function chartLevels(item){
+  if(state.primaryView==='weekly'){
+    const metrics=item?.weeklyBirth?.metrics;
+    return [[metrics?.pivotPrice,'Pivot','#80c7ff'],[metrics?.resistancePrice,'Otpor','#ff9aa5']];
+  }
   const early=item?.earlyTrend,swing=item?.kellSwing;
   if(early&&state.primaryView!=='kell-daily')return [
     [early.reclaimPivot,'Pivot','#80c7ff'],[early.baseSupport,'Podrška','#e9bd62'],
@@ -751,10 +770,11 @@ function chartLevels(item){
   ];
   return [];
 }
-function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable',levels=[]){
+function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[],base=null){
   const history=normalizeBars(rows);
   const period=chartPeriods[state.chartPeriod]||chartPeriods['1y'];
-  const bars=history.slice(-(period.weekly?period.weeks:period.daily));
+  const count=state.chartPeriod==='base'&&base?base.weeks:period.weekly?period.weeks:period.daily;
+  const bars=history.slice(-count);
   const offset=history.length-bars.length;
   const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1;
   canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);
@@ -766,11 +786,27 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable',leve
     ctx.fillText(emptyMessage,12,22);return;
   }
   const top=large?32:24,bottom=large?46:38,left=large?10:8,right=large?72:60;
-  const rawLo=Math.min(...bars.map(b=>b.low)),rawHi=Math.max(...bars.map(b=>b.high));
+  const rawLo=Math.min(...bars.map(b=>b.low)),high=Math.max(...bars.map(b=>b.high));
+  const nearLevels=base?levels.map(([price])=>price).filter(price=>
+    Number.isFinite(price)&&price>=high&&price-high<=(high-rawLo)*.2):[];
+  const rawHi=Math.max(high,...nearLevels);
   const rawRange=Math.max(rawHi-rawLo,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
   const lo=rawLo-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
   const plotW=Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
   const x=i=>left+i*plotW/(bars.length-1),y=v=>top+(hi-v)*plotH/range;
+  const description=[];
+  if(base){
+    const start=bars.findIndex(bar=>bar.time===base.start);
+    const end=bars.findIndex(bar=>bar.time===base.end);
+    if(start>=0&&end>=start){
+      ctx.fillStyle='#58bdb42e';
+      ctx.fillRect(x(start),y(base.ceiling),Math.max(1,x(end)-x(start)),y(base.floor)-y(base.ceiling));
+      ctx.strokeStyle='#75d6c8';
+      ctx.strokeRect(x(start),y(base.ceiling),Math.max(1,x(end)-x(start)),y(base.floor)-y(base.ceiling));
+      description.push('Zona baze '+barDateLabel(base.start)+' – '+barDateLabel(base.end),
+        'Zadnji dovršeni tjedan '+barDateLabel(base.cutoff),bars.length+' svijeća');
+    }
+  }
 
   ctx.lineWidth=1;ctx.textBaseline='middle';
   for(let i=0;i<4;i++){
@@ -813,8 +849,9 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable',leve
       labelY=Math.max(labelY+13,y(price));
       ctx.fillStyle=color;ctx.fillText(label,lineStart-6,labelY);
     }
-    canvas.setAttribute('aria-description',marked.map(([price,label])=>label+' '+priceLabel(price)).join(', '));
+    description.push(...marked.map(([price,label])=>label+' '+priceLabel(price)));
   }
+  if(description.length)canvas.setAttribute('aria-description',description.join('. '));
 
   const tickIndexes=[0,Math.floor((bars.length-1)/2),bars.length-1];
   const aligns=['left','center','right'];
@@ -833,6 +870,11 @@ function draw(canvas,rows,large=false,emptyMessage='Chart data unavailable',leve
     ctx.textAlign='right';
     ctx.fillText(bars.length+(period.weekly?' weeks':' sessions'),w-right,14);
   }
+}
+function drawTickerChart(canvas,item,rows,large=false){
+  const period=chartPeriods[state.chartPeriod];
+  const base=state.primaryView==='weekly'&&period?.weekly?weeklyBaseRange(item,rows):null;
+  draw(canvas,rows,large,undefined,chartLevels(item),base);
 }
 function badges(item){
   const sources=(item.sources||[]).map(s=>'<span class="badge '+(s==='kell-daily'||s==='kell-gap'?'kell':'')+'">'+esc(label(s))+'</span>').join('');
@@ -1149,6 +1191,22 @@ function visible(item){
   return matchesFilters(item);
 }
 const swingStates={watch:'Za praćenje',triggered:'Pivot potvrđen',extended:'Iznad prihvatljivog ulaza',invalidated:'Setup poništen'};
+const weeklyStages={1:'Duga baza',2:'Zbijena baza',3:'Blizu pivota',4:'Pokušaj proboja'};
+function weeklyEvidence(item){
+  const metrics=item.weeklyBirth?.metrics||{};
+  const close=normalizeBars(item.weeklyChartBars||[]).findLast(bar=>bar.time===metrics.historyEnd)?.close;
+  const pivot=metrics.pivotPrice;
+  const distance=Number.isFinite(close)&&pivot>0?100*(close/pivot-1):null;
+  const distanceLabel=Number.isFinite(distance)?' · '+(distance>=0?'+':'')+pct(distance)+' od pivota':'';
+  return '<div class="metrics weekly-evidence">'+
+    '<span>Prozor baze <b>'+fmt(metrics.baseWeeks,0)+' tj.</b></span>'+
+    '<span>Dubina <b>'+pct(metrics.baseDepthPct)+'</b></span>'+
+    '<span>Pivot <b>'+fmt(pivot)+'</b></span>'+
+    '<span>Otpor <b>'+fmt(metrics.resistancePrice)+'</b></span>'+
+    (Number.isFinite(close)?'<span class="weekly-close">Tjedno zatvaranje '+esc(barDateLabel(metrics.historyEnd))+
+      ' <b>'+fmt(close)+'</b>'+distanceLabel+'</span>':'')+
+    '</div>';
+}
 const earlyPhases={stabilizing:'Stabilizacija',reclaim:'Povrat iznad razine',confirmed:'Potvrđen zaokret'};
 const earlyEvidence={
   support_retest:'Ponovljen test podrške',higher_low:'Više dno',support_reclaim:'Povrat iznad podrške',
@@ -1214,13 +1272,11 @@ function card(item){
       '<canvas aria-label="'+esc(item.ticker)+' graf baze"></canvas></article>';
   }
   if(state.primaryView==='weekly'){
-    const w=item.weeklyBirth||{},v=w.metrics||{};
-    const runway=runwayLabel(v);
+    const w=item.weeklyBirth||{};
     return '<article class="card weekly-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
-      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(w.stageLabel||'Weekly Birth')+'</span><span class="badge">'+fmt(w.score,0)+'/100</span></div></div>'+
-      '<div class="metrics"><span>Base <b>'+fmt(v.baseWeeks,0)+'W</b></span><span>MA cluster <b>'+pct(v.weeklyMaClusterPct)+'</b></span><span>Runway <b>'+runway+'</b></span><span>Extension <b>'+pct(v.extensionPct)+'</b></span></div>'+
-      '<canvas aria-label="'+esc(item.ticker)+' weekly chart" title="Tap/click za analizu"></canvas>'+
-      '<div class="analysis-strip"><span>Pivot '+fmt(v.pivotPrice)+' · Resistance '+(v.resistancePrice==null?'nije potvrđen':fmt(v.resistancePrice))+'</span><strong class="watch">'+esc(w.stageLabel||'—')+'</strong></div></article>';
+      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+'" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+(watched?'true':'false')+'">'+(watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div><div class="badges"><span class="badge kell-score">'+esc(weeklyStages[w.stage]||w.stageLabel||'Tjedna baza')+'</span><span class="badge">'+fmt(w.score,0)+'/100</span></div></div>'+
+      weeklyEvidence(item)+
+      '<canvas aria-label="'+esc(item.ticker)+' tjedni graf" title="Otvori graf i detalje"></canvas></article>';
   }
   if(state.primaryView==='kell-daily'&&item.kellSwing){
     return '<article class="card swing-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
@@ -1276,6 +1332,7 @@ function renderChangeHighlights(items){
 }
 function render(){
   if(!state.data)return;
+  $('#chartPeriod option[value="base"]').hidden=state.primaryView!=='weekly';
   loadWatchedRows();
   const shortlist=loadVisibleShortlist();
   const researchControls=state.primaryView==='research';
@@ -1324,7 +1381,8 @@ function render(){
       $('#status').append(' · ',retry);
     }
   }else if(state.primaryView==='weekly'){
-    $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
+    $('#status').textContent=items.length+' kandidata s dugom konsolidacijom.'+
+      (chartPeriods[state.chartPeriod]?.weekly?' Obojena zona prikazuje bazu prije zadnjih osam završenih tjedana.':'');
   }else if(state.primaryView==='early'){
     $('#status').textContent=Array.isArray(state.data?.shortlists?.earlyTrendBirth)?
       items.length+' kandidata za rani zaokret':'Ova snimka još nema listu ranih zaokreta.';
@@ -1365,10 +1423,10 @@ function render(){
       const canvas=entry.target,cardEl=canvas.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
       observer.unobserve(canvas);
       const ready=rowsForPeriod(item);
-      if(ready.length>=2){draw(canvas,ready,false,undefined,chartLevels(item));continue}
+      if(ready.length>=2){drawTickerChart(canvas,item,ready);continue}
       draw(canvas,[],false,'Loading chart…');
       ensureChartData(item)
-        .then(rows=>{if(canvas.isConnected)draw(canvas,rows,false,rows.length>=2?'':'Chart data unavailable',chartLevels(item))})
+        .then(rows=>{if(canvas.isConnected)drawTickerChart(canvas,item,rows)})
         .catch(err=>{if(canvas.isConnected){canvas.title='Chart load error: '+err.message;draw(canvas,[],false,'Chart load failed')}})
     }
   },{rootMargin:'240px'});
@@ -1408,10 +1466,11 @@ function show(item){
   const reviewStatus=String(a.status||'REVIEW').toUpperCase();
   const tbMissing=(item?.trendBirth?.missingFor4||[]).join(' · ')||'Complete';
   const weekly=item.weeklyBirth||{},weeklyMetrics=weekly.metrics||{};
+  const weeklyMode=state.primaryView==='weekly';
+  const detailChart='<canvas class="detail-chart" aria-label="'+esc(item.ticker)+' detaljni graf"></canvas>';
   $('#detailBody').innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
-    earlyPlan(item)+
-    swingPlan(item)+
+    (weeklyMode?weeklyEvidence(item)+detailChart:earlyPlan(item)+swingPlan(item))+
     '<div class="detail-snapshot">'+
       '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+
       '<div><span>Daily radar 0–4</span><strong>'+esc(trendBirthLabel(item))+'</strong></div>'+
@@ -1421,7 +1480,7 @@ function show(item){
     (weekly.stageLabel?'<div class="detail-tb-note"><span>Weekly Birth</span><strong>'+esc(weekly.stageLabel)+' · '+fmt(weeklyMetrics.baseWeeks,0)+'W base · '+pct(weeklyMetrics.weeklyMaClusterPct)+' MA cluster · '+runwayLabel(weeklyMetrics)+'</strong></div>':'')+
     '<div class="detail-tb-note"><span>Daily radar · nedostaje za 4/4</span><strong>'+esc(tbMissing)+'</strong></div>'+
     '<div class="detail-tb-note"><span>Birth path</span><strong>'+esc(birthPathText(item))+(trendBirthEvidence(item).primary?' · '+esc(trendBirthEvidence(item).primary):'')+'</strong></div>'+
-    '<canvas class="detail-chart"></canvas>'+
+    (weeklyMode?'':detailChart)+
     '<details class="detail-more"><summary>More metrics & setup details</summary><div class="detail-grid">'+
       fact('Review state',a.state)+fact('Kell stage',stageName(primaryStage(item)))+
       fact('Weekly base',fmt(weeklyMetrics.baseWeeks,0)+'W · depth '+pct(weeklyMetrics.baseDepthPct))+
@@ -1452,10 +1511,10 @@ function show(item){
   requestAnimationFrame(()=>{
     const canvas=$('#detailBody canvas');
     const ready=rowsForPeriod(item);
-    if(ready.length>=2){draw(canvas,ready,true,undefined,chartLevels(item));return}
+    if(ready.length>=2){drawTickerChart(canvas,item,ready,true);return}
     draw(canvas,[],true,'Loading chart…');
     ensureChartData(item)
-      .then(rows=>{if(canvas.isConnected)draw(canvas,rows,true,rows.length>=2?'':'Chart data unavailable',chartLevels(item))})
+      .then(rows=>{if(canvas.isConnected)drawTickerChart(canvas,item,rows,true)})
       .catch(err=>{canvas.title='Chart load error: '+err.message;draw(canvas,[],true,'Chart load failed')});
   });
 }
@@ -1672,7 +1731,7 @@ $('#primaryViews')?.addEventListener('click',async e=>{
   if(request!==state.primaryRequest)return;
   state.primaryView=button.dataset.primaryView;
   state.filters=[];state.quickView=null;state.sort='default';state.universe=state.primaryView==='watchlist'?'watchlist':'all';
-  state.chartPeriod=state.primaryView==='weekly'?'5y':'1y';
+  state.chartPeriod=state.primaryView==='weekly'?'base':'1y';
   $('#chartPeriod').value=state.chartPeriod;$('#sort').value='default';
   document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x.dataset.universe===state.universe));
   render();

@@ -1,3 +1,9 @@
+## 2026-11-18 — Weekly Base chart focused on the analyzed consolidation
+
+- Verified locally at 14:02 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Weekly Base card and detail now open on the model window, shade the pre-launch range and mark the pivot and detected overhead level. The card shows the completed weekly close and its distance from the pivot.
+- Weekly charts use the model cutoff. For the November 17 EOD preview, the latest completed bar is November 13. The five-year option remains selectable. Local Node and mobile Chromium checks passed, including the focused chart and detail opening.
+- The previous rebuild's finished report, verified CI, migration steps and installable preview are linked in draft PR #76. Production requires owner approval.
+
 ## 2026-11-18 — Demand-loaded Weekly and Kell chart views
 
 - Verified locally 2026-11-18 13:39 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The earlier chart head passed [CI 44304479874](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44304479874).

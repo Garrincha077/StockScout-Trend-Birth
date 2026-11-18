@@ -5,6 +5,7 @@
 .primary-views button{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:999px;padding:8px 13px;white-space:nowrap;cursor:pointer}
 .primary-views button.active{border-color:var(--green);background:#17392b;color:#fff;font-weight:700}
 .weekly-card .metrics{padding-top:5px}
+.weekly-evidence .weekly-close{flex-basis:100%}
 .weekly-card canvas{height:260px}
 @media(max-width:720px){.primary-views{padding:8px 10px}.primary-views button{min-height:42px}.weekly-card canvas{height:240px}}
 .change-highlights{margin:0 0 13px;padding:11px 12px;border:1px solid #31557f;border-radius:12px;background:linear-gradient(180deg,#0d1d30,#0a1726)}

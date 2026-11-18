@@ -135,6 +135,20 @@ test('modern startup fetches the weekly view and its charts only on selection',a
   await page.waitForSelector('.weekly-card');
   assert.equal(await page.locator('.weekly-card').count(),15);
   assert.equal(requests.filter(url=>url.endsWith(path)).length,1);
+  assert.equal(await page.locator('#chartPeriod').inputValue(),'base');
+  const canvas=page.locator('.weekly-card canvas').first();
+  await page.waitForSelector('.weekly-card canvas[aria-description*="Zona baze"]');
+  const focused=await canvas.getAttribute('aria-description');
+  const metrics=bootstrap.shortlists.weeklyTrendBirth[0].weeklyBirth.metrics;
+  const [year,month,day]=metrics.historyEnd.split('-');
+  assert.ok(focused.includes('Zadnji dovršeni tjedan '+day+'.'+month+'.'+year.slice(2)));
+  assert.match(focused,/Pivot/);
+  const focusedCount=Number(focused.match(/(\d+) svijeća/)[1]);
+  assert.equal(focusedCount,metrics.baseWeeks+8);
+  await canvas.click();
+  const dialogChart=page.locator('#detail canvas[aria-description*="Zona baze"]');
+  await dialogChart.waitFor();
+  assert.equal(await dialogChart.getAttribute('aria-description'),focused);
 });
 
 test('nonempty Watchlist resolves saved symbols only and retains them after a failed ticker request',async t=>{

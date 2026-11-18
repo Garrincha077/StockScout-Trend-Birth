@@ -62,6 +62,10 @@ python scripts/replay_early_trend_birth.py \
   --archive-dir archive-inputs --output early-replay.json
 ```
 
+## Weekly Base chart
+
+The Weekly Base chart opens at the model's analyzed window with eight extra weeks of context. Shading marks the consolidation that precedes the final eight completed weeks. The chart marks the pre-launch pivot and any detected overhead level within range. The card provides the latest completed weekly close and its distance from that pivot. Current-week bars after the model cutoff are excluded.
+
 ## Migration and rollback
 
 1. Record the live Vercel deployment, the active `publication.json` snapshot ID and the Git SHA of `feature/unified-review-grid-lab`. Retain the first dated links and one exact snapshot URL as smoke-test inputs.
