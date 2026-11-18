@@ -1,3 +1,9 @@
+## 2026-11-18 — Ticker chart evidence
+
+- Verified locally at 15:00 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The ticker dialog pairs price with aligned volume and SPY relative strength and has its own daily/weekly selector. Weekly Base opens on the model range. Kell opens on three months and Early Trend Birth on six months.
+- Volume compares the latest bar with the preceding 20 daily or 10 weekly bars. The relative series starts at 100 on the first available point and ends on the latest matched date. Compact and Bottom-only charts may lack this source series. The display marks missing coverage.
+- Passed 119 Node and 19 Chromium cases. Verified the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 15:03 Europe/Zagreb on November 17 EOD data, preview commit `0e8c2b8`, deployment `dpl_MBB5iPuejMm6ktghHVwX66QHXS33`. Next priorities are a dated EOD change feed, stronger benchmark coverage and outcome cohorts with matched controls.
+
 ## 2026-11-18 — Kell Swing statistics enter the signed research bundle
 
 - Verified locally at 14:43 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Statistics page separates archived plan execution from reconstructed selection results and lets readers choose horizon and cost. The Kell tab links directly to the report.

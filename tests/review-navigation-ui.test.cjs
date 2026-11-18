@@ -41,7 +41,7 @@ test('detail dialog has previous and next controls plus keyboard arrows',()=>{
   assert.match(app,/addEventListener\('click',\(\)=>navigateDetail\(1\)\)/);
   assert.match(app,/e\.key==='ArrowLeft'/);
   assert.match(app,/e\.key==='ArrowRight'/);
-  assert.match(app,/if\(!\$\('#detail'\)\.open\)\$\('#detail'\)\.showModal\(\)/);
+  assert.match(app,/if\(!dialog\.open\)dialog\.showModal\(\)/);
 });
 
 test('legacy Action and Multi-hit do not become full Kell-universe filters',()=>{

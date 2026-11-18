@@ -110,6 +110,17 @@ test('Trend Birth opens directly to dated evidence, invalidation and chart',asyn
   assert.match(await page.locator('#grid').innerText(),new RegExp(bootstrap.source.sessionDate));
   assert.equal(await page.locator('#grid canvas').count(),1);
   await page.waitForSelector('#grid canvas[aria-description*="Poništenje"]');
+  await page.locator('#grid .card').click();
+  const detail=page.locator('.detail-evidence');
+  assert.equal(await detail.locator('select').inputValue(),'6m');
+  await detail.locator('[data-volume-readout]').waitFor();
+  assert.match(await detail.locator('[data-volume-readout]').innerText(),/prethodni 20D/);
+  assert.match(await detail.locator('[data-relative-readout]').innerText(),/100 na/);
+  await detail.locator('select').selectOption('5y');
+  await page.waitForFunction(()=>document.querySelector('.detail-chart-meta').textContent.includes('tjedna svijeća'));
+  assert.match(await detail.locator('[data-volume-readout]').innerText(),/prethodni 10W/);
+  await detail.locator('select').selectOption('3m');
+  await page.waitForFunction(()=>document.querySelector('.detail-chart-meta').textContent.includes('prikazana sesija'));
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
 });
 
