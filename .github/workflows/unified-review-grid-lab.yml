@@ -158,7 +158,8 @@ jobs:
             --latest lab/data/latest.json \
             --stages-dir lab/data/trend-birth-ticker-history \
             --prices-dir lab/data/trend-birth-price-history \
-            --outcomes-dir lab/data/trend-birth-forward-eod-history \
+            --outcomes-dir lab/data/trend-birth-action-outcomes \
+            --actions scripts/data/review-market-actions-v1.json \
             --output lab/data/trend-birth-stage-forward.json
       - name: Refresh historical-proxy Composite Score from local EOD archive
         run: python scripts/backtest_market_internals.py --refresh-actual-only
@@ -254,6 +255,21 @@ jobs:
         run: python scripts/build_kell_calibration_report.py --snapshot lab/data/latest.json --validation lab/data/kell-signal-validation.json --output lab/kell-calibration.html
       - name: Archive point-in-time Kell scores
         run: python scripts/archive_kell_scores.py --input lab/data/kell-latest.json --output-dir lab/data/kell-score-history
+      - name: Build research reports for the active snapshot
+        run: |
+          python scripts/kell_gold_set.py \
+            --gold-set lab/data/kell-gold-set.json \
+            --current lab/data/kell-latest.json \
+            --scores-dir lab/data/kell-score-history \
+            --snapshots-dir lab/data/snapshots \
+            --output lab/data/kell-gold-set-eval.json \
+            --strict
+          python scripts/kell_forward_validation.py \
+            --scores-dir lab/data/kell-score-history \
+            --charts-dir lab/data/kell-charts \
+            --publication lab/data/publication.json \
+            --output lab/data/kell-forward-validation.json
+          python scripts/publish_review_research.py --directory lab/data
       - name: Publish aligned Review + Kell data atomically
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.ref == 'refs/heads/feature/kell-mcp-lab' || github.ref == 'refs/heads/fix/kell-review-date-alignment' || github.ref == 'refs/heads/feature/persistent-watchlist' || github.ref == 'refs/heads/feature/unified-watchlist-integration')
         run: |
@@ -261,6 +277,7 @@ jobs:
           cp lab/data/latest.json /tmp/review-publication/latest.json
           cp lab/data/publication.json /tmp/review-publication/publication.json
           cp -R lab/data/review-bootstrap-v1 /tmp/review-publication/review-bootstrap-v1
+          cp -R lab/data/research-runs /tmp/review-publication/research-runs
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
           cp -R lab/data/history /tmp/review-publication/history
           cp -R lab/data/snapshots /tmp/review-publication/snapshots
@@ -276,8 +293,8 @@ jobs:
           cp lab/data/trend-birth-stage-forward.json /tmp/trend-birth-stage-forward.json
           rm -rf /tmp/trend-birth-price-history
           cp -R lab/data/trend-birth-price-history /tmp/trend-birth-price-history
-          rm -rf /tmp/trend-birth-forward-eod-history
-          cp -R lab/data/trend-birth-forward-eod-history /tmp/trend-birth-forward-eod-history
+          rm -rf /tmp/trend-birth-action-outcomes
+          cp -R lab/data/trend-birth-action-outcomes /tmp/trend-birth-action-outcomes
           rm -rf /tmp/trend-birth-ticker-history
           cp -R lab/data/trend-birth-ticker-history /tmp/trend-birth-ticker-history
           cp lab/kell-calibration.html /tmp/kell-calibration.html
@@ -305,6 +322,8 @@ jobs:
           cp /tmp/review-publication/publication.json lab/data/publication.json
           mkdir -p lab/data/review-bootstrap-v1
           cp -R /tmp/review-publication/review-bootstrap-v1/. lab/data/review-bootstrap-v1/
+          mkdir -p lab/data/research-runs
+          cp -R /tmp/review-publication/research-runs/. lab/data/research-runs/
           rm -rf lab/data/history lab/data/snapshots
           cp -R /tmp/review-publication/history lab/data/history
           cp -R /tmp/review-publication/snapshots lab/data/snapshots
@@ -322,8 +341,8 @@ jobs:
           cp /tmp/trend-birth-stage-forward.json lab/data/trend-birth-stage-forward.json
           mkdir -p lab/data/trend-birth-price-history
           cp -R /tmp/trend-birth-price-history/. lab/data/trend-birth-price-history/
-          mkdir -p lab/data/trend-birth-forward-eod-history
-          cp -R /tmp/trend-birth-forward-eod-history/. lab/data/trend-birth-forward-eod-history/
+          mkdir -p lab/data/trend-birth-action-outcomes
+          cp -R /tmp/trend-birth-action-outcomes/. lab/data/trend-birth-action-outcomes/
           mkdir -p lab/data/trend-birth-ticker-history
           cp -R /tmp/trend-birth-ticker-history/. lab/data/trend-birth-ticker-history/
           cp /tmp/kell-calibration.html lab/kell-calibration.html
@@ -360,11 +379,11 @@ jobs:
           assert composite["actualHistory"][-1]["score"] == composite["latestActual"]["score"]
           print({"alignedSessionDate": review_date, "runId": review_run, "unifiedManifestSha256": review_unified_sha})
           PY
-          python scripts/validate_eod_publication.py --previous-publication /tmp/review-publication/previous-publication.json
+          python scripts/validate_eod_publication.py --require-research --previous-publication /tmp/review-publication/previous-publication.json
           python scripts/pack_review_storage.py --directory lab/data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lab/data/review-bootstrap-v1 lab/data/trend-birth-price-history lab/data/trend-birth-forward-eod-history lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-history
+          git add lab/data/review-bootstrap-v1 lab/data/research-runs lab/data/trend-birth-price-history lab/data/trend-birth-action-outcomes lab/data/trend-birth-stage-forward.json lab/data/trend-birth-ticker-history lab/data/trend-birth-intelligence.json lab/data/trend-birth-market-internals.json lab/data/trend-birth-composite-backtest.json lab/data/publication.json lab/data/history lab/data/snapshots lab/data/trend-birth-quality-history.json lab/data/weekly-birth-shadow lab/data/kell-latest.json lab/data/kell-signal-validation.json lab/data/kell-gold-set-eval.json lab/data/trend-birth-alerts.json lab/data/kell-forward-validation.json lab/kell-calibration.html lab/data/kell-charts lab/data/kell-score-history lab/data/kell-snapshots lab/data/kell-chart-snapshots lab/data/kell-history
           # pack_review_storage.py may losslessly replace latest.json with latest.json.gz.
           # Stage tracked removal and whichever exact payload is physically present.
           if git ls-files --error-unmatch lab/data/latest.json >/dev/null 2>&1; then git add -u -- lab/data/latest.json; fi
@@ -389,6 +408,8 @@ jobs:
             !lab/data/kell-history/**
             !lab/data/trend-birth-ticker-history/**
             !lab/data/trend-birth-forward-eod-history/**
+            !lab/data/trend-birth-action-outcomes/**
+            !lab/data/research-runs/**
             !lab/data/trend-birth-price-history/**
             !lab/data/kell-snapshots/**
             !lab/data/kell-chart-runs/**
@@ -404,7 +425,7 @@ jobs:
 
   historical_calibration:
     needs: build
-    if: github.ref == 'refs/heads/feature/unified-review-grid-lab' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/feature/unified-review-grid-lab'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -419,23 +440,9 @@ jobs:
         run: |
           python scripts/pack_review_storage.py --directory lab/data --materialize-latest
           python scripts/validate_unified_review_bundle.py --review lab/data/latest.json --publication lab/data/publication.json --kell lab/data/kell-latest.json --charts-dir lab/data/kell-charts
-      - name: Evaluate human-reviewed Kell Gold Set
+      - name: Verify and summarize published research reports
         run: |
-          python scripts/kell_gold_set.py \
-            --gold-set lab/data/kell-gold-set.json \
-            --current lab/data/kell-latest.json \
-            --scores-dir lab/data/kell-score-history \
-            --snapshots-dir lab/data/snapshots \
-            --output lab/data/kell-gold-set-eval.json \
-            --strict
-      - name: Run point-in-time Kell forward validator
-        run: |
-          python scripts/kell_forward_validation.py \
-            --scores-dir lab/data/kell-score-history \
-            --charts-dir lab/data/kell-charts \
-            --output lab/data/kell-forward-validation.json \
-            --horizons 5,10,20,40,60,120 \
-            --min-outcome-coverage-pct 99
+          python scripts/publish_review_research.py --check
           python - <<'PY'
           import json
           from pathlib import Path

@@ -175,12 +175,16 @@ function renderTrendBirthToday(){
 }
 async function loadTrendBirthIntelligence(){
   if(tbIntelligenceArchived)return;
+  const snapshotId=state.snapshotId;
   try{
     const response=await fetch('data/trend-birth-intelligence.json',{cache:'no-store'});
     if(!response.ok)throw new Error('HTTP '+response.status);
-    state.intelligence=TrendBirthIntelligence.validateSummary(await response.json());
+    const summary=TrendBirthIntelligence.validateSummary(await response.json());
+    if(snapshotId!==state.snapshotId)return;
+    state.intelligence=summary;
     renderTrendBirthToday();
   }catch(error){
+    if(snapshotId!==state.snapshotId)return;
     state.intelligenceError=error.message;
     $('#tbToday').hidden=true; // Historical UI and EOD still work without new payload.
   }
@@ -383,11 +387,17 @@ function renderTrendBirthQuality(){
   tbQualityView.scrollToEnd=false;
 }
 async function loadTrendBirthQualityHistory(){
+  const snapshotId=state.snapshotId;
   try{
     const response=await fetch('data/trend-birth-quality-history.json',{cache:'no-store'});
     if(!response.ok)throw new Error('HTTP '+response.status);
-    state.qualityHistory=await response.json();
-  }catch(error){state.qualityHistoryError='Povijest još nije objavljena ('+error.message+'). Trenutačni dnevni brojevi ostaju prikazani.'}
+    const data=await response.json();
+    if(snapshotId!==state.snapshotId)return;
+    state.qualityHistory=data;
+  }catch(error){
+    if(snapshotId!==state.snapshotId)return;
+    state.qualityHistoryError='Povijest još nije objavljena ('+error.message+'). Trenutačni dnevni brojevi ostaju prikazani.';
+  }
   renderTrendBirthQuality();
 }
 const trendBirthLabel=item=>{
@@ -944,9 +954,12 @@ function updateFilterCounts(){
 async function ensureResearchData(){
   if(state.data?.schemaVersion!=='trend-birth-review-bootstrap-v1')return state.data;
   if(!state.researchLoading){
-    state.researchLoading=ReviewSnapshots.loadResearch(fetch,state.data).then(data=>{
-      state.data=data;return data;
-    }).finally(()=>{state.researchLoading=null});
+    const bootstrap=state.data;
+    const request=ReviewSnapshots.loadResearch(fetch,bootstrap).then(data=>{
+      if(state.data===bootstrap)state.data=data;
+      return data;
+    }).finally(()=>{if(state.researchLoading===request)state.researchLoading=null});
+    state.researchLoading=request;
   }
   return state.researchLoading;
 }
@@ -955,8 +968,9 @@ async function ensureKellData(){
   if(Array.isArray(state.data?.kellCandidates)){state.kellData=state.data;return state.kellData}
   if(state.kellLoading)return state.kellLoading;
   const reviewSource=state.data?.source||{};
-  state.kellLoading=KellDatasets.load(fetch,location.search,reviewSource)
+  const request=KellDatasets.load(fetch,location.search,reviewSource)
     .then(data=>{
+      if(state.kellLoading!==request)return data;
       const normal=new Map((state.data?.candidates||[]).map(item=>[item.ticker,item]));
       for(const item of data.kellCandidates||[]){
         const base=normal.get(item.ticker);
@@ -965,25 +979,28 @@ async function ensureKellData(){
       state.kellData=data;
       state.kellChartShards.clear();
       state.kellChartLoading.clear();
-      state.kellLoading=null;
       return data;
     })
-    .catch(err=>{state.kellLoading=null;throw err});
+    .finally(()=>{if(state.kellLoading===request)state.kellLoading=null});
+  state.kellLoading=request;
   return state.kellLoading;
 }
 async function ensureKellChanges(){
-  await ensureKellData();
+  const snapshotId=state.snapshotId;
+  const kell=await ensureKellData();
+  if(snapshotId!==state.snapshotId)return null;
   if(state.kellChangesPreviousDate)return state.kellChangesPreviousDate;
   if(state.kellChangesLoading)return state.kellChangesLoading;
   const currentDate=state.kellData?.source?.sessionDate||state.data?.source?.sessionDate;
-  state.kellChangesLoading=KellChanges.loadPrevious(fetch,currentDate,10)
+  const request=KellChanges.loadPrevious(fetch,currentDate,10)
     .then(previous=>{
-      KellChanges.decorate(state.kellData?.kellCandidates||[],previous);
+      if(state.kellChangesLoading!==request)return null;
+      KellChanges.decorate(kell?.kellCandidates||[],previous);
       state.kellChangesPreviousDate=previous.source.sessionDate;
-      state.kellChangesLoading=null;
       return state.kellChangesPreviousDate;
     })
-    .catch(err=>{state.kellChangesLoading=null;throw err});
+    .finally(()=>{if(state.kellChangesLoading===request)state.kellChangesLoading=null});
+  state.kellChangesLoading=request;
   return state.kellChangesLoading;
 }
 function changeStrip(item){
@@ -1006,9 +1023,10 @@ async function ensureChartData(item){
   const shard=Number(item?.chartShard);
   if(!meta||!Number.isInteger(shard)||shard<0)return rowsForPeriod(item);
   const key=String(shard);
-  let payload=state.kellChartShards.get(key);
+  const shardCache=state.kellChartShards, pending=state.kellChartLoading;
+  let payload=shardCache.get(key);
   if(!payload){
-    let loading=state.kellChartLoading.get(key);
+    let loading=pending.get(key);
     if(!loading){
       const base=String(meta.basePath||'data/kell-charts').replace(/\/$/,'');
       const path=base+'/shard-'+String(shard).padStart(3,'0')+'.json';
@@ -1024,12 +1042,11 @@ async function ensureChartData(item){
           if(data?.source?.unifiedManifestSha256&&result?.source?.unifiedManifestSha256!==data.source.unifiedManifestSha256){
             throw new Error('chart shard Unified activation mismatch');
           }
-          state.kellChartShards.set(key,result);
-          state.kellChartLoading.delete(key);
+          shardCache.set(key,result);
           return result;
         })
-        .catch(err=>{state.kellChartLoading.delete(key);throw err});
-      state.kellChartLoading.set(key,loading);
+        .finally(()=>pending.delete(key));
+      pending.set(key,loading);
     }
     payload=await loading;
   }
@@ -1469,7 +1486,8 @@ $('#primaryViews')?.addEventListener('click',async e=>{
   const request=state.primaryRequest=(state.primaryRequest||0)+1;
   const button=e.target.closest('[data-primary-view]');
   if(!button)return;
-  if(['research','watchlist'].includes(button.dataset.primaryView)){
+  if(button.dataset.primaryView==='research'||
+     (button.dataset.primaryView==='watchlist'&&state.watchlist.length)){
     $('#status').textContent='Učitavam istraživački skup…';
     try{await ensureResearchData()}catch(error){$('#status').textContent='Research nije dostupan: '+error.message;return}
   }
@@ -1483,7 +1501,71 @@ $('#primaryViews')?.addEventListener('click',async e=>{
 });
 const queryParams=new URLSearchParams(location.search);
 const archived=queryParams.has('snapshot')||queryParams.has('date');
-loadTrendBirthIntelligence(); // tiny payload while heavyweight Review/Kell data loads.
-(defaultMode==='legacy'?ReviewSnapshots.load:ReviewSnapshots.loadInitial)(fetch,location.search)
-  .then(data=>{state.data=data;renderTrendBirthToday();renderTrendBirthQuality();loadTrendBirthQualityHistory();if(!data.shortlists?.weeklyTrendBirth&&state.primaryView!=='research'){state.primaryView='research';state.chartPeriod='1y';$('#chartPeriod').value='1y'}$('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+(archived?'archive':'latest')+' · read-only';render()})
-  .catch(err=>{$('#status').textContent='Snapshot nije dostupan: '+err.message});
+let freshnessCalendar=null;
+let refreshRequest=null;
+
+function showDisplayedSnapshot(data,manifest){
+  if(state.data){
+    state.primaryRequest=(state.primaryRequest||0)+1;
+    state.researchLoading=null;
+    state.kellLoading=null;
+    state.kellData=null;
+    state.kellChangesLoading=null;
+    state.kellChangesPreviousDate=null;
+    state.kellChartShards=new Map();
+    state.kellChartLoading=new Map();
+    state.intelligenceMonths=new Map();
+    state.intelligence=null;
+    state.qualityHistory=null;
+    state.qualityHistoryError='';
+    state.detailTicker=null;
+    if($('#detail').open)$('#detail').close();
+  }
+  state.data=data;
+  state.snapshotId=manifest?.snapshotId||data.reviewSnapshotId||null;
+  if(!data.shortlists?.weeklyTrendBirth&&state.primaryView==='weekly'){
+    state.primaryView='research';
+    state.chartPeriod='1y';
+    $('#chartPeriod').value='1y';
+  }
+  $('#runMeta').textContent=(data.source?.sessionDate||'—')+' · Unified '+(data.source?.runId||'—')+' · '+
+    (archived?'archive':'latest')+' · read-only';
+  renderTrendBirthToday();
+  renderTrendBirthQuality();
+  loadTrendBirthIntelligence();
+  loadTrendBirthQualityHistory();
+  render();
+}
+
+function refreshDisplayedSnapshot(){
+  if(refreshRequest||document.visibilityState==='hidden'||(archived&&state.data))return;
+  refreshRequest=(async()=>{
+    let error=null;
+    try{
+      const full=defaultMode==='legacy'||state.primaryView==='research'||
+        (state.primaryView==='watchlist'&&state.watchlist.length>0);
+      if(archived){
+        showDisplayedSnapshot(await ReviewSnapshots.load(fetch,location.search),null);
+      }else{
+        const oldId=state.snapshotId;
+        const {data,manifest}=await ReviewSnapshots.loadCurrent(fetch,{full,previousId:oldId});
+        if(data&&(!state.data||manifest)){
+          if(state.data?.source?.sessionDate>data.source?.sessionDate)throw Error('Objava ima stariji datum od prikazane sesije.');
+          showDisplayedSnapshot(data,manifest);
+        }else if(!manifest){
+          throw Error('Nedostaje pokazivač objave.');
+        }
+        freshnessCalendar??=await ReviewFreshness.loadCalendar(fetch);
+      }
+    }catch(cause){
+      error=cause;
+      if(!state.data)$('#status').textContent='Snapshot nije dostupan: '+cause.message;
+    }
+    ReviewFreshness.render($('#eodFreshness'),freshnessCalendar,state.data?.source?.sessionDate,{archived,error});
+  })().finally(()=>{refreshRequest=null});
+}
+
+document.addEventListener('visibilitychange',refreshDisplayedSnapshot);
+window.addEventListener('pageshow',refreshDisplayedSnapshot);
+window.addEventListener('focus',refreshDisplayedSnapshot);
+refreshDisplayedSnapshot();

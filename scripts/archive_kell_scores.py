@@ -28,13 +28,13 @@ def compact_candidate(item: dict) -> dict:
 
 def build_archive(payload: dict) -> dict:
     source = payload.get("source") or {}
+    identity = {key: source.get(key) for key in ("sessionDate", "runId")}
+    if source.get("unifiedManifestSha256"):
+        identity["unifiedManifestSha256"] = source["unifiedManifestSha256"]
     rows = list(payload.get("kellCandidates") or payload.get("candidates") or [])
     return {
         "schemaVersion": "kell-score-history-v1",
-        "source": {
-            "sessionDate": source.get("sessionDate"),
-            "runId": source.get("runId"),
-        },
+        "source": identity,
         "kellScoring": {
             "modelVersion": (payload.get("kellScoring") or {}).get("modelVersion"),
         },

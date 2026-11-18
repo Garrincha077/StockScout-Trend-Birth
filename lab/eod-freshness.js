@@ -2,7 +2,7 @@
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports)module.exports=api;
-  else if(root.document)root.document.addEventListener('DOMContentLoaded',api.start);
+  else root.ReviewFreshness=api;
 })(globalThis,function(){
   'use strict';
   function assess(calendar,day,now=Date.now()){
@@ -20,25 +20,28 @@
     if(!expected||sourceClose===null||sourceClose>now)throw Error('Datum objave nije završena burzovna sesija');
     return {expected,stale:day<expected};
   }
-  async function start(){
-    const host=document.getElementById('eodFreshness');
-    if(!host)return;
+  async function loadCalendar(fetcher){
+    const response=await fetcher('data/exchange-sessions-v1.json',{cache:'no-store'});
+    if(!response.ok)throw Error('Kalendar nije dostupan (HTTP '+response.status+').');
+    return response.json();
+  }
+  function describe(calendar,day,{archived=false,error=null,now=Date.now()}={}){
+    if(archived&&day)return {state:'archive',text:'Povijesna snimka · '+day};
+    const prefix=day?'Prikazana EOD sesija: '+day+'. ':'';
+    if(error)return {state:'unknown',text:prefix+'Provjera novije objave nije uspjela: '+error.message};
     try{
-      const values=await Promise.all(['data/exchange-sessions-v1.json','data/publication.json'].map(async url=>{
-        const response=await fetch(url,{cache:'no-store'});
-        if(!response.ok)throw Error('HTTP '+response.status);
-        return response.json();
-      }));
-      const day=values[1].sessionDate,result=assess(values[0],day);
-      host.dataset.state=result.stale?'stale':'current';
-      host.textContent=(result.stale?'Podaci kasne. ':'')+'Zadnja provjerena EOD objava: '+day+
-        '. Očekivana sesija: '+result.expected+'. '+
-        (result.stale?'Prikazana je posljednja valjana objava. ':'')+
-        'Rok osvježenja: 4 sata nakon zatvaranja XNYS-a, uz blagdane i ranija zatvaranja.';
+      const result=assess(calendar,day,now);
+      return {state:result.stale?'stale':'current',text:(result.stale?'Podaci kasne. ':'')+prefix+
+        'Očekivana sesija: '+result.expected+'.'};
     }catch(error){
-      host.dataset.state='unknown';
-      host.textContent='Svježina EOD objave nije potvrđena: '+error.message+'. Provjeri datum izvora prije korištenja podataka.';
+      return {state:'unknown',text:prefix+'Svježina EOD podataka nije potvrđena: '+error.message+'.'};
     }
   }
-  return {assess,start};
+  function render(host,calendar,day,options){
+    if(!host)return;
+    const status=describe(calendar,day,options);
+    host.dataset.state=status.state;
+    if(host.textContent!==status.text)host.textContent=status.text;
+  }
+  return {assess,loadCalendar,describe,render};
 });

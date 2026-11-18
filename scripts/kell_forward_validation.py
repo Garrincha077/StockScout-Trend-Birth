@@ -435,6 +435,7 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--calendar", type=Path, default=CALENDAR_PATH)
     parser.add_argument("--as-of", help="Latest completed XNYS session represented in the chart inputs")
+    parser.add_argument("--publication", type=Path, help="Verify the latest score archive against this Review publication")
     parser.add_argument(
         "--min-outcome-coverage-pct",
         type=float,
@@ -452,12 +453,19 @@ def main() -> int:
     charts = load_chart_store(Path(args.charts_dir))
     if not snapshots or not charts:
         parser.error("Kell forward validation requires score snapshots and dated OHLCV charts")
-    as_of = args.as_of or max(_observed_sessions(charts))
+    publication = json.loads(args.publication.read_bytes()) if args.publication else None
+    as_of = publication["sessionDate"] if publication else args.as_of or max(_observed_sessions(charts))
+    if publication and args.as_of and args.as_of != as_of:
+        parser.error("Requested Kell cutoff differs from publication session")
     sessions = exchange_sessions(as_of, args.calendar)
     eligible_days = set(sessions)
     snapshots = [snapshot for snapshot in snapshots if snapshot["sessionDate"] in eligible_days]
     if not snapshots:
         parser.error("No archived Kell score snapshots within the exchange calendar")
+    if publication:
+        keys = ("sessionDate", "runId", "unifiedManifestSha256")
+        if any(snapshots[-1]["source"].get(key) != publication.get(key) for key in keys):
+            parser.error("Latest Kell score archive does not match Review publication")
     observations = build_observations(snapshots, charts, horizons, sessions)
     coverage = outcome_coverage(snapshots, charts, observations, horizons, sessions)
     report = summarize(
@@ -479,6 +487,8 @@ def main() -> int:
         "minOutcomeCoveragePct": args.min_outcome_coverage_pct,
         "outcomeCoverageGuard": True,
     }
+    if publication:
+        report["source"].update({key: publication[key] for key in keys})
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

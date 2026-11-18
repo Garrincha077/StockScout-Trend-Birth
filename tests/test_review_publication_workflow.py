@@ -21,7 +21,7 @@ def publication_script():
 
 class ReviewPublicationWorkflowTests(unittest.TestCase):
     def publish(self, *, stale_composite=False, missing_prices=False, skipped_session=False,
-                bad_source=False, low_coverage=False):
+                bad_source=False, low_coverage=False, stale_research=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             checkout, remote, scratch = root / "checkout", root / "remote.git", root / "scratch"
@@ -49,7 +49,8 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
             for name in ["trend_birth_quality_history.py", "validate_eod_publication.py",
                          "archive_trend_birth_closes.py", "trend_birth_intelligence.py",
                          "validate_unified_review_bundle.py",
-                         "pack_review_storage.py", "review_archive_io.py"]:
+                         "pack_review_storage.py", "review_archive_io.py", "market_sessions.py",
+                         "publish_review_snapshot.py", "publish_review_research.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")
 
@@ -79,6 +80,7 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 sys.path.insert(0, str(ROOT / "scripts"))
                 from trend_birth_intelligence import point_from_snapshot
                 from archive_trend_birth_closes import extract
+                from publish_review_research import REPORTS, publish
                 stage = point_from_snapshot(latest)
                 for folder, schema, point in [
                     ("trend-birth-ticker-history", "trend-birth-ticker-month-v1", stage),
@@ -88,7 +90,16 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                         "schemaVersion": schema, "scope": "unified-plus-tracked-watchlist", "month": day[:7], "sessions": []}
                     payload["sessions"].append(point)
                     write(str(target.relative_to(checkout)), payload)
-                write("lab/data/trend-birth-stage-forward.json", {"asOf": day, "exchangeSessions": [day]})
+                for name, (filename, schema) in REPORTS.items():
+                    report = {"schemaVersion": schema, "source": dict(latest["source"])}
+                    if name == "trendBirthForward":
+                        report.update({"asOf": day, "exchangeSessions": [day]})
+                    elif name == "kellForward":
+                        report["source"].update({"asOf": day, "lastSignalDate": day})
+                    elif name == "alerts":
+                        report["reviewSnapshotId"] = sid
+                    write("lab/data/" + filename, report)
+                publish(checkout / "lab/data")
                 write("lab/data/kell-latest.json", {"source": latest["source"]})
                 write("lab/data/trend-birth-market-internals.json", {
                     "latestSessionDate": day, "latestRunId": latest["source"]["runId"]})
@@ -130,6 +141,9 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 # The inputs are fresh but an upstream generation failed to refresh Composite.
                 old = json.loads(git("show", "HEAD:lab/data/trend-birth-composite-backtest.json"))
                 write("lab/data/trend-birth-composite-backtest.json", old)
+            if stale_research:
+                old = json.loads(git("show", "HEAD:lab/data/kell-forward-validation.json"))
+                write("lab/data/kell-forward-validation.json", old)
             result = subprocess.run(
                 ["bash", "-euo", "pipefail", "-c", script.replace("/tmp/", str(scratch) + "/").replace(
                     "python scripts/validate_eod_publication.py",
@@ -183,6 +197,12 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
     def test_mixed_run_keeps_last_published_commit(self):
         result, _published, unchanged = self.publish(bad_source=True)
         self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(unchanged)
+
+    def test_mixed_research_report_keeps_last_published_commit(self):
+        result, _published, unchanged = self.publish(stale_research=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Research report does not match Review publication", result.stderr)
         self.assertTrue(unchanged)
 
     def test_matching_but_insufficient_price_coverage_keeps_last_commit(self):

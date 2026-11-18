@@ -1,5 +1,14 @@
 # StockScout Trend Birth — Persistent Project Log
 
+## 2026-11-18 — Publish matched research and display the loaded EOD session
+
+- Branch `codex/review-lab-rebuild`, draft PR #76. Local verification at 12:32 Europe/Zagreb.
+- EOD generation moves Kell Gold Set and forward analysis into the build that activates the matching Review, Kell and alert artifacts. A new SHA-256-bound research JSON records the exact snapshot identifier and Unified activation. The publish gate validates its aliased outputs, bytes and identity in the final Git checkout. The downstream calibration job audits published bytes.
+- The Stage Forward report switches to the action-aware replay. Derived monthly corrections are written to `trend-birth-action-outcomes`. The original EOD outcomes remain as archived comparison. Neither the Kell nor early Trend Birth ranking model changes in this batch.
+- The browser shows the actual snapshot date, keeps archive links pinned, rechecks on focus and visibility changes, and replaces the displayed bundle only after a complete read. Empty watchlists skip the full snapshot. Statistics read the pinned research report when available and show outcome eligibility beside each row.
+- Tests passed locally: 221 Python with the Linux publication-shell fixture excluded, 113 Node, and 12 Chromium browser cases. Browser cases cover a failed then successful resumed refresh with service worker enabled, archive date and empty watchlist. The first PR CI failure exposed a missing module in the Linux test fixture and this change includes its correction and a mixed-report abort case.
+- Next: reconcile same-day activation revisions and publish the separated Kell and early Trend Birth views. Measure models and mobile network performance before preview.
+
 ## 2026-11-18 — Rebuild begins with data contracts and historical replay
 
 - Branch `codex/review-lab-rebuild` uses `82b12be589828a6e114d5c4ac8635aacaa52787c` as the pinned production baseline. Last comparison verified 2026-11-18 12:18 Europe/Zagreb.

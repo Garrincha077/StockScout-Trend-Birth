@@ -24,8 +24,8 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server)await new Promise(done=>server.close(done))});
 
-async function pageFor(t){
-  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
+async function pageFor(t, serviceWorkers='block'){
+  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers});
   t.after(()=>context.close());
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -74,6 +74,63 @@ test('initial mobile view is bounded and never fetches full Review or Kell data 
   await page.locator('#grid .card').first().click();
   assert.equal(await page.locator('#detail').evaluate(e=>e.open),true);
   assert.match(await page.locator('#detail').innerText(),/Daily radar/i);
+});
+
+test('empty mobile watchlist uses no full archive and keeps the current snapshot',async t=>{
+  const page=await pageFor(t,'allow'),requests=[];
+  page.on('request',request=>requests.push(request.url()));
+  await page.goto(base+'/');
+  await page.waitForFunction(()=>document.querySelectorAll('#grid .card').length===15);
+  await page.evaluate(()=>navigator.serviceWorker.ready);
+  await page.locator('[data-primary-view="watchlist"]').click();
+  await page.waitForSelector('[data-primary-view="watchlist"].active');
+  assert.match(await page.locator('#status').innerText(),/0 spremljeno/);
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('/data/kell-latest')),false);
+});
+
+test('visible again: incomplete update preserves the old snapshot, complete update replaces it',async t=>{
+  const page=await pageFor(t,'allow');
+  const make=(day,token)=>{
+    const source={...bootstrap.source,sessionDate:day,runId:day+'-eod-'+token+'-1'};
+    const id=source.runId+'--'+token.repeat(64);
+    const manifest={...source,schemaVersion:'trend-birth-publication-v1',snapshotId:id,
+      bootstrapPath:'data/review-bootstrap-v1/'+id+'.json'};
+    return {manifest,bootstrap:{...bootstrap,source,reviewSnapshotId:id}};
+  };
+  const previous=make('2026-11-16','1'),next=make('2026-11-17','2');
+  let active=previous,partial=false;
+  await page.clock.setFixedTime(new Date('2026-11-18T08:00:00Z'));
+  await page.route('**/data/publication.json',route=>route.fulfill({json:active.manifest}));
+  await page.route('**/data/review-bootstrap-v1/**',route=>partial?
+    route.fulfill({status:503,body:'Unavailable'}):route.fulfill({json:active.bootstrap}));
+  await page.goto(base+'/');
+  await page.waitForFunction(()=>document.querySelector('#eodFreshness').dataset.state==='stale');
+  active=next;
+  partial=true;
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await page.waitForFunction(()=>document.querySelector('#eodFreshness').dataset.state==='unknown');
+  assert.match(await page.locator('#eodFreshness').innerText(),/2026-11-16/);
+  assert.match(await page.locator('#runMeta').innerText(),/2026-11-16/);
+  partial=false;
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForFunction(()=>document.querySelector('#eodFreshness').dataset.state==='current');
+  assert.match(await page.locator('#eodFreshness').innerText(),/2026-11-17/);
+  assert.match(await page.locator('#runMeta').innerText(),/2026-11-17/);
+});
+
+test('historical link shows its own session and stays pinned after a focus event',async t=>{
+  const page=await pageFor(t),seen=[];
+  page.on('request',request=>seen.push(request.url()));
+  const day='2026-09-17';
+  await page.route('**/data/history/'+day+'.json',route=>route.fulfill({
+    json:{...bootstrap,source:{...bootstrap.source,sessionDate:day}}
+  }));
+  await page.goto(base+'/?date='+day);
+  await page.waitForFunction(()=>document.querySelector('#eodFreshness').dataset.state==='archive');
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  assert.match(await page.locator('#eodFreshness').innerText(),/Povijesna snimka.*2026-09-17/);
+  assert.match(await page.locator('#runMeta').innerText(),/2026-09-17/);
+  assert.equal(seen.some(url=>url.endsWith('/data/publication.json')),false);
 });
 
 test('auth reconciliation respects remote deletions and keeps accounts and anonymous items separate',async t=>{

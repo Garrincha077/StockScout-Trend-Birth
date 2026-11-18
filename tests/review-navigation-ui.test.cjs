@@ -69,7 +69,7 @@ test('What Changed Today loads prior Kell history and sorts material changes fir
   assert.match(html,/kell-change-detector\.js/);
   assert.match(app,/function ensureKellChanges\(\)/);
   assert.match(app,/KellChanges\.loadPrevious\(fetch,currentDate,10\)/);
-  assert.match(app,/KellChanges\.decorate\(state\.kellData\?\.kellCandidates\|\|\[\],previous\)/);
+  assert.match(app,/KellChanges\.decorate\(kell\?\.kellCandidates\|\|\[\],previous\)/);
   assert.match(app,/if\(filter==='kell-changed'\)return item\?\.kellChange\?\.changed===true/);
   assert.match(app,/if\(mode==='change'\)return Number\(item\.kellChange\?\.priority\)/);
   assert.match(app,/if\(name==='changed'\)/);

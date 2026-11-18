@@ -1,3 +1,11 @@
+## 2026-11-18 — Snapshot-bound research and mobile freshness
+
+- Verified locally 2026-11-18 12:32 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+- The proposed EOD publisher computes corrected Trend Birth outcomes, Kell forward validation and Gold Set before activation. The publication binds these and the alert payload to one content-addressed research file, with a validation gate after the workflow's Git restore. Former outcome shards are retained for comparison.
+- In mobile Chromium, displayed session labels remain tied to the data on screen. Foregrounding swaps to a fully loadable new snapshot and preserves the old dataset on an incomplete update. Archived links remain pinned and an empty watchlist does not load the full archive. Nonempty watchlist demand loading remains next.
+- Local verification: 221 Python tests outside the Linux publication-shell fixture, 113 Node tests and 12 Chromium tests. First PR CI found a missing module in the miniature checkout, corrected in this change. Re-run the same Linux tests on the new head.
+- Next: support corrected same-session activations across existing histories, finish Kell and early Trend Birth as distinct views, add per-ticker watchlist and release preview with before/after evidence. Production approval remains with the owner.
+
 ## 2026-11-18 — Review Lab rebuild, data baseline
 
 - Last verification 2026-11-18 12:18 Europe/Zagreb. Work in `codex/review-lab-rebuild`, based on active Review Lab source `82b12be`. Production remains on the existing branch. Last observed public source session was 2026-11-17 with 81 bootstrap candidates and charts.

@@ -689,7 +689,7 @@
     const status=el('siForwardStatus');
     const stale=data.asOf!==eodDate;
     status.textContent=(stale?'UPOZORENJE: mjerenje nije osvježeno za današnji EOD · ':'')+
-      'V2 · stvarna point-in-time povijest · '+data.asOf+
+      (data.corporateActions?'Povijest s evidentiranim korporativnim akcijama':'V2 · arhivirana povijest')+' · '+data.asOf+
       ' · '+FMT.format(data.stageTransitions)+' potvrđenih prijelaza, '+FMT.format(data.archivedEventDays)+' datuma.';
     el('siForwardSummary').textContent='Uzorci dospijevaju nakon 1 + 5/20/60 burzovnih sesija. '+
       'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
@@ -704,7 +704,7 @@
     const table=el('siForwardTable');
     table.replaceChildren();
     const thead=document.createElement('thead'), tr=document.createElement('tr');
-    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Nedostaje: sesija / ticker / ostalo','Prosjek','Medijan','% pozitivnih','P10 / P90']) {
+    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Nedostaje: sesija / ticker / ostalo','Prosjek','Medijan','% pozitivnih','P10 / P90','Status uzorka']) {
       const th=document.createElement('th'); th.textContent=label; tr.appendChild(th);
     }
     thead.appendChild(tr); table.appendChild(thead);
@@ -716,10 +716,11 @@
         quality ? [row.missingSessionGap,row.missingTickerQuote,row.missingUnclassified].map(x=>FMT.format(x)).join(' / ') : '—',
         fmt(row.meanPct,'%'),
         fmt(row.medianPct,'%'),fmt(row.winRatePct,'%'),
-        fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%')];
+        fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%'),
+        row.eligibleForCalibration===true?'Podoban za kalibraciju':row.expectedMatured?'Preliminarno':'Ishodi još nisu dospjeli'];
       cells.forEach((value,i)=>{const cell=document.createElement(i===0?'th':'td');cell.textContent=value;
         if (i===0) cell.style.color=COLORS[stage];
-        if (i===6 && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
+        if (i===6 && row.eligibleForCalibration===true && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
         r.appendChild(cell);
       });
       tbody.appendChild(r);
@@ -740,6 +741,11 @@
       status.hidden=true;
       await Promise.all([
         (async()=>{
+          let calendar=null,error=null;
+          try{calendar=await globalThis.ReviewFreshness.loadCalendar(fetch)}catch(cause){error=cause}
+          globalThis.ReviewFreshness.render(el('eodFreshness'),calendar,data.latestSessionDate,{error});
+        })(),
+        (async()=>{
           try {
             const response=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
             if (!response.ok) throw Error('HTTP '+response.status);
@@ -751,9 +757,14 @@
         (async()=>{
           let forward=null;
           try {
-            const response=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
-            if (!response.ok) throw Error('HTTP '+response.status);
-            forward=validateForward(await response.json());
+            const reports=await globalThis.ReviewSnapshots.loadReports(fetch,data.latestSessionDate,data.latestRunId);
+            if(reports){
+              forward=validateForward(reports.trendBirthForward);
+            }else{
+              const response=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
+              if (!response.ok) throw Error('HTTP '+response.status);
+              forward=validateForward(await response.json());
+            }
             renderForward(forward,data.latestSessionDate);
           } catch (error) {
             el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));

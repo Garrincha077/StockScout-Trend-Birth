@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from archive_trend_birth_closes import extract, load_prices
+from publish_review_research import validate_research
 from trend_birth_intelligence import all_points, load_months, point_from_snapshot
 from validate_unified_review_bundle import identity
 
@@ -34,7 +35,7 @@ def expected_session(calendar, now):
     return due[-1]
 
 
-def validate(directory, calendar, now, previous=None):
+def validate(directory, calendar, now, previous=None, require_research=False):
     expected = expected_session(calendar, now)
     publication = read(directory / "publication.json")
     raw = (directory / "latest.json").read_bytes()
@@ -82,6 +83,8 @@ def validate(directory, calendar, now, previous=None):
         raise ValueError("Composite latest/history mismatch")
     if forward.get("asOf") != day or forward.get("exchangeSessions", [None])[-1] != day:
         raise ValueError("Forward EOD/calendar mismatch")
+    if require_research or "research" in publication:
+        validate_research(directory, publication)
     return {"status": "ok", "sessionDate": day, "runId": run,
             "expectedSessionDate": expected, "priceCount": point["priceCount"],
             "expectedEvaluated": expected_quotes, "minimumPriceCoveragePct": 99,
@@ -93,11 +96,13 @@ def main():
     parser.add_argument("--directory", type=Path, default=Path("lab/data"))
     parser.add_argument("--calendar", type=Path, default=Path("lab/data/exchange-sessions-v1.json"))
     parser.add_argument("--previous-publication", type=Path)
+    parser.add_argument("--require-research", action="store_true")
     parser.add_argument("--now", help="Explicit aware timestamp for reproducible offline tests")
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)
     print(json.dumps(validate(args.directory, read(args.calendar), now,
-                              read(args.previous_publication) if args.previous_publication else None)))
+                              read(args.previous_publication) if args.previous_publication else None,
+                              args.require_research)))
 
 
 if __name__ == "__main__":

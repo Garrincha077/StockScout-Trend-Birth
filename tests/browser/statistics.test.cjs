@@ -81,13 +81,17 @@ test('failed V3 request leaves V2 usable and can be retried',async t=>{
 });
 test('stale publication is visible while valid statistics remain available',async t=>{
   const page=await mobile(t);
-  // Pin the stale source as well as the clock: the checked-in latest advances daily.
-  await page.route('**/data/publication.json',route=>route.fulfill({
-    contentType:'application/json',body:JSON.stringify({sessionDate:'2026-10-23'})
+  const internals=JSON.parse(await readFile(resolve(root,'data/trend-birth-market-internals.json'),'utf8'));
+  internals.points=internals.points.filter(point=>point.sessionDate<='2026-10-23');
+  internals.latestSessionDate=internals.points.at(-1).sessionDate;
+  internals.latestRunId=internals.points.at(-1).runId;
+  await page.route('**/data/trend-birth-market-internals.json',route=>route.fulfill({
+    contentType:'application/json',json:internals
   }));
   await page.clock.setFixedTime(new Date('2026-10-27T00:00:00Z'));
   await ready(page);
   await page.waitForFunction(()=>document.getElementById('eodFreshness').dataset.state==='stale');
+  assert.match(await page.locator('#eodFreshness').innerText(),/Prikazana EOD sesija: 2026-10-23/);
   assert.match(await page.locator('#eodFreshness').innerText(),/Očekivana sesija: 2026-10-26/);
   assert.equal(await page.locator('#siForwardTable tbody tr').count(),15);
 });

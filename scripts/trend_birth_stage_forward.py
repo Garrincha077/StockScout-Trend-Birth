@@ -340,8 +340,10 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
         })
     result = report(sessions, calendar, as_of, closed)
     if actions is not None:
+        source = latest["source"]
         result.update({
             "calendarSource": "xnys-eod-sessions-v1",
+            "source": {key: source.get(key) for key in ("sessionDate", "runId", "unifiedManifestSha256")},
             "priceSource": "as-published EOD closes with source-verified ledger adjustments",
             "corporateActions": {
                 "sha256": digest, "registered": len(actions), "completeCoverage": False,
