@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css?v=ticker-evidence-20261118">
+  <link rel="stylesheet" href="styles.css?v=eod-changes-20261118">
   <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
@@ -177,6 +177,17 @@
   </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <details id="reviewChanges" class="review-changes" hidden>
+      <summary>Što se promijenilo od prethodne EOD sesije?</summary>
+      <div class="review-changes-body">
+        <div class="review-changes-tabs" role="group" aria-label="Strategija">
+          <button type="button" data-review-change-view="early" aria-pressed="true">Early Trend Birth</button>
+          <button type="button" data-review-change-view="kell" aria-pressed="false">Kell Swing</button>
+        </div>
+        <div id="reviewChangeRows"></div>
+        <p id="reviewChangeNotice" role="status" hidden></p>
+      </div>
+    </details>
     <p id="planNotice" class="status" role="status" hidden></p>
     <p id="planStorageNote" class="status" hidden>Planovi se spremaju u ovom pregledniku.</p>
     <details class="market-summary" id="marketSummary">
@@ -312,13 +323,13 @@
   <script src="watchlist-store.js?v=reviewfixes-20261026"></script>
   <script src="review-plans.js?v=20261118"></script>
   <script src="owner-watchlist-sync.js?v=reviewfixes-20261026"></script>
-  <script src="snapshot-loader.js?v=deferred-views-20261118"></script>
+  <script src="snapshot-loader.js?v=eod-changes-20261118"></script>
   <script src="trend-birth-quality.js?v=dwm-history-20261024"></script>
   <script src="trend-birth-intelligence.js?v=intelligence-20261024"></script>
   <script src="kell-dataset-loader.js?v=reviewfixes-20261026"></script>
   <script src="kell-change-detector.js"></script>
   <script src="config.js"></script>
   <script src="chart-evidence.js?v=20261118" defer></script>
-  <script src="app.js?v=ticker-evidence-20261118" defer></script>
+  <script src="app.js?v=eod-changes-20261118" defer></script>
 </body>
 </html>
