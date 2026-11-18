@@ -688,6 +688,8 @@
     if(data?.schemaVersion!=='trend-birth-matched-cohorts-v1'||data.asOf!==asOf)return;
     const cohort=el('siMatchedCohort'),horizon=el('siMatchedHorizon'),results=el('siMatchedResults');
     const count=value=>FMT.format(value);
+    const plurals=new Intl.PluralRules('hr-HR');
+    const sessionLabels={one:'arhivirana sesija',few:'arhivirane sesije',other:'arhiviranih sesija'};
     el('siMatchedMethod').textContent='Kontrola dolazi iz istog skena i ima istu fazu dnevnog radara u prethodnoj sesiji. '+
       'Koriste se samo prethodna cijena (omjer do '+count(data.maxPriceRatio)+'×) i prinos zadnjih '+
       count(data.lookbackSessions)+' sesija (razlika do '+count(data.maxMomentumGapPp)+' p. b.). '+
@@ -696,10 +698,11 @@
       const group=data.groups?.[cohort.value],outcome=group?.outcomes?.[horizon.value];
       if(!outcome)return;
       const sessions=cohort.value==='early'?data.earlyObservedSessions:data.dailyObservedSessions;
-      const coverage=count(sessions)+' arhiviranih sesija · '+count(group.paired)+' / '+count(group.signals)+' uparenih signala.';
-      el('siMatchedCoverage').textContent=coverage+' '+(!group.signals?
-        'Još nema novih potvrđenih ulazaka u uzastopnim sesijama.':
-        count(group.missingFeatures)+' bez prethodnih podataka · '+count(group.unmatched)+' bez slične dionice.');
+      const archive=count(sessions)+' '+sessionLabels[plurals.select(sessions)];
+      el('siMatchedCoverage').textContent=group.signals?
+        archive+' · '+count(group.paired)+' / '+count(group.signals)+' uparenih signala. '+
+          count(group.missingFeatures)+' bez prethodnih podataka · '+count(group.unmatched)+' bez slične dionice.':
+        archive+'. Novi ulazak potvrđuje se usporedbom dviju uzastopnih sesija.';
       const dateLabel=horizon.value+'D · '+count(outcome.observed)+' s ishodom · '+
         count(outcome.pending)+' na čekanju · '+count(outcome.missingPairPrices)+' bez cijene za par.';
       el('siMatchedDates').textContent=dateLabel+(outcome.observedDates?
