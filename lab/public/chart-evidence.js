@@ -34,13 +34,26 @@
     return {points,hasValues:points.some(point=>point.value!==null)};
   }
 
-  function relative(shown,sourceByDay){
-    const raw=shown.map(bar=>positive(bar.rs)?bar.rs:sourceByDay.get(bar.time));
+  function relative(shown,sourceByDay,reference){
+    const embedded=shown.map(bar=>positive(bar.rs)?bar.rs:sourceByDay.get(bar.time));
+    let raw=embedded,source='embedded';
+    if(reference){
+      const computed=shown.map(bar=>{
+        const spy=reference.get(bar.time);
+        return positive(spy)&&positive(bar.close)?100*bar.close/spy:null;
+      });
+      const coherent=embedded.every((value,index)=>!positive(value)||!positive(computed[index])||
+        Math.abs(computed[index]/value-1)<=.002);
+      if(coherent&&computed.filter(positive).length>embedded.filter(positive).length){
+        raw=computed;
+        source='reference';
+      }
+    }
     const origin=raw.findIndex(positive);
-    if(origin<0)return {points:[],firstTime:null,count:0};
+    if(origin<0)return {points:[],firstTime:null,count:0,source:null};
     const points=raw.map(value=>positive(value)?100*value/raw[origin]:null);
     return {points,firstTime:shown[origin].time,
-      count:points.filter(value=>value!==null).length};
+      count:points.filter(value=>value!==null).length,source};
   }
 
   function axis(width,size){

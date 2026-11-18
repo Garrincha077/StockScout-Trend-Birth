@@ -150,6 +150,30 @@
         }))throw Error('Pregled promjena i prikazana EOD objava nisu usklađeni.');
     return result;
   }
+  async function loadSpyReference(fetcher,manifest) {
+    const ref=manifest?.spyReference,schema='review-spy-reference-v1';
+    const path='data/review-spy-runs/'+manifest?.snapshotId+'--'+ref?.sha256+'.json';
+    if(!validId(manifest?.snapshotId)||ref?.schemaVersion!==schema||
+        !/^[a-f0-9]{64}$/.test(ref.sha256)||ref.path!==path||
+        !Number.isInteger(ref.sessionCount)||ref.sessionCount<0||ref.sessionCount>1265)
+      throw Error('Neispravna poveznica SPY reference.');
+    const payload=aligned(await verifiedJson(fetcher,path,ref.sha256,'SPY referenca'),manifest);
+    if(payload.schemaVersion!==schema||payload.snapshotId!==manifest.snapshotId||payload.benchmark!=='SPY'||
+        !Array.isArray(payload.points)||payload.points.length!==ref.sessionCount)
+      throw Error('SPY referenca i EOD objava nisu usklađene.');
+    const levels=new Map();
+    let previous='';
+    for(const row of payload.points){
+      if(!Array.isArray(row)||row.length!==4)throw Error('Neispravna SPY referenca.');
+      const [day,close,support,total]=row;
+      if(typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day)||day<=previous||day>manifest.sessionDate||
+          !Number.isFinite(close)||close<=0||!Number.isInteger(support)||!Number.isInteger(total)||
+          support<5||support>total||support/total<.8)throw Error('Neispravna datirana SPY vrijednost.');
+      levels.set(day,close);
+      previous=day;
+    }
+    return levels;
+  }
   async function loadResearch(fetcher,data) {
     if(data?.schemaVersion!=='trend-birth-review-bootstrap-v1')return data;
     if(!validId(data.reviewSnapshotId))throw new Error('Neispravan research snapshot.');
@@ -191,6 +215,6 @@
     }));
     return new Map(rows);
   }
-  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadChanges,loadShortlist,loadWatchlist,watchlistBucket};
+  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadChanges,loadSpyReference,loadShortlist,loadWatchlist,watchlistBucket};
   if (typeof module !== 'undefined') module.exports = root.ReviewSnapshots;
 })(globalThis);
