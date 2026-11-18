@@ -74,14 +74,20 @@
     let previous=level(plan,window[0].close);
     let changed=null;
     let lastPivot=null;
+    const events=[];
+    const recorded=new Set();
     for(const quote of window.slice(1)){
       const state=level(plan,quote.close);
-      if(state==='invalidated')return {state,day:quote.day,close:quote.close,asOf,currentClose:current.close};
+      if(state!=='belowPivot'&&!recorded.has(state)){
+        events.push({state,day:quote.day,close:quote.close});
+        recorded.add(state);
+      }
+      if(state==='invalidated')return {state,day:quote.day,close:quote.close,asOf,currentClose:current.close,events};
       if(previous==='belowPivot'&&state!=='belowPivot')lastPivot=quote.day;
       if(state!==previous)changed=quote.day;
       previous=state;
     }
-    return {state:previous,asOf,close:current.close,changed,lastPivot,pivotDeltaPct:100*(current.close/plan.pivot-1)};
+    return {state:previous,asOf,close:current.close,changed,lastPivot,pivotDeltaPct:100*(current.close/plan.pivot-1),events};
   }
   return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess};
 });

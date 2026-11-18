@@ -278,5 +278,10 @@
 .saved-plan small{color:#b7c5d5}
 .saved-plan-status[data-state="invalidated"]{color:#ffabb3}
 .saved-plan-status[data-state="extended"]{color:#ffe0a6}
+.saved-plan-journal{margin-top:8px;border-top:1px solid #2d5772}
+.saved-plan-journal summary{padding:9px 0;min-height:40px;color:#9ed3ff;cursor:pointer}
+.saved-plan-journal ol{display:grid;gap:8px;margin:0 0 6px;padding-left:22px;font-size:.85rem}
+.saved-plan-journal time{font-variant-numeric:tabular-nums}
+.saved-plan-journal li span{display:block;color:#b7c5d5}
 #savedPlanArchive{margin-top:12px}
 .analysis-jump{color:#9ed3ff}
