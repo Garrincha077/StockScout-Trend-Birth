@@ -77,3 +77,14 @@ class ResearchPublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Matched Trend Birth cohorts differ"):
             publish(self.directory)
         self.assertEqual(self.read("publication.json"), original)
+
+    def test_weekly_outcomes_must_use_the_active_cutoff(self):
+        publish(self.directory)
+        original = self.read("publication.json")
+        filename = REPORTS["trendBirthForward"][0]
+        report = self.read(filename)
+        report["weeklyBase"] = {"schemaVersion": "weekly-base-outcomes-v1", "asOf": "2026-11-16"}
+        self.write(filename, report)
+        with self.assertRaisesRegex(ValueError, "Weekly Base outcomes differ"):
+            publish(self.directory)
+        self.assertEqual(self.read("publication.json"), original)

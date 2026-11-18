@@ -302,6 +302,7 @@
 .archived-plan-events{display:grid;gap:6px;margin:8px 0 0;padding-left:22px;font-size:.85rem}
 .archived-plan-events span{display:block;color:#b7c5d5}
 .archived-plan-note{color:#b7c5d5}
+.weekly-outcomes-link:not([hidden]){display:inline-flex;align-items:center;min-height:42px;margin:0 0 8px;padding:7px 11px;border:1px solid #36516f;border-radius:8px;background:#102339;color:#a8d7ff}
 .owner-plan-panel{margin:8px 0;padding:9px 10px;border:1px solid #2d5772;border-radius:8px;background:#112639}
 .owner-plan-panel p{margin:0 0 4px;color:#b7c5d5}
 .owner-plan-panel button{min-height:42px;margin:3px 8px 0 0;padding:5px 9px;border:1px solid #42668b;border-radius:7px;background:#10263b;color:var(--text);cursor:pointer}

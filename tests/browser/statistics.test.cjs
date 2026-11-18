@@ -90,6 +90,43 @@ test('Early Trend Birth statistics separate horizons and describe a later median
   assert.match(await page.locator('#siEarlyTable').innerText(),/252D · Trend Birth/);
 });
 
+test('Weekly Base outcomes expose measured pairs, missing prices and pending horizons',async t=>{
+  const page=await mobile(t);
+  const forward=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));
+  const noPairs={paired:0,observed:0,dates:0,pending:0,missing:0,signalPct:null,controlPct:null,differencePp:null};
+  const pending=(raw,pairs)=>({observed:0,dates:0,pending:raw,missing:0,meanPct:null,medianPct:null,positivePct:null,
+    matched:{...noPairs,paired:pairs,pending:pairs}});
+  const groups=(entries,paired,dates,outcome)=>({entries,signalDates:dates,
+    outcomes:{5:outcome,20:pending(entries,paired),63:pending(entries,paired),126:pending(entries,paired)}});
+  const measured={observed:1,dates:1,pending:0,missing:1,meanPct:5,medianPct:5,positivePct:100,
+    matched:{paired:2,observed:1,dates:1,pending:0,missing:1,signalPct:5,controlPct:-2,differencePp:7}};
+  const empty=groups(0,0,0,pending(0,0));
+  forward.weeklyBase={schemaVersion:'weekly-base-outcomes-v1',asOf:forward.asOf,firstSession:'2026-09-25',archiveSessions:11,
+    comparableSessions:8,latestSelected:4,unknownFirstDate:9,missingPriorOrCurrentCoverage:2,
+    missingSessions:['2026-10-15'],rejectedArchives:[],
+    groups:{all:groups(3,2,2,{...measured,pending:1}),1:empty,2:empty,3:groups(2,2,1,measured),4:groups(1,0,1,pending(1,0))}};
+  const publication=JSON.parse(await readFile(resolve(root,'data/publication.json'),'utf8'));
+  delete publication.research;
+  await page.route('**/data/publication.json',route=>route.fulfill({json:publication}));
+  await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({json:forward}));
+  await page.goto(base+'/statistics.html#siWeeklyBase');
+  await page.locator('#siWeeklyBaseContent').waitFor();
+  assert.match(await page.locator('#siWeeklyBaseStatus').innerText(),/3 prvih uvrštenja na 2 datuma/);
+  assert.equal(await page.locator('#siWeeklyBaseHorizon').inputValue(),'5');
+  await page.selectOption('#siWeeklyBaseHorizon','20');
+  assert.match(await page.locator('#siWeeklyBaseCoverage').innerText(),/3 na čekanju/);
+  assert.equal(await page.locator('#siWeeklyBaseComparison').isVisible(),false);
+  await page.selectOption('#siWeeklyBaseHorizon','5');
+  assert.match(await page.locator('#siWeeklyBaseCoverage').innerText(),/1 od 2 dospjelih.*1 bez dovoljne pokrivenosti/);
+  assert.match(await page.locator('#siWeeklyBaseMatched').innerText(),/2 uparenih od 3.*parovi s ishodom 1 na 1 datum/);
+  assert.equal(await page.locator('#siWeeklyBaseDifference').innerText(),'+7 p. b.');
+  assert.ok(await page.locator('#siWeeklyBaseControlBar').evaluate(node=>parseFloat(node.style.left)<50));
+  await page.selectOption('#siWeeklyBaseGroup','4');
+  assert.equal(await page.locator('#siWeeklyBaseSummary').isVisible(),false);
+  assert.equal(await page.locator('#siWeeklyBaseComparison').isVisible(),false);
+  assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));
+});
+
 test('Kell Swing separates archived fills from reconstructed returns and applies selected costs',async t=>{
   const page=await mobile(t);
   const forward=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));

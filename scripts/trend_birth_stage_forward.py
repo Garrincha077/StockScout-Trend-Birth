@@ -17,6 +17,7 @@ from statistics import median
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
 from archive_trend_birth_closes import load_prices
 from early_trend_outcomes import report as early_report
+from weekly_base_outcomes import report as weekly_report
 from market_actions import MarketAction, holding_return_pct, read_actions
 from market_sessions import exchange_sessions, session_date as _date_from_stamp
 
@@ -300,7 +301,7 @@ def report(sessions: list[dict], calendar: list[str], as_of: str,
 
 
 def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path,
-          output: Path, actions_path: Path | None = None) -> dict:
+          output: Path, actions_path: Path | None = None, weekly_dir: Path | None = None) -> dict:
     latest = json.loads(latest_path.read_text(encoding="utf-8"))
     as_of = str((latest.get("source") or {}).get("sessionDate") or "")
     points = all_points(load_months(stages_dir))
@@ -354,6 +355,8 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
         })
         if any("earlyTrend" in point for point in points):
             result["earlyTrend"] = early_report(points, prices, calendar, actions)
+        if weekly_dir is not None:
+            result["weeklyBase"] = weekly_report(weekly_dir, points, prices, calendar, actions, source)
     write_json(output, result)
     return {"asOf": as_of, "transitions": result["stageTransitions"],
             "archivedDays": len(sessions),
@@ -368,9 +371,10 @@ def main() -> None:
     parser.add_argument("--outcomes-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--actions", type=Path, help="Corporate-action ledger for a separate versioned outcome directory")
+    parser.add_argument("--weekly-dir", type=Path, help="Point-in-time Weekly Birth shortlist archive")
     args = parser.parse_args()
     print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir,
-                           args.outcomes_dir, args.output, args.actions)))
+                           args.outcomes_dir, args.output, args.actions, args.weekly_dir)))
 
 
 if __name__ == "__main__":

@@ -160,6 +160,7 @@ jobs:
             --prices-dir lab/data/trend-birth-price-history \
             --outcomes-dir lab/data/trend-birth-action-outcomes \
             --actions scripts/data/review-market-actions-v1.json \
+            --weekly-dir lab/data/weekly-birth-shadow \
             --output lab/data/trend-birth-stage-forward.json
       - name: Refresh historical-proxy Composite Score from local EOD archive
         run: python scripts/backtest_market_internals.py --refresh-actual-only

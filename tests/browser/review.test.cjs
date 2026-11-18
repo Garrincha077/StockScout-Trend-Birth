@@ -132,6 +132,12 @@ test('a plan moved to the signed-in account can be archived on a second device',
   },id);
   await first.goto(base+'/');
   const card=page=>page.locator('.card[data-ticker="'+ticker+'"]');
+  const observedStatus=(page,state)=>page.waitForFunction(({ticker,state})=>{
+    const card=document.querySelector('.card[data-ticker="'+ticker+'"]');
+    if(card?.querySelector('[data-plan-status]')?.dataset.state===state)return true;
+    card?.querySelector('canvas')?.scrollIntoView({block:'center'});
+    return false;
+  },{ticker,state},{polling:150});
   await card(first).getByRole('button',{name:'Spremi plan',exact:true}).tap();
   await card(first).getByRole('button',{name:'Plan spremljen',exact:true}).waitFor();
   await signIn(first,'plan-owner-A');
@@ -145,7 +151,7 @@ test('a plan moved to the signed-in account can be archived on a second device',
 
   active=makePlanFixture(later,'b',[...bars,trigger],110);
   await first.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await card(first).locator('[data-plan-status][data-state="abovePivot"]').waitFor();
+  await observedStatus(first,'abovePivot');
   await first.waitForFunction(async()=>{
     const {data}=await planServer({action:'read',owner:'plan-owner-A',account:'plan-owner-A'});
     return Boolean(data?.plans[0].closingReview);
@@ -153,7 +159,7 @@ test('a plan moved to the signed-in account can be archived on a second device',
   await second.goto(base+'/?view=watchlist');
   await second.waitForFunction(()=>window.authTest.listener);
   await signIn(second,'plan-owner-A');
-  await card(second).locator('[data-plan-status][data-state="coverage"]').waitFor();
+  await observedStatus(second,'coverage');
   await card(second).getByRole('button',{name:'Arhiviraj plan',exact:true}).tap();
   await second.locator('#planNotice').filter({hasText:'arhiviran na računu'}).waitFor();
   assert.ok(books.get('plan-owner-A').plans[0].archivedAt);
@@ -188,6 +194,7 @@ test('mobile browser Back closes the ticker, Forward restores its range, and Sta
   page.on('request',request=>requests.push(request.url()));
   await page.goto(base+'/?view=weekly&code=private');
   await page.waitForSelector('[data-primary-view="weekly"].active');
+  assert.equal(await page.locator('#weeklyOutcomesLink').getAttribute('href'),'statistics.html#siWeeklyBase');
   const first=page.locator('.weekly-card').first();
   const historyLength=await page.evaluate(()=>history.length);
   const canvas=first.locator('canvas');

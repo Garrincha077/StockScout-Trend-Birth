@@ -49,6 +49,9 @@ def research_snapshot(directory: Path, publication: dict) -> bytes:
     if matched is not None and (matched.get("schemaVersion") != "trend-birth-matched-cohorts-v1" or
                                 matched.get("asOf") != day):
         raise ValueError("Matched Trend Birth cohorts differ from the Review publication")
+    weekly = reports["trendBirthForward"].get("weeklyBase")
+    if weekly is not None and (weekly.get("schemaVersion") != "weekly-base-outcomes-v1" or weekly.get("asOf") != day):
+        raise ValueError("Weekly Base outcomes differ from the Review publication")
     return encode({
         "schemaVersion": SCHEMA,
         "reviewSnapshotId": snapshot_id,
