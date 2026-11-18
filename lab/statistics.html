@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=recovery-20261026">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=weekly-cases-20261118">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -16,9 +16,9 @@
   <header class="topbar"><div class="app-brand">
     <div class="app-heading"><strong>Trend Birth Review Lab</strong></div>
     <span>Market Internals · cijeli skup praćenih setupa</span>
-  </div><div class="top-controls"><a class="si-back" href="index.html">← Dnevni pregled</a></div></header>
+  </div><div class="top-controls"><a class="si-back" href="index.html" data-review-return>← Dnevni pregled</a></div></header>
   <nav class="workspace-tabs" aria-label="Glavni tabovi">
-    <a href="index.html">Pregled kandidata</a>
+    <a href="index.html" data-review-return>Pregled kandidata</a>
     <a href="statistics.html" class="active" aria-current="page">Statistika</a>
   </nav>
   <main class="si-main">
@@ -145,12 +145,12 @@
       <div class="si-table-scroll"><table class="si-matrix si-forward-table" id="siForwardTable">
         <caption class="sr-only">Povijesni stvarni prinosi dionica nakon prelaska u svaku Trend Birth fazu</caption>
       </table></div>
-      <p class="si-muted">Svaki prijelaz u novu fazu računa se jednom, samo ako je ticker bio evaluiran i prethodnog EOD-a. Ulazak je po <strong>zatvaranju sljedeće burzovne sesije</strong>; izlaz nakon 5, 20 ili 60 cijelih sesija držanja. Nije signal za trgovanje. Prikaz uključuje samo dospjele ishode, a zasebno prati nedospjele i nedostajuće cijene. Prinos je <strong>cjenovni</strong> iz izvornih, trajno arhiviranih EOD cijena istoga dana, bez dividendi i troškova. Ponavljani prijelazi istog tickera nisu neovisni pokusi.</p>
+      <p class="si-muted">Prijelaz se računa kad je ticker evaluiran u dvije uzastopne sesije. Mjerenje počinje na <strong>zatvaranju sljedeće sesije</strong> i traje 5, 20 ili 60 sesija. Izračun koristi trajno arhivirane EOD cijene i evidentirane korporativne akcije kad aktivna objava sadrži taj izvještaj. Troškovi trgovanja izostavljeni su iz ovog prikaza.</p>
       <details id="siRecovery" class="si-composite-definitions">
         <summary>Usporedi V2 i rekonstruirani V3 · stanje 23.10.2026.</summary>
         <p id="siRecoveryStatus" role="status">Usporedba se učitava pri otvaranju.</p>
         <div id="siRecoveryContent" hidden>
-          <p class="si-muted">Oba izvještaja završavaju istog datuma. Ovo je zamrznuta usporedba prije i nakon rekonstrukcije sesija 15. i 19. listopada; glavni prikaz iznad nastavlja koristiti V2.</p>
+          <p class="si-muted">Zamrznuta usporedba na isti datum prije i nakon rekonstrukcije sesija 15. i 19. listopada.</p>
           <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix si-recovery-coverage"><caption>Pokrivenost povijesnih podataka</caption></table></div>
           <div class="si-controls"><label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label></div>
           <p class="si-muted">Tablicu ishoda možeš pomicati vodoravno za prikaz svih stupaca.</p>
@@ -158,6 +158,130 @@
           <p class="si-note">V3 uključuje naknadno rekonstruirane sesije. Watchlista se temelji na posljednjem sačuvanom prethodnom EOD-u; točno članstvo na dva nedostajuća dana nije poznato. Nedostupne cijene ostaju prazne. Razlike u prinosima odražavaju i promijenjen skup prijelaza te nisu dokaz poboljšanja modela. Korporativne akcije, delistinzi i neovisni test ostaju otvoreni. V3 nije aktiviran za glavni prikaz ni kalibraciju bodovanja.</p>
         </div>
       </details>
+    </section>
+    <section class="si-panel" id="siEarly" aria-labelledby="siEarlyTitle" hidden>
+      <h2 id="siEarlyTitle">Trend Birth · provjera ranih upozorenja</h2>
+      <p id="siEarlyLead" class="si-muted"></p>
+      <p class="si-muted">Vodeći ticker završava među najboljih 10% evaluiranih dionica s dostupnim cijenama za isti datum signala i isti horizont. Prikaz prati nove ulaske na listu. Prinos se mjeri od sljedećeg zatvaranja, uz jednaku težinu svakog dana sa signalom.</p>
+      <div class="si-controls"><label>Sesije držanja <select id="siEarlyHorizon">
+        <option value="20">20</option><option value="63">63</option>
+        <option value="126">126</option><option value="252">252</option>
+      </select></label><p id="siEarlyMaturity" class="si-muted" role="status"></p></div>
+      <div class="si-table-scroll"><table class="si-matrix" id="siEarlyTable">
+        <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
+      </table></div>
+      <section id="siMatched" class="si-match-panel" aria-labelledby="siMatchedTitle" hidden>
+        <h3 id="siMatchedTitle">Usporedba sa sličnim dionicama</h3>
+        <div class="si-controls">
+          <label>Signal <select id="siMatchedCohort">
+            <option value="early">Early Trend Birth</option><option value="daily4">Dnevni radar 4/4</option>
+          </select></label>
+          <label>Sesije držanja <select id="siMatchedHorizon">
+            <option value="5">5</option><option value="20" selected>20</option><option value="63">63</option>
+            <option value="126">126</option><option value="252">252</option>
+          </select></label>
+        </div>
+        <p id="siMatchedCoverage" role="status"></p>
+        <dl class="si-match-results" id="siMatchedResults" hidden>
+          <div><dt>Signal</dt><dd id="siMatchedSignal"></dd></div>
+          <div><dt>Kontrolna skupina</dt><dd id="siMatchedControl"></dd></div>
+          <div><dt>Razlika</dt><dd id="siMatchedDifference"></dd></div>
+        </dl>
+        <p class="si-muted" id="siMatchedDates"></p>
+        <details class="si-composite-definitions">
+          <summary>Kako se biraju parovi</summary>
+          <p id="siMatchedMethod" class="si-muted"></p>
+          <p class="si-muted">Par se zadržava kroz sve horizonte. Mjerenje počinje na zatvaranju iduće sesije. Svaki datum ima jednaku težinu. Razdoblja držanja mogu se preklapati. Prikaz su bruto prinosi uz evidentirane korporativne akcije. Sektor i likvidnost nisu kriteriji uparivanja u ovoj arhivi.</p>
+        </details>
+      </section>
+    </section>
+    <section class="si-panel" id="siWeeklyBase" aria-labelledby="siWeeklyBaseTitle">
+      <h2 id="siWeeklyBaseTitle">Tjedna baza · ishodi nakon uvrštenja</h2>
+      <p id="siWeeklyBaseStatus" class="si-muted" role="status">Provjeravam povijest tjednih lista…</p>
+      <div id="siWeeklyBaseContent" hidden>
+        <div class="si-controls">
+          <label>Faza pri uvrštenju <select id="siWeeklyBaseGroup"></select></label>
+          <label>Sesije držanja <select id="siWeeklyBaseHorizon">
+            <option value="5">5</option><option value="20" selected>20</option>
+            <option value="63">63</option><option value="126">126</option>
+          </select></label>
+        </div>
+        <p id="siWeeklyBaseCoverage" role="status"></p>
+        <dl class="si-match-results" id="siWeeklyBaseSummary" hidden>
+          <div><dt>Prosječni prinos</dt><dd id="siWeeklyBaseMean"></dd></div>
+          <div><dt>Medijan prinosa</dt><dd id="siWeeklyBaseMedian"></dd></div>
+          <div><dt>Pozitivni ishodi</dt><dd id="siWeeklyBasePositive"></dd></div>
+        </dl>
+        <p id="siWeeklyBaseMatched" class="si-muted"></p>
+        <figure id="siWeeklyBaseComparison" class="si-weekly-comparison" hidden>
+          <figcaption>Bruto prinos u uparenim slučajevima <strong id="siWeeklyBaseDifference"></strong></figcaption>
+          <div class="si-weekly-bar-row"><span>Uvrštene dionice</span><span id="siWeeklyBaseSignal"></span>
+            <div class="si-weekly-track" aria-hidden="true"><i id="siWeeklyBaseSignalBar"></i></div></div>
+          <div class="si-weekly-bar-row"><span>Slične dionice</span><span id="siWeeklyBaseControl"></span>
+            <div class="si-weekly-track" aria-hidden="true"><i id="siWeeklyBaseControlBar"></i></div></div>
+          <small class="si-weekly-zero" aria-hidden="true">0%</small>
+        </figure>
+        <details id="siWeeklyCases" class="si-composite-definitions" hidden>
+          <summary>Pojedinačni slučajevi</summary>
+          <p id="siWeeklyCasesStatus" role="status"></p>
+          <button type="button" id="siWeeklyCasesRetry" class="si-case-retry" hidden>Ponovi učitavanje</button>
+          <div id="siWeeklyCasesContent" hidden>
+            <div class="si-controls"><label>Datum uvrštenja <select id="siWeeklyCaseDate"></select></label></div>
+            <p id="siWeeklyCaseWindow"></p>
+            <p id="siWeeklyCaseCounts" role="status"></p>
+            <ul id="siWeeklyCaseList" class="si-weekly-cases"></ul>
+          </div>
+        </details>
+        <details class="si-composite-definitions">
+          <summary>Pokrivenost i način mjerenja</summary>
+          <p id="siWeeklyBaseArchiveGaps"></p>
+          <p>Mjerimo prvo zabilježeno uvrštenje između dviju uzastopnih burzovnih sesija u kojima je ticker evaluiran. Mjerenje počinje na zatvaranju sljedeće sesije. Prosjek daje jednaku težinu svakom datumu uvrštenja.</p>
+          <p>Kontrole dolaze iz istog evaluiranog skupa, izvan tjednih lista obje sesije. Biramo ih prije ishoda po prethodnoj fazi dnevnog radara, cijeni i 20-sesijskom prinosu. Promatrani prinosi su bruto. Pokrivenost korporativnih akcija je djelomična, a razdoblja držanja mogu se preklapati.</p>
+        </details>
+      </div>
+    </section>
+    <section class="si-panel" id="siKell" aria-labelledby="siKellTitle">
+      <h2 id="siKellTitle">Kell Swing · provjera planova</h2>
+      <p class="si-muted" id="siKellStatus" role="status">Provjeravam izvještaj za prikazanu EOD objavu…</p>
+      <div id="siKellContent" hidden>
+        <div class="si-controls">
+          <label>Sesije držanja <select id="siKellHorizon">
+            <option value="5">5</option><option value="10">10</option><option value="20">20</option>
+          </select></label>
+          <label>Ukupni trošak ulaza i izlaza <select id="siKellCost">
+            <option value="20bp">0,20%</option><option value="50bp">0,50%</option>
+          </select></label>
+        </div>
+        <h3>Arhivirani planovi</h3>
+        <p id="siKellPublished"></p>
+        <p class="si-muted">Simulacija pretpostavlja da je plan vidljiv prije sljedećeg otvaranja. Primjenjuje granicu ulaza, stop i cilj od 2R. Jedan R je početni rizik do stopa. Raspon prikazuje moguće redoslijede cijena unutar dnevne svijeće.</p>
+        <h3>Povijesna rekonstrukcija odabira</h3>
+        <p id="siKellPaired"></p>
+        <div class="si-table-scroll"><table id="siKellComparison" class="si-matrix">
+          <caption class="sr-only">Prinos odabira na zajedničkim potpunim datumima</caption>
+        </table></div>
+        <p class="si-muted">Svaki uspoređeni EOD ima jednako velike liste s potpunim cijenama. Mjerenje ide od sljedećeg otvaranja do zatvaranja na kraju odabranog horizonta. Povijesni grafovi mogu sadržavati naknadne revizije.</p>
+        <section class="si-kell-cohorts" id="siKellCohorts" aria-labelledby="siKellCohortsTitle" hidden>
+          <h3 id="siKellCohortsTitle">Izvršenja po setupu i širini radara</h3>
+          <div class="si-controls">
+            <label>Uzorak <select id="siKellGroupSample">
+              <option value="published">Arhivirani planovi</option>
+              <option value="historical">Povijesna simulacija</option>
+            </select></label>
+            <label>Grupiraj po <select id="siKellGroupDimension">
+              <option value="bySetup">Vrsti setupa</option>
+              <option value="byBreadth">Širini radara 3+/4</option>
+            </select></label>
+          </div>
+          <p id="siKellGroupStatus" class="si-muted" role="status"></p>
+          <div id="siKellGroupList"></div>
+          <details class="si-composite-definitions">
+            <summary>Kako čitati rezultate skupina</summary>
+            <p id="siKellGroupMethod" class="si-muted"></p>
+            <p class="si-muted">Neto R je prosjek po simuliranom izvršenju nakon odabranog troška. Dvosmisleno izvršenje ima više mogućih ishoda zbog nepoznatog redoslijeda cijena unutar svijeće. Povijesna simulacija obnavlja plan iz tada arhiviranog setupa i naknadno dostupnih dnevnih svijeća. Skupine po širini mogu imati različit sastav setupa.</p>
+          </details>
+        </section>
+      </div>
     </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
       <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
@@ -201,7 +325,9 @@
     <aside class="si-note">Metodologija: 3+/4 = udio evaluiranih tickera u fazi 3 ili 4; pressure = prosječna faza / 4 × 100; velocity = linearni nagib u postotnim bodovima po zabilježenom EOD-u; acceleration = razlika nagiba dvaju odvojenih EOD prozora. Tjedni/mjesečni stupac koristi <strong>ticker-dane</strong>, ne zadnju sesiju. Akceleracija i percentili imaju smisla tek uz dulju povijest — zasad je arhiva ograničena stvarnim zabilježenim danima. Nema izmišljene povijesti ni prediktivnog trading signala.</aside>
   </main>
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
-  <script src="eod-freshness.js?v=eod-guard-20261026" defer></script>
-  <script src="trend-birth-stats.js?v=recovery-20261026" defer></script>
+  <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
+  <script src="snapshot-loader.js?v=weekly-cases-20261118" defer></script>
+  <script src="review-navigation.js?v=20261118" defer></script>
+  <script src="trend-birth-stats.js?v=weekly-case-detail-20261118" defer></script>
 </body>
 </html>

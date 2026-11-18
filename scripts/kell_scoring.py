@@ -15,6 +15,11 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+try:
+    from .kell_swing import build_plan
+except ImportError:
+    from kell_swing import build_plan
+
 MODEL_VERSION = "kell-overlay-v5-quality-readiness-context"
 
 # Keep discovery, structural stage, actionable setup and supporting context distinct.
@@ -317,6 +322,7 @@ def score_candidate(
             "components": {},
         },
         "kell_metrics": {},
+        "kellSwing": None,
     }
     if len(bars) < 21:
         return empty
@@ -1139,6 +1145,13 @@ def score_candidate(
         "kell_quality_score": quality_score,
         "kell_readiness_score": readiness_score,
         "kell_actionability_score": readiness_score,
+        "kellSwing": build_plan(bars, {
+            "kell_ema_crossback": ema_crossback,
+            "kell_wedge_pop": wedge_pop,
+            "kell_base_n_break": base_n_break,
+            "kell_buyable_gap_proxy": buyable_gap_proxy,
+            "kell_tightening": tightening and breakout_proximity,
+        }, cycle_stage, e10, e20),
         "kell_context_score": context_score,
         "kell_evidence_coverage": evidence_coverage,
         "kell_structural_risk_score": structural_risk_score,

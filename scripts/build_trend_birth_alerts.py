@@ -347,7 +347,11 @@ def main() -> int:
 
     current = json.loads(Path(args.current).read_text(encoding="utf-8"))
     publication = json.loads(Path(args.publication).read_text(encoding="utf-8"))
-    session_date = str((current.get("source") or {}).get("sessionDate") or "")
+    source = current.get("source") or {}
+    keys = ("sessionDate", "runId", "unifiedManifestSha256")
+    if any(source.get(key) != publication.get(key) for key in keys):
+        raise ValueError("Alert data and Review publication have different sources")
+    session_date = str(source.get("sessionDate") or "")
     prior_path, previous = _latest_prior(Path(args.history_dir), session_date)
     intelligence = json.loads(Path(args.intelligence).read_text(encoding="utf-8")) if args.intelligence else None
     payload = build_alerts(
@@ -361,6 +365,8 @@ def main() -> int:
         (previous.get("source") or {}).get("sessionDate") if previous else None
     )
     payload["previousPath"] = str(prior_path) if prior_path else None
+    payload["source"] = {key: source[key] for key in keys}
+    payload["reviewSnapshotId"] = publication["snapshotId"]
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

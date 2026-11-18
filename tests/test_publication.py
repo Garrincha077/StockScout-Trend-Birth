@@ -56,6 +56,22 @@ class PublicationTests(unittest.TestCase):
             )
             self.assertEqual(second["unifiedManifestSha256"], "a" * 64)
 
+    def test_same_session_upstream_attempt_activates_and_original_date_link_survives(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot = fixture()
+            first = publisher.publish(snapshot, root)
+            latest = copy.deepcopy(snapshot)
+            latest["source"]["runId"] = "2026-09-18-eod-123-2"
+            latest["source"]["unifiedManifestSha256"] = "b" * 64
+            second = publisher.publish(latest, root)
+            self.assertNotEqual(first["snapshotId"], second["snapshotId"])
+            self.assertFalse(publisher.publish(latest, root)["changed"])
+            with self.assertRaisesRegex(ValueError, "newer activation of the same"):
+                publisher.publish(snapshot, root)
+            self.assertEqual(json.loads((root / "history/2026-09-18.json").read_bytes()), snapshot)
+            self.assertEqual(json.loads((root / "latest.json").read_bytes()), latest)
+
     def test_rejects_rollback_missing_charts_duplicates_and_bad_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -89,6 +105,30 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(compact['candidates'], [])
             self.assertEqual(json.loads((root / 'latest.json').read_bytes()), snapshot)
             self.assertFalse(publisher.publish(snapshot, root)['changed'])
+
+    def test_modern_bootstrap_defers_and_checks_secondary_views(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot = fixture()
+            snapshot["earlyTrendResearch"] = {"model": "early-trend-birth-v1"}
+            snapshot["shortlists"] = {"schemaVersion": "stockscout-shortlists-v2",
+                                      "earlyTrendBirth": snapshot["candidates"],
+                                      "weeklyTrendBirth": snapshot["candidates"], "kellDaily": []}
+            manifest = publisher.publish(snapshot, root)
+            legacy = json.loads((root / manifest["bootstrapPath"].removeprefix("data/")).read_bytes())
+            self.assertTrue(manifest["bootstrapPath"].startswith("data/review-bootstrap-v1/"))
+            self.assertEqual(legacy["shortlists"], snapshot["shortlists"])
+            compact = json.loads((root / manifest["deferredBootstrapPath"].removeprefix("data/")).read_bytes())
+            self.assertEqual(compact["shortlists"]["earlyTrendBirth"], snapshot["candidates"])
+            self.assertEqual(compact["shortlists"]["weeklyTrendBirth"], [])
+            publisher.validate_shortlists(root, manifest)
+            self.assertFalse(publisher.publish(snapshot, root)["changed"])
+            ref = compact["deferredShortlists"]["weeklyTrendBirth"]
+            resource = root / ref["path"].removeprefix("data/")
+            self.assertEqual(json.loads(resource.read_bytes())["items"], snapshot["candidates"])
+            resource.write_bytes(resource.read_bytes() + b" ")
+            with self.assertRaisesRegex(ValueError, "shortlist differs"):
+                publisher.validate_shortlists(root, manifest)
 
     def test_empty_scan_and_existing_legacy_archive(self):
         with tempfile.TemporaryDirectory() as tmp:

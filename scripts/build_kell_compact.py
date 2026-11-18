@@ -100,6 +100,7 @@ def compact_candidate(
         "kell_stage_cap": item.get("kell_stage_cap"),
         "score_breakdown": compact_score_breakdown(item),
         "kell_cycle_stage": item.get("kell_cycle_stage"),
+        "kellSwing": item.get("kellSwing"),
         "kell_stage": item.get("kell_stage") or {},
         "kell_breakout_proximity_pct": item.get("kell_breakout_proximity_pct"),
         "kellScreens": list(item.get("kellScreens") or item.get("kell_screens") or []),
@@ -108,6 +109,7 @@ def compact_candidate(
         "trendBirth": item.get("trendBirth") or {},
         "weeklyBirth": item.get("weeklyBirth") or {},
         "trendBirthEvidence": item.get("trendBirthEvidence") or {},
+        "earlyTrend": item.get("earlyTrend"),
         "chartBarsCount": len(bars),
         "weeklyChartBarsCount": len(weekly),
     }
@@ -228,6 +230,12 @@ def main() -> int:
             ],
             "kellDaily": [
                 compact_candidate(item) for item in (source.get("shortlists") or {}).get("kellDaily") or []
+            ],
+            "kellSwing": [
+                compact_candidate(item) for item in (source.get("shortlists") or {}).get("kellSwing") or []
+            ],
+            "earlyTrendBirth": [
+                compact_candidate(item) for item in (source.get("shortlists") or {}).get("earlyTrendBirth") or []
             ],
         },
         "trendBirthCandidateIndexCount": source.get("trendBirthCandidateIndexCount", 0),

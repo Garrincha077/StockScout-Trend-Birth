@@ -488,6 +488,10 @@ def main() -> int:
         scores_dir=scores_dir,
         snapshots_dir=snapshots_dir,
     )
+    if current is not None:
+        source = current.get("source") or {}
+        report["source"] = {key: source.get(key)
+                            for key in ("sessionDate", "runId", "unifiedManifestSha256")}
 
     if args.output:
         output = Path(args.output)

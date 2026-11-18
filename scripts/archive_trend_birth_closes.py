@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 
 from review_archive_io import archive_for_day, read_archive
+from market_sessions import session_date
 
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
 
@@ -35,6 +36,9 @@ def extract(snapshot: dict, point: dict) -> dict:
         seen.add(ticker)
         if ticker not in point["stages"]:
             continue  # never invent prices for unavailable technical setups
+        trend_birth = row.get("trendBirth") or {}
+        if "barDate" in trend_birth and session_date(trend_birth["barDate"]) != day:
+            continue
         value = (row.get("metrics") or {}).get("price")
         try:
             price = float(value)
@@ -83,15 +87,15 @@ def build(latest_path: Path, history_dir: Path, stages_dir: Path,
         raise ValueError("Latest stage and quote day mismatch")
     for point in points:
         day = point["sessionDate"]
+        if day == latest_day:
+            archived[day] = extract(current, point)
+            continue
         if day in archived:
             if archived[day].get("runId") != point["runId"] or archived[day]["expectedEvaluated"] != point["evaluatedCount"]:
                 raise ValueError("Conflicting immutable EOD close snapshot: " + day)
             continue
-        if day == latest_day:
-            snapshot = current
-        else:
-            source = archive_for_day(history_dir, day)
-            snapshot = read_archive(source)
+        source = archive_for_day(history_dir, day)
+        snapshot = read_archive(source)
         archived[day] = extract(snapshot, point)
     grouped: dict[str, list[dict]] = {}
     for day in sorted(archived):

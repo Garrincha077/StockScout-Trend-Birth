@@ -1,8 +1,39 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {gzipSync} = require('node:zlib');
+const {createHash} = require('node:crypto');
 const {load} = require('../lab/snapshot-loader.js');
 const id = 'run-1--' + 'a'.repeat(64);
+test('unchanged current pointer does not fetch the same snapshot again',async()=>{
+  const {loadCurrent}=require('../lab/snapshot-loader.js');
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id};
+  const value=await loadCurrent(async path=>{
+    assert.equal(path,'data/publication.json');
+    return {ok:true,json:async()=>manifest};
+  },{previousId:id});
+  assert.deepEqual(value,{manifest,data:null});
+});
+
+test('statistics require exact run and digest of referenced research reports',async()=>{
+  const {loadReports}=require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-11-17',unifiedManifestSha256:'c'.repeat(64)};
+  const schemaVersion='trend-birth-review-research-v1';
+  const artifact={schemaVersion,source,reviewSnapshotId:id,
+    reports:{trendBirthForward:{asOf:source.sessionDate},kellForward:{}}};
+  const raw=JSON.stringify(artifact);
+  const sha256=createHash('sha256').update(raw).digest('hex');
+  const path='data/research-runs/'+id+'--'+sha256+'.json';
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,
+    research:{schemaVersion,path,sha256}};
+  const fetcher=async (requested,bytes=raw)=>{
+    if(requested==='data/publication.json')return new Response(JSON.stringify(manifest));
+    assert.equal(requested,path);
+    return new Response(bytes);
+  };
+  assert.deepEqual(await loadReports(p=>fetcher(p),source.sessionDate,source.runId),artifact.reports);
+  await assert.rejects(loadReports(p=>fetcher(p),source.sessionDate,'other-run'),/usklađeni/);
+  await assert.rejects(loadReports(p=>fetcher(p,'{}'),source.sessionDate,source.runId),/zbroj/);
+});
 test('old links request only their exact archive', async () => {
   const paths=[];
   const data=await load(async path=>{paths.push(path);return {ok:true,json:async()=>({old:true})}}, '?snapshot='+id);
@@ -43,6 +74,21 @@ test('compact initial load is pinned and Research fetches that exact full source
   await assert.rejects(loadResearch(async()=>({ok:true,json:async()=>({source:{...source,runId:'other'}})}),compact));
 });
 
+
+test('a dual publication keeps the original startup path and the modern app fetches only its deferred path',async()=>{
+  const {loadInitial}=require('../lab/snapshot-loader.js');
+  const source={runId:'run-1',sessionDate:'2026-09-18',unifiedManifestSha256:'a'.repeat(64)};
+  const manifest={schemaVersion:'trend-birth-publication-v1',snapshotId:id,...source,
+    bootstrapPath:'data/review-bootstrap-v1/'+id+'.json',deferredBootstrapPath:'data/review-bootstrap-v2/'+id+'.json'};
+  const compact={schemaVersion:'trend-birth-review-bootstrap-v1',reviewSnapshotId:id,source,
+    shortlists:{schemaVersion:'stockscout-shortlists-v2',weeklyTrendBirth:[],kellDaily:[]}};
+  const paths=[];
+  const fetcher=async path=>{paths.push(path);return {ok:true,json:async()=>path==='data/publication.json'?manifest:compact}};
+  assert.equal(await loadInitial(fetcher,''),compact);
+  assert.deepEqual(paths,['data/publication.json',manifest.deferredBootstrapPath]);
+  manifest.deferredBootstrapPath=manifest.bootstrapPath;
+  await assert.rejects(loadInitial(fetcher,''),/put sažetog pregleda/);
+});
 
 test('explicit legacy mode bypasses compact startup and retains the full source',async()=>{
   const {loadInitial}=require('../lab/snapshot-loader.js');

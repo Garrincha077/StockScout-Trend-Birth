@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
-const {assess}=require('../lab/eod-freshness.js');
+const {assess,describe}=require('../lab/eod-freshness.js');
 const calendar=JSON.parse(readFileSync(__dirname+'/../lab/data/exchange-sessions-v1.json'));
 test('freshness follows close plus grace, including early closes and DST',()=>{
   const check=(day,now)=>assess(calendar,day,Date.parse(now));
@@ -12,4 +12,11 @@ test('freshness follows close plus grace, including early closes and DST',()=>{
   assert.throws(()=>check('2026-10-26','2026-10-26T18:00:00Z'),/završena/);
   assert.throws(()=>check('2026-10-24','2026-10-26T18:00:00Z'),/završena/);
   assert.throws(()=>check('2030-12-31','2031-01-01T18:00:00Z'),/Kalendar/);
+});
+test('archive and failed refresh retain the displayed session date',()=>{
+  assert.deepEqual(describe(null,'2026-09-17',{archived:true}),
+    {state:'archive',text:'Povijesna snimka · 2026-09-17'});
+  const result=describe(calendar,'2026-11-17',{error:new Error('HTTP 503')});
+  assert.equal(result.state,'unknown');
+  assert.match(result.text,/2026-11-17.*HTTP 503/);
 });

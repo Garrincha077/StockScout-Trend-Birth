@@ -20,6 +20,7 @@ def compact_candidate(item: dict) -> dict:
         "kell_evidence_coverage": item.get("kell_evidence_coverage"),
         "kell_stage_cap": item.get("kell_stage_cap"),
         "stage": (item.get("kell_stage") or {}).get("primary") or item.get("kell_cycle_stage"),
+        "swing": item.get("kellSwing"),
         "screens": list(item.get("kellScreens") or item.get("kell_screens") or []),
         "setups": list(item.get("kellSetups") or item.get("kell_setups") or []),
         "context": list(item.get("kellContext") or item.get("kell_context") or []),
@@ -28,13 +29,13 @@ def compact_candidate(item: dict) -> dict:
 
 def build_archive(payload: dict) -> dict:
     source = payload.get("source") or {}
+    identity = {key: source.get(key) for key in ("sessionDate", "runId")}
+    if source.get("unifiedManifestSha256"):
+        identity["unifiedManifestSha256"] = source["unifiedManifestSha256"]
     rows = list(payload.get("kellCandidates") or payload.get("candidates") or [])
     return {
         "schemaVersion": "kell-score-history-v1",
-        "source": {
-            "sessionDate": source.get("sessionDate"),
-            "runId": source.get("runId"),
-        },
+        "source": identity,
         "kellScoring": {
             "modelVersion": (payload.get("kellScoring") or {}).get("modelVersion"),
         },

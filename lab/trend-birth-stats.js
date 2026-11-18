@@ -680,16 +680,467 @@
         if(!response.ok)throw Error('HTTP '+response.status);
         const recovered=validateRecovery(await response.json());
         renderRecovery(recovered);data=recovered;el('siRecoveryContent').hidden=false;
-      }catch(error){el('siRecoveryStatus').textContent='Usporedba nije dostupna: '+error.message+'. Zatvori i ponovno otvori za ponovni pokušaj. Glavni V2 prikaz ostaje dostupan.';}
+      }catch(error){el('siRecoveryStatus').textContent='Usporedba nije dostupna: '+error.message+'. Zatvori i ponovno otvori za ponovni pokušaj.';}
       finally{loading=false;}
     });
+  }
+  function renderMatchedOutcomes(data,asOf){
+    if(data?.schemaVersion!=='trend-birth-matched-cohorts-v1'||data.asOf!==asOf)return;
+    const cohort=el('siMatchedCohort'),horizon=el('siMatchedHorizon'),results=el('siMatchedResults');
+    const count=value=>FMT.format(value);
+    const plurals=new Intl.PluralRules('hr-HR');
+    const sessionLabels={one:'arhivirana sesija',few:'arhivirane sesije',other:'arhiviranih sesija'};
+    el('siMatchedMethod').textContent='Kontrola dolazi iz istog skena i ima istu fazu dnevnog radara u prethodnoj sesiji. '+
+      'Koriste se samo prethodna cijena (omjer do '+count(data.maxPriceRatio)+'×) i prinos zadnjih '+
+      count(data.lookbackSessions)+' sesija (razlika do '+count(data.maxMomentumGapPp)+' p. b.). '+
+      'Uparuje se najbliža dostupna dionica bez istog signala, najviše jednom po datumu.';
+    function renderSelection(){
+      const group=data.groups?.[cohort.value],outcome=group?.outcomes?.[horizon.value];
+      if(!outcome)return;
+      const sessions=cohort.value==='early'?data.earlyObservedSessions:data.dailyObservedSessions;
+      const archive=count(sessions)+' '+sessionLabels[plurals.select(sessions)];
+      el('siMatchedCoverage').textContent=group.signals?
+        archive+' · '+count(group.paired)+' / '+count(group.signals)+' uparenih signala. '+
+          count(group.missingFeatures)+' bez prethodnih podataka · '+count(group.unmatched)+' bez slične dionice.':
+        archive+'. Novi ulazak potvrđuje se usporedbom dviju uzastopnih sesija.';
+      const dateLabel=horizon.value+'D · '+count(outcome.observed)+' s ishodom · '+
+        count(outcome.pending)+' na čekanju · '+count(outcome.missingPairPrices)+' bez cijene za par.';
+      el('siMatchedDates').textContent=dateLabel+(outcome.observedDates?
+        ' Signal ispred kontrole na '+count(outcome.positiveDates)+' / '+count(outcome.observedDates)+' datuma.':'');
+      results.hidden=!outcome.observed;
+      el('siMatchedSignal').textContent=fmt(outcome.signalReturnPct,'%');
+      el('siMatchedControl').textContent=fmt(outcome.controlReturnPct,'%');
+      el('siMatchedDifference').textContent=(outcome.differencePp>0?'+':'')+fmt(outcome.differencePp,' p. b.');
+    }
+    cohort.onchange=renderSelection;
+    horizon.onchange=renderSelection;
+    renderSelection();
+    el('siMatched').hidden=false;
+  }
+  function renderEarlyOutcomes(data,asOf){
+    if(data?.schemaVersion!=='early-trend-outcomes-v1')return;
+    const cohorts=[['early','Trend Birth'],['daily4','Dnevno 4/4'],['weekly','Tjedna baza']];
+    const lead=cohorts.slice(1).map(([key,label])=>{
+      const sample=data.lead[key];
+      const offset=sample.medianSessions;
+      const median=offset>0?'Trend Birth u medijanu ranije za '+offset+' sesija':
+        offset<0?'Trend Birth u medijanu kasnije za '+Math.abs(offset)+' sesija':'Medijan razlike 0 sesija';
+      return sample.matched ? label+' · ranije '+sample.earlier+' / isti dan '+sample.same+
+        ' / kasnije '+sample.later+' · '+median :
+        label+' · još nema usporedivih ulazaka istog tickera';
+    });
+    el('siEarlyLead').textContent=FMT.format(data.observedSessions)+' sačuvanih sesija. '+lead.join('. ')+'.';
+    const select=el('siEarlyHorizon');
+    function renderHorizon(){
+      const horizon=select.value,values=data.horizons[horizon];
+      const rows=cohorts.map(([key,label])=>{
+        const row=values[key];
+        return [horizon+'D · '+label,FMT.format(row.observed)+' / '+FMT.format(row.matured),
+          FMT.format(row.pending),FMT.format(row.leadersCaptured)+' / '+FMT.format(row.leaderOpportunities),
+          row.observed?fmt(100*row.leadersCaptured/row.observed,'%'):'—',
+          FMT.format(row.leadersMissed),FMT.format(row.belowUniverseMedian),fmt(row.excessPct,' p. b.')];
+      });
+      const observed=cohorts.some(([key])=>values[key].observed>0);
+      const matured=cohorts.some(([key])=>values[key].matured>0);
+      el('siEarlyMaturity').textContent=observed?'Usporedba obuhvaća ishode s dostupnim cijenama.':
+        matured?'Za dospjele ishode nedostaju cijene.':'Još nema dospjelih ishoda za '+horizon+' sesija.';
+      comparisonTable('siEarlyTable',['Razdoblje i lista','S cijenom / dospjelo','Na čekanju','Pronađeni vođe / svi',
+        'Udio vođa među opaženim signalima','Propušteni vođe','Ispod medijana','Razlika prema medijanu'],rows);
+    }
+    select.onchange=renderHorizon;
+    renderHorizon();
+    renderMatchedOutcomes(data.matched,asOf);
+    el('siEarly').hidden=false;
+  }
+  const kellHorizons=[5,10,20],kellCosts=['20bp','50bp'];
+  const kellCohorts=[['swing','Kell Swing'],['legacy','Raniji odabir'],['momentum','Momentum · 63 sesije']];
+  const kellExcluded=['missingBars','corporateAction','unmatchedClose','invalidLevels'];
+  const kellGroupLabels={
+    bySetup:{ema_crossback:'Povrat iznad EMA',wedge_pop:'Izlaz iz klina',base_n_break:'Baza i proboj',
+      buyable_gap_proxy:'Proboj s gapom',tightening:'Sužavanje raspona'},
+    byBreadth:{rising:'Rast širine',steady:'Mala promjena širine',falling:'Pad širine',unknown:'Bez potvrđene širine'}
+  };
+  const executionCounts=['selected','pending','evaluable','fills',...kellExcluded];
+  const kellCount=value=>Number.isInteger(value)&&value>=0;
+  function validateKellExecution(outcome,detailed=false){
+    if(!outcome||!executionCounts.every(key=>kellCount(outcome[key]))||outcome.fills>outcome.evaluable||
+        outcome.pending+outcome.evaluable+kellExcluded.reduce((sum,key)=>sum+outcome[key],0)!==outcome.selected)
+      throw Error('Neusklađeni brojevi Kell Swing uzorka.');
+    if(detailed&&(!['signalDates','fillDates','ambiguousFills'].every(key=>kellCount(outcome[key]))||
+        outcome.signalDates>outcome.selected||outcome.fillDates>Math.min(outcome.signalDates,outcome.fills)||
+        (outcome.selected>0)!==(outcome.signalDates>0)||(outcome.fills>0)!==(outcome.fillDates>0)||
+        outcome.ambiguousFills>outcome.fills))
+      throw Error('Neusklađeni datumi Kell simulacije.');
+    for(const cost of kellCosts){
+      const range=outcome.netRByCost?.[cost];
+      if(outcome.fills?(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||range[0]>range[1]):range!==null)
+        throw Error('Neusklađen raspon simulacije Kell Swinga.');
+    }
+  }
+  function validateKellGroups(data){
+    const cohorts=data.executionCohorts;
+    if(!cohorts)return;
+    if(cohorts.schemaVersion!=='kell-swing-execution-cohorts-v1'||cohorts.asOf!==data.asOf||
+        !Number.isFinite(cohorts.breadthThresholdPp)||cohorts.breadthThresholdPp<=0)
+      throw Error('Neusklađena izvedba po Kell skupinama.');
+    for(const sample of [data.published,cohorts.historical]){
+      for(const horizon of kellHorizons){
+        const aggregate=sample?.outcomes?.[horizon];
+        validateKellExecution(aggregate,true);
+        for(const [dimension,labels] of Object.entries(kellGroupLabels)){
+          const rows=Object.keys(labels).map(key=>sample[dimension]?.[key]?.[horizon]);
+          rows.forEach(row=>validateKellExecution(row,true));
+          if(![...executionCounts,'ambiguousFills'].every(key=>rows.reduce((sum,row)=>sum+row[key],0)===aggregate[key]))
+            throw Error('Kell skupine se ne zbrajaju u ukupni uzorak.');
+        }
+      }
+    }
+  }
+  function validateKellSwing(data,eodDate){
+    if(data?.schemaVersion!=='kell-swing-statistics-v1'||data.asOf!==eodDate||
+        !Array.isArray(data.horizons)||data.horizons.join(',')!==kellHorizons.join(',')||
+        !kellCount(data.maxSelectionsPerSession)||data.maxSelectionsPerSession<1||
+        !kellCount(data.published?.sessionCount)||!kellCount(data.reconstructed?.sessionCount)){
+      throw Error('Neusklađena Kell Swing statistika.');
+    }
+    const firstSession=data.published.firstSession;
+    if(data.published.sessionCount>0?(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(firstSession)||firstSession>eodDate):
+      firstSession!==null)throw Error('Nedostaje početni EOD arhiviranih Kell planova.');
+    for(const horizon of kellHorizons){
+      const outcome=data.published.outcomes?.[horizon],comparison=data.reconstructed.comparisons?.[horizon];
+      validateKellExecution(outcome);
+      if(!comparison||!['pairedDates','selectedDates','pairedSelectionsPerStrategy'].every(key=>kellCount(comparison[key]))||
+          comparison.pairedDates>comparison.selectedDates||
+          comparison.pairedSelectionsPerStrategy<comparison.pairedDates||
+          comparison.pairedSelectionsPerStrategy>comparison.pairedDates*data.maxSelectionsPerSession){
+        throw Error('Neusklađeni brojevi Kell Swing uzorka.');
+      }
+      for(const cost of kellCosts){
+        const ret=comparison.returnPctByCost?.[cost];
+        if(comparison.pairedDates?!kellCohorts.every(([key])=>Number.isFinite(ret?.[key])):ret!==null){
+          throw Error('Neusklađena usporedba Kell Swinga.');
+        }
+      }
+    }
+    return data;
+  }
+  function renderKellGroups(data,horizon,cost){
+    const report=data.executionCohorts;
+    if(!report)return;
+    const sample=el('siKellGroupSample').value==='published'?data.published:report.historical;
+    const dimension=el('siKellGroupDimension').value,aggregate=sample.outcomes[horizon];
+    const host=el('siKellGroupList');
+    host.replaceChildren();
+    for(const [key,label] of Object.entries(kellGroupLabels[dimension])){
+      const row=sample[dimension][key][horizon];
+      if(!row.selected)continue;
+      const article=document.createElement('article');
+      article.className='si-kell-group';
+      const header=document.createElement('header'),title=document.createElement('strong'),net=document.createElement('b');
+      title.textContent=label;
+      const range=row.netRByCost[cost];
+      net.textContent=range?(range[0]===range[1]?fmt(range[0],'R'):fmt(range[0],'R')+' do '+fmt(range[1],'R')):'—';
+      header.append(title,net);
+      const coverage=document.createElement('p'),counts=document.createElement('p');
+      coverage.textContent=FMT.format(row.fills)+' / '+FMT.format(row.evaluable)+' izvršenja · '+
+        FMT.format(row.fillDates)+' / '+FMT.format(row.signalDates)+' datuma s izvršenjem';
+      const unavailable=kellExcluded.reduce((sum,key)=>sum+row[key],0);
+      counts.textContent=FMT.format(row.selected)+' planova · '+FMT.format(row.pending)+' na čekanju · '+
+        FMT.format(unavailable)+' isključeno · '+FMT.format(row.ambiguousFills)+' dvosmislenih';
+      article.append(header,coverage,counts);
+      host.append(article);
+    }
+    const dates=aggregate.signalDates===1?'jednom datumu':FMT.format(aggregate.signalDates)+' datuma';
+    el('siKellGroupStatus').textContent=horizon+' sesija · '+FMT.format(cost==='20bp'?.2:.5)+'% troška. '+
+      (aggregate.selected?FMT.format(aggregate.selected)+' planova na '+dates+'.':
+        'U ovom uzorku nema odabranih planova.');
+  }
+  function renderKellSwing(raw,eodDate){
+    const status=el('siKellStatus');
+    if(raw==null){
+      status.textContent='Prikazana EOD objava još nema statistiku Kell Swing planova.';
+      return;
+    }
+    const data=validateKellSwing(raw,eodDate);
+    const horizon=el('siKellHorizon'),cost=el('siKellCost');
+    const groupPanel=el('siKellCohorts');
+    let groups=false;
+    if(data.executionCohorts){
+      try{
+        validateKellGroups(data);
+        groups=true;
+        const delta=fmt(data.executionCohorts.breadthThresholdPp,' p. b.');
+        el('siKellGroupMethod').textContent='Širina mjeri promjenu udjela 3+/4 među tickerima evaluiranima u obje uzastopne sesije. '+
+          'Rast i pad su promjene od najmanje '+delta+' u odgovarajućem smjeru na datum potvrde plana. Bez uparenog EOD-a kontekst ostaje nepoznat.';
+        el('siKellGroupSample').value=data.published.outcomes[horizon.value].fills||
+          !data.executionCohorts.historical.outcomes[horizon.value].fills?'published':'historical';
+        for(const id of ['siKellGroupSample','siKellGroupDimension']){
+          el(id).onchange=()=>renderKellGroups(data,horizon.value,cost.value);
+        }
+      }catch(error){el('siKellGroupStatus').textContent=error.message}
+      groupPanel.hidden=false;
+    }
+    function renderSelection(){
+      const outcome=data.published.outcomes[horizon.value],comparison=data.reconstructed.comparisons[horizon.value];
+      const net=outcome.netRByCost[cost.value];
+      const excluded=kellExcluded.reduce((sum,key)=>sum+outcome[key],0);
+      const unavailable=excluded?' · nedostupno '+FMT.format(excluded)+' (svijeće '+FMT.format(outcome.missingBars)+
+        ', korporativne akcije '+FMT.format(outcome.corporateAction)+', izvorno zatvaranje '+FMT.format(outcome.unmatchedClose)+
+        ', razine '+FMT.format(outcome.invalidLevels)+')':'';
+      const execution=net?' · prosječno '+fmt(net[0],'R')+' do '+fmt(net[1],'R'):
+        outcome.evaluable?' · nijedan provjerljiv nalog nije izvršen u simulaciji':' · prinos još nije dostupan';
+      el('siKellPublished').textContent=FMT.format(outcome.selected)+' odabranih · '+FMT.format(outcome.pending)+
+        ' na čekanju'+unavailable+' · '+FMT.format(outcome.fills)+' / '+FMT.format(outcome.evaluable)+
+        ' simuliranih izvršenja'+execution;
+      el('siKellPaired').textContent=FMT.format(comparison.pairedDates)+' / '+FMT.format(comparison.selectedDates)+
+        ' zrelih datuma s potpunim parovima · '+FMT.format(comparison.pairedSelectionsPerStrategy)+' odabira po strategiji.';
+      const returns=comparison.returnPctByCost[cost.value];
+      comparisonTable('siKellComparison',['Strategija','Neto prosjek'],kellCohorts.map(([key,label])=>[label,fmt(returns?.[key],'%')]));
+      if(groups)renderKellGroups(data,horizon.value,cost.value);
+    }
+    horizon.onchange=renderSelection;
+    cost.onchange=renderSelection;
+    status.textContent='EOD '+data.asOf+' · Najviše '+data.maxSelectionsPerSession+' odabira po sesiji. '+
+      FMT.format(data.published.sessionCount)+' sesija s arhiviranim planovima'+
+      (data.published.firstSession?' od '+data.published.firstSession:'')+' · '+
+      FMT.format(data.reconstructed.sessionCount)+' starijih sesija za rekonstrukciju.';
+    renderSelection();
+    el('siKellContent').hidden=false;
+    if(location.hash==='#siKell')el('siKell').scrollIntoView();
+    if(location.hash==='#siKellCohorts'&&!groupPanel.hidden)groupPanel.scrollIntoView();
+  }
+  const WEEKLY_GROUPS={all:'Sve faze','1':'Duga baza','2':'Zbijena baza','3':'Blizu pivota','4':'Pokušaj proboja'};
+  const WEEKLY_HORIZONS=['5','20','63','126'];
+  const WEEKLY_REASONS={entry_session:'Nedostaje cijeli EOD za ulaz',exit_session:'Nedostaje cijeli EOD za izlaz',
+    entry_quote:'Nedostaje zatvaranje dionice na ulazu',exit_quote:'Nedostaje zatvaranje dionice na izlazu',
+    valuation:'Ishod se ne može vrednovati uz evidentirane korporativne akcije'};
+  const weeklyDay=day=>typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day);
+  function validateWeeklyBase(data,asOf){
+    const count=value=>Number.isSafeInteger(value)&&value>=0;
+    const datedList=value=>Array.isArray(value)&&value.every(weeklyDay);
+    const invalid=()=>Error('Tjedni ishodi ne odgovaraju prikazanoj EOD objavi.');
+    if(data.schemaVersion!=='weekly-base-outcomes-v1'||data.asOf!==asOf||!datedList([data.firstSession])||
+      data.firstSession>asOf||!datedList(data.missingSessions)||!datedList(data.rejectedArchives)||
+      ![data.archiveSessions,data.comparableSessions,data.latestSelected,data.unknownFirstDate,
+        data.missingPriorOrCurrentCoverage].every(count))throw invalid();
+    if(!data.archiveSessions||data.comparableSessions>=data.archiveSessions||data.latestSelected>15)throw invalid();
+    for(const key of Object.keys(WEEKLY_GROUPS)){
+      const group=data.groups?.[key];
+      if(!count(group?.entries)||!count(group?.signalDates)||group.signalDates>group.entries)throw invalid();
+      for(const horizon of WEEKLY_HORIZONS){
+        const row=group.outcomes?.[horizon],pairs=row?.matched;
+        if(!row||!pairs||![row.observed,row.dates,row.pending,row.missing,pairs.paired,pairs.observed,
+          pairs.dates,pairs.pending,pairs.missing].every(count)||row.observed+row.pending+row.missing!==group.entries||
+          pairs.observed+pairs.pending+pairs.missing!==pairs.paired||pairs.paired>group.entries||
+          row.dates>row.observed||row.dates>group.signalDates||pairs.dates>row.dates||pairs.dates>pairs.observed||
+          pairs.observed>row.observed||(row.observed&&(row.positivePct<0||row.positivePct>100))||
+          ![row.meanPct,row.medianPct,row.positivePct].every(value=>row.observed?Number.isFinite(value):value===null)||
+          ![pairs.signalPct,pairs.controlPct,pairs.differencePp].every(value=>pairs.observed?Number.isFinite(value):value===null))
+          throw invalid();
+      }
+    }
+    return data;
+  }
+  function validCaseOutcome(value,pending){
+    const close=number=>number===null||Number.isFinite(number)&&number>0;
+    if(!value||!close(value.entryClose)||!close(value.exitClose)||!Array.isArray(value.reasons)||
+      value.reasons.some(reason=>!Object.hasOwn(WEEKLY_REASONS,reason)))return false;
+    if(pending)return value.status==='pending'&&value.returnPct===null&&value.exitClose===null&&!value.reasons.length;
+    if(value.status==='measured')return Number.isFinite(value.returnPct)&&value.entryClose!==null&&
+      value.exitClose!==null&&!value.reasons.length;
+    return value.status==='missing'&&value.returnPct===null&&value.reasons.length>0;
+  }
+  function validateWeeklyCases(payload,weekly){
+    const invalid=()=>Error('Pojedinačni ishodi ne odgovaraju sažetku Tjedne baze.');
+    const seen=new Set(),cases=[];
+    let previous='';
+    for(const day of payload.days){
+      if(!weeklyDay(day?.signalDate)||day.signalDate<=previous||day.signalDate<weekly.firstSession||day.signalDate>weekly.asOf||
+          day.entryDate!==null&&(!weeklyDay(day.entryDate)||day.entryDate<=day.signalDate)||
+          !Array.isArray(day.cases)||!day.cases.length||day.cases.length>15)throw invalid();
+      previous=day.signalDate;
+      for(const horizon of WEEKLY_HORIZONS){
+        const exit=day.exitDates?.[horizon];
+        if(exit!==null&&(!weeklyDay(exit)||day.entryDate===null||exit<=day.entryDate))throw invalid();
+      }
+      for(const row of day.cases){
+        if(!/^[A-Z0-9._-]{1,20}$/.test(row?.ticker??'')||seen.has(row.ticker)||!['1','2','3','4'].includes(row.stage)||
+          row.controlTicker!==null&&(!/^[A-Z0-9._-]{1,20}$/.test(row.controlTicker)||row.controlTicker===row.ticker)||
+          (row.controlTicker===null?!['unmatched','missing_features'].includes(row.matchStatus):row.matchStatus!=='paired'))throw invalid();
+        seen.add(row.ticker);
+        for(const horizon of WEEKLY_HORIZONS){
+          const sample=row.outcomes?.[horizon],exit=day.exitDates[horizon];
+          const pending=exit===null||exit>weekly.asOf;
+          if(!validCaseOutcome(sample?.signal,pending)||
+            (row.controlTicker===null?sample.control!==null:!validCaseOutcome(sample.control,pending)))throw invalid();
+        }
+        cases.push(row);
+      }
+    }
+    if(cases.length!==weekly.caseCount||payload.caseCount!==weekly.caseCount||
+        payload.days.length!==weekly.groups.all.signalDates)throw invalid();
+    for(const group of Object.keys(WEEKLY_GROUPS)){
+      const summary=weekly.groups[group];
+      const rows=group==='all'?cases:cases.filter(row=>row.stage===group);
+      if(rows.length!==summary.entries)throw invalid();
+      for(const horizon of WEEKLY_HORIZONS){
+        const sample=rows.map(row=>row.outcomes[horizon]),reported=summary.outcomes[horizon];
+        const observed=sample.filter(row=>row.signal.status==='measured').length;
+        const pending=sample.filter(row=>row.signal.status==='pending').length;
+        const pairs=sample.filter(row=>row.control);
+        const pairedObserved=pairs.filter(row=>row.signal.status==='measured'&&row.control.status==='measured').length;
+        const pairedPending=pairs.filter(row=>row.signal.status==='pending').length;
+        if(observed!==reported.observed||pending!==reported.pending||pairs.length!==reported.matched.paired||
+          pairedObserved!==reported.matched.observed||pairedPending!==reported.matched.pending)throw invalid();
+      }
+    }
+    return payload.days;
+  }
+  function weeklyCaseRow(row,horizon){
+    const item=document.createElement('li'),heading=document.createElement('header');
+    const ticker=document.createElement('strong'),stage=document.createElement('span');
+    ticker.textContent=row.ticker;
+    stage.textContent=WEEKLY_GROUPS[row.stage];
+    heading.append(ticker,stage);
+    const values=document.createElement('dl'),outcome=row.outcomes[horizon];
+    function append(label,result){
+      const pair=document.createElement('div'),title=document.createElement('dt'),value=document.createElement('dd');
+      title.textContent=label;
+      value.textContent=result?.status==='measured'?fmt(result.returnPct,'%'):result?.status==='pending'?'Na čekanju':'—';
+      if(result){
+        if(result.entryClose!==null||result.exitClose!==null){
+          const closes=document.createElement('small');
+          closes.textContent='Zatvaranja '+fmt(result.entryClose)+' → '+fmt(result.exitClose);
+          title.appendChild(closes);
+        }
+        if(result.reasons.length){
+          const reason=document.createElement('small');
+          reason.textContent=result.reasons.map(key=>WEEKLY_REASONS[key]).join(' · ');
+          title.appendChild(reason);
+        }
+      }
+      pair.append(title,value);
+      values.appendChild(pair);
+    }
+    append('Uvrštena dionica',outcome.signal);
+    append(row.controlTicker?'Kontrola · '+row.controlTicker:
+      row.matchStatus==='missing_features'?'Kontrola · nedostaju raniji podaci':'Kontrola · nema podudaranja',outcome.control);
+    if(outcome.signal.status==='measured'&&outcome.control?.status==='measured'){
+      const delta=outcome.signal.returnPct-outcome.control.returnPct,spread=document.createElement('p');
+      spread.textContent='Razlika para '+(delta>0?'+':'')+fmt(delta,' p. b.');
+      item.append(heading,values,spread);
+    }else item.append(heading,values);
+    return item;
+  }
+  function mountWeeklyCases(weekly,source,groupSelect,horizonSelect){
+    if(!weekly.caseReference||!weekly.caseCount||!source)return;
+    const panel=el('siWeeklyCases'),dateSelect=el('siWeeklyCaseDate'),status=el('siWeeklyCasesStatus');
+    const content=el('siWeeklyCasesContent'),retry=el('siWeeklyCasesRetry');
+    let days=null,loading=false;
+    const inGroup=row=>groupSelect.value==='all'||row.stage===groupSelect.value;
+    function render(){
+      if(!days)return;
+      const selected=dateSelect.value,horizon=horizonSelect.value;
+      const available=days.filter(day=>day.cases.some(inGroup));
+      const measurable=available.findLast(day=>day.cases.some(row=>inGroup(row)&&
+        row.outcomes[horizon].signal.status==='measured'&&row.outcomes[horizon].control?.status==='measured'));
+      const chosen=available.find(day=>day.signalDate===selected)||measurable||available.at(-1);
+      dateSelect.replaceChildren(...available.slice().reverse().map(day=>new Option(day.signalDate,day.signalDate)));
+      if(!chosen){content.hidden=true;status.textContent='Za ovu fazu nema pojedinačnih uvrštenja.';return}
+      dateSelect.value=chosen.signalDate;
+      const exit=chosen.exitDates[horizon],entry=chosen.entryDate;
+      el('siWeeklyCaseWindow').textContent=(entry&&entry>weekly.asOf?'Planirani ulaz ':'Ulaz ')+(entry||'—')+
+        ' · '+(exit&&exit>weekly.asOf?'planirani izlaz ':'izlaz ')+(exit||'—');
+      const cases=chosen.cases.filter(inGroup),values=cases.map(row=>row.outcomes[horizon]);
+      const measured=values.filter(row=>row.signal.status==='measured');
+      const paired=measured.filter(row=>row.control?.status==='measured');
+      const spread=paired.length?paired.reduce((sum,row)=>sum+(row.signal.returnPct-row.control.returnPct),0)/paired.length:null;
+      el('siWeeklyCaseCounts').textContent='Izmjereno '+FMT.format(measured.length)+' od '+FMT.format(cases.length)+
+        ' uvrštenja · u usporedbi '+FMT.format(paired.length)+
+        (paired.length?' · razlika za ovaj datum '+(spread>0?'+':'')+fmt(spread,' p. b.'):'.');
+      el('siWeeklyCaseList').replaceChildren(...cases.map(row=>weeklyCaseRow(row,horizon)));
+      status.textContent='';
+      content.hidden=false;
+    }
+    async function load(){
+      if(!panel.open||days||loading)return;
+      loading=true;
+      status.textContent='Učitavam pojedinačne ishode…';
+      retry.hidden=true;
+      try{
+        days=validateWeeklyCases(await globalThis.ReviewSnapshots.loadWeeklyCases(fetch,weekly.caseReference,source),weekly);
+        render();
+      }catch(error){
+        status.textContent=error.message;
+        retry.hidden=false;
+      }finally{loading=false}
+    }
+    panel.addEventListener('toggle',load);
+    retry.addEventListener('click',load);
+    dateSelect.addEventListener('change',render);
+    groupSelect.addEventListener('change',render);
+    horizonSelect.addEventListener('change',render);
+    panel.hidden=false;
+  }
+  function renderWeeklyBase(raw,asOf,source){
+    const status=el('siWeeklyBaseStatus');
+    if(!raw){status.textContent='Ishodi Tjedne baze nedostaju u ovoj EOD objavi.';return}
+    const data=validateWeeklyBase(raw,asOf);
+    const dates=count=>FMT.format(count)+(count===1?' datum':' datuma');
+    status.textContent=data.firstSession+' – '+data.asOf+' · '+FMT.format(data.archiveSessions)+' arhiviranih sesija · '+
+      FMT.format(data.groups.all.entries)+' prvih uvrštenja na '+dates(data.groups.all.signalDates)+'.';
+    const groupSelect=el('siWeeklyBaseGroup'),horizonSelect=el('siWeeklyBaseHorizon');
+    const all=data.groups.all.outcomes;
+    if(!all['20'].matched.observed&&all['5'].matched.observed)horizonSelect.value='5';
+    for(const key of ['all','1','2','3','4']){
+      if(key==='all'||data.groups[key].entries)groupSelect.add(new Option(WEEKLY_GROUPS[key],key));
+    }
+    const gaps=data.missingSessions.length?'Nedostaju sesije '+data.missingSessions.join(', ')+'. ':'';
+    el('siWeeklyBaseArchiveGaps').textContent=gaps+FMT.format(data.comparableSessions)+
+      ' sesija s potvrđenom prethodnom listom. Za '+FMT.format(data.unknownFirstDate)+
+      ' tickera prvo pojavljivanje je na početku arhive ili nakon rupe.'+
+      ' Zadnja lista ima '+FMT.format(data.latestSelected)+' tickera.'+
+      (data.rejectedArchives.length?' Odbačene neusklađene arhive '+data.rejectedArchives.join(', ')+'.':'')+
+      (data.missingPriorOrCurrentCoverage?' Bez potvrde evaluacije u obje sesije '+FMT.format(data.missingPriorOrCurrentCoverage)+'.':'');
+    function select(){
+      const group=data.groups[groupSelect.value],row=group.outcomes[horizonSelect.value],pairs=row.matched;
+      const matured=group.entries-row.pending;
+      el('siWeeklyBaseCoverage').textContent=FMT.format(row.observed)+' od '+FMT.format(matured)+
+        ' dospjelih ishoda na '+dates(row.dates)+' · '+FMT.format(row.pending)+' na čekanju'+
+        (row.missing?' · '+FMT.format(row.missing)+' bez dovoljne pokrivenosti cijena':'')+'.';
+      el('siWeeklyBaseSummary').hidden=!row.observed;
+      el('siWeeklyBaseMean').textContent=fmt(row.meanPct,'%');
+      el('siWeeklyBaseMedian').textContent=fmt(row.medianPct,'%');
+      el('siWeeklyBasePositive').textContent=fmt(row.positivePct,'%');
+      el('siWeeklyBaseMatched').textContent=FMT.format(pairs.paired)+' uparenih od '+FMT.format(group.entries)+
+        ' uvrštenja · parovi s ishodom '+FMT.format(pairs.observed)+' na '+dates(pairs.dates)+
+        (pairs.pending?' · '+FMT.format(pairs.pending)+' na čekanju':'')+
+        (pairs.missing?' · '+FMT.format(pairs.missing)+' bez obiju cijena':'')+'.';
+      const chart=el('siWeeklyBaseComparison');
+      chart.hidden=!pairs.observed;
+      if(chart.hidden)return;
+      const max=Math.max(.01,Math.abs(pairs.signalPct),Math.abs(pairs.controlPct));
+      for(const [label,value] of [['Signal',pairs.signalPct],['Control',pairs.controlPct]]){
+        el('siWeeklyBase'+label).textContent=fmt(value,'%');
+        const bar=el('siWeeklyBase'+label+'Bar'),width=48*Math.abs(value)/max;
+        bar.style.width=width+'%';
+        bar.style.left=(value<0?50-width:50)+'%';
+      }
+      el('siWeeklyBaseDifference').textContent=(pairs.differencePp>0?'+':'')+fmt(pairs.differencePp,' p. b.');
+    }
+    groupSelect.addEventListener('change',select);
+    horizonSelect.addEventListener('change',select);
+    select();
+    mountWeeklyCases(data,source,groupSelect,horizonSelect);
+    el('siWeeklyBaseContent').hidden=false;
+    if(location.hash==='#siWeeklyBase')requestAnimationFrame(()=>el('siWeeklyBase').scrollIntoView());
   }
   function renderForward(raw, eodDate) {
     const data=validateForward(raw);
     const status=el('siForwardStatus');
     const stale=data.asOf!==eodDate;
     status.textContent=(stale?'UPOZORENJE: mjerenje nije osvježeno za današnji EOD · ':'')+
-      'V2 · stvarna point-in-time povijest · '+data.asOf+
+      (data.corporateActions?'Povijest s evidentiranim korporativnim akcijama':'V2 · arhivirana povijest')+' · '+data.asOf+
       ' · '+FMT.format(data.stageTransitions)+' potvrđenih prijelaza, '+FMT.format(data.archivedEventDays)+' datuma.';
     el('siForwardSummary').textContent='Uzorci dospijevaju nakon 1 + 5/20/60 burzovnih sesija. '+
       'Samo potpun broj dospjelih ishoda u tablici ulazi u prosjek; nedostajuće cijene ne tretiraju se kao 0%.';
@@ -704,7 +1155,7 @@
     const table=el('siForwardTable');
     table.replaceChildren();
     const thead=document.createElement('thead'), tr=document.createElement('tr');
-    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Nedostaje: sesija / ticker / ostalo','Prosjek','Medijan','% pozitivnih','P10 / P90']) {
+    for (const label of ['Faza','Horizont','Dospjelo s cijenom','Na čekanju','Pokrivenost','Nedostaje: sesija / ticker / ostalo','Prosjek','Medijan','% pozitivnih','P10 / P90','Status uzorka']) {
       const th=document.createElement('th'); th.textContent=label; tr.appendChild(th);
     }
     thead.appendChild(tr); table.appendChild(thead);
@@ -716,20 +1167,24 @@
         quality ? [row.missingSessionGap,row.missingTickerQuote,row.missingUnclassified].map(x=>FMT.format(x)).join(' / ') : '—',
         fmt(row.meanPct,'%'),
         fmt(row.medianPct,'%'),fmt(row.winRatePct,'%'),
-        fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%')];
+        fmt(row.p10Pct,'%')+' / '+fmt(row.p90Pct,'%'),
+        row.eligibleForCalibration===true?'Podoban za kalibraciju':row.expectedMatured?'Preliminarno':'Ishodi još nisu dospjeli'];
       cells.forEach((value,i)=>{const cell=document.createElement(i===0?'th':'td');cell.textContent=value;
         if (i===0) cell.style.color=COLORS[stage];
-        if (i===6 && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
+        if (i===6 && row.eligibleForCalibration===true && Number.isFinite(row.meanPct)) cell.style.color=row.meanPct>=0?'#37cb89':'#f26d79';
         r.appendChild(cell);
       });
       tbody.appendChild(r);
     }
     table.appendChild(tbody);
+    renderEarlyOutcomes(data.earlyTrend,data.asOf);
   }
 
   async function start() {
     const status=el('siStatus');
     if (!status) return;
+    const returnUrl=globalThis.ReviewNavigation.reviewReturn(location.href,document.referrer);
+    for(const link of document.querySelectorAll('[data-review-return]'))link.href=returnUrl.href;
     mountRecovery();
     try {
       const response=await fetch('data/trend-birth-market-internals.json',{cache:'no-store'});
@@ -739,6 +1194,11 @@
       render(data);
       status.hidden=true;
       await Promise.all([
+        (async()=>{
+          let calendar=null,error=null;
+          try{calendar=await globalThis.ReviewFreshness.loadCalendar(fetch)}catch(cause){error=cause}
+          globalThis.ReviewFreshness.render(el('eodFreshness'),calendar,data.latestSessionDate,{error});
+        })(),
         (async()=>{
           try {
             const response=await fetch('data/trend-birth-composite-backtest.json',{cache:'no-store'});
@@ -750,14 +1210,25 @@
         })(),
         (async()=>{
           let forward=null;
+          let swing=null;
           try {
-            const response=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
-            if (!response.ok) throw Error('HTTP '+response.status);
-            forward=validateForward(await response.json());
+            const reports=await globalThis.ReviewSnapshots.loadReports(fetch,data.latestSessionDate,data.latestRunId);
+            if(reports){
+              swing=reports.kellForward?.swingStatistics;
+              forward=validateForward(reports.trendBirthForward);
+            }else{
+              const response=await fetch('data/trend-birth-stage-forward.json',{cache:'no-store'});
+              if (!response.ok) throw Error('HTTP '+response.status);
+              forward=validateForward(await response.json());
+            }
             renderForward(forward,data.latestSessionDate);
           } catch (error) {
             el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
           }
+          try{renderWeeklyBase(forward?.weeklyBase,data.latestSessionDate,forward?.source)}
+          catch(error){el('siWeeklyBaseStatus').textContent=error.message}
+          try{renderKellSwing(swing,data.latestSessionDate)}
+          catch(error){el('siKellStatus').textContent=error.message}
           try {
             if(!globalThis.TrendBirthHeat)throw Error('Nedostaje modul Market Thermometera');
             globalThis.TrendBirthHeat.mount(data,forward);
@@ -771,6 +1242,6 @@
       status.className='si-error';
     }
   }
-  return {validate, validateComposite, validateForward, validateRecovery, horizonTotals, compositeFactorRows, compositeHistory,
+  return {validate, validateComposite, validateForward, validateRecovery, validateWeeklyBase, horizonTotals, compositeFactorRows, compositeHistory,
     metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });

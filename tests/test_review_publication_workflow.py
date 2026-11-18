@@ -21,7 +21,7 @@ def publication_script():
 
 class ReviewPublicationWorkflowTests(unittest.TestCase):
     def publish(self, *, stale_composite=False, missing_prices=False, skipped_session=False,
-                bad_source=False, low_coverage=False):
+                bad_source=False, low_coverage=False, stale_research=False, corrupt_changes=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             checkout, remote, scratch = root / "checkout", root / "remote.git", root / "scratch"
@@ -49,7 +49,12 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
             for name in ["trend_birth_quality_history.py", "validate_eod_publication.py",
                          "archive_trend_birth_closes.py", "trend_birth_intelligence.py",
                          "validate_unified_review_bundle.py",
-                         "pack_review_storage.py", "review_archive_io.py"]:
+                         "pack_review_storage.py", "review_archive_io.py", "market_sessions.py",
+                         "publish_watchlist_snapshot.py", "build_kell_compact.py", "kell_chart_coverage.py",
+                         "publish_review_snapshot.py", "publish_review_research.py",
+                         "publish_review_changes.py", "publish_review_spy.py",
+                         "early_trend_birth.py", "kell_swing.py", "trend_birth_radar.py",
+                         "market_week.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")
 
@@ -79,6 +84,9 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 sys.path.insert(0, str(ROOT / "scripts"))
                 from trend_birth_intelligence import point_from_snapshot
                 from archive_trend_birth_closes import extract
+                from publish_review_research import REPORTS, publish
+                from publish_review_changes import build as publish_changes
+                from publish_review_spy import publish as publish_spy
                 stage = point_from_snapshot(latest)
                 for folder, schema, point in [
                     ("trend-birth-ticker-history", "trend-birth-ticker-month-v1", stage),
@@ -88,7 +96,19 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                         "schemaVersion": schema, "scope": "unified-plus-tracked-watchlist", "month": day[:7], "sessions": []}
                     payload["sessions"].append(point)
                     write(str(target.relative_to(checkout)), payload)
-                write("lab/data/trend-birth-stage-forward.json", {"asOf": day, "exchangeSessions": [day]})
+                for name, (filename, schema) in REPORTS.items():
+                    report = {"schemaVersion": schema, "source": dict(latest["source"])}
+                    if name == "trendBirthForward":
+                        report.update({"asOf": day, "exchangeSessions": [day]})
+                    elif name == "kellForward":
+                        report["source"].update({"asOf": day, "lastSignalDate": day})
+                    elif name == "alerts":
+                        report["reviewSnapshotId"] = sid
+                    write("lab/data/" + filename, report)
+                publish(checkout / "lab/data")
+                publish_changes(checkout / "lab/data",
+                                json.loads((checkout / "lab/data/exchange-sessions-v1.json").read_bytes()))
+                publish_spy(checkout / "lab/data", checkout / "lab/data/exchange-sessions-v1.json")
                 write("lab/data/kell-latest.json", {"source": latest["source"]})
                 write("lab/data/trend-birth-market-internals.json", {
                     "latestSessionDate": day, "latestRunId": latest["source"]["runId"]})
@@ -130,14 +150,31 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 # The inputs are fresh but an upstream generation failed to refresh Composite.
                 old = json.loads(git("show", "HEAD:lab/data/trend-birth-composite-backtest.json"))
                 write("lab/data/trend-birth-composite-backtest.json", old)
+            if stale_research:
+                old = json.loads(git("show", "HEAD:lab/data/kell-forward-validation.json"))
+                write("lab/data/kell-forward-validation.json", old)
+            if corrupt_changes:
+                pointer = json.loads((checkout / "lab/data/publication.json").read_bytes())
+                path = checkout / "lab" / pointer["changes"]["path"]
+                path.write_bytes(path.read_bytes() + b" ")
+            scenario = root / "publish.sh"
+            cutoff = "2026-10-29T00:00:00+00:00" if skipped_session else "2026-10-27T00:00:00+00:00"
+            scenario.write_text(
+                script.replace("/tmp/", shlex.quote(scratch.as_posix() + "/")).replace(
+                    "python scripts/validate_eod_publication.py", f"python scripts/validate_eod_publication.py --now {cutoff}"),
+                encoding="utf-8", newline="\n")
             result = subprocess.run(
-                ["bash", "-euo", "pipefail", "-c", script.replace("/tmp/", str(scratch) + "/").replace(
-                    "python scripts/validate_eod_publication.py",
-                    "python scripts/validate_eod_publication.py --now " +
-                    ("2026-10-29T00:00:00+00:00" if skipped_session else "2026-10-27T00:00:00+00:00"))],
+                [shutil.which("bash") or "bash", "-euo", "pipefail", scenario.as_posix()],
                 cwd=checkout, env={**os.environ, "GITHUB_REF_NAME": "topic", "GITHUB_SHA": baseline},
                 text=True, capture_output=True, timeout=30)
             published = json.loads(git("show", "HEAD:lab/data/trend-birth-composite-backtest.json"))
+            if result.returncode == 0:
+                manifest = json.loads(git("show", "HEAD:lab/data/publication.json"))
+                changes = json.loads(git("show", "HEAD:lab/" + manifest["changes"]["path"]))
+                self.assertEqual(changes["source"]["sessionDate"], "2026-10-26")
+                self.assertEqual(changes["previousSession"], "2026-10-23")
+                spy = json.loads(git("show", "HEAD:lab/" + manifest["spyReference"]["path"]))
+                self.assertEqual(spy["source"]["sessionDate"], "2026-10-26")
             return result, published, git("rev-parse", "HEAD") == baseline
 
     def test_lossless_gzip_staging_does_not_require_deleted_plain_json(self):
@@ -185,10 +222,22 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue(unchanged)
 
+    def test_mixed_research_report_keeps_last_published_commit(self):
+        result, _published, unchanged = self.publish(stale_research=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Research report does not match Review publication", result.stderr)
+        self.assertTrue(unchanged)
+
     def test_matching_but_insufficient_price_coverage_keeps_last_commit(self):
         result, _published, unchanged = self.publish(low_coverage=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("price coverage below 99%", result.stderr)
+        self.assertTrue(unchanged)
+
+    def test_corrupt_change_feed_keeps_last_published_commit(self):
+        result, _published, unchanged = self.publish(corrupt_changes=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Review change feed differs from active publication", result.stderr)
         self.assertTrue(unchanged)
 
 

@@ -110,6 +110,22 @@ def point_from_snapshot(snapshot: dict) -> dict | None:
         "stages": dict(sorted(stages.items())),
         "unavailable": sorted(unavailable),
     }
+    early = snapshot.get("earlyTrendResearch")
+    if early is not None:
+        names = {
+            row["ticker"]: row["earlyTrend"] for row in rows if row.get("earlyTrend") is not None
+        }
+        selected = early["shortlist"]
+        weekly = early["weekly"]
+        if (early["candidateCount"] != len(names) or not set(names) <= stages.keys() or
+                len(selected) != len(set(selected)) or not set(selected) <= names.keys() or
+                len(weekly) != len(set(weekly)) or not set(weekly) <= stages.keys() or
+                any(plan["sessionDate"] != day or plan["model"] != early["model"] for plan in names.values())):
+            raise ValueError("Early Trend Birth selection differs from the archived EOD: " + day)
+        point["earlyTrend"] = {
+            "model": early["model"], "shortlist": selected, "weekly": weekly,
+            "candidates": {ticker: plan["invalidation"] for ticker, plan in sorted(names.items())},
+        }
     _point_counts(point)
     return point
 
@@ -134,15 +150,23 @@ def load_months(directory: Path) -> dict[str, dict]:
     return months
 
 
-def merge_point(months: dict[str, dict], point: dict) -> None:
+def merge_point(months: dict[str, dict], point: dict, *, revise_latest: bool = False) -> None:
+    day = point["sessionDate"]
+    if revise_latest and any(row["sessionDate"] > day for payload in months.values() for row in payload["sessions"]):
+        raise ValueError("Refusing to revise an older market session")
     month = point["sessionDate"][:7]
     payload = months.setdefault(month, {
         "schemaVersion": SCHEMA, "scope": SCOPE, "month": month, "sessions": [],
     })
-    for old in payload["sessions"]:
-        if old["sessionDate"] == point["sessionDate"]:
+    for index, old in enumerate(payload["sessions"]):
+        if old["sessionDate"] == day:
             if old != point:
-                raise ValueError("Conflicting historical ticker stages for " + point["sessionDate"])
+                if not revise_latest:
+                    raise ValueError("Conflicting historical ticker stages for " + day)
+                from publish_review_snapshot import validate_revision
+
+                validate_revision(old, day, point["runId"])
+                payload["sessions"][index] = point
             return
     payload["sessions"].append(point)
     payload["sessions"].sort(key=lambda value: value["sessionDate"])
@@ -403,7 +427,7 @@ def build(latest_path: Path, history_dir: Path, month_dir: Path, summary_path: P
         raise ValueError("Latest EOD has no full Trend Birth radar")
     months = load_months(month_dir)
     retained_days = {p["sessionDate"] for p in all_points(months)}
-    merge_point(months, latest)
+    merge_point(months, latest, revise_latest=True)
     retained_days.add(latest["sessionDate"])
     for path in archive_paths(history_dir):
         day = archive_day(path)

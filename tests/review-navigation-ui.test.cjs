@@ -41,7 +41,7 @@ test('detail dialog has previous and next controls plus keyboard arrows',()=>{
   assert.match(app,/addEventListener\('click',\(\)=>navigateDetail\(1\)\)/);
   assert.match(app,/e\.key==='ArrowLeft'/);
   assert.match(app,/e\.key==='ArrowRight'/);
-  assert.match(app,/if\(!\$\('#detail'\)\.open\)\$\('#detail'\)\.showModal\(\)/);
+  assert.match(app,/if\(!dialog\.open\)dialog\.showModal\(\)/);
 });
 
 test('legacy Action and Multi-hit do not become full Kell-universe filters',()=>{
@@ -69,7 +69,7 @@ test('What Changed Today loads prior Kell history and sorts material changes fir
   assert.match(html,/kell-change-detector\.js/);
   assert.match(app,/function ensureKellChanges\(\)/);
   assert.match(app,/KellChanges\.loadPrevious\(fetch,currentDate,10\)/);
-  assert.match(app,/KellChanges\.decorate\(state\.kellData\?\.kellCandidates\|\|\[\],previous\)/);
+  assert.match(app,/KellChanges\.decorate\(kell\?\.kellCandidates\|\|\[\],previous\)/);
   assert.match(app,/if\(filter==='kell-changed'\)return item\?\.kellChange\?\.changed===true/);
   assert.match(app,/if\(mode==='change'\)return Number\(item\.kellChange\?\.priority\)/);
   assert.match(app,/if\(name==='changed'\)/);

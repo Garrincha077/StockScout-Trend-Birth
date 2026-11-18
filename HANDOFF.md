@@ -1,3 +1,155 @@
+## 2026-11-18 — Android and production release candidate
+
+- Release target is the existing [production app](https://stockscout-trend-birth-review-lab.vercel.app/) on `feature/unified-review-grid-lab`, via PR #76. At 18:47 Europe/Zagreb the release assets passed the full EOD and Research checks for November 17, Unified run `2026-11-17-eod-44227241477-1`, with 2,592 of 2,592 close observations and 2,126 of 2,126 Kell charts.
+- The manifest keeps a complete v1 startup asset for the installed app and also lists the compact v2 asset for the new client. Cache v4 advances the service worker with the same PWA identity and origin. A simulated release in 390 px Chromium used the original production client, activated the update button, loaded v2 and retained its browser-local Watchlist. The current full snapshot and latest fallback use lossless gzip and the original November 17 dated archive is preserved.
+- The release uses the existing signed-in Watchlist and browser-local plan storage. Cross-device plan sync requires deployment of its separate Supabase migration. Verify the production alias and the startup, Statistics and service-worker update after the exact release commit deploys.
+
+## 2026-11-18 — Inspect individual Weekly Base outcomes
+
+- Verified at 18:17 Europe/Zagreb on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siWeeklyBase), preview commit `70d35c1` and READY deployment `dpl_4d8atw59Nae7mKok526G7qbLE2Lx`. Expand **Pojedinačni slučajevi** and choose a signal date. The selected phase and horizon apply to both the case list and the aggregate above.
+- The November 17 research bundle includes a separate checksum-verified case file with 29 cases on six dates. It loads on expansion. It records entry and exit dates, quoted closes, gross returns, matched controls and unavailable reasons. Future exit dates are labeled planned and derive from the published exchange calendar.
+- Verified at 390 px. November 6 shows four measured pairs and +3.56 pp for that date. The four October 9 entries expose the missing October 19 exit EOD, and the November 13 cases expose pending outcomes. The report still reconciles to +4.261 pp across the three measured 5-session dates. Passed 131 Node and 26 Chromium tests, focused Python and aligned EOD bundle checks. The previous [CI 44353365455](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44353365455) passed. Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) contains the source.
+
+## 2026-11-18 — Weekly Base outcomes and matched comparison
+
+- Verified at 17:56 Europe/Zagreb on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siWeeklyBase), preview commit `0b6a315` and READY deployment `dpl_9AWq34H5EwTJVXqrgbioT1chcnhP`. The Weekly Base tab links directly to the panel. Tested the actual archived data, report hash, 5/20/63-session views and mobile navigation at 390 px.
+- As of the November 17 EOD, 36 verified shadow sessions from September 25 provide 29 first appearances across six comparable signal dates. October 15 and 19 are missing. The 5-session view has 19 observed of 23 matured, four missing and six pending. The matched view has 13 observed pairs across three dates, 2.683% versus −1.578% and +4.261 pp. At 20 sessions, nine unpaired outcomes have prices across two dates and the matched outcomes are pending. All longer outcomes are pending.
+- Passed 263 Python, 131 Node and 26 Chromium tests, plus the exact research and EOD bundle checks. The [previous PR run 44349731391](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44349731391) passed the immediate-range test and exposed a viewport-dependent sync fixture. The fixture now scrolls the relevant lazy chart into view while waiting for its status. Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) remains the source branch.
+
+## 2026-11-18 — Owner account plan sync and chart navigation fix
+
+- Verified at 17:38 Europe/Zagreb on draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist) is READY on `2ca7762`, deployment `dpl_5fUBSKcSyb7VqFdABoPj8JfYvx4W`, with the November 17 EOD bundle. The shared Supabase database has no plan sync migration applied and no development branch was available. Preview operates in browser-local mode until a configured database provides the relation.
+- Apply only after approval and test a signed-in account on two actual clients. The migration is `supabase/migrations/20261118162607_trend_birth_plan_books.sql` for the existing `stockscout_unified_api` schema. Local import is explicit, keeps device copies, preserves independent strategies, and keeps a competing active copy on its device. Account updates retry on a version conflict. Stored checkpoints move with the plan and remain available when a later device lacks history.
+- Passed 131 Node and 25 Chromium cases. Two simulated mobile contexts moved a plan, synced the verified pivot event, and archived on a device with missing bars. Local PostgreSQL via PGlite verified the actual migration, stale-write protection, account isolation and denial for anonymous sessions. The earlier [CI 44345742770](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44345742770) exposed a range-selection race. The revised same-frame regression and Back/Forward flow pass locally.
+
+## 2026-11-18 — Archive Watchlist plan journals
+
+- Verified at 17:17 Europe/Zagreb on the [isolated Watchlist preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist), preview commit `732a6f4` and READY deployment `dpl_7iufJo2bJpMJYmRrar8euZD8cMcx`. Archiving and reloading an actual November 17 CAKE plan at 390 px kept its original pivot, stop, maximum entry and the link to its exact Kell archive. The record showed that no later review was saved.
+- The archive shows the last verified post-origin status and closing price, dated milestones, and links for the original and last checked EOD. A missing later session cannot overwrite the verified checkpoint. Older local archives remain readable and indicate missing follow-up evidence.
+- Passed 128 Node and 24 Chromium cases. The mobile fixture reloads a later EOD with a missing session, archives the plan, reloads again and checks that both milestones and the exact prior assessment snapshot remain. Work continues in draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Test the first later comparable actual EOD, then assess syncing personal plans across devices through the existing owner workflow.
+
+## 2026-11-18 — Saved plan levels and daily candle jumps
+
+- Verified at 17:07 Europe/Zagreb on the [isolated Watchlist preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist), preview commit `271ffe2` and READY deployment `dpl_BkXkUCP7EXo6PNLMUpkPpK8kjsgp`. Mobile Chromium at 390 px rendered actual November 17 saved levels for CAKE Kell Swing and KLAR Early Trend Birth. The chart selector can return to the displayed EOD levels.
+- A journal row selects its original saved plan and focuses the exact daily candle, extending the daily period when needed. If the source close basis or later daily coverage is unavailable, the saved overlay requires a verified series before drawing. The Kell zone starts at the plan date.
+- Passed 126 Node and 24 Chromium cases, including card and dialog jumps, a weekly-to-daily switch and a later scan with a changed pivot. The earlier journal head `ca4efab` passed [CI 44341431100](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44341431100). Source changes are in draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Test the first later comparable actual EOD and evaluate keeping journal milestones after archiving.
+
+## 2026-11-18 — Watchlist plan journal
+
+- Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist) at 16:55 Europe/Zagreb, preview commit `d849968` and READY deployment `dpl_DKVUk8ptCqgTpRMBqPQ3GUxE1z3e`. Saved actual November 17 Early plan KLAR and Kell plan CAKE in a disposable mobile Chromium context. Both correctly awaited the first later close. The CAKE link opened its ticker in the exact November 17 archive.
+- After later sessions, the active plan exposes the first qualifying closes against its original levels. An original stop breach remains final after a rebound. The app withholds milestones when price coverage, calendar or starting basis cannot be verified. Archiving retains the original plan and source link. The browser holds plan records locally.
+- Passed 126 Node cases and 24 Chromium cases, including the synthetic three-publication Early journey and Kell entry-band, extension and stop boundaries. Prior source head `84ea011` passed [CI 44338907575](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44338907575). Work continues on draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next priorities include the original plan levels on the price chart and verification on the first later comparable real EOD.
+
+## 2026-11-18 — Mobile navigation, ticker links and PWA shortcuts
+
+- Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:42 Europe/Zagreb, preview commit `7a3e23e`, deployment `dpl_H55Z1boMsCmz1X4Dp7v5NSDyV2t2`. CAKE opens from the Kell shortcut, Back dismisses its detail, Forward restores the selected chart range and the Statistics return link restores Kell. The offline screen retains the exact URL and retry restores the same ticker and range.
+- Ticker links include view and chart range plus existing archive identity when present. Sharing strips authentication and unrelated URL values. A public off-list ticker uses the active lookup bucket without editing personal Watchlist membership. The updated PWA manifest has Early, Kell, Watchlist and Statistics shortcuts.
+- Passed 124 Node tests and 24 Chromium tests. Verified in mobile Chromium at 390 px. Native Android launcher behavior awaits device testing. Prior SPY and Watchlist change passed [CI 44336219169](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44336219169). Working branch remains draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+
+## 2026-11-18 — Date-aligned SPY reference and Watchlist chart hydration
+
+- Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:28 Europe/Zagreb, preview commit `9943de4`, deployment `dpl_51vPfYPt1ZixgGFKcqdfAfyTevHW`. The November 17 activation includes 1,257 SPY reference dates from November 2021. Current shortlist coverage is 15/15 Early, 12/12 Kell and 15/15 Weekly. The browser loads the shared reference only for an incomplete chart.
+- Verified the earlier-missing KLAR daily and TXNM floor-week values in Chromium at 390 px. Held the Watchlist bucket while opening CAKE and confirmed that the modal stayed open, hydrated the original ticker and reused the same SPY request. Failed chart loads expose a retry button.
+- Passed 260 Python cases, 121 Node cases and 22 Chromium cases. The aligned November 17 EOD gate passed. Prior Kell cohort change passed [CI 44331645327](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44331645327). Source branch is draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next: cohesive mobile/PWA workflow pass and validation on the first later comparable EOD.
+
+## 2026-11-18 — Kell Swing execution by setup and radar breadth
+
+- Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siKellCohorts) at 16:04 Europe/Zagreb, preview commit `7a520fe`, deployment `dpl_HMvFg1dCKRUSTBm6AzDppdNQ9dgk`. Archived and reconstructed plans have separate group views, with the same 5/10/20-session and 20/50 bp controls. Breadth is the matched-ticker change in 3+/4 at the signal EOD with a 0.5 percentage point threshold.
+- The November 17 bundle has five archived plans awaiting maturity. The historical 5-session sample has 190 selections, 170 evaluable plans and 117 fills across 33 fill dates. Net R is 0.102–0.217 at 20 bp and −0.036 to 0.079 at 50 bp. Group results are descriptive and mix different setup composition across breadth states.
+- Actual archives and the aligned EOD publication gate passed. Passed 258 Python cases, 120 Node tests and 20 Chromium tests. The preceding matched-cohort PR head passed [CI 44328752307](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44328752307). Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) remains the working branch. Next: extend date-aligned SPY history and run a cohesive Android/mobile workflow audit.
+
+## 2026-11-18 — Trend Birth outcomes against same-session controls
+
+- Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics) at 15:49 Europe/Zagreb, Vercel deployment `dpl_5huzbjt4fz49j7RojQ74GZLksYuk`, preview commit `b5a6f5e`, November 17 EOD. Controls match the previous radar phase, prior price and 20-session return. Selection is fixed before outcomes and uses the same-date evaluated universe. Archived sectors and liquidity are unavailable.
+- Early Trend Birth has one observed session and no measured comparison yet. The independent daily 4/4 reference has 757 new entries across archived history, 264 matched, and 210 matched 5-session outcomes across 12 dates. Average daily gross spread is −1.826 percentage points with seven missing pair outcomes and 47 pending. This is an observed sample with overlapping holds and limited coverage.
+- Local EOD publication gate passed with 2,592 aligned prices. Passed 256 Python cases, 120 Node cases and 20 Chromium cases. The preceding chart change passed [CI 44325828037](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44325828037). Draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76) remains the working branch. Next: segment verified Kell plan outcomes by setup and market context alongside the aggregate.
+
+## 2026-11-18 — Candle inspection and Weekly Base decision levels
+
+- Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 15:34 Europe/Zagreb on November 17 EOD data, preview commit `1606a9f`, deployment `dpl_C9A6HZc2wcXRovqXA2e7wCBP7Uvq`. A tap, slider or arrow selects one bar across price, volume and SPY relative strength. Price shows the selected close, OHLC and change from the prior close. The range selection resets to the latest bar.
+- Weekly Base shows percent distance from the last completed weekly close to the pivot and first detected resistance. The floor link selects the latest bar that touched the model's pre-launch window low. Volume and RS show unavailable states for unmatched dates.
+- Passed 120 Node cases and 20 Chromium cases. The EOD change feed head passed [GitHub CI 44323799663](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44323799663). Active branch is `codex/review-lab-rebuild`, draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next priorities are outcome cohorts with matched controls and wider date-aligned RS coverage.
+
+## 2026-11-18 — Strategy changes since the previous exchange session
+
+- Verified the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) on November 17 EOD data at 15:21 Europe/Zagreb, preview commit `58602b6`, Vercel deployment `dpl_FakbPaFKvaZY8RD4Qren8ZodZq47`. Opening the mobile panel fetches one 2.9 KB feed. A ticker outside the loaded shortlist opens through its checksum-verified ticker bucket and chart shard.
+- The feed compares Early Trend Birth and Kell Swing independently on the intersection with verified closes, including tickers outside the shortlists. The November 16 canonical archive lacks both strategy contracts. The November 17 preview shows the baseline limitation and the day's actual selections.
+- The draft implementation is [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Production requires owner approval. The previous ticker chart change passed [GitHub CI 44320163598](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44320163598). Next: verify the first pair of actual comparable sessions and continue chart evidence and outcome-cohort improvements.
+
+## 2026-11-18 — Ticker chart evidence
+
+- Verified locally at 15:00 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The ticker dialog pairs price with aligned volume and SPY relative strength and has its own daily/weekly selector. Weekly Base opens on the model range. Kell opens on three months and Early Trend Birth on six months.
+- Volume compares the latest bar with the preceding 20 daily or 10 weekly bars. The relative series starts at 100 on the first available point and ends on the latest matched date. Compact and Bottom-only charts may lack this source series. The display marks missing coverage.
+- Passed 119 Node and 19 Chromium cases. Verified the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 15:03 Europe/Zagreb on November 17 EOD data, preview commit `0e8c2b8`, deployment `dpl_MBB5iPuejMm6ktghHVwX66QHXS33`. Next priorities are a dated EOD change feed, stronger benchmark coverage and outcome cohorts with matched controls.
+
+## 2026-11-18 — Kell Swing statistics enter the signed research bundle
+
+- Verified locally at 14:43 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Statistics page separates archived plan execution from reconstructed selection results and lets readers choose horizon and cost. The Kell tab links directly to the report.
+- Preview fixture uses the November 17 activation. Five archived plans await outcomes. The reconstructed 5-session comparison uses 34 complete EOD pairs and 170 selections per strategy. Data source/cutoff validation passed against the exact staged publication.
+- Verified with 238 local Python cases excluding the Linux shell fixture, 116 Node tests and 19 Chromium tests. The previous saved-plan change also passed [remote CI 44314215530](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44314215530). Preview smoke for the new panel follows.
+
+## 2026-11-18 — Saved plans and readable Early Trend Birth outcomes
+
+- Verified locally at 14:27 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Early Trend Birth and Kell can save the original close and levels against the exact snapshot. Active plans appear in Watchlist and can move to a local archive. Plans use account-scoped browser storage.
+- Watchlist compares the saved prices with completed closes from a continuous XNYS window. A first invalidation remains visible after a rebound. Missing sessions and origin-price revisions produce explicit unavailable states. Research access and source ranks are preserved.
+- Early Trend Birth Statistics now selects one horizon at a time, shows pending or missing outcomes explicitly and distinguishes positive and negative median lead. Local checks passed 116 Node and 18 Chromium cases. Preview refresh and remote smoke follow.
+
+## 2026-11-18 — Weekly Base chart focused on the analyzed consolidation
+
+- Verified locally at 14:02 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Weekly Base card and detail now open on the model window, shade the pre-launch range and mark the pivot and detected overhead level. The card shows the completed weekly close and its distance from the pivot.
+- Weekly charts use the model cutoff. For the November 17 EOD preview, the latest completed bar is November 13. The five-year option remains selectable. Local Node and mobile Chromium checks passed, including the focused chart and detail opening.
+- The previous rebuild's finished report, verified CI, migration steps and installable preview are linked in draft PR #76. Production requires owner approval.
+
+## 2026-11-18 — Demand-loaded Weekly and Kell chart views
+
+- Verified locally 2026-11-18 13:39 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The earlier chart head passed [CI 44304479874](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44304479874).
+- The initial manifest resolves early Trend Birth. Weekly Base and Kell shortlists load with their charts in checksummed files on selection. Foreground refresh verifies the visible list before replacing it. The date archive uses the existing full snapshot.
+- Verified locally with 236 Python excluding the Linux fixture, 113 Node and 16 Chromium regressions. Ran the full staged EOD gate with actual November 17 data. Vercel preview deployment and direct network measurement are in progress.
+
+## 2026-11-18 — Strategy levels plotted on mobile
+
+- EOD chart cards and ticker details mark the current strategy's support, pivot and invalidation, or Kell pivot, maximum entry and stop. Level labels and values are available in the canvas description. The same prices are retained in the cards when a level is beyond the plotted range.
+- Previous feature CI [44302473539](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44302473539) passed all GitHub Python, Node, Chromium and real-source checks. The isolated full EOD replay passed 2,592/2,592 close and 2,126/2,126 Kell chart checks. Staged preview uses November 17 data.
+
+## 2026-11-18 — Watchlist ticker lookups and PWA update
+
+- Last verified locally 2026-11-18 13:16 Europe/Zagreb on `codex/review-lab-rebuild` (draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76)). The previous head's Linux, browser and real-source build checks passed in [run 44300636976](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44300636976).
+- New EOD publications attach exactly 64 bounded, hashed ticker lookup buckets. The current Watchlist only requests buckets for saved tickers and visible chart shards pinned to the same Review snapshot. A failed refresh keeps the prior published rows. Older archives and older publication manifests use their existing snapshot format.
+- Local checks passed 235 Python outside the Linux shell fixture, 113 Node and 15 Chromium. Cases include failed ticker lookup and retry, missing symbol, no full current archive download, and additive PWA worker cache migration.
+- Next: stage an isolated installable Vercel preview using rebuilt data, compare current mobile transfers to the baseline, and record the approval and rollback procedure.
+
+## 2026-11-18 — Early Trend Birth and outcome cohorts
+
+- Last verified locally 2026-11-18 13:04 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+- Separate Early Trend Birth shortlist exposes evidence of base repair, relative strength, support, invalidation and reclaim pivot. New daily stage shards preserve the roster. The corrected report automatically matures 20/63/126/252-session outcomes alongside dated daily 4/4 and Weekly Base comparisons.
+- Archive replay with 36 observed dates shows a median six-session early lead among 38 matched daily names. Only 10 of 122 observed early 20D alerts reached the top decile. Data and reconstruction limits are recorded in [the validation report](docs/REVIEW_REBUILD_VALIDATION.md).
+- Local tests passed: 234 Python outside Linux shell fixture, 113 Node and 14 Chromium. Prior feature and controller PR CI passed. Next: ticker- and view-scoped Watchlist, installable preview, and rollout evidence.
+
+## 2026-11-18 — Same-session corrections and Kell Swing
+
+- Last verified locally 2026-11-18 12:49 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). [Previous head CI](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44296002903) passed the unit, Linux publication shell, Chromium and verified read-only snapshot steps.
+- Same-day correction switches the latest stage, price and corrected outcome artifacts. Dated Review links keep their initial bytes. The latest quality reading can show a revision without modifying the date history. A rollback to an older attempt is rejected. Kell graph shards are addressed by bytes so different chart contents under one Unified run are preserved separately.
+- Kell Swing is a separate shortlist with price pivot, stop, maximum entry, gap and explicit watch/confirmed/extended/invalidated state. Existing shortlist fields remain for older archive readers. The replay in [the validation report](docs/REVIEW_REBUILD_VALIDATION.md) measures matched rank selection and costs on the pinned EOD archives.
+- Local verification includes 231 Python tests outside the Linux fixture, 113 Node and 13 mobile Chromium tests. The next PR CI must cover the exact new head. Development work on the production controller uses a separate topic based on `main`.
+- Next: independent early Trend Birth scanner, maturing long-horizon results and before/after cohort comparison, followed by per-ticker watchlist loading, installable preview and release verification.
+
+## 2026-11-18 — Snapshot-bound research and mobile freshness
+
+- Verified locally 2026-11-18 12:32 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+- The proposed EOD publisher computes corrected Trend Birth outcomes, Kell forward validation and Gold Set before activation. The publication binds these and the alert payload to one content-addressed research file, with a validation gate after the workflow's Git restore. Former outcome shards are retained for comparison.
+- In mobile Chromium, displayed session labels remain tied to the data on screen. Foregrounding swaps to a fully loadable new snapshot and preserves the old dataset on an incomplete update. Archived links remain pinned and an empty watchlist does not load the full archive. Nonempty watchlist demand loading remains next.
+- Local verification: 221 Python tests outside the Linux publication-shell fixture, 113 Node tests and 12 Chromium tests. First PR CI found a missing module in the miniature checkout, corrected in this change. Re-run the same Linux tests on the new head.
+- Next: support corrected same-session activations across existing histories, finish Kell and early Trend Birth as distinct views, add per-ticker watchlist and release preview with before/after evidence. Production approval remains with the owner.
+
+## 2026-11-18 — Review Lab rebuild, data baseline
+
+- Last verification 2026-11-18 12:18 Europe/Zagreb. Work in `codex/review-lab-rebuild`, based on active Review Lab source `82b12be`. Production remains on the existing branch. Last observed public source session was 2026-11-17 with 81 bootstrap candidates and charts.
+- Kell validation now canonicalizes daily sessions, uses the committed XNYS calendar, measures from the first subsequent open and excludes incomplete windows. The real 48-session replay produced 75,756 of 90,120 expected 5D observations (84.06%, up from 67.39%). The 99% calibration threshold is still unmet.
+- Tracked fallback can supply 156 completed weeks. The staged scanner marks an off-session last bar unavailable for Daily and Weekly Birth and keeps the historical chart visible. New quote extraction checks the date when the originating analysis exposes it.
+- A side-by-side corporate-action replay uses the permanent as-published archive and a source-verified ledger. It produces 10,019 confirmed transitions (34 event dates) and 7,169 observed 5D outcomes as of 2026-11-17. EMBJ 3→4 on 2026-11-09 is −8.3636%, originally −77.0909%. The staged action ledger has partial coverage and should not imply an exhaustive market feed.
+- Verified locally with 218 Python tests and 110 Node tests. Six Linux shell publication integration tests require CI or an equivalent Linux Git environment. The corrected stage reports are produced separately from the legacy archive for migration comparison.
+- Next: integrate versioned reports and point-in-time publication validation, then implement the Kell swing view and the independent early Trend Birth model, measure both, and verify mobile preview. Production rollout requires review and authorization.
+
 ## 2026-10-30 — Chart coverage tolerance ACTIVE
 
 - Verified 2026-10-30 10:41 UTC: PR #73 merged into `feature/unified-review-grid-lab` at `9ec843ae5d7b69a48eb594eea90786c4f1810149`; reviewed head `060deb4d2bc73a17a800fe613dd8f4d858257adb`. Vercel production `dpl_3t7zULr7evFxzdrmQpCa4Wejps9g` independently READY and assigned to the public alias. Public HTML loads `app.js?v=chart-coverage-20261030`; served JS SHA256 exactly matches the reviewed source.

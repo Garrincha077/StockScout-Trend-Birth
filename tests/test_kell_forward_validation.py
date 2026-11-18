@@ -1,16 +1,12 @@
-import importlib.util
 import base64
 import gzip
 import json
 import pathlib
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
-MODULE = pathlib.Path(__file__).parents[1] / "scripts" / "kell_forward_validation.py"
-spec = importlib.util.spec_from_file_location("kell_forward_validation", MODULE)
-validation = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(validation)
+from scripts import kell_forward_validation as validation
 
 
 def bars(start_price=100.0, daily=0.001, count=140, start=date(2026, 1, 2)):
@@ -47,6 +43,36 @@ class KellForwardValidationTests(unittest.TestCase):
         self.assertGreater(out["forward_return_pct"], 0)
         self.assertGreater(out["mfe_pct"], out["forward_return_pct"])
         self.assertLess(out["mae_pct"], out["mfe_pct"])
+
+    def test_iso_seconds_and_milliseconds_are_same_session(self):
+        day = "2026-11-17"
+        seconds = int(datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp())
+        quotes = [validation._normalize_bar([stamp, 10, 12, 9, 11, 1000])
+                  for stamp in (day, day + "T00:00:00Z", seconds, str(seconds * 1000))]
+        self.assertEqual(quotes, [quotes[0]] * 4)
+        self.assertEqual(quotes[0]["date"], day)
+        self.assertIsNone(validation._normalize_bar(["2026-02-30", 10, 12, 9, 11, 1000]))
+
+    def test_exact_exchange_window_uses_next_open_and_excludes_halt(self):
+        sessions = ("2026-11-25", "2026-11-27", "2026-11-30", "2026-12-01")
+        rows = [
+            ["2026-11-25", 99, 102, 98, 100, 1000],
+            ["2026-11-27", 110, 112, 109, 111, 1000],
+            ["2026-11-30", 112, 125, 111, 121, 1000],
+            ["2026-12-01", 122, 150, 120, 140, 1000],
+        ]
+        series = [validation._normalize_bar(row) for row in rows]
+        actual = validation._outcome(series, sessions[0], 2, sessions)
+        self.assertAlmostEqual(actual["forward_return_pct"], 10.0)
+        self.assertAlmostEqual(actual["mfe_pct"], (125 / 110 - 1) * 100)
+        self.assertIsNone(validation._outcome([series[0], *series[2:]], sessions[0], 2, sessions))
+        self.assertIsNone(validation._outcome([*series[:2], series[3]], sessions[0], 2, sessions))
+
+    def test_exchange_calendar_excludes_thanksgiving_and_future_sessions(self):
+        actual = validation.exchange_sessions("2026-11-27")
+        self.assertEqual(actual[-2:], ("2026-11-25", "2026-11-27"))
+        with self.assertRaisesRegex(ValueError, "not an XNYS session"):
+            validation.exchange_sessions("2026-11-26")
 
     def test_point_in_time_deciles_compare_v5_and_v4(self):
         base = bars(count=220, daily=0.0)

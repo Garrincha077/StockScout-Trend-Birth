@@ -9,13 +9,16 @@ import json
 import math
 import re
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date
 from pathlib import Path
 from urllib.parse import quote, urljoin
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
+from kell_swing import priority as swing_priority
+from early_trend_birth import MODEL as EARLY_TREND_MODEL, SHORTLIST_SIZE, evaluate as evaluate_early_trend, priority as early_priority
+from market_sessions import bar_session_date, session_date as normalize_session_date
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
 from weekly_birth import evaluate_weekly_birth, weekly_shortlist
 
@@ -93,7 +96,7 @@ def fetch_tracked_chart(ticker: str) -> list[dict]:
     for host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com"):
         url = (
             f"https://{host}/v8/finance/chart/{symbol}"
-            "?range=2y&interval=1d&events=history&includeAdjustedClose=true"
+            "?range=5y&interval=1d&events=history&includeAdjustedClose=true"
         )
         try:
             payload = _get_json(url)
@@ -110,6 +113,9 @@ def fetch_tracked_chart(ticker: str) -> list[dict]:
             volumes = quote_rows.get("volume") or []
             bars: list[dict] = []
             for index, stamp in enumerate(timestamps):
+                day = normalize_session_date(stamp)
+                if day is None:
+                    continue
                 try:
                     values = (
                         float(opens[index]),
@@ -127,7 +133,7 @@ def fetch_tracked_chart(ticker: str) -> list[dict]:
                 except (IndexError, TypeError, ValueError):
                     pass
                 bars.append({
-                    "time": datetime.fromtimestamp(int(stamp), tz=timezone.utc).date().isoformat(),
+                    "time": day,
                     "open": values[0],
                     "high": values[1],
                     "low": values[2],
@@ -135,7 +141,7 @@ def fetch_tracked_chart(ticker: str) -> list[dict]:
                     "volume": volume if math.isfinite(volume) else 0.0,
                 })
             if bars:
-                return bars[-520:]
+                return bars[-1300:]
             raise ValueError("empty chart history")
         except Exception as error:  # one tracked symbol must never abort the daily publication
             last_error = error
@@ -556,22 +562,8 @@ def _normalized_bars(rows: list) -> list[dict]:
 
 
 def _date_from_stamp(value):
-    """Return a UTC date for ISO strings or Unix seconds/milliseconds."""
-    import datetime as _dt
-    text = str(value or "").strip()
-    if not text:
-        return None
-    try:
-        numeric = float(text)
-        if math.isfinite(numeric) and numeric > 0:
-            seconds = numeric / 1000.0 if numeric >= 1e12 else numeric
-            return _dt.datetime.fromtimestamp(seconds, tz=_dt.timezone.utc).date()
-    except (TypeError, ValueError, OverflowError, OSError):
-        pass
-    try:
-        return _dt.date.fromisoformat(text[:10])
-    except ValueError:
-        return None
+    day = normalize_session_date(value)
+    return date.fromisoformat(day) if day else None
 
 
 def _weekly_bars(rows: list, max_weeks: int = 260) -> list[list]:
@@ -918,6 +910,7 @@ def build_trend_birth_union(
     unified_kell_pool: dict[str, dict],
     tracked_set: set[str],
     charts: dict[str, list],
+    session_date: str | None = None,
 ) -> tuple[list[dict], dict[str, int], int]:
     """Return the stable Unified + tracked Trend Birth evaluation layer."""
     unified_index_by_ticker = {item["ticker"]: item for item in unified_candidate_index}
@@ -934,12 +927,12 @@ def build_trend_birth_union(
             item["trackedOnly"] = False
             if tracked:
                 item["sources"] = list(dict.fromkeys([*(item.get("sources") or []), "tracked-watchlist"]))
-                item["trendBirth"] = evaluate_trend_birth(rows)
-                item["weeklyBirth"] = evaluate_weekly_birth(rows)
+                item["trendBirth"] = evaluate_trend_birth(rows, session_date)
+                item["weeklyBirth"] = evaluate_weekly_birth(rows, session_date)
                 item["chartBars"] = rows[-260:]
                 item["weeklyChartBars"] = _weekly_bars(rows, 260)
         else:
-            trend_birth = evaluate_trend_birth(rows)
+            trend_birth = evaluate_trend_birth(rows, session_date)
             item = {
                 "ticker": ticker,
                 "sources": ["tracked-watchlist"],
@@ -948,7 +941,7 @@ def build_trend_birth_union(
                 "trackedOnly": True,
                 "metrics": _summary({}, rows),
                 "trendBirth": trend_birth,
-                "weeklyBirth": evaluate_weekly_birth(rows),
+                "weeklyBirth": evaluate_weekly_birth(rows, session_date),
                 "trendBirthEvidence": {"phase": None, "primary": None, "activeCount": 0, "recovery": [], "compression": [], "ignition": []},
                 "chartBars": rows[-260:],
                 "weeklyChartBars": _weekly_bars(rows, 260),
@@ -1153,7 +1146,7 @@ def build_snapshot(
             fallback_rows = []
         fallback_rows = [
             row for row in fallback_rows
-            if str((row.get("time") or row.get("date") or ""))[:10] <= session_date
+            if (bar_date := bar_session_date(row)) is not None and bar_date <= session_date
         ]
         if fallback_rows:
             trend_birth_charts[ticker] = fallback_rows
@@ -1265,9 +1258,11 @@ def build_snapshot(
         rows = kell_unified_charts.get(ticker, [])
         raw = pool_item.get("raw") or {}
         scored = score_candidate(rows, benchmark_rows, raw)
+        if scored.get("kellSwing") and scored["kellSwing"]["sessionDate"] != session_date:
+            scored["kellSwing"] = None
         summary = _summary(raw, rows)
-        trend_birth = evaluate_trend_birth(rows)
-        weekly_birth = evaluate_weekly_birth(rows)
+        trend_birth = evaluate_trend_birth(rows, session_date)
+        weekly_birth = evaluate_weekly_birth(rows, session_date)
         trend_birth_evidence = trend_birth_supporting_evidence(raw)
         hit_screens = [field for field in KELL_SCREEN_FIELDS if scored.get(field) is True]
         hit_setups = [field for field in KELL_SETUP_FIELDS if scored.get(field) is True]
@@ -1296,6 +1291,7 @@ def build_snapshot(
             "kellScreens": hit_screens,
             "kellSetups": hit_setups,
             "kellContext": hit_context,
+            "kellSwing": scored.get("kellSwing"),
             "trendBirth": trend_birth,
             "weeklyBirth": weekly_birth,
             "trendBirthEvidence": trend_birth_evidence,
@@ -1333,12 +1329,14 @@ def build_snapshot(
         item["metrics"] = _summary(raw, rows)
         item["chartBars"] = rows
         item["analysis"] = analysis_by_ticker.get(ticker, {})
-        item["trendBirth"] = evaluate_trend_birth(rows)
-        item["weeklyBirth"] = evaluate_weekly_birth(rows)
+        item["trendBirth"] = evaluate_trend_birth(rows, session_date)
+        item["weeklyBirth"] = evaluate_weekly_birth(rows, session_date)
         item["trendBirthEvidence"] = trend_birth_supporting_evidence(raw)
         # Additive Oliver Kell overlay only. Candidate membership, source ranks,
         # and the existing default ordering are intentionally unchanged.
         item.update(score_candidate(rows, benchmark_rows, raw))
+        if item.get("kellSwing") and item["kellSwing"]["sessionDate"] != session_date:
+            item["kellSwing"] = None
         candidates.append(item)
     candidates.sort(key=lambda item: (
         0 if str(item.get("analysis", {}).get("status") or "").upper() == "ACTION" else 1,
@@ -1355,10 +1353,29 @@ def build_snapshot(
             unified_kell_pool,
             tracked_set,
             trend_birth_charts,
+            session_date,
         )
     )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
+    benchmark = {day: bar["close"] for bar in benchmark_rows if (day := bar_session_date(bar))}
+    for item in trend_birth_candidate_index:
+        radar = item.get("trendBirth") or {}
+        if radar.get("available") is True:
+            item["earlyTrend"] = evaluate_early_trend(
+                trend_birth_charts.get(item["ticker"], []), session_date, benchmark,
+                radar["stage"], item.get("weeklyBirth"),
+            )
+    early_matches = [item for item in trend_birth_candidate_index if item.get("earlyTrend")]
+    early_selected = []
+    for item in sorted(early_matches, key=early_priority)[:SHORTLIST_SIZE]:
+        rows = trend_birth_charts[item["ticker"]]
+        early_selected.append({
+            **item,
+            "chartBars": rows[-260:],
+            "weeklyChartBars": _weekly_bars(rows, 260),
+            "analysis": analysis_by_ticker.get(item["ticker"], {}),
+        })
     weekly_selected = []
     for item in weekly_shortlist(trend_birth_candidate_index):
         rows = trend_birth_charts.get(item["ticker"], [])
@@ -1376,6 +1393,10 @@ def build_snapshot(
             item["ticker"],
         ),
     )[:5]
+    kell_swing_selected = sorted(
+        (item for item in kell_candidates if item.get("kellSwing")),
+        key=swing_priority,
+    )[:12]
     trend_birth_evidence_counts = {
         bucket: sum(
             bool((item.get("trendBirthEvidence") or {}).get(bucket))
@@ -1464,10 +1485,15 @@ def build_snapshot(
             "method": "Transparent trend reset -> restart overlay over Unified candidates plus the persistent tracked watchlist. Unified charts are preferred; tracked-only names use bounded daily-history fallback. Stage is independent of Kell v5 score.",
         },
         "trendBirthCandidateIndexCount": len(trend_birth_candidate_index),
+        "earlyTrendResearch": {"model": EARLY_TREND_MODEL, "candidateCount": len(early_matches),
+                               "shortlist": [item["ticker"] for item in early_selected],
+                               "weekly": [item["ticker"] for item in weekly_selected]},
         "shortlists": {
             "schemaVersion": "stockscout-shortlists-v2",
             "weeklyTrendBirth": weekly_selected,
             "kellDaily": kell_daily_selected,
+            "kellSwing": kell_swing_selected,
+            "earlyTrendBirth": early_selected,
         },
         "trendBirthCandidateIndex": trend_birth_candidate_index,
         "unifiedCandidateIndexCount": len(unified_candidate_index),

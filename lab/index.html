@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <title>StockScout Trend Birth — Daily Review Lab</title>
-  <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
+  <link rel="stylesheet" href="styles.css?v=weekly-outcomes-20261118">
   <link rel="stylesheet" href="pwa.css?v=1">
 </head>
 <body>
@@ -30,7 +30,8 @@
         <option value="3m">3M · Daily</option>
         <option value="6m">6M · Daily</option>
         <option value="1y">1Y · Daily</option>
-        <option value="5y" selected>5Y · Weekly</option>
+        <option value="base">Zona baze · tjedni</option>
+        <option value="5y">5Y · Weekly</option>
       </select>
       <select id="sort" aria-label="Sortiranje kandidata">
         <option value="default">Default sort</option>
@@ -88,8 +89,9 @@
     <button type="button" id="updateApp">Osvježi aplikaciju</button>
   </div>
   <nav id="primaryViews" class="primary-views" aria-label="Pregled kandidata">
-    <button type="button" data-primary-view="weekly" class="active">Weekly Birth</button>
-    <button type="button" data-primary-view="kell-daily">Kell Daily</button>
+    <button type="button" data-primary-view="early">Trend Birth</button>
+    <button type="button" data-primary-view="kell-daily">Kell Swing</button>
+    <button type="button" data-primary-view="weekly" class="active">Tjedna baza</button>
     <button type="button" data-primary-view="research">Research Universe</button>
     <button type="button" data-primary-view="watchlist">★ Watchlist</button>
   </nav>
@@ -175,6 +177,26 @@
   </nav>
   <main>
     <div id="status" class="status">Učitavam dnevne kandidate…</div>
+    <a id="weeklyOutcomesLink" class="weekly-outcomes-link" href="statistics.html#siWeeklyBase" hidden>Povijesni ishodi Tjedne baze</a>
+    <p id="reviewRouteNotice" class="status" role="status" hidden></p>
+    <details id="reviewChanges" class="review-changes" hidden>
+      <summary>Što se promijenilo od prethodne EOD sesije?</summary>
+      <div class="review-changes-body">
+        <div class="review-changes-tabs" role="group" aria-label="Strategija">
+          <button type="button" data-review-change-view="early" aria-pressed="true">Early Trend Birth</button>
+          <button type="button" data-review-change-view="kell" aria-pressed="false">Kell Swing</button>
+        </div>
+        <div id="reviewChangeRows"></div>
+        <p id="reviewChangeNotice" role="status" hidden></p>
+      </div>
+    </details>
+    <p id="planNotice" class="status" role="status" hidden></p>
+    <p id="planStorageNote" class="status" hidden>Planovi se spremaju u ovom pregledniku.</p>
+    <div id="ownerPlanPanel" class="owner-plan-panel" hidden>
+      <p id="ownerPlanSyncNote" role="status"></p>
+      <button type="button" id="ownerPlanRefresh">Osvježi planove</button>
+      <button type="button" id="ownerPlanImport" hidden>Prenesi lokalne planove</button>
+    </div>
     <details class="market-summary" id="marketSummary">
       <summary>EOD sažetak i povijest setupa</summary>
     <section id="tbToday" class="tb-quality tb-intelligence" aria-labelledby="tbTodayTitle" hidden>
@@ -274,6 +296,10 @@
     </section>
     </details>
     <div id="changeHighlights" class="change-highlights" hidden aria-live="polite"></div>
+    <details id="savedPlanArchive" class="market-summary" hidden>
+      <summary>Arhivirani planovi</summary>
+      <ul id="archivedPlanList"></ul>
+    </details>
     <section id="grid" class="grid" aria-live="polite"></section>
   </main>
   <dialog id="detail">
@@ -299,16 +325,20 @@
     <p id="installResult" role="status"></p>
   </dialog>
   <script src="pwa.js?v=1" defer></script>
-  <script src="eod-freshness.js?v=eod-guard-20261026" defer></script>
+  <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3"></script>
   <script src="watchlist-store.js?v=reviewfixes-20261026"></script>
-  <script src="owner-watchlist-sync.js?v=reviewfixes-20261026"></script>
-  <script src="snapshot-loader.js?v=review-gzip-20261105"></script>
+  <script src="review-plans.js?v=plan-sync-20261118"></script>
+  <script src="owner-plan-book.js?v=plan-sync-20261118"></script>
+  <script src="review-navigation.js?v=20261118"></script>
+  <script src="owner-watchlist-sync.js?v=plan-sync-20261118"></script>
+  <script src="snapshot-loader.js?v=android-release-20261118"></script>
   <script src="trend-birth-quality.js?v=dwm-history-20261024"></script>
   <script src="trend-birth-intelligence.js?v=intelligence-20261024"></script>
   <script src="kell-dataset-loader.js?v=reviewfixes-20261026"></script>
   <script src="kell-change-detector.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=chart-coverage-20261030" defer></script>
+  <script src="chart-evidence.js?v=spy-reference-20261118" defer></script>
+  <script src="app.js?v=weekly-outcomes-20261118" defer></script>
 </body>
 </html>

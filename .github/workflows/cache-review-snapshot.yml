@@ -47,7 +47,12 @@ jobs:
       - name: Build current read-only snapshot
         run: python scripts/build_review_snapshot.py --output lab/data/latest.json
       - name: Validate immutable publication in temporary directory
-        run: python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory /tmp/review-publication
+        run: |
+          python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory /tmp/review-publication
+          python scripts/publish_review_changes.py --directory /tmp/review-publication
+          python scripts/publish_review_changes.py --directory /tmp/review-publication --validate
+          python scripts/publish_review_spy.py --directory /tmp/review-publication
+          python scripts/publish_review_spy.py --directory /tmp/review-publication --validate
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: review-publication-preview

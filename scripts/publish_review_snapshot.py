@@ -10,6 +10,20 @@ import os
 import re
 from pathlib import Path
 
+EOD_RUN = re.compile(r"^(\d{4}-\d{2}-\d{2})-eod-(\d+)-(\d+)$")
+
+
+def validate_revision(previous: dict, session: str, run: str) -> None:
+    previous_session = previous.get("sessionDate", "")
+    if session < previous_session:
+        raise ValueError("Refusing to roll back the latest market session")
+    if session != previous_session:
+        return
+    before = EOD_RUN.fullmatch(str(previous.get("runId") or ""))
+    after = EOD_RUN.fullmatch(run)
+    if before and after and (int(after[2]), int(after[3])) < (int(before[2]), int(before[3])):
+        raise ValueError("Refusing to roll back a newer activation of the same EOD session")
+
 
 def encode(value: dict) -> bytes:
     return json.dumps(
@@ -76,14 +90,73 @@ def publish_bootstrap(snapshot: dict, manifest: dict, directory: Path) -> bool:
     compact = bootstrap(snapshot, manifest["snapshotId"])
     if compact is None:
         return False
-    content = encode(compact)
-    relative = "review-bootstrap-v1/" + manifest["snapshotId"] + ".json"
-    target = directory / relative
+    snapshot_id = manifest["snapshotId"]
+    relative = "review-bootstrap-v1/" + snapshot_id + ".json"
+    changed = _write_bootstrap(directory / relative, compact)
+    manifest["bootstrapPath"] = "data/" + relative
+    if snapshot.get("earlyTrendResearch"):
+        relative = "review-bootstrap-v2/" + snapshot_id + ".json"
+        lists = compact["shortlists"].copy()
+        compact["shortlists"] = lists
+        compact["deferredShortlists"] = {}
+        for view in ("weeklyTrendBirth", "kellSwing", "kellDaily"):
+            if view not in lists:
+                continue
+            payload = encode({
+                "schemaVersion": "trend-birth-shortlist-v1", "snapshotId": snapshot_id,
+                "source": snapshot["source"], "view": view, "items": lists[view],
+            })
+            digest = hashlib.sha256(payload).hexdigest()
+            shard = f"review-bootstrap-v2/{snapshot_id}/{view}--{digest}.json"
+            target = directory / shard
+            if target.exists() and target.read_bytes() != payload:
+                raise ValueError("Immutable Review shortlist collision")
+            changed |= write_changed(target, payload)
+            lists[view] = []
+            compact["deferredShortlists"][view] = {"path": "data/" + shard, "sha256": digest}
+        changed |= _write_bootstrap(directory / relative, compact)
+        manifest["deferredBootstrapPath"] = "data/" + relative
+    return changed
+
+
+def _write_bootstrap(target: Path, bootstrap_data: dict) -> bool:
+    content = encode(bootstrap_data)
     if target.exists() and target.read_bytes() != content:
         raise ValueError("Immutable bootstrap collision")
-    changed = write_changed(target, content)
-    manifest["bootstrapPath"] = "data/" + relative
-    return changed
+    return write_changed(target, content)
+
+
+def validate_shortlists(directory: Path, publication: dict) -> None:
+    snapshot_id = publication.get("snapshotId")
+    base = f"review-bootstrap-v2/{snapshot_id}"
+    deferred = publication.get("deferredBootstrapPath")
+    if deferred is None and publication.get("bootstrapPath") != "data/" + base + ".json":
+        return
+    bootstrap = json.loads((directory / (base + ".json")).read_bytes())
+    legacy = None
+    if deferred is not None:
+        legacy_path = f"review-bootstrap-v1/{snapshot_id}.json"
+        if deferred != "data/" + base + ".json" or publication.get("bootstrapPath") != "data/" + legacy_path:
+            raise ValueError("Review bootstrap compatibility paths differ from publication")
+        legacy = json.loads((directory / legacy_path).read_bytes())
+        if (legacy.get("reviewSnapshotId") != snapshot_id or legacy.get("source") != bootstrap["source"] or
+                not isinstance(legacy.get("shortlists"), dict)):
+            raise ValueError("Compatible Review bootstrap differs from publication")
+    for view, ref in bootstrap["deferredShortlists"].items():
+        if view not in {"weeklyTrendBirth", "kellSwing", "kellDaily"}:
+            raise ValueError("Unexpected deferred Review shortlist")
+        path = f"{base}/{view}--{ref['sha256']}.json"
+        if ref["path"] != "data/" + path:
+            raise ValueError("Deferred Review shortlist path differs from publication")
+        raw = (directory / path).read_bytes()
+        payload = json.loads(raw)
+        if (hashlib.sha256(raw).hexdigest() != ref["sha256"] or
+                payload["schemaVersion"] != "trend-birth-shortlist-v1" or payload["view"] != view or
+                payload["snapshotId"] != snapshot_id or payload["source"] != bootstrap["source"] or
+                not isinstance(payload["items"], list)):
+            raise ValueError("Deferred Review shortlist differs from publication")
+        if legacy is not None and payload["items"] != legacy["shortlists"].get(view):
+            raise ValueError("Compatible Review shortlist differs from publication")
 
 
 def publish(snapshot: dict, directory: Path) -> dict:
@@ -96,11 +169,10 @@ def publish(snapshot: dict, directory: Path) -> dict:
     pointer = directory / "publication.json"
     latest = directory / "latest.json"
     previous = json.loads(pointer.read_bytes()) if pointer.exists() else None
-    previous_session = previous["sessionDate"] if previous else ""
-    if not previous_session and latest.exists():
-        previous_session = json.loads(latest.read_bytes())["source"]["sessionDate"]
-    if previous_session and session < previous_session:
-        raise ValueError("Refusing to roll back the latest market session")
+    if previous is None and latest.exists():
+        previous = json.loads(latest.read_bytes())["source"]
+    if previous:
+        validate_revision(previous, session, run)
     if archive.exists() and archive.read_bytes() != content:
         raise ValueError("Immutable snapshot collision")
     manifest = {
@@ -115,6 +187,8 @@ def publish(snapshot: dict, directory: Path) -> dict:
         "chartCount": snapshot["chartCount"],
     }
     changed = publish_bootstrap(snapshot, manifest, directory)
+    if previous and previous.get("snapshotId") == snapshot_id and "research" in previous:
+        manifest["research"] = previous["research"]
     changed = write_changed(archive, content) or changed
     # Preserve existing date links forever, including the pre-v1 archives.
     date_archive = directory / "history" / f"{session}.json"
