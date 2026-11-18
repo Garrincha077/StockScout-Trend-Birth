@@ -279,6 +279,7 @@ jobs:
           cp lab/data/latest.json /tmp/review-publication/latest.json
           cp lab/data/publication.json /tmp/review-publication/publication.json
           cp -R lab/data/review-bootstrap-v1 /tmp/review-publication/review-bootstrap-v1
+          if [ -d lab/data/review-bootstrap-v2 ]; then cp -R lab/data/review-bootstrap-v2 /tmp/review-publication/review-bootstrap-v2; fi
           cp -R lab/data/research-runs /tmp/review-publication/research-runs
           if [ -d lab/data/watchlist-runs ]; then cp -R lab/data/watchlist-runs /tmp/review-publication/watchlist-runs; fi
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
@@ -325,6 +326,10 @@ jobs:
           cp /tmp/review-publication/publication.json lab/data/publication.json
           mkdir -p lab/data/review-bootstrap-v1
           cp -R /tmp/review-publication/review-bootstrap-v1/. lab/data/review-bootstrap-v1/
+          if [ -d /tmp/review-publication/review-bootstrap-v2 ]; then
+            mkdir -p lab/data/review-bootstrap-v2
+            cp -R /tmp/review-publication/review-bootstrap-v2/. lab/data/review-bootstrap-v2/
+          fi
           mkdir -p lab/data/research-runs
           cp -R /tmp/review-publication/research-runs/. lab/data/research-runs/
           if [ -d /tmp/review-publication/watchlist-runs ]; then
@@ -398,6 +403,7 @@ jobs:
           if [ -f lab/data/latest.json ]; then git add lab/data/latest.json; fi
           if [ -d lab/data/kell-chart-runs ]; then git add lab/data/kell-chart-runs; fi
           if [ -d lab/data/watchlist-runs ]; then git add lab/data/watchlist-runs; fi
+          if [ -d lab/data/review-bootstrap-v2 ]; then git add lab/data/review-bootstrap-v2; fi
           if [ -f lab/data/latest.json.gz ]; then git add lab/data/latest.json.gz; fi
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."

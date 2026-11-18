@@ -1,3 +1,9 @@
+## 2026-11-18 — Demand-loaded Weekly and Kell chart views
+
+- Verified locally 2026-11-18 13:39 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The earlier chart head passed [CI 44304479874](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44304479874).
+- The initial manifest resolves early Trend Birth. Weekly Base and Kell shortlists load with their charts in checksummed files on selection. Foreground refresh verifies the visible list before replacing it. The date archive uses the existing full snapshot.
+- Verified locally with 236 Python excluding the Linux fixture, 113 Node and 16 Chromium regressions. Ran the full staged EOD gate with actual November 17 data. Vercel preview deployment and direct network measurement are in progress.
+
 ## 2026-11-18 — Strategy levels plotted on mobile
 
 - EOD chart cards and ticker details mark the current strategy's support, pivot and invalidation, or Kell pivot, maximum entry and stop. Level labels and values are available in the canvas description. The same prices are retained in the cards when a level is beyond the plotted range.

@@ -61,3 +61,12 @@ python scripts/replay_early_trend_birth.py \
   --sha256 c781974749de559e63af09e61700bd67433bd0eab072275208a7ec39795e2adc \
   --archive-dir archive-inputs --output early-replay.json
 ```
+
+## Migration and rollback
+
+1. Record the live Vercel deployment, the active `publication.json` snapshot ID and the Git SHA of `feature/unified-review-grid-lab`. Retain the first dated links and one exact snapshot URL as smoke-test inputs.
+2. After owner approval, review and merge PR #76 into the existing Review Lab deployment branch. The next ordinary publication stages Review, charts, research, alerts and Watchlist together. Check the run ID, session date and Unified hash across the pointer and companions. Verify the quote and chart gates, then open Statistics and the PWA on a signed-in Android device.
+3. Release the controller separately through [PR #77](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/77) into `main`. Compare the controller log, activated Unified manifest and downstream publisher attempt. The controller is a GitHub workflow change.
+4. For UI rollback, restore the prior approved Vercel deployment and submit a Git revert on the Review Lab branch. For a data rollback, pause publication and alerts, restore the prior verified pointer and its matching moving reports in one reviewed commit, then validate timestamps and absolute archive links before resuming. Preserve the content-addressed archives for both versions. Watchlist storage keeps the existing keys and ownership model throughout.
+
+The staged preview uses an isolated build with exact November 17 data. The latest forward archive has one genuine observation of the new model. The retrospective cohort study and live maturation are recorded separately. Owner sign-in needs an Android smoke test on the production origin after release approval.

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from archive_trend_birth_closes import extract, load_prices
 from publish_review_research import validate_research
-from publish_review_snapshot import validate_revision
+from publish_review_snapshot import validate_revision, validate_shortlists
 from trend_birth_intelligence import all_points, load_months, point_from_snapshot
 from validate_unified_review_bundle import identity
 
@@ -39,6 +39,7 @@ def expected_session(calendar, now):
 def validate(directory, calendar, now, previous=None, require_research=False):
     expected = expected_session(calendar, now)
     publication = read(directory / "publication.json")
+    validate_shortlists(directory, publication)
     raw = (directory / "latest.json").read_bytes()
     latest = json.loads(raw)
     source = latest.get("source") or {}

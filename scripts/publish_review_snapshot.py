@@ -90,14 +90,57 @@ def publish_bootstrap(snapshot: dict, manifest: dict, directory: Path) -> bool:
     compact = bootstrap(snapshot, manifest["snapshotId"])
     if compact is None:
         return False
+    snapshot_id = manifest["snapshotId"]
+    relative = "review-bootstrap-v1/" + snapshot_id + ".json"
+    changed = False
+    if snapshot.get("earlyTrendResearch"):
+        relative = "review-bootstrap-v2/" + snapshot_id + ".json"
+        lists = compact["shortlists"].copy()
+        compact["shortlists"] = lists
+        compact["deferredShortlists"] = {}
+        for view in ("weeklyTrendBirth", "kellSwing", "kellDaily"):
+            if view not in lists:
+                continue
+            payload = encode({
+                "schemaVersion": "trend-birth-shortlist-v1", "snapshotId": snapshot_id,
+                "source": snapshot["source"], "view": view, "items": lists[view],
+            })
+            digest = hashlib.sha256(payload).hexdigest()
+            shard = f"review-bootstrap-v2/{snapshot_id}/{view}--{digest}.json"
+            target = directory / shard
+            if target.exists() and target.read_bytes() != payload:
+                raise ValueError("Immutable Review shortlist collision")
+            changed |= write_changed(target, payload)
+            lists[view] = []
+            compact["deferredShortlists"][view] = {"path": "data/" + shard, "sha256": digest}
     content = encode(compact)
-    relative = "review-bootstrap-v1/" + manifest["snapshotId"] + ".json"
     target = directory / relative
     if target.exists() and target.read_bytes() != content:
         raise ValueError("Immutable bootstrap collision")
-    changed = write_changed(target, content)
+    changed |= write_changed(target, content)
     manifest["bootstrapPath"] = "data/" + relative
     return changed
+
+
+def validate_shortlists(directory: Path, publication: dict) -> None:
+    snapshot_id = publication.get("snapshotId")
+    base = f"review-bootstrap-v2/{snapshot_id}"
+    if publication.get("bootstrapPath") != "data/" + base + ".json":
+        return
+    bootstrap = json.loads((directory / (base + ".json")).read_bytes())
+    for view, ref in bootstrap["deferredShortlists"].items():
+        if view not in {"weeklyTrendBirth", "kellSwing", "kellDaily"}:
+            raise ValueError("Unexpected deferred Review shortlist")
+        path = f"{base}/{view}--{ref['sha256']}.json"
+        if ref["path"] != "data/" + path:
+            raise ValueError("Deferred Review shortlist path differs from publication")
+        raw = (directory / path).read_bytes()
+        payload = json.loads(raw)
+        if (hashlib.sha256(raw).hexdigest() != ref["sha256"] or
+                payload["schemaVersion"] != "trend-birth-shortlist-v1" or payload["view"] != view or
+                payload["snapshotId"] != snapshot_id or payload["source"] != bootstrap["source"] or
+                not isinstance(payload["items"], list)):
+            raise ValueError("Deferred Review shortlist differs from publication")
 
 
 def publish(snapshot: dict, directory: Path) -> dict:

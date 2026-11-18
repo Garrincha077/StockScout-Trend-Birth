@@ -106,6 +106,27 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(json.loads((root / 'latest.json').read_bytes()), snapshot)
             self.assertFalse(publisher.publish(snapshot, root)['changed'])
 
+    def test_modern_bootstrap_defers_and_checks_secondary_views(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot = fixture()
+            snapshot["earlyTrendResearch"] = {"model": "early-trend-birth-v1"}
+            snapshot["shortlists"] = {"schemaVersion": "stockscout-shortlists-v2",
+                                      "earlyTrendBirth": snapshot["candidates"],
+                                      "weeklyTrendBirth": snapshot["candidates"], "kellDaily": []}
+            manifest = publisher.publish(snapshot, root)
+            compact = json.loads((root / manifest["bootstrapPath"].removeprefix("data/")).read_bytes())
+            self.assertEqual(compact["shortlists"]["earlyTrendBirth"], snapshot["candidates"])
+            self.assertEqual(compact["shortlists"]["weeklyTrendBirth"], [])
+            publisher.validate_shortlists(root, manifest)
+            self.assertFalse(publisher.publish(snapshot, root)["changed"])
+            ref = compact["deferredShortlists"]["weeklyTrendBirth"]
+            resource = root / ref["path"].removeprefix("data/")
+            self.assertEqual(json.loads(resource.read_bytes())["items"], snapshot["candidates"])
+            resource.write_bytes(resource.read_bytes() + b" ")
+            with self.assertRaisesRegex(ValueError, "shortlist differs"):
+                publisher.validate_shortlists(root, manifest)
+
     def test_empty_scan_and_existing_legacy_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -725,3 +725,8 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 - The chart displays the active strategy's levels on the card and in the detail view. Early Trend Birth labels support, reclaim pivot and invalidation; Kell labels pivot, maximum entry and stop. Hover-free labels and accessible canvas descriptions expose the prices. Archive charts without plans continue to render normally.
 - The earlier deployment worktree built the full November 17 bundle with 81/81 Review charts, 2,126/2,126 Kell charts, 2,592/2,592 evaluated quotes and aligned immutable research and Watchlist references. Node and mobile browser regressions passed locally; GitHub run 44302473539 was green on the previous feature head. Mobile deployment verification is pending.
+
+## 2026-11-18 — Load secondary views on demand
+
+- Verified locally 13:39 Europe/Zagreb. The first cold-load measurement was 0.52 MB on the full staged result. The initial bootstrap now carries the early view. The publisher separates Weekly Base and Kell payloads, with content hashes and activation identity. The browser requests a secondary list only when shown and keeps the last complete view on a failed foreground refresh.
+- Tests passed locally: 236 Python excluding the Linux shell fixture, 113 Node and 16 Chromium. The deployed-source inputs passed the full EOD validator locally at 12:39 UTC with 2,592/2,592 evaluated quotes. The prior chart implementation passed CI 44304479874. The installable deployment and direct network measurements are next.

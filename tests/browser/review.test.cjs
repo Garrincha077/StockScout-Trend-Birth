@@ -113,6 +113,30 @@ test('Trend Birth opens directly to dated evidence, invalidation and chart',asyn
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
 });
 
+test('modern startup fetches the weekly view and its charts only on selection',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',r=>requests.push(r.url()));
+  const view='weeklyTrendBirth';
+  const payload=JSON.stringify({schemaVersion:'trend-birth-shortlist-v1',snapshotId:manifest.snapshotId,
+    source:bootstrap.source,view,items:bootstrap.shortlists.weeklyTrendBirth});
+  const sha256=createHash('sha256').update(payload).digest('hex');
+  const basePath='data/review-bootstrap-v2/'+manifest.snapshotId;
+  const path=basePath+'/'+view+'--'+sha256+'.json';
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{...manifest,bootstrapPath:basePath+'.json'}}));
+  await page.route('**/'+basePath+'.json',route=>route.fulfill({json:{
+    ...bootstrap,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[],[view]:[]},
+    deferredShortlists:{[view]:{path,sha256}}
+  }}));
+  await page.route('**/'+path,route=>route.fulfill({contentType:'application/json',body:payload}));
+  await page.goto(base+'/');
+  await page.waitForSelector('[data-primary-view="early"].active');
+  assert.equal(requests.some(url=>url.endsWith(path)),false);
+  await page.locator('[data-primary-view="weekly"]').click();
+  await page.waitForSelector('.weekly-card');
+  assert.equal(await page.locator('.weekly-card').count(),15);
+  assert.equal(requests.filter(url=>url.endsWith(path)).length,1);
+});
+
 test('nonempty Watchlist resolves saved symbols only and retains them after a failed ticker request',async t=>{
   const page=await pageFor(t),requests=[];
   const bucket=ticker=>Array.from(ticker).reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);

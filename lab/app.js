@@ -958,6 +958,24 @@ function sourceItems(filters=activeFilters()){
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
 }
+function shortlistKey(data){
+  if(state.primaryView==='weekly')return 'weeklyTrendBirth';
+  if(state.primaryView==='kell-daily')return data.shortlists?.kellSwing?'kellSwing':'kellDaily';
+  return null;
+}
+function loadVisibleShortlist(){
+  const data=state.data,key=shortlistKey(data);
+  if(!data.deferredShortlists?.[key])return null;
+  const requests=state.shortlistRequests;
+  if(!requests.has(key)){
+    const status={error:''};
+    requests.set(key,status);
+    ReviewSnapshots.loadShortlist(fetch,data,key)
+      .catch(error=>{status.error=error.message})
+      .finally(()=>{if(state.data===data&&shortlistKey(data)===key)render()});
+  }
+  return {key,...requests.get(key)};
+}
 function updateFilterBar(){
   const filters=activeFilters();
   document.querySelectorAll('#filters button[data-filter]').forEach(button=>{
@@ -1259,6 +1277,7 @@ function renderChangeHighlights(items){
 function render(){
   if(!state.data)return;
   loadWatchedRows();
+  const shortlist=loadVisibleShortlist();
   const researchControls=state.primaryView==='research';
   $('#filters').hidden=!researchControls;
   $('#quickViews').hidden=!researchControls;
@@ -1295,7 +1314,16 @@ function render(){
   const universeSize=state.universe==='watchlist'?state.watchlist.length:(state.universe==='all'?unifiedCount:modeCounts[state.universe]);
   const universeText=universeName+(Number.isFinite(Number(universeSize))?' ('+Number(universeSize)+' candidates)':'');
   const filterSummary=activeFilterSummary();
-  if(state.primaryView==='weekly'){
+  if(shortlist){
+    $('#status').textContent=shortlist.error||'Učitavam listu i grafikone…';
+    if(shortlist.error){
+      const retry=document.createElement('button');
+      retry.type='button';
+      retry.textContent='Ponovi učitavanje';
+      retry.onclick=()=>{state.shortlistRequests.delete(shortlist.key);render()};
+      $('#status').append(' · ',retry);
+    }
+  }else if(state.primaryView==='weekly'){
     $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
   }else if(state.primaryView==='early'){
     $('#status').textContent=Array.isArray(state.data?.shortlists?.earlyTrendBirth)?
@@ -1678,6 +1706,7 @@ function showDisplayedSnapshot(data,manifest,lookup){
     $('#chartPeriod').value='1y';
   }
   state.data=data;
+  state.shortlistRequests=new Map();
   state.publication=manifest;
   state.watchlistLookup=lookup||watchlistLookup();
   state.snapshotId=manifest?.snapshotId||data.reviewSnapshotId||null;
@@ -1709,6 +1738,7 @@ function refreshDisplayedSnapshot(){
         if(data&&(!state.data||manifest)){
           if(state.data?.source?.sessionDate>data.source?.sessionDate)throw Error('Objava ima stariji datum od prikazane sesije.');
           const lookup=watchlistLookup();
+          if(state.data)await ReviewSnapshots.loadShortlist(fetch,data,shortlistKey(data));
           if(state.primaryView==='watchlist'&&state.watchlist.length&&manifest?.watchlist){
             lookup.rows=await ReviewSnapshots.loadWatchlist(fetch,manifest,
               state.watchlist.map(saved=>saved.ticker),lookup.cache);
