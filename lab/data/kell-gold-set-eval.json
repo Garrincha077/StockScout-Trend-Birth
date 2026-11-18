@@ -27,8 +27,8 @@
       "acceptedPrecisionPct": 50.0,
       "addedFromBaseline": 0,
       "baselinePredicted": 4,
-      "currentPredicted": 2,
-      "evaluated": 2,
+      "currentPredicted": 4,
+      "evaluated": 5,
       "fixedFalseNegatives": 0,
       "fixedFalsePositives": 0,
       "hardRegressions": 0,
@@ -41,13 +41,13 @@
       "lostFromBaseline": 0,
       "observedFalseNegatives": 1,
       "observedFalsePositives": 2,
-      "positiveRecallPct": 100.0,
+      "positiveRecallPct": 66.7,
       "reviewed": 5,
-      "strictValidPrecisionPct": 0.0,
-      "unavailable": 3,
-      "unresolvedFalseNegatives": 0,
-      "unresolvedFalsePositives": 1,
-      "weightedQualityPct": 25.0
+      "strictValidPrecisionPct": 25.0,
+      "unavailable": 0,
+      "unresolvedFalseNegatives": 1,
+      "unresolvedFalsePositives": 2,
+      "weightedQualityPct": 37.5
     },
     "setup:kell_ema_crossback": {
       "acceptedPrecisionPct": 100.0,
@@ -73,11 +73,11 @@
       "weightedQualityPct": 100.0
     },
     "setup:kell_wedge_pop": {
-      "acceptedPrecisionPct": 75.0,
+      "acceptedPrecisionPct": 80.0,
       "addedFromBaseline": 0,
       "baselinePredicted": 5,
-      "currentPredicted": 4,
-      "evaluated": 5,
+      "currentPredicted": 5,
+      "evaluated": 6,
       "fixedFalseNegatives": 0,
       "fixedFalsePositives": 0,
       "hardRegressions": 0,
@@ -90,13 +90,13 @@
       "lostFromBaseline": 0,
       "observedFalseNegatives": 1,
       "observedFalsePositives": 1,
-      "positiveRecallPct": 75.0,
+      "positiveRecallPct": 80.0,
       "reviewed": 6,
-      "strictValidPrecisionPct": 25.0,
-      "unavailable": 1,
+      "strictValidPrecisionPct": 40.0,
+      "unavailable": 0,
       "unresolvedFalseNegatives": 1,
       "unresolvedFalsePositives": 1,
-      "weightedQualityPct": 50.0
+      "weightedQualityPct": 60.0
     },
     "stage:base_n_break": {
       "acceptedPrecisionPct": 100.0,
@@ -240,15 +240,15 @@
   "goldSetSchemaVersion": "kell-gold-set-v2",
   "rows": [
     {
-      "change": "unavailable",
-      "evaluationSource": "archive",
+      "change": "unchanged",
+      "evaluationSource": "raw_snapshot_rescore",
       "label": "VALID",
       "layer": "setup",
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "modelVersionNow": "kell-overlay-v5-quality-readiness-context",
       "notes": "After an August/early-September decline and repair, the 9/18 bar recaptured the tight 10/20 EMA area from a contracted range and closed at the session high. Added as an independent 9/18 positive Wedge Pop example.",
       "predictionAtReview": true,
-      "predictionNow": null,
+      "predictionNow": true,
       "reasonCodes": [
         "prior_decline_and_repair",
         "tight_ema_cluster",
@@ -259,18 +259,18 @@
       "sessionDate": "2026-09-18",
       "signal": "kell_wedge_pop",
       "ticker": "AIN",
-      "unavailableReason": "setup_not_archived"
+      "unavailableReason": null
     },
     {
-      "change": "unavailable",
-      "evaluationSource": "archive",
+      "change": "unresolved_false_positive",
+      "evaluationSource": "raw_snapshot_rescore",
       "label": "FALSE_POSITIVE",
       "layer": "setup",
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "modelVersionNow": "kell-overlay-v5-quality-readiness-context",
       "notes": "The mechanical gap conditions are present, but AMD was independently reviewed in this same session as a VALID Exhaustion Extension. Kell explicitly distinguishes early-cycle constructive gaps from gaps occurring while already extended; therefore the buyable-gap label is misleading in cycle context.",
       "predictionAtReview": true,
-      "predictionNow": null,
+      "predictionNow": true,
       "reasonCodes": [
         "late_cycle_exhaustion",
         "already_extended",
@@ -280,7 +280,7 @@
       "sessionDate": "2026-09-21",
       "signal": "kell_buyable_gap_proxy",
       "ticker": "AMD",
-      "unavailableReason": "setup_not_archived"
+      "unavailableReason": null
     },
     {
       "change": "unchanged",
@@ -443,15 +443,15 @@
       "unavailableReason": null
     },
     {
-      "change": "unavailable",
-      "evaluationSource": "archive",
+      "change": "unresolved_false_negative",
+      "evaluationSource": "raw_snapshot_rescore",
       "label": "FALSE_NEGATIVE",
       "layer": "setup",
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "modelVersionNow": "kell-overlay-v5-quality-readiness-context",
       "notes": "9/21 opened 164.58 above the prior 20-session high near 154.02, never filled the gap versus the 153.92 prior close, and closed 168.50 near the high. The current detector misses it only because point-in-time RVOL is about 1.49x versus the 1.50x StockScout proxy. Catalyst metadata is unavailable in stored OHLCV.",
       "predictionAtReview": false,
-      "predictionNow": null,
+      "predictionNow": false,
       "reasonCodes": [
         "gap_through_resistance",
         "unfilled_gap",
@@ -461,7 +461,7 @@
       "sessionDate": "2026-09-21",
       "signal": "kell_buyable_gap_proxy",
       "ticker": "MSTR",
-      "unavailableReason": "setup_not_archived"
+      "unavailableReason": null
     },
     {
       "change": "unchanged",
@@ -586,15 +586,15 @@
       "unavailableReason": null
     },
     {
-      "change": "unavailable",
-      "evaluationSource": "archive",
+      "change": "unchanged",
+      "evaluationSource": "raw_snapshot_rescore",
       "label": "VALID",
       "layer": "setup",
       "modelVersionAtReview": "kell-overlay-v5-quality-readiness-context",
       "modelVersionNow": "kell-overlay-v5-quality-readiness-context",
       "notes": "9/21 opened about 7.05% above the prior close and above the prior 20-session resistance area, held the gap, closed near the session high, and traded on extreme point-in-time relative volume. The same session was independently reviewed as a valid Wedge Pop, providing constructive early-cycle context rather than exhaustion.",
       "predictionAtReview": true,
-      "predictionNow": null,
+      "predictionNow": true,
       "reasonCodes": [
         "gap_through_resistance",
         "unfilled_gap",
@@ -605,7 +605,7 @@
       "sessionDate": "2026-09-21",
       "signal": "kell_buyable_gap_proxy",
       "ticker": "WBD",
-      "unavailableReason": "setup_not_archived"
+      "unavailableReason": null
     },
     {
       "change": "unchanged",
@@ -818,11 +818,11 @@
   "schemaVersion": "kell-gold-set-eval-v2",
   "sessions": {
     "2026-09-18": {
-      "acceptedPrecisionPct": null,
+      "acceptedPrecisionPct": 100.0,
       "addedFromBaseline": 0,
       "baselinePredicted": 1,
-      "currentPredicted": 0,
-      "evaluated": 0,
+      "currentPredicted": 1,
+      "evaluated": 1,
       "fixedFalseNegatives": 0,
       "fixedFalsePositives": 0,
       "hardRegressions": 0,
@@ -832,20 +832,20 @@
       "lostFromBaseline": 0,
       "observedFalseNegatives": 0,
       "observedFalsePositives": 0,
-      "positiveRecallPct": null,
+      "positiveRecallPct": 100.0,
       "reviewed": 1,
-      "strictValidPrecisionPct": null,
-      "unavailable": 1,
+      "strictValidPrecisionPct": 100.0,
+      "unavailable": 0,
       "unresolvedFalseNegatives": 0,
       "unresolvedFalsePositives": 0,
-      "weightedQualityPct": null
+      "weightedQualityPct": 100.0
     },
     "2026-09-21": {
-      "acceptedPrecisionPct": 100.0,
+      "acceptedPrecisionPct": 93.8,
       "addedFromBaseline": 0,
       "baselinePredicted": 16,
-      "currentPredicted": 14,
-      "evaluated": 15,
+      "currentPredicted": 16,
+      "evaluated": 18,
       "fixedFalseNegatives": 0,
       "fixedFalsePositives": 0,
       "hardRegressions": 0,
@@ -857,13 +857,13 @@
       "lostFromBaseline": 0,
       "observedFalseNegatives": 2,
       "observedFalsePositives": 1,
-      "positiveRecallPct": 93.3,
+      "positiveRecallPct": 88.2,
       "reviewed": 18,
-      "strictValidPrecisionPct": 100.0,
-      "unavailable": 3,
-      "unresolvedFalseNegatives": 1,
-      "unresolvedFalsePositives": 0,
-      "weightedQualityPct": 100.0
+      "strictValidPrecisionPct": 93.8,
+      "unavailable": 0,
+      "unresolvedFalseNegatives": 2,
+      "unresolvedFalsePositives": 1,
+      "weightedQualityPct": 93.8
     },
     "2026-09-22": {
       "acceptedPrecisionPct": 77.8,
@@ -897,12 +897,12 @@
     "unifiedManifestSha256": "04621fa2da02eca61e76b8c57e03142f74da5aeaff73cc6a2d154be3b18e613c"
   },
   "summary": {
-    "acceptedPrecisionPct": 91.3,
+    "acceptedPrecisionPct": 88.5,
     "addedFromBaseline": 0,
     "availableSessionCount": 48,
     "baselinePredicted": 26,
-    "currentPredicted": 23,
-    "evaluated": 24,
+    "currentPredicted": 26,
+    "evaluated": 28,
     "fixedFalseNegatives": 0,
     "fixedFalsePositives": 0,
     "hardRegressions": 0,
@@ -916,14 +916,30 @@
     "lostFromBaseline": 0,
     "observedFalseNegatives": 2,
     "observedFalsePositives": 3,
-    "positiveRecallPct": 95.5,
-    "rawSnapshotSessionCount": 1,
-    "rescoredRowCount": 0,
+    "positiveRecallPct": 92.0,
+    "rawSnapshotSessionCount": 41,
+    "rescoredRowCount": 4,
     "reviewed": 28,
     "sessionsWithFalseNegatives": 1,
     "sessionsWithFalsePositives": 2,
-    "strictValidPrecisionPct": 78.3,
+    "strictValidPrecisionPct": 76.9,
     "topFalsePositiveReasons": [
+      {
+        "count": 2,
+        "reason": "late_cycle_exhaustion"
+      },
+      {
+        "count": 2,
+        "reason": "already_extended"
+      },
+      {
+        "count": 2,
+        "reason": "gap_can_be_exhaustion"
+      },
+      {
+        "count": 2,
+        "reason": "cycle_location_contradicts_buyable_context"
+      },
       {
         "count": 1,
         "reason": "repeated_recapture_not_first_wedge_pop"
@@ -935,28 +951,12 @@
       {
         "count": 1,
         "reason": "continuation_not_initial_repair"
-      },
-      {
-        "count": 1,
-        "reason": "late_cycle_exhaustion"
-      },
-      {
-        "count": 1,
-        "reason": "already_extended"
-      },
-      {
-        "count": 1,
-        "reason": "gap_can_be_exhaustion"
-      },
-      {
-        "count": 1,
-        "reason": "cycle_location_contradicts_buyable_context"
       }
     ],
-    "unavailable": 4,
-    "unresolvedFalseNegatives": 1,
-    "unresolvedFalsePositives": 2,
-    "weightedQualityPct": 84.8
+    "unavailable": 0,
+    "unresolvedFalseNegatives": 2,
+    "unresolvedFalsePositives": 3,
+    "weightedQualityPct": 82.7
   },
   "validationErrors": []
 }

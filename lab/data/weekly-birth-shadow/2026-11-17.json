@@ -13,14 +13,15 @@
   },
   "rejectionReasonCounts": {
     "aboveSma30w": 207,
+    "bar_session_mismatch": 1,
     "clearRunway": 220,
     "launchNotChased": 140,
     "maSlopeTurn": 172,
-    "no_recent_52_to_104_week_base": 1939,
+    "no_recent_52_to_104_week_base": 1940,
     "notExtended": 68,
     "recentBaseTight": 255,
     "weeklyMaNear": 84,
-    "weekly_history_under_156_weeks": 153
+    "weekly_history_under_156_weeks": 151
   },
   "added": [],
   "removed": [],
