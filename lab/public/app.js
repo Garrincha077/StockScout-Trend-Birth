@@ -1665,6 +1665,7 @@ function render(){
   state.savedPlans=OwnerPlanBook.projection(ReviewPlans.load(window.localStorage,state.ownerSession?.user?.id),ownerPlanScope?.book?.plans);
   renderPlanArchive();
   updateOwnerPlanUi();
+  $('#weeklyOutcomesLink').hidden=state.primaryView!=='weekly'||archived;
   $('#chartPeriod option[value="base"]').hidden=state.primaryView!=='weekly';
   loadWatchedRows();
   const shortlist=loadVisibleShortlist();

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/trendbirth.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=eod-guard-20261026">
-  <link rel="stylesheet" href="trend-birth-stats.css?v=kell-cohorts-20261118">
+  <link rel="stylesheet" href="trend-birth-stats.css?v=weekly-outcomes-20261118">
   <link rel="stylesheet" href="trend-birth-heat.css?v=market-thermometer-20261025">
   <title>Statistika · StockScout Trend Birth</title>
 </head>
@@ -195,6 +195,40 @@
         </details>
       </section>
     </section>
+    <section class="si-panel" id="siWeeklyBase" aria-labelledby="siWeeklyBaseTitle">
+      <h2 id="siWeeklyBaseTitle">Tjedna baza · ishodi nakon uvrštenja</h2>
+      <p id="siWeeklyBaseStatus" class="si-muted" role="status">Provjeravam povijest tjednih lista…</p>
+      <div id="siWeeklyBaseContent" hidden>
+        <div class="si-controls">
+          <label>Faza pri uvrštenju <select id="siWeeklyBaseGroup"></select></label>
+          <label>Sesije držanja <select id="siWeeklyBaseHorizon">
+            <option value="5">5</option><option value="20" selected>20</option>
+            <option value="63">63</option><option value="126">126</option>
+          </select></label>
+        </div>
+        <p id="siWeeklyBaseCoverage" role="status"></p>
+        <dl class="si-match-results" id="siWeeklyBaseSummary" hidden>
+          <div><dt>Prosječni prinos</dt><dd id="siWeeklyBaseMean"></dd></div>
+          <div><dt>Medijan prinosa</dt><dd id="siWeeklyBaseMedian"></dd></div>
+          <div><dt>Pozitivni ishodi</dt><dd id="siWeeklyBasePositive"></dd></div>
+        </dl>
+        <p id="siWeeklyBaseMatched" class="si-muted"></p>
+        <figure id="siWeeklyBaseComparison" class="si-weekly-comparison" hidden>
+          <figcaption>Bruto prinos u uparenim slučajevima <strong id="siWeeklyBaseDifference"></strong></figcaption>
+          <div class="si-weekly-bar-row"><span>Uvrštene dionice</span><span id="siWeeklyBaseSignal"></span>
+            <div class="si-weekly-track" aria-hidden="true"><i id="siWeeklyBaseSignalBar"></i></div></div>
+          <div class="si-weekly-bar-row"><span>Slične dionice</span><span id="siWeeklyBaseControl"></span>
+            <div class="si-weekly-track" aria-hidden="true"><i id="siWeeklyBaseControlBar"></i></div></div>
+          <small class="si-weekly-zero" aria-hidden="true">0%</small>
+        </figure>
+        <details class="si-composite-definitions">
+          <summary>Pokrivenost i način mjerenja</summary>
+          <p id="siWeeklyBaseArchiveGaps"></p>
+          <p>Mjerimo prvo zabilježeno uvrštenje između dviju uzastopnih burzovnih sesija u kojima je ticker evaluiran. Mjerenje počinje na zatvaranju sljedeće sesije. Prosjek daje jednaku težinu svakom datumu uvrštenja.</p>
+          <p>Kontrole dolaze iz istog evaluiranog skupa, izvan tjednih lista obje sesije. Biramo ih prije ishoda po prethodnoj fazi dnevnog radara, cijeni i 20-sesijskom prinosu. Promatrani prinosi su bruto. Pokrivenost korporativnih akcija je djelomična, a razdoblja držanja mogu se preklapati.</p>
+        </details>
+      </div>
+    </section>
     <section class="si-panel" id="siKell" aria-labelledby="siKellTitle">
       <h2 id="siKellTitle">Kell Swing · provjera planova</h2>
       <p class="si-muted" id="siKellStatus" role="status">Provjeravam izvještaj za prikazanu EOD objavu…</p>
@@ -283,6 +317,6 @@
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
   <script src="review-navigation.js?v=20261118" defer></script>
-  <script src="trend-birth-stats.js?v=review-navigation-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=weekly-outcomes-20261118" defer></script>
 </body>
 </html>

@@ -28,6 +28,16 @@
 .si-match-results div{padding:8px;border:1px solid #294863;border-radius:8px;background:#11253b}
 .si-match-results dt{color:#a5b7cc;font-size:11px}
 .si-match-results dd{margin:3px 0 0;font-size:clamp(14px,4vw,21px);font-weight:700;font-variant-numeric:tabular-nums}
+#siWeeklyBase{scroll-margin-top:16px}
+.si-weekly-comparison{margin:9px 0 0;padding:10px;border:1px solid #294863;border-radius:8px;background:#0c1b2e}
+.si-weekly-comparison figcaption{display:flex;justify-content:space-between;flex-wrap:wrap;gap:3px 12px;margin-bottom:7px}
+.si-weekly-comparison figcaption strong{color:#bde1ff}
+.si-weekly-bar-row{display:grid;grid-template-columns:1fr auto;gap:3px 8px;padding:5px 0;font-size:12px;font-variant-numeric:tabular-nums}
+.si-weekly-track{position:relative;grid-column:1/-1;height:10px;border-radius:3px;background:#081522}
+.si-weekly-track::after{content:'';position:absolute;inset:0 auto 0 50%;border-left:1px solid #e8eef7}
+.si-weekly-track i{position:absolute;top:0;bottom:0;border-radius:2px;background:#62b6ff}
+#siWeeklyBaseControlBar{background:#61d6bd}
+.si-weekly-zero{display:block;text-align:center;color:#a5b7cc}
 .si-kell-cohorts{margin-top:18px;padding-top:12px;border-top:1px solid #294863}
 .si-kell-cohorts h3{margin:0 0 9px;font-size:15px}
 #siKellGroupList{display:grid;gap:6px}

@@ -909,6 +909,86 @@
     if(location.hash==='#siKell')el('siKell').scrollIntoView();
     if(location.hash==='#siKellCohorts'&&!groupPanel.hidden)groupPanel.scrollIntoView();
   }
+  const WEEKLY_GROUPS={all:'Sve faze','1':'Duga baza','2':'Zbijena baza','3':'Blizu pivota','4':'Pokušaj proboja'};
+  const WEEKLY_HORIZONS=['5','20','63','126'];
+  function validateWeeklyBase(data,asOf){
+    const count=value=>Number.isSafeInteger(value)&&value>=0;
+    const datedList=value=>Array.isArray(value)&&value.every(day=>typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day));
+    const invalid=()=>Error('Tjedni ishodi ne odgovaraju prikazanoj EOD objavi.');
+    if(data.schemaVersion!=='weekly-base-outcomes-v1'||data.asOf!==asOf||!datedList([data.firstSession])||
+      data.firstSession>asOf||!datedList(data.missingSessions)||!datedList(data.rejectedArchives)||
+      ![data.archiveSessions,data.comparableSessions,data.latestSelected,data.unknownFirstDate,
+        data.missingPriorOrCurrentCoverage].every(count))throw invalid();
+    if(!data.archiveSessions||data.comparableSessions>=data.archiveSessions||data.latestSelected>15)throw invalid();
+    for(const key of Object.keys(WEEKLY_GROUPS)){
+      const group=data.groups?.[key];
+      if(!count(group?.entries)||!count(group?.signalDates)||group.signalDates>group.entries)throw invalid();
+      for(const horizon of WEEKLY_HORIZONS){
+        const row=group.outcomes?.[horizon],pairs=row?.matched;
+        if(!row||!pairs||![row.observed,row.dates,row.pending,row.missing,pairs.paired,pairs.observed,
+          pairs.dates,pairs.pending,pairs.missing].every(count)||row.observed+row.pending+row.missing!==group.entries||
+          pairs.observed+pairs.pending+pairs.missing!==pairs.paired||pairs.paired>group.entries||
+          row.dates>row.observed||row.dates>group.signalDates||pairs.dates>row.dates||pairs.dates>pairs.observed||
+          pairs.observed>row.observed||(row.observed&&(row.positivePct<0||row.positivePct>100))||
+          ![row.meanPct,row.medianPct,row.positivePct].every(value=>row.observed?Number.isFinite(value):value===null)||
+          ![pairs.signalPct,pairs.controlPct,pairs.differencePp].every(value=>pairs.observed?Number.isFinite(value):value===null))
+          throw invalid();
+      }
+    }
+    return data;
+  }
+  function renderWeeklyBase(raw,asOf){
+    const status=el('siWeeklyBaseStatus');
+    if(!raw){status.textContent='Ishodi Tjedne baze nedostaju u ovoj EOD objavi.';return}
+    const data=validateWeeklyBase(raw,asOf);
+    const dates=count=>FMT.format(count)+(count===1?' datum':' datuma');
+    status.textContent=data.firstSession+' – '+data.asOf+' · '+FMT.format(data.archiveSessions)+' arhiviranih sesija · '+
+      FMT.format(data.groups.all.entries)+' prvih uvrštenja na '+dates(data.groups.all.signalDates)+'.';
+    const groupSelect=el('siWeeklyBaseGroup'),horizonSelect=el('siWeeklyBaseHorizon');
+    const all=data.groups.all.outcomes;
+    if(!all['20'].matched.observed&&all['5'].matched.observed)horizonSelect.value='5';
+    for(const key of ['all','1','2','3','4']){
+      if(key==='all'||data.groups[key].entries)groupSelect.add(new Option(WEEKLY_GROUPS[key],key));
+    }
+    const gaps=data.missingSessions.length?'Nedostaju sesije '+data.missingSessions.join(', ')+'. ':'';
+    el('siWeeklyBaseArchiveGaps').textContent=gaps+FMT.format(data.comparableSessions)+
+      ' sesija s potvrđenom prethodnom listom. Za '+FMT.format(data.unknownFirstDate)+
+      ' tickera prvo pojavljivanje je na početku arhive ili nakon rupe.'+
+      ' Zadnja lista ima '+FMT.format(data.latestSelected)+' tickera.'+
+      (data.rejectedArchives.length?' Odbačene neusklađene arhive '+data.rejectedArchives.join(', ')+'.':'')+
+      (data.missingPriorOrCurrentCoverage?' Bez potvrde evaluacije u obje sesije '+FMT.format(data.missingPriorOrCurrentCoverage)+'.':'');
+    function select(){
+      const group=data.groups[groupSelect.value],row=group.outcomes[horizonSelect.value],pairs=row.matched;
+      const matured=group.entries-row.pending;
+      el('siWeeklyBaseCoverage').textContent=FMT.format(row.observed)+' od '+FMT.format(matured)+
+        ' dospjelih ishoda na '+dates(row.dates)+' · '+FMT.format(row.pending)+' na čekanju'+
+        (row.missing?' · '+FMT.format(row.missing)+' bez dovoljne pokrivenosti cijena':'')+'.';
+      el('siWeeklyBaseSummary').hidden=!row.observed;
+      el('siWeeklyBaseMean').textContent=fmt(row.meanPct,'%');
+      el('siWeeklyBaseMedian').textContent=fmt(row.medianPct,'%');
+      el('siWeeklyBasePositive').textContent=fmt(row.positivePct,'%');
+      el('siWeeklyBaseMatched').textContent=FMT.format(pairs.paired)+' uparenih od '+FMT.format(group.entries)+
+        ' uvrštenja · parovi s ishodom '+FMT.format(pairs.observed)+' na '+dates(pairs.dates)+
+        (pairs.pending?' · '+FMT.format(pairs.pending)+' na čekanju':'')+
+        (pairs.missing?' · '+FMT.format(pairs.missing)+' bez obiju cijena':'')+'.';
+      const chart=el('siWeeklyBaseComparison');
+      chart.hidden=!pairs.observed;
+      if(chart.hidden)return;
+      const max=Math.max(.01,Math.abs(pairs.signalPct),Math.abs(pairs.controlPct));
+      for(const [label,value] of [['Signal',pairs.signalPct],['Control',pairs.controlPct]]){
+        el('siWeeklyBase'+label).textContent=fmt(value,'%');
+        const bar=el('siWeeklyBase'+label+'Bar'),width=48*Math.abs(value)/max;
+        bar.style.width=width+'%';
+        bar.style.left=(value<0?50-width:50)+'%';
+      }
+      el('siWeeklyBaseDifference').textContent=(pairs.differencePp>0?'+':'')+fmt(pairs.differencePp,' p. b.');
+    }
+    groupSelect.addEventListener('change',select);
+    horizonSelect.addEventListener('change',select);
+    select();
+    el('siWeeklyBaseContent').hidden=false;
+    if(location.hash==='#siWeeklyBase')requestAnimationFrame(()=>el('siWeeklyBase').scrollIntoView());
+  }
   function renderForward(raw, eodDate) {
     const data=validateForward(raw);
     const status=el('siForwardStatus');
@@ -999,6 +1079,8 @@
           } catch (error) {
             el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
           }
+          try{renderWeeklyBase(forward?.weeklyBase,data.latestSessionDate)}
+          catch(error){el('siWeeklyBaseStatus').textContent=error.message}
           try{renderKellSwing(swing,data.latestSessionDate)}
           catch(error){el('siKellStatus').textContent=error.message}
           try {
@@ -1014,6 +1096,6 @@
       status.className='si-error';
     }
   }
-  return {validate, validateComposite, validateForward, validateRecovery, horizonTotals, compositeFactorRows, compositeHistory,
+  return {validate, validateComposite, validateForward, validateRecovery, validateWeeklyBase, horizonTotals, compositeFactorRows, compositeHistory,
     metric, slope, dynamics, withDynamics, percentile, windowStart, weekKey, group, transitions, regime, start};
 });
