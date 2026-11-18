@@ -38,12 +38,39 @@ async function pageFor(t, serviceWorkers='block', options={}){
       auth:{getSession:async()=>({data:{session:authTest.session}}),
         onAuthStateChange:listener=>{authTest.listener=listener;return{data:{subscription:{unsubscribe(){}}}}},
         signOut:async()=>{authTest.session=null;authTest.listener('SIGNED_OUT',null);return{}}},
-      from:()=>{let owner;const q={select:()=>q,eq:(key,value)=>{if(key==='user_id')owner=value;return q},
-        order:async()=>({data:(authTest.rows[owner]||[]).map(ticker=>({ticker}))})};return q},
-      rpc:async(name,args)=>{authTest.writes.push(args);const rows=authTest.rows[authTest.session.user.id];
+      from:table=>{let owner;const q={select:()=>q,eq:(key,value)=>{if(key==='user_id')owner=value;return q},
+        order:async()=>({data:(authTest.rows[owner]||[]).map(ticker=>({ticker}))}),
+        maybeSingle:async()=>table==='trend_birth_plan_books'&&window.planServer?
+          planServer({action:'read',owner,account:authTest.session?.user?.id}):{error:{code:'PGRST205'}}};return q},
+      rpc:async(name,args)=>{if(name==='trend_birth_commit_plan_book')
+        return planServer({action:'write',args,account:authTest.session?.user?.id});
+        authTest.writes.push(args);const rows=authTest.rows[authTest.session.user.id];
         if(args.p_present&&!rows.includes(args.p_ticker))rows.push(args.p_ticker);return{}}
     })};` }));
   return page;
+}
+
+function makePlanFixture(day,token,rows,pivot){
+  const ticker='AAA',source={...bootstrap.source,sessionDate:day,runId:day+'-eod-123-1'};
+  const snapshotId=source.runId+'--'+token.repeat(64);
+  const basePath='data/watchlist-runs/'+snapshotId,chartBasePath='data/kell-chart-runs/test';
+  const schemaVersion='trend-birth-watchlist-bucket-v1',tickerBucket=ticker.split('').reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);
+  const item={ticker,sources:[],chartBars:rows,metrics:{price:rows.at(-1)[4]},
+    earlyTrend:{sessionDate:day,phase:'reclaim',reclaimPivot:pivot,invalidation:95,evidence:['support_reclaim']}};
+  const buckets=Array.from({length:64},(_,bucket)=>JSON.stringify({schemaVersion,source,snapshotId,bucket,
+    rows:bucket===tickerBucket?{[ticker]:item}:{}}));
+  const sha256=buckets.map(body=>createHash('sha256').update(body).digest('hex'));
+  return {manifest:{...source,schemaVersion:'trend-birth-publication-v1',snapshotId,
+    bootstrapPath:'data/review-bootstrap-v1/'+snapshotId+'.json',watchlist:{basePath,chartBasePath,schemaVersion,sha256}},
+  data:{...bootstrap,source,reviewSnapshotId:snapshotId,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[item]}},buckets};
+}
+async function routePlanFixture(page,active){
+  await page.route('**/data/publication.json',route=>route.fulfill({json:active().manifest}));
+  await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:active().data}));
+  await page.route('**/data/watchlist-runs/**/*.json',route=>{
+    const index=Number.parseInt(new URL(route.request().url()).pathname.split('/').at(-1),16);
+    return route.fulfill({contentType:'application/json',body:active().buckets[index]});
+  });
 }
 
 test('initial mobile view is bounded and never fetches full Review or Kell data until requested',async t=>{
@@ -77,6 +104,70 @@ test('initial mobile view is bounded and never fetches full Review or Kell data 
   assert.match(await page.locator('#detail').innerText(),/Daily radar/i);
 });
 
+test('a plan moved to the signed-in account can be archived on a second device',async t=>{
+  const first=await pageFor(t,'block',{hasTouch:true,isMobile:true});
+  const second=await pageFor(t,'block',{hasTouch:true,isMobile:true});
+  const books=new Map(),writes=[];
+  function planServer({action,owner,args,account}){
+    if(action==='read')return {data:owner===account?books.get(owner)??null:null};
+    assert.equal(args.p_owner,account);
+    writes.push({account,version:args.p_expected_version});
+    const previous=books.get(account)?.version||0;
+    if(previous!==args.p_expected_version)return {data:null};
+    books.set(account,{version:previous+1,plans:args.p_plans});
+    return {data:previous+1};
+  }
+  await first.exposeFunction('planServer',planServer);
+  await second.exposeFunction('planServer',planServer);
+  const origin='2026-11-17',later='2026-11-18',ticker='AAA';
+  const bars=[['2026-11-16',100,102,98,101,100],[origin,101,102,98,100,100]];
+  const trigger=[later,103,107,101,105,100];
+  let active=makePlanFixture(origin,'a',bars,105);
+  await routePlanFixture(first,()=>active);
+  const incomplete=makePlanFixture('2026-11-19','c',[trigger,['2026-11-19',105,108,103,106,100]],110);
+  await routePlanFixture(second,()=>incomplete);
+  const signIn=(page,id)=>page.evaluate(id=>{
+    authTest.session={user:{id,email:id+'@example.test'}};
+    authTest.listener('SIGNED_IN',authTest.session);
+  },id);
+  await first.goto(base+'/');
+  const card=page=>page.locator('.card[data-ticker="'+ticker+'"]');
+  await card(first).getByRole('button',{name:'Spremi plan',exact:true}).tap();
+  await card(first).getByRole('button',{name:'Plan spremljen',exact:true}).waitFor();
+  await signIn(first,'plan-owner-A');
+  await first.locator('[data-primary-view="watchlist"]').tap();
+  await first.getByRole('button',{name:'Prenesi lokalne planove (1)',exact:true}).waitFor();
+  assert.deepEqual(writes,[]);
+  await first.locator('#ownerPlanImport').tap();
+  await first.locator('#ownerPlanSyncNote').filter({hasText:'Preneseno 1'}).waitFor();
+  assert.equal(books.get('plan-owner-A').plans[0].ticker,ticker);
+  assert.equal(await first.evaluate(()=>ReviewPlans.load(window.localStorage).length),1);
+
+  active=makePlanFixture(later,'b',[...bars,trigger],110);
+  await first.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await card(first).locator('[data-plan-status][data-state="abovePivot"]').waitFor();
+  await first.waitForFunction(async()=>{
+    const {data}=await planServer({action:'read',owner:'plan-owner-A',account:'plan-owner-A'});
+    return Boolean(data?.plans[0].closingReview);
+  });
+  await second.goto(base+'/?view=watchlist');
+  await second.waitForFunction(()=>window.authTest.listener);
+  await signIn(second,'plan-owner-A');
+  await card(second).locator('[data-plan-status][data-state="coverage"]').waitFor();
+  await card(second).getByRole('button',{name:'Arhiviraj plan',exact:true}).tap();
+  await second.locator('#planNotice').filter({hasText:'arhiviran na računu'}).waitFor();
+  assert.ok(books.get('plan-owner-A').plans[0].archivedAt);
+  assert.equal(books.get('plan-owner-A').plans[0].closingReview.asOf,later);
+  await second.locator('#savedPlanArchive > summary').tap();
+  await second.locator('[data-archived-plan] > summary').filter({hasText:ticker}).waitFor();
+  await first.locator('#ownerPlanRefresh').tap();
+  await first.locator('#savedPlanArchive').waitFor();
+  assert.equal(await card(first).count(),0);
+  await signIn(second,'plan-owner-B');
+  await second.locator('#ownerPlanSyncNote').filter({hasText:'dostupni su na drugim uređajima'}).waitFor();
+  assert.equal(await second.locator('[data-archived-plan]').count(),0);
+});
+
 test('empty mobile watchlist uses no full archive and keeps the current snapshot',async t=>{
   const page=await pageFor(t,'allow'),requests=[];
   page.on('request',request=>requests.push(request.url()));
@@ -104,15 +195,22 @@ test('mobile browser Back closes the ticker, Forward restores its range, and Sta
   const gridScroll=await page.evaluate(()=>window.scrollY);
   await canvas.tap();
   await page.locator('#detail[open]').waitFor();
-  await page.locator('#nextDetail').tap();
+  // A range selection in the same frame as opening the next ticker must still update history.
+  await page.locator('#nextDetail').evaluate(button=>{
+    button.click();
+    const period=document.querySelector('#detail [data-chart-period]');
+    period.value='3m';
+    period.dispatchEvent(new Event('change',{bubbles:true}));
+  });
   const ticker=await page.locator('#detailToolbarTicker').innerText();
-  await page.locator('#detail .detail-evidence select').selectOption('3m');
+  assert.equal(new URL(page.url()).searchParams.get('range'),'3m');
   assert.equal(await page.evaluate(()=>history.length),historyLength+1);
   await page.getByRole('button',{name:'Kopiraj poveznicu'}).tap();
   const copied=new URL(await page.evaluate(()=>window.copiedTickerLink));
   assert.deepEqual([...copied.searchParams.keys()],['view','ticker','range']);
   assert.equal(copied.searchParams.get('view'),'weekly');
   assert.equal(copied.searchParams.get('ticker'),ticker);
+  assert.equal(copied.searchParams.get('range'),'3m');
   await page.goBack();
   await page.locator('#detail[open]').waitFor({state:'detached'});
   await page.waitForFunction(name=>document.activeElement?.dataset?.ticker===name,ticker);
@@ -443,31 +541,12 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   const page=await pageFor(t,'block',{hasTouch:true,isMobile:true}),requests=[];
   page.on('request',request=>requests.push(request.url()));
   const first='2026-11-17',next='2026-11-18',breach='2026-11-19',ticker='AAA';
-  const make=(day,token,rows,pivot)=>{
-    const source={...bootstrap.source,sessionDate:day,runId:day+'-eod-123-1'};
-    const snapshotId=source.runId+'--'+token.repeat(64);
-    const basePath='data/watchlist-runs/'+snapshotId,chartBasePath='data/kell-chart-runs/test';
-    const schemaVersion='trend-birth-watchlist-bucket-v1';
-    const tickerBucket=ticker.split('').reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);
-    const item={ticker,sources:[],chartBars:rows,metrics:{price:rows.at(-1)[4]},
-      earlyTrend:{sessionDate:day,phase:'reclaim',reclaimPivot:pivot,invalidation:95,evidence:['support_reclaim']}};
-    const buckets=Array.from({length:64},(_,bucket)=>JSON.stringify({schemaVersion,source,snapshotId,bucket,
-      rows:bucket===tickerBucket?{[ticker]:item}:{}}));
-    const sha256=buckets.map(body=>createHash('sha256').update(body).digest('hex'));
-    return {manifest:{...source,schemaVersion:'trend-birth-publication-v1',snapshotId,
-      bootstrapPath:'data/review-bootstrap-v1/'+snapshotId+'.json',watchlist:{basePath,chartBasePath,schemaVersion,sha256}},
-    data:{...bootstrap,source,reviewSnapshotId:snapshotId,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[item]}},buckets};
-  };
+  const make=makePlanFixture;
   const bars=[['2026-11-16',100,102,98,101,100], [first,101,102,98,100,100]];
   const origin=make(first,'a',bars,105);
   let active=origin;
   await page.clock.setFixedTime(new Date('2026-11-20T01:00:00Z'));
-  await page.route('**/data/publication.json',route=>route.fulfill({json:active.manifest}));
-  await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:active.data}));
-  await page.route('**/data/watchlist-runs/**/*.json',route=>{
-    const index=Number.parseInt(new URL(route.request().url()).pathname.split('/').at(-1),16);
-    return route.fulfill({contentType:'application/json',body:active.buckets[index]});
-  });
+  await routePlanFixture(page,()=>active);
   await page.goto(base+'/');
   await page.getByRole('button',{name:'Spremi plan',exact:true}).click();
   await page.getByRole('button',{name:'Plan spremljen',exact:true}).waitFor();

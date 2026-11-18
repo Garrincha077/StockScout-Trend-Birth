@@ -40,7 +40,7 @@
     const onSession=typeof options.onSession==='function'?options.onSession:()=>{};
     let client=null,session=null,subscription=null;
 
-    function sameOwner(id){if(session?.user?.id!==id)throw new Error('Owner session changed; retry synchronization')}
+    function sameOwner(id){if(!id||session?.user?.id!==id)throw new Error('Owner session changed; retry synchronization')}
 
     function signedIn(){return Boolean(session?.user)}
     function user(){return session?.user||null}
@@ -99,6 +99,24 @@
       return missing.length?load():remote;
     }
 
+    async function loadPlanBook(ownerId){
+      sameOwner(ownerId);
+      const {data,error}=await client.from('trend_birth_plan_books').select('version,plans').eq('user_id',ownerId).maybeSingle();
+      sameOwner(ownerId);
+      if(error)throw error;
+      return data||{version:0,plans:[]};
+    }
+
+    async function writePlanBook(ownerId,version,plans){
+      sameOwner(ownerId);
+      const {data,error}=await client.rpc('trend_birth_commit_plan_book',{
+        p_owner:ownerId,p_expected_version:version,p_plans:plans
+      });
+      sameOwner(ownerId);
+      if(error)throw error;
+      return data;
+    }
+
     async function init(){
       if(!lib?.createClient)throw new Error('Supabase browser client is unavailable');
       client=lib.createClient(SUPABASE_URL,SUPABASE_KEY,{
@@ -146,7 +164,7 @@
     function destroy(){subscription?.unsubscribe?.()}
 
     return{
-      init,load,setTicker,migrate,signInWithGoogle,sendMagicLink,signOut,destroy,
+      init,load,setTicker,migrate,loadPlanBook,writePlanBook,signInWithGoogle,sendMagicLink,signOut,destroy,
       signedIn,user,normalizeTicker,normalizeTickers,
       config:{url:SUPABASE_URL,schema:SCHEMA,name:WATCHLIST_NAME,mode:MODE,priceBasis:PRICE_BASIS,magicLinkSiteUrl:MAGIC_LINK_SITE_URL}
     };
