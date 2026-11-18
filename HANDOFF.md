@@ -1,3 +1,9 @@
+## 2026-11-18 — Saved plans and readable Early Trend Birth outcomes
+
+- Verified locally at 14:27 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Early Trend Birth and Kell can save the original close and levels against the exact snapshot. Active plans appear in Watchlist and can move to a local archive. Plans use account-scoped browser storage.
+- Watchlist compares the saved prices with completed closes from a continuous XNYS window. A first invalidation remains visible after a rebound. Missing sessions and origin-price revisions produce explicit unavailable states. Research access and source ranks are preserved.
+- Early Trend Birth Statistics now selects one horizon at a time, shows pending or missing outcomes explicitly and distinguishes positive and negative median lead. Local checks passed 116 Node and 18 Chromium cases. Preview refresh and remote smoke follow.
+
 ## 2026-11-18 — Weekly Base chart focused on the analyzed consolidation
 
 - Verified locally at 14:02 Europe/Zagreb on draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). The Weekly Base card and detail now open on the model window, shade the pre-launch range and mark the pivot and detected overhead level. The card shows the completed weekly close and its distance from the pivot.

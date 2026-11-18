@@ -226,3 +226,13 @@
 .swing-levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px 12px;margin:7px 0}
 .swing-levels small,.swing-levels b{display:block}
 .early-plan ul{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;padding-left:16px;color:#b7e0d8;font-size:.78rem}
+.plan-action{display:block;min-height:40px;margin-top:8px;padding:5px 10px;border:1px solid #42668b;border-radius:8px;background:#10263b;color:var(--text);cursor:pointer}
+.plan-action:disabled{opacity:.65;cursor:default}
+.saved-plan{margin:8px 10px;padding:10px;border:1px solid #2d5772;border-radius:9px;background:#112639;cursor:default}
+.saved-plan-heading{display:flex;justify-content:space-between;gap:6px 10px;flex-wrap:wrap}
+.saved-plan a,#archivedPlanList a{color:#9ed3ff}
+.saved-plan p{margin:4px 0}
+.saved-plan small{color:#b7c5d5}
+.saved-plan-status[data-state="invalidated"]{color:#ffabb3}
+.saved-plan-status[data-state="extended"]{color:#ffe0a6}
+#savedPlanArchive{margin-top:12px}

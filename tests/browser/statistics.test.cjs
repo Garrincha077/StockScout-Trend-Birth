@@ -47,6 +47,28 @@ async function selectedPointVisible(page,id){
     return dot.left>=clip.left&&dot.right<=clip.right;
   },id);
 }
+test('Early Trend Birth statistics separate horizons and describe a later median honestly',async t=>{
+  const page=await mobile(t);
+  const forward=JSON.parse(await readFile(resolve(root,'data/trend-birth-stage-forward.json'),'utf8'));
+  const pending={observed:0,matured:0,pending:4,leadersCaptured:0,leadersMissed:0,leaderOpportunities:0,
+    belowUniverseMedian:0,excessPct:null};
+  const measured={...pending,observed:4,matured:5,pending:0,leadersCaptured:1,leadersMissed:1,
+    leaderOpportunities:2,belowUniverseMedian:2,excessPct:-1};
+  const row=early=>({early,daily4:pending,weekly:pending});
+  forward.earlyTrend={schemaVersion:'early-trend-outcomes-v1',observedSessions:4,lead:{
+    daily4:{matched:2,earlier:0,same:0,later:2,medianSessions:-3},weekly:{matched:0}
+  },horizons:{20:row(measured),63:row(pending),126:row(pending),252:row(pending)}};
+  await page.route('**/data/trend-birth-stage-forward.json',route=>route.fulfill({json:forward}));
+  await ready(page);
+  await page.locator('#siEarly').waitFor();
+  assert.match(await page.locator('#siEarlyLead').innerText(),/kasnije za 3 sesija/);
+  assert.equal(await page.locator('#siEarlyTable tbody tr').count(),3);
+  assert.match(await page.locator('#siEarlyTable').innerText(),/4 \/ 5/);
+  await page.selectOption('#siEarlyHorizon','252');
+  assert.match(await page.locator('#siEarlyMaturity').innerText(),/Još nema dospjelih ishoda za 252 sesija/);
+  assert.match(await page.locator('#siEarlyTable').innerText(),/252D · Trend Birth/);
+});
+
 test('mobile recovery comparison loads only on demand, uses a frozen date and preserves V2',async t=>{
   const page=await mobile(t),requests=[];
   page.on('request',request=>requests.push(request.url()));

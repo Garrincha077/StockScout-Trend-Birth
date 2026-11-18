@@ -163,6 +163,10 @@
       <h2 id="siEarlyTitle">Trend Birth · provjera ranih upozorenja</h2>
       <p id="siEarlyLead" class="si-muted"></p>
       <p class="si-muted">Vodeći ticker završava među najboljih 10% evaluiranih dionica s dostupnim cijenama za isti datum signala i isti horizont. Prikaz prati nove ulaske na listu. Prinos se mjeri od sljedećeg zatvaranja, uz jednaku težinu svakog dana sa signalom.</p>
+      <div class="si-controls"><label>Sesije držanja <select id="siEarlyHorizon">
+        <option value="20">20</option><option value="63">63</option>
+        <option value="126">126</option><option value="252">252</option>
+      </select></label><p id="siEarlyMaturity" class="si-muted" role="status"></p></div>
       <div class="si-table-scroll"><table class="si-matrix" id="siEarlyTable">
         <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
       </table></div>
@@ -211,6 +215,6 @@
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
-  <script src="trend-birth-stats.js?v=early-outcomes-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=early-horizons-20261118" defer></script>
 </body>
 </html>

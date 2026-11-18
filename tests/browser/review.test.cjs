@@ -201,6 +201,57 @@ test('nonempty Watchlist resolves saved symbols only and retains them after a fa
   assert.equal(new Set(requests.filter(url=>url.includes('/data/watchlist-runs/'))).size,2);
 });
 
+test('saved Early Trend Birth plan follows the original levels across a new EOD and can be archived',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',request=>requests.push(request.url()));
+  const first='2026-11-17',next='2026-11-18',ticker='AAA';
+  const make=(day,token,rows,pivot)=>{
+    const source={...bootstrap.source,sessionDate:day,runId:day+'-eod-123-'+(day===first?'1':'2')};
+    const snapshotId=source.runId+'--'+token.repeat(64);
+    const basePath='data/watchlist-runs/'+snapshotId,chartBasePath='data/kell-chart-runs/test';
+    const schemaVersion='trend-birth-watchlist-bucket-v1';
+    const tickerBucket=ticker.split('').reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);
+    const item={ticker,sources:[],chartBars:rows,metrics:{price:rows.at(-1)[4]},
+      earlyTrend:{sessionDate:day,phase:'reclaim',reclaimPivot:pivot,invalidation:95,evidence:['support_reclaim']}};
+    const buckets=Array.from({length:64},(_,bucket)=>JSON.stringify({schemaVersion,source,snapshotId,bucket,
+      rows:bucket===tickerBucket?{[ticker]:item}:{}}));
+    const sha256=buckets.map(body=>createHash('sha256').update(body).digest('hex'));
+    return {manifest:{...source,schemaVersion:'trend-birth-publication-v1',snapshotId,
+      bootstrapPath:'data/review-bootstrap-v1/'+snapshotId+'.json',watchlist:{basePath,chartBasePath,schemaVersion,sha256}},
+    data:{...bootstrap,source,reviewSnapshotId:snapshotId,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[item]}},buckets};
+  };
+  const bars=[['2026-11-16',100,102,98,101,100], [first,101,102,98,100,100]];
+  const origin=make(first,'a',bars,105);
+  let active=origin;
+  await page.clock.setFixedTime(new Date('2026-11-19T01:00:00Z'));
+  await page.route('**/data/publication.json',route=>route.fulfill({json:active.manifest}));
+  await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:active.data}));
+  await page.route('**/data/watchlist-runs/**/*.json',route=>{
+    const index=Number.parseInt(new URL(route.request().url()).pathname.split('/').at(-1),16);
+    return route.fulfill({contentType:'application/json',body:active.buckets[index]});
+  });
+  await page.goto(base+'/');
+  await page.getByRole('button',{name:'Spremi plan',exact:true}).click();
+  await page.getByRole('button',{name:'Plan spremljen',exact:true}).waitFor();
+  await page.locator('[data-primary-view="watchlist"]').click();
+  const card=page.locator('.card[data-ticker="AAA"]');
+  await card.locator('[data-plan-status][data-state="saved"]').waitFor();
+  assert.match(await card.locator('.saved-plan').innerText(),/Pivot 105\.00/);
+  assert.equal(await card.locator('.saved-plan a').getAttribute('href'),'?snapshot='+origin.manifest.snapshotId);
+
+  active=make(next,'b',[...bars,[next,99,101,91,92,100]],110);
+  await page.waitForFunction(()=>document.getElementById('eodFreshness').dataset.state);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await card.locator('[data-plan-status][data-state="invalidated"]').waitFor();
+  assert.match(await card.locator('.saved-plan').innerText(),/Pivot 105\.00/);
+  assert.match(await card.locator('[data-plan-status]').innerText(),/2026-11-18 · 92\.00/);
+  await card.getByRole('button',{name:'Arhiviraj plan'}).click();
+  await page.locator('#savedPlanArchive summary').click();
+  assert.match(await page.locator('#archivedPlanList').innerText(),/AAA · Early Trend Birth/);
+  assert.equal(await card.count(),0);
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')),false);
+});
+
 test('visible again: incomplete update preserves the old snapshot, complete update replaces it',async t=>{
   const page=await pageFor(t,'allow');
   const make=(day,token)=>{

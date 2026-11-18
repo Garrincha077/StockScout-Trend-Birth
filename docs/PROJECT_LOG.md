@@ -735,3 +735,10 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 
 - Verified locally at 14:02 Europe/Zagreb. The default Weekly Base chart now zooms to the model window, shades the pre-launch range and labels pivot and detected overhead resistance. The card and detail show the completed weekly close and distance to pivot. Charts use the model cutoff and keep the five-year option.
 - Ranking, eligibility and published EOD data are preserved. The November 17 snapshot evaluates completed weeks through November 13. 113 Node and 16 Chromium tests passed. The staging preview receives the same source files through its isolated branch.
+
+## 2026-11-18 — Save exact EOD plans and select an outcome horizon
+
+- Verified locally at 14:27 Europe/Zagreb on codex/review-lab-rebuild, draft PR #76. Early Trend Birth and Kell Swing can preserve the original close, model evidence, levels and exact Review snapshot on a plan. Watchlist tracks active plans and exposes an archive in this browser. Signed-in profiles use separate plan storage.
+- The comparison uses dated daily closes and the authoritative market calendar. Unchanged original price is a required check. Missing or disjoint history does not classify a trade outcome. A later close-level violation persists through recovery. Plans describe EOD observations.
+- Statistics reports selected 20/63/126/252-session cohorts, sample maturity, the leader share among observed signals and signed lead. Rankings and archived market data remain unchanged. Verified 116 Node and 18 Chromium tests, including saving and archiving, crossing a new EOD with changed model levels, and horizon selection.
+- Next: verify the preview with actual data and improve strategy-specific evidence and simulated executions.
