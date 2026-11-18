@@ -1,3 +1,9 @@
+## 2026-11-18 — Watchlist plan journal
+
+- Verified on the [isolated preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist) at 16:55 Europe/Zagreb, preview commit `d849968` and READY deployment `dpl_DKVUk8ptCqgTpRMBqPQ3GUxE1z3e`. Saved actual November 17 Early plan KLAR and Kell plan CAKE in a disposable mobile Chromium context. Both correctly awaited the first later close. The CAKE link opened its ticker in the exact November 17 archive.
+- After later sessions, the active plan exposes the first qualifying closes against its original levels. An original stop breach remains final after a rebound. The app withholds milestones when price coverage, calendar or starting basis cannot be verified. Archiving retains the original plan and source link. The browser holds plan records locally.
+- Passed 126 Node cases and 24 Chromium cases, including the synthetic three-publication Early journey and Kell entry-band, extension and stop boundaries. Prior source head `84ea011` passed [CI 44338907575](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44338907575). Work continues on draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next priorities include the original plan levels on the price chart and verification on the first later comparable real EOD.
+
 ## 2026-11-18 — Mobile navigation, ticker links and PWA shortcuts
 
 - Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:42 Europe/Zagreb, preview commit `7a3e23e`, deployment `dpl_H55Z1boMsCmz1X4Dp7v5NSDyV2t2`. CAKE opens from the Kell shortcut, Back dismisses its detail, Forward restores the selected chart range and the Statistics return link restores Kell. The offline screen retains the exact URL and retry restores the same ticker and range.

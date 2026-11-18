@@ -440,11 +440,11 @@ test('nonempty Watchlist resolves saved symbols only and retains them after a fa
 });
 
 test('saved Early Trend Birth plan follows the original levels across a new EOD and can be archived',async t=>{
-  const page=await pageFor(t),requests=[];
+  const page=await pageFor(t,'block',{hasTouch:true,isMobile:true}),requests=[];
   page.on('request',request=>requests.push(request.url()));
-  const first='2026-11-17',next='2026-11-18',ticker='AAA';
+  const first='2026-11-17',next='2026-11-18',breach='2026-11-19',ticker='AAA';
   const make=(day,token,rows,pivot)=>{
-    const source={...bootstrap.source,sessionDate:day,runId:day+'-eod-123-'+(day===first?'1':'2')};
+    const source={...bootstrap.source,sessionDate:day,runId:day+'-eod-123-1'};
     const snapshotId=source.runId+'--'+token.repeat(64);
     const basePath='data/watchlist-runs/'+snapshotId,chartBasePath='data/kell-chart-runs/test';
     const schemaVersion='trend-birth-watchlist-bucket-v1';
@@ -461,7 +461,7 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   const bars=[['2026-11-16',100,102,98,101,100], [first,101,102,98,100,100]];
   const origin=make(first,'a',bars,105);
   let active=origin;
-  await page.clock.setFixedTime(new Date('2026-11-19T01:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-11-20T01:00:00Z'));
   await page.route('**/data/publication.json',route=>route.fulfill({json:active.manifest}));
   await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:active.data}));
   await page.route('**/data/watchlist-runs/**/*.json',route=>{
@@ -475,17 +475,35 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   const card=page.locator('.card[data-ticker="AAA"]');
   await card.locator('[data-plan-status][data-state="saved"]').waitFor();
   assert.match(await card.locator('.saved-plan').innerText(),/Pivot 105\.00/);
-  assert.equal(await card.locator('.saved-plan a').getAttribute('href'),'?snapshot='+origin.manifest.snapshotId);
+  const sourceLink='?snapshot='+origin.manifest.snapshotId+'&view=early&ticker=AAA';
+  assert.equal(await card.locator('.saved-plan a').getAttribute('href'),sourceLink);
+  assert.equal(await card.locator('[data-plan-journal]').isVisible(),false);
 
-  active=make(next,'b',[...bars,[next,99,101,91,92,100]],110);
+  const pivotBars=[...bars,[next,103,107,101,105,100]];
+  active=make(next,'b',pivotBars,110);
   await page.waitForFunction(()=>document.getElementById('eodFreshness').dataset.state);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await card.locator('[data-plan-status][data-state="abovePivot"]').waitFor();
+  const journal=card.locator('[data-plan-journal]');
+  await journal.locator('summary').press('Enter');
+  assert.equal(await journal.locator('li').isVisible(),true);
+  assert.match(await journal.locator('li').innerText(),/2026-11-18 · 105\.00\s+Prvo zatvaranje na pivotu/);
+  assert.equal(await page.locator('#detail').isVisible(),false);
+
+  active=make(breach,'c',[...pivotBars,[breach,99,101,91,92,100]],110);
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await card.locator('[data-plan-status][data-state="invalidated"]').waitFor();
   assert.match(await card.locator('.saved-plan').innerText(),/Pivot 105\.00/);
-  assert.match(await card.locator('[data-plan-status]').innerText(),/2026-11-18 · 92\.00/);
+  assert.match(await card.locator('[data-plan-status]').innerText(),/2026-11-19 · 92\.00/);
+  await card.locator('canvas').tap();
+  const detail=page.locator('#detail');
+  await detail.locator('[data-plan-journal][open] li').nth(1).waitFor();
+  assert.deepEqual(await detail.locator('[data-plan-journal] time').allTextContents(),[next,breach]);
+  await page.locator('#closeDetail').click();
   await card.getByRole('button',{name:'Arhiviraj plan'}).click();
   await page.locator('#savedPlanArchive summary').click();
   assert.match(await page.locator('#archivedPlanList').innerText(),/AAA · Early Trend Birth/);
+  assert.equal(await page.locator('#archivedPlanList a').getAttribute('href'),sourceLink);
   assert.equal(await card.count(),0);
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')),false);
 });

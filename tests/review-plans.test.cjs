@@ -44,8 +44,31 @@ test('assesses the original pivot, records a first invalidation and rejects inco
   assert.equal(retrace.state,'belowPivot');
   assert.equal(retrace.lastPivot,next);
   assert.equal(Plans.assess(original,[],first,calendar,'corrected').state,'revision');
-  assert.equal(Plans.assess(original,[chart[0],chart[2]],last,calendar).state,'coverage');
-  assert.equal(Plans.assess(original,[{day:first,close:50},...chart.slice(1)],last,calendar).state,'priceBasis');
+  assert.deepEqual(Plans.assess(original,[chart[0],chart[2]],last,calendar),{state:'coverage'});
+  assert.deepEqual(Plans.assess(original,[{day:first,close:50},...chart.slice(1)],last,calendar),{state:'priceBasis'});
   const bounced=Plans.assess(original,[chart[0],{day:next,close:94},chart[2]],last,calendar);
-  assert.deepEqual(bounced,{state:'invalidated',day:next,close:94,asOf:last,currentClose:102});
+  assert.deepEqual(bounced,{state:'invalidated',day:next,close:94,asOf:last,currentClose:102,
+    events:[{state:'invalidated',day:next,close:94}]});
+});
+
+test('the Kell journal records first qualifying closes in order and stops on the original stop',()=>{
+  const quotes=[chart[0],chart[1],{day:last,close:106},{day:'2026-11-18',close:103},
+    {day:'2026-11-19',close:95},{day:'2026-11-20',close:110}];
+  const sessions={...calendar,sessions:quotes.map(quote=>[quote.day])};
+  const result=Plans.assess(plan(),quotes,'2026-11-20',sessions);
+  assert.deepEqual(result.events,[
+    {state:'extended',day:next,close:108},
+    {state:'abovePivot',day:last,close:106},
+    {state:'invalidated',day:'2026-11-19',close:95}
+  ]);
+  assert.equal(result.state,'invalidated');
+  assert.equal(result.currentClose,110);
+  assert.deepEqual(Plans.assess(plan(),quotes,last,sessions).events,result.events.slice(0,2));
+});
+
+test('the Early journal starts after the origin date and keeps the first later close at the pivot',()=>{
+  const quotes=[{day:first,close:108},{day:next,close:103},{day:last,close:102}];
+  const early={...plan(),strategy:'early',price:108,maxEntry:null};
+  assert.deepEqual(Plans.assess(early,quotes,first,calendar,snapshot),{state:'saved'});
+  assert.deepEqual(Plans.assess(early,quotes,last,calendar).events,[{state:'abovePivot',day:next,close:103}]);
 });

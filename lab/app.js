@@ -1182,7 +1182,8 @@ function changeStrip(item){
 async function ensureChartData(item,periodKey=state.chartPeriod,weeklyCutoff){
   const rows=()=>rowsForPeriod(item,periodKey,weeklyCutoff);
   const ready=rows();
-  if(ready.length>=2)return ready;
+  const needsPlanDaily=item?.savedPlans?.length&&chartPeriods[periodKey]?.weekly&&!(item?.chartBars?.length>=2);
+  if(ready.length>=2&&!needsPlanDaily)return ready;
   if(item?.chartAvailable===false)return [];
   const watchChartBase=item?.chartBasePath||(item?.watchlistSaved&&state.publication?.watchlist?.chartBasePath);
   const data=watchChartBase?state.data:state.kellData;
@@ -1263,7 +1264,7 @@ const earlyEvidence={
 };
 const planNames={early:'Early Trend Birth',kell:'Kell Swing'};
 const planStatus={
-  saved:'Spremljeno na prikazanoj snimci.',
+  saved:'Čeka se prvo dnevno zatvaranje nakon izvorne snimke.',
   revision:'Ista sesija, novija snimka. Razine su iz izvorne objave.',
   earlier:'Prikazani EOD prethodi spremljenom planu.',
   calendar:'Burzovne sesije nisu provjerene.',
@@ -1274,7 +1275,10 @@ const planStatus={
   extended:'Zatvaranje je iznad maksimalnog ulaza.',
 };
 function sourcePlanLink(plan){
-  return '<a href="?snapshot='+encodeURIComponent(plan.snapshotId)+'" target="_blank" rel="noopener">Snimka '+esc(plan.sessionDate)+'</a>';
+  const url=new URL(location.pathname,location.origin);
+  url.searchParams.set('snapshot',plan.snapshotId);
+  ReviewNavigation.write(url,{view:plan.strategy==='kell'?'kell-daily':'early',ticker:plan.ticker});
+  return '<a href="'+esc(url.search)+'" target="_blank" rel="noopener">Snimka '+esc(plan.sessionDate)+'</a>';
 }
 function planQuotes(item){
   return normalizeBars(item.chartBars||[]).flatMap(bar=>{
@@ -1289,7 +1293,7 @@ function planSaveControl(item,strategy){
   return '<button type="button" class="plan-action" data-plan-action="save" data-strategy="'+strategy+'"'+
     (saved?' disabled':'')+'>'+(saved?'Plan spremljen':'Spremi plan')+'</button>';
 }
-function renderSavedPlans(item){
+function renderSavedPlans(item,inDetail=false){
   return (item.savedPlans||[]).map(plan=>{
     const reason=plan.strategy==='early'?plan.evidence.map(key=>earlyEvidence[key]).filter(Boolean).join(' · '):
       (kellSetupLabels['kell_'+plan.setup]||'');
@@ -1299,6 +1303,8 @@ function renderSavedPlans(item){
       '<p>Izvorno zatvaranje <b>'+fmt(plan.price)+'</b> · Pivot <b>'+fmt(plan.pivot)+'</b> · '+(plan.strategy==='kell'?'Stop':'Poništenje')+
       ' <b>'+fmt(plan.invalidation)+'</b>'+(plan.maxEntry!=null?' · Maks. ulaz <b>'+fmt(plan.maxEntry)+'</b>':'')+'</p>'+
       '<p class="saved-plan-status" data-plan-status>Učitavam usporedbu s izvornim planom…</p>'+
+      '<details class="saved-plan-journal" data-plan-journal hidden'+(inDetail?' open':'')+'>'+
+      '<summary>Dnevnik zatvaranja</summary><ol></ol></details>'+
       '<button type="button" class="plan-action" data-plan-action="archive">Arhiviraj plan</button></section>';
   }).join('');
 }
@@ -1318,15 +1324,21 @@ function updateSavedPlanStatuses(host,item){
     if(!plan)continue;
     const result=ReviewPlans.assess(plan,quotes,state.data.source?.sessionDate,freshnessCalendar,state.snapshotId);
     const node=section.querySelector('[data-plan-status]');
+    const journal=section.querySelector('[data-plan-journal]');
     node.dataset.state=result.state;
     if(result.state==='invalidated'){
       node.textContent='Poništenje na zatvaranju '+result.day+' · '+fmt(result.close)+
-        (result.asOf!==result.day?' · zadnje zatvaranje '+fmt(result.currentClose):'');
+        (result.asOf!==result.day?' · '+result.asOf+' · zadnje zatvaranje '+fmt(result.currentClose):'');
     }else{
       node.textContent=planStatus[result.state]+(result.asOf?' · '+result.asOf+' · '+fmt(result.close)+' · '+
-        (result.pivotDeltaPct>=0?'+':'')+pct(result.pivotDeltaPct)+' od pivota':'')+
-        (result.lastPivot?' · zadnji prelazak '+result.lastPivot:'');
+        (result.pivotDeltaPct>=0?'+':'')+pct(result.pivotDeltaPct)+' od pivota':'');
     }
+    const labels={abovePivot:plan.maxEntry!=null?'Prvo zatvaranje u zoni ulaza':'Prvo zatvaranje na pivotu ili iznad njega',
+      extended:'Prvo zatvaranje iznad maksimalnog ulaza',invalidated:'Prvo zatvaranje na ili ispod zaštitne razine'};
+    journal.hidden=!result.events?.length;
+    journal.querySelector('ol').innerHTML=(result.events||[]).map(event=>
+      '<li><time datetime="'+esc(event.day)+'">'+esc(event.day)+'</time> · <strong>'+fmt(event.close)+'</strong>'+
+      '<span>'+labels[event.state]+'</span></li>').join('');
   }
 }
 function planAction(event,item){
@@ -1580,8 +1592,13 @@ function render(){
       const canvas=entry.target,cardEl=canvas.closest('.card'),item=lookup.get(cardEl.dataset.ticker);
       observer.unobserve(canvas);
       const ready=rowsForPeriod(item);
-      if(ready.length>=2){drawTickerChart(canvas,item,ready);updateSavedPlanStatuses(cardEl,item);continue}
-      draw(canvas,[],false,'Loading chart…');
+      if(ready.length>=2){
+        drawTickerChart(canvas,item,ready);
+        if(!item.savedPlans?.length||item.chartBars?.length>=2){
+          updateSavedPlanStatuses(cardEl,item);
+          continue;
+        }
+      }else draw(canvas,[],false,'Loading chart…');
       ensureChartData(item)
         .then(rows=>{if(canvas.isConnected){drawTickerChart(canvas,item,rows);updateSavedPlanStatuses(cardEl,item)}})
         .catch(err=>{if(canvas.isConnected){canvas.title='Chart load error: '+err.message;draw(canvas,[],false,'Chart load failed');updateSavedPlanStatuses(cardEl,item)}})
@@ -1594,8 +1611,8 @@ function render(){
     const star=cardEl.querySelector('[data-watch-ticker]');
     star?.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();if(star.disabled)return;star.disabled=true;try{await toggleWatchlist(star.dataset.watchTicker)}finally{star.disabled=false}});
     canvas.addEventListener('click',e=>{e.stopPropagation();open()});
-    cardEl.addEventListener('click',e=>{if(e.target.closest('[data-watch-ticker]')||e.target.closest('a')||planAction(e,item))return;open()});
-    cardEl.addEventListener('keydown',e=>{if(e.target.closest('[data-watch-ticker],[data-plan-action],a'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
+    cardEl.addEventListener('click',e=>{if(e.target.closest('[data-watch-ticker]')||e.target.closest('a,[data-plan-journal]')||planAction(e,item))return;open()});
+    cardEl.addEventListener('keydown',e=>{if(e.target.closest('[data-watch-ticker],[data-plan-action],a,[data-plan-journal]'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
   });
 }
 function fact(name,value){return '<div class="fact"><span>'+esc(name)+'</span>'+esc(value??'—')+'</div>'}
@@ -1954,6 +1971,8 @@ function mountDetailEvidence(section,item,view){
         if(!cutoff){
           draw(canvas,[],true,'Tjedni graf nije dostupan');
           meta.textContent='Zadnji dovršeni tjedan nije potvrđen.';
+          if(item.savedPlans?.length)await ensureChartData(item,'1y');
+          if(isCurrent())updateSavedPlanStatuses($('#detailBody'),item);
           return;
         }
       }
@@ -1979,6 +1998,7 @@ function mountDetailEvidence(section,item,view){
       }
     }catch{
       if(!isCurrent())return;
+      updateSavedPlanStatuses($('#detailBody'),item);
       draw(canvas,[],true,'Graf nije dostupan');
       meta.textContent='Podaci za graf trenutačno se ne mogu učitati.';
       retry.hidden=false;
@@ -2013,7 +2033,7 @@ function show(item,view=state.primaryView,{period=null,fromLocation=false}={}){
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
     '<div class="detail-link"><button type="button" data-copy-detail-link>Kopiraj poveznicu</button>'+
     '<input type="url" aria-label="Poveznica na ticker" readonly hidden><small role="status"></small></div>'+
-    '<p data-plan-notice role="status" hidden></p>'+renderSavedPlans(item)+
+    '<p data-plan-notice role="status" hidden></p>'+renderSavedPlans(item,true)+
     (weeklyMode?weeklyEvidence(item,true):view==='kell-daily'?swingPlan(item)+earlyPlan(item):earlyPlan(item)+swingPlan(item))+
     detailEvidence(item,periodKey)+
     '<div class="detail-snapshot">'+
