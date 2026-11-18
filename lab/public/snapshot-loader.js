@@ -132,6 +132,17 @@
     }
     return artifact.reports;
   }
+  async function loadWeeklyCases(fetcher, ref, source) {
+    const schema='weekly-base-cases-v1';
+    const path='data/research-runs/'+ref?.snapshotId+'--weekly-cases--'+ref?.sha256+'.json';
+    if(!source||ref?.schemaVersion!==schema||!validId(ref.snapshotId)||
+        !/^[a-f0-9]{64}$/.test(ref.sha256)||ref.path!==path||
+        !ref.snapshotId.startsWith(source.runId+'--'))throw Error('Neispravna poveznica pojedinačnih ishoda.');
+    const payload=aligned(await verifiedJson(fetcher,path,ref.sha256,'Pojedinačni ishodi'),source);
+    if(payload.schemaVersion!==schema||payload.asOf!==source.sessionDate||
+        payload.reviewSnapshotId!==ref.snapshotId||!Array.isArray(payload.days))throw Error('Neispravna arhiva pojedinačnih ishoda.');
+    return payload;
+  }
   async function loadChanges(fetcher,manifest) {
     const ref=manifest?.changes, schema='trend-birth-review-changes-v1';
     const path='data/review-change-runs/'+manifest?.snapshotId+'--'+ref?.sha256+'.json';
@@ -215,6 +226,6 @@
     }));
     return new Map(rows);
   }
-  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadChanges,loadSpyReference,loadShortlist,loadWatchlist,watchlistBucket};
+  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadWeeklyCases,loadChanges,loadSpyReference,loadShortlist,loadWatchlist,watchlistBucket};
   if (typeof module !== 'undefined') module.exports = root.ReviewSnapshots;
 })(globalThis);

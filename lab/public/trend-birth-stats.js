@@ -911,9 +911,13 @@
   }
   const WEEKLY_GROUPS={all:'Sve faze','1':'Duga baza','2':'Zbijena baza','3':'Blizu pivota','4':'Pokušaj proboja'};
   const WEEKLY_HORIZONS=['5','20','63','126'];
+  const WEEKLY_REASONS={entry_session:'Nedostaje cijeli EOD za ulaz',exit_session:'Nedostaje cijeli EOD za izlaz',
+    entry_quote:'Nedostaje zatvaranje dionice na ulazu',exit_quote:'Nedostaje zatvaranje dionice na izlazu',
+    valuation:'Ishod se ne može vrednovati uz evidentirane korporativne akcije'};
+  const weeklyDay=day=>typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day);
   function validateWeeklyBase(data,asOf){
     const count=value=>Number.isSafeInteger(value)&&value>=0;
-    const datedList=value=>Array.isArray(value)&&value.every(day=>typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day));
+    const datedList=value=>Array.isArray(value)&&value.every(weeklyDay);
     const invalid=()=>Error('Tjedni ishodi ne odgovaraju prikazanoj EOD objavi.');
     if(data.schemaVersion!=='weekly-base-outcomes-v1'||data.asOf!==asOf||!datedList([data.firstSession])||
       data.firstSession>asOf||!datedList(data.missingSessions)||!datedList(data.rejectedArchives)||
@@ -937,7 +941,148 @@
     }
     return data;
   }
-  function renderWeeklyBase(raw,asOf){
+  function validCaseOutcome(value,pending){
+    const close=number=>number===null||Number.isFinite(number)&&number>0;
+    if(!value||!close(value.entryClose)||!close(value.exitClose)||!Array.isArray(value.reasons)||
+      value.reasons.some(reason=>!Object.hasOwn(WEEKLY_REASONS,reason)))return false;
+    if(pending)return value.status==='pending'&&value.returnPct===null&&value.exitClose===null&&!value.reasons.length;
+    if(value.status==='measured')return Number.isFinite(value.returnPct)&&value.entryClose!==null&&
+      value.exitClose!==null&&!value.reasons.length;
+    return value.status==='missing'&&value.returnPct===null&&value.reasons.length>0;
+  }
+  function validateWeeklyCases(payload,weekly){
+    const invalid=()=>Error('Pojedinačni ishodi ne odgovaraju sažetku Tjedne baze.');
+    const seen=new Set(),cases=[];
+    let previous='';
+    for(const day of payload.days){
+      if(!weeklyDay(day?.signalDate)||day.signalDate<=previous||day.signalDate<weekly.firstSession||day.signalDate>weekly.asOf||
+          day.entryDate!==null&&(!weeklyDay(day.entryDate)||day.entryDate<=day.signalDate)||
+          !Array.isArray(day.cases)||!day.cases.length||day.cases.length>15)throw invalid();
+      previous=day.signalDate;
+      for(const horizon of WEEKLY_HORIZONS){
+        const exit=day.exitDates?.[horizon];
+        if(exit!==null&&(!weeklyDay(exit)||day.entryDate===null||exit<=day.entryDate))throw invalid();
+      }
+      for(const row of day.cases){
+        if(!/^[A-Z0-9._-]{1,20}$/.test(row?.ticker??'')||seen.has(row.ticker)||!['1','2','3','4'].includes(row.stage)||
+          row.controlTicker!==null&&(!/^[A-Z0-9._-]{1,20}$/.test(row.controlTicker)||row.controlTicker===row.ticker)||
+          (row.controlTicker===null?!['unmatched','missing_features'].includes(row.matchStatus):row.matchStatus!=='paired'))throw invalid();
+        seen.add(row.ticker);
+        for(const horizon of WEEKLY_HORIZONS){
+          const sample=row.outcomes?.[horizon],exit=day.exitDates[horizon];
+          const pending=exit===null||exit>weekly.asOf;
+          if(!validCaseOutcome(sample?.signal,pending)||
+            (row.controlTicker===null?sample.control!==null:!validCaseOutcome(sample.control,pending)))throw invalid();
+        }
+        cases.push(row);
+      }
+    }
+    if(cases.length!==weekly.caseCount||payload.caseCount!==weekly.caseCount||
+        payload.days.length!==weekly.groups.all.signalDates)throw invalid();
+    for(const group of Object.keys(WEEKLY_GROUPS)){
+      const summary=weekly.groups[group];
+      const rows=group==='all'?cases:cases.filter(row=>row.stage===group);
+      if(rows.length!==summary.entries)throw invalid();
+      for(const horizon of WEEKLY_HORIZONS){
+        const sample=rows.map(row=>row.outcomes[horizon]),reported=summary.outcomes[horizon];
+        const observed=sample.filter(row=>row.signal.status==='measured').length;
+        const pending=sample.filter(row=>row.signal.status==='pending').length;
+        const pairs=sample.filter(row=>row.control);
+        const pairedObserved=pairs.filter(row=>row.signal.status==='measured'&&row.control.status==='measured').length;
+        const pairedPending=pairs.filter(row=>row.signal.status==='pending').length;
+        if(observed!==reported.observed||pending!==reported.pending||pairs.length!==reported.matched.paired||
+          pairedObserved!==reported.matched.observed||pairedPending!==reported.matched.pending)throw invalid();
+      }
+    }
+    return payload.days;
+  }
+  function weeklyCaseRow(row,horizon){
+    const item=document.createElement('li'),heading=document.createElement('header');
+    const ticker=document.createElement('strong'),stage=document.createElement('span');
+    ticker.textContent=row.ticker;
+    stage.textContent=WEEKLY_GROUPS[row.stage];
+    heading.append(ticker,stage);
+    const values=document.createElement('dl'),outcome=row.outcomes[horizon];
+    function append(label,result){
+      const pair=document.createElement('div'),title=document.createElement('dt'),value=document.createElement('dd');
+      title.textContent=label;
+      value.textContent=result?.status==='measured'?fmt(result.returnPct,'%'):result?.status==='pending'?'Na čekanju':'—';
+      if(result){
+        if(result.entryClose!==null||result.exitClose!==null){
+          const closes=document.createElement('small');
+          closes.textContent='Zatvaranja '+fmt(result.entryClose)+' → '+fmt(result.exitClose);
+          title.appendChild(closes);
+        }
+        if(result.reasons.length){
+          const reason=document.createElement('small');
+          reason.textContent=result.reasons.map(key=>WEEKLY_REASONS[key]).join(' · ');
+          title.appendChild(reason);
+        }
+      }
+      pair.append(title,value);
+      values.appendChild(pair);
+    }
+    append('Uvrštena dionica',outcome.signal);
+    append(row.controlTicker?'Kontrola · '+row.controlTicker:
+      row.matchStatus==='missing_features'?'Kontrola · nedostaju raniji podaci':'Kontrola · nema podudaranja',outcome.control);
+    if(outcome.signal.status==='measured'&&outcome.control?.status==='measured'){
+      const delta=outcome.signal.returnPct-outcome.control.returnPct,spread=document.createElement('p');
+      spread.textContent='Razlika para '+(delta>0?'+':'')+fmt(delta,' p. b.');
+      item.append(heading,values,spread);
+    }else item.append(heading,values);
+    return item;
+  }
+  function mountWeeklyCases(weekly,source,groupSelect,horizonSelect){
+    if(!weekly.caseReference||!weekly.caseCount||!source)return;
+    const panel=el('siWeeklyCases'),dateSelect=el('siWeeklyCaseDate'),status=el('siWeeklyCasesStatus');
+    const content=el('siWeeklyCasesContent'),retry=el('siWeeklyCasesRetry');
+    let days=null,loading=false;
+    const inGroup=row=>groupSelect.value==='all'||row.stage===groupSelect.value;
+    function render(){
+      if(!days)return;
+      const selected=dateSelect.value,horizon=horizonSelect.value;
+      const available=days.filter(day=>day.cases.some(inGroup));
+      const measurable=available.findLast(day=>day.cases.some(row=>inGroup(row)&&
+        row.outcomes[horizon].signal.status==='measured'&&row.outcomes[horizon].control?.status==='measured'));
+      const chosen=available.find(day=>day.signalDate===selected)||measurable||available.at(-1);
+      dateSelect.replaceChildren(...available.slice().reverse().map(day=>new Option(day.signalDate,day.signalDate)));
+      if(!chosen){content.hidden=true;status.textContent='Za ovu fazu nema pojedinačnih uvrštenja.';return}
+      dateSelect.value=chosen.signalDate;
+      const exit=chosen.exitDates[horizon],entry=chosen.entryDate;
+      el('siWeeklyCaseWindow').textContent=(entry&&entry>weekly.asOf?'Planirani ulaz ':'Ulaz ')+(entry||'—')+
+        ' · '+(exit&&exit>weekly.asOf?'planirani izlaz ':'izlaz ')+(exit||'—');
+      const cases=chosen.cases.filter(inGroup),values=cases.map(row=>row.outcomes[horizon]);
+      const measured=values.filter(row=>row.signal.status==='measured');
+      const paired=measured.filter(row=>row.control?.status==='measured');
+      const spread=paired.length?paired.reduce((sum,row)=>sum+(row.signal.returnPct-row.control.returnPct),0)/paired.length:null;
+      el('siWeeklyCaseCounts').textContent='Izmjereno '+FMT.format(measured.length)+' od '+FMT.format(cases.length)+
+        ' uvrštenja · u usporedbi '+FMT.format(paired.length)+
+        (paired.length?' · razlika za ovaj datum '+(spread>0?'+':'')+fmt(spread,' p. b.'):'')+'.';
+      el('siWeeklyCaseList').replaceChildren(...cases.map(row=>weeklyCaseRow(row,horizon)));
+      status.textContent='';
+      content.hidden=false;
+    }
+    async function load(){
+      if(!panel.open||days||loading)return;
+      loading=true;
+      status.textContent='Učitavam pojedinačne ishode…';
+      retry.hidden=true;
+      try{
+        days=validateWeeklyCases(await globalThis.ReviewSnapshots.loadWeeklyCases(fetch,weekly.caseReference,source),weekly);
+        render();
+      }catch(error){
+        status.textContent=error.message;
+        retry.hidden=false;
+      }finally{loading=false}
+    }
+    panel.addEventListener('toggle',load);
+    retry.addEventListener('click',load);
+    dateSelect.addEventListener('change',render);
+    groupSelect.addEventListener('change',render);
+    horizonSelect.addEventListener('change',render);
+    panel.hidden=false;
+  }
+  function renderWeeklyBase(raw,asOf,source){
     const status=el('siWeeklyBaseStatus');
     if(!raw){status.textContent='Ishodi Tjedne baze nedostaju u ovoj EOD objavi.';return}
     const data=validateWeeklyBase(raw,asOf);
@@ -986,6 +1131,7 @@
     groupSelect.addEventListener('change',select);
     horizonSelect.addEventListener('change',select);
     select();
+    mountWeeklyCases(data,source,groupSelect,horizonSelect);
     el('siWeeklyBaseContent').hidden=false;
     if(location.hash==='#siWeeklyBase')requestAnimationFrame(()=>el('siWeeklyBase').scrollIntoView());
   }
@@ -1079,7 +1225,7 @@
           } catch (error) {
             el('siForwardStatus').textContent='Stvarni ishodi zasad nisu dostupni: '+(error?.message||String(error));
           }
-          try{renderWeeklyBase(forward?.weeklyBase,data.latestSessionDate)}
+          try{renderWeeklyBase(forward?.weeklyBase,data.latestSessionDate,forward?.source)}
           catch(error){el('siWeeklyBaseStatus').textContent=error.message}
           try{renderKellSwing(swing,data.latestSessionDate)}
           catch(error){el('siKellStatus').textContent=error.message}
