@@ -508,6 +508,95 @@ async function reconcileOwnerWatchlist(){
     if(state.ownerReconcilePending){state.ownerReconcilePending=false;queueMicrotask(()=>reconcileOwnerWatchlist())}
   }
 }
+let ownerPlanScope=null;
+function ownerPlanLists(){
+  const account=ownerPlanScope?.ownerId;
+  if(!account)return [];
+  const local=ReviewPlans.localBook(window.localStorage,account);
+  const anonymous=ReviewPlans.localBook(window.localStorage);
+  return OwnerPlanBook.projection(anonymous,local);
+}
+function updateOwnerPlanUi(){
+  const scope=ownerPlanScope,panel=$('#ownerPlanPanel');
+  if(!panel)return;
+  panel.hidden=!scope||state.primaryView!=='watchlist';
+  if(panel.hidden)return;
+  const note=$('#ownerPlanSyncNote'),importButton=$('#ownerPlanImport');
+  const remote=new Map((scope.book?.plans||[]).map(plan=>[ReviewPlans.planId(plan),plan]));
+  const count=scope.book?ownerPlanLists().filter(plan=>OwnerPlanBook.canImport(plan,remote.get(ReviewPlans.planId(plan)))).length:0;
+  const labels={loading:'Učitavam planove s računa…',local:'Planovi se čuvaju u ovom pregledniku.',
+    ready:'Planovi na računu dostupni su na drugim uređajima.',error:'Osvježavanje planova s računa nije uspjelo.'};
+  note.textContent=scope.phase==='error'?labels.error:scope.message||labels[scope.phase];
+  importButton.hidden=!count;
+  importButton.textContent='Prenesi lokalne planove ('+count+')';
+  importButton.disabled=Boolean(scope.importing);
+  $('#ownerPlanRefresh').hidden=scope.phase==='loading'||scope.phase==='local';
+  $('#ownerPlanRefresh').disabled=Boolean(scope.loading);
+}
+function cloudPlan(id){
+  return ownerPlanScope?.book?.plans.find(plan=>ReviewPlans.planId(plan)===id);
+}
+function acceptOwnerPlanBook(scope,book){
+  if(scope!==ownerPlanScope)return false;
+  if(!scope.book||book.version>=scope.book.version)scope.book=book;
+  scope.phase='ready';
+  return true;
+}
+async function refreshOwnerPlanBook(){
+  const scope=ownerPlanScope;
+  if(!scope||scope.loading||scope.phase==='local'||document.visibilityState==='hidden')return;
+  scope.loading=true;
+  updateOwnerPlanUi();
+  try{
+    const book=OwnerPlanBook.validate(await state.ownerSync.loadPlanBook(scope.ownerId));
+    const changed=scope.book?.version!==book.version;
+    if(acceptOwnerPlanBook(scope,book)){
+      if(changed&&state.data)render();
+      flushOwnerPlanReviews(scope);
+    }
+  }catch(error){
+    if(scope!==ownerPlanScope)return;
+    scope.phase=!scope.book&&['PGRST205','42P01','PGRST106'].includes(error?.code)?'local':'error';
+  }finally{
+    scope.loading=false;
+    if(scope===ownerPlanScope)updateOwnerPlanUi();
+  }
+}
+async function changeOwnerPlanBook(scope,transform){
+  const updated=await OwnerPlanBook.update(state.ownerSync,scope.ownerId,transform);
+  if(!acceptOwnerPlanBook(scope,updated.book))throw Error('Račun se promijenio tijekom sinkronizacije.');
+  return updated.result;
+}
+function flushOwnerPlanReviews(scope){
+  if(scope!==ownerPlanScope||!scope.reviews.size||scope.reviewWriting)return;
+  scope.reviewWriting=true;
+  queueMicrotask(async()=>{
+    if(scope!==ownerPlanScope)return;
+    const batch=scope.reviews;
+    scope.reviews=new Map();
+    let committed=false;
+    try{
+      await changeOwnerPlanBook(scope,plans=>OwnerPlanBook.reviewPlans(plans,batch));
+      committed=true;
+    }catch(_error){
+      for(const [id,review] of batch)if(!scope.reviews.has(id))scope.reviews.set(id,review);
+    }finally{
+      scope.reviewWriting=false;
+      if(committed)flushOwnerPlanReviews(scope);
+    }
+  });
+}
+function queueOwnerPlanReview(plan,review){
+  const id=ReviewPlans.planId(plan),remote=cloudPlan(id);
+  if(!remote)return false;
+  const saved=ReviewPlans.archivedReview(remote);
+  if(!remote.archivedAt&&(!saved||saved.asOf<review.asOf)){
+    const scope=ownerPlanScope;
+    scope.reviews.set(id,review);
+    flushOwnerPlanReviews(scope);
+  }
+  return true;
+}
 async function resumeOwnerMagicLinkBridge(){
   const phase=ownerAuthPhase();
   if(!phase)return;
@@ -552,6 +641,7 @@ async function initOwnerWatchlistSync(){
         const previousUser=state.ownerSession?.user?.id;
         state.ownerSession=session;
         if(previousUser!==session?.user?.id){
+          ownerPlanScope=session?.user?{ownerId:session.user.id,phase:'loading',book:null,reviews:new Map()}:null;
           if($('#detail')?.open)$('#detail').close();
           $('#planNotice').hidden=true;
           state.watchlist=WatchlistStore.load(window.localStorage,session?.user?.id);
@@ -561,7 +651,10 @@ async function initOwnerWatchlistSync(){
         state.ownerSyncMessage=session?.user?'Watchlist sync je aktivan.':'';
         if(session?.user)state.ownerMagicSentTo='';
         updateOwnerSyncUi();
-        if(session?.user)queueMicrotask(()=>reconcileOwnerWatchlist());
+        if(session?.user)queueMicrotask(()=>{
+          reconcileOwnerWatchlist();
+          refreshOwnerPlanBook();
+        });
       }
     });
     const session=await state.ownerSync.init();
@@ -1331,9 +1424,10 @@ function renderSavedPlans(item,inDetail=false){
   return (item.savedPlans||[]).map(plan=>{
     const reason=plan.strategy==='early'?plan.evidence.map(key=>earlyEvidence[key]).filter(Boolean).join(' · '):
       (kellSetupLabels['kell_'+plan.setup]||'');
+    const placement=ownerPlanScope?.book?(cloudPlan(ReviewPlans.planId(plan))?'Na računu':'Na uređaju'):'';
     return '<section class="saved-plan" data-saved-plan="'+esc(ReviewPlans.planId(plan))+'">'+
       '<div class="saved-plan-heading"><strong>'+planNames[plan.strategy]+'</strong>'+sourcePlanLink(plan)+'</div>'+
-      (reason?'<small>'+esc(reason)+'</small>':'')+
+      (placement||reason?'<small>'+esc([placement,reason].filter(Boolean).join(' · '))+'</small>':'')+
       '<p>'+planLevelsText(plan)+'</p>'+
       '<p class="saved-plan-status" data-plan-status>Učitavam usporedbu s izvornim planom…</p>'+
       '<details class="saved-plan-journal" data-plan-journal hidden'+(inDetail?' open':'')+'>'+
@@ -1344,7 +1438,7 @@ function renderSavedPlans(item,inDetail=false){
 function renderPlanArchive(){
   const plans=state.savedPlans.filter(plan=>plan.archivedAt);
   const shown=state.primaryView==='watchlist'&&plans.length>0;
-  $('#planStorageNote').hidden=state.primaryView!=='watchlist'||!state.savedPlans.length;
+  $('#planStorageNote').hidden=state.primaryView!=='watchlist'||!state.savedPlans.length||Boolean(ownerPlanScope);
   const panel=$('#savedPlanArchive'),list=$('#archivedPlanList');
   panel.hidden=!shown;
   panel.querySelector('summary').textContent='Arhivirani planovi'+(shown?' ('+plans.length+')':'');
@@ -1377,7 +1471,7 @@ function updateSavedPlanStatuses(host,item){
       ReviewPlans.closingReview(plan,state.snapshotId,result):null;
     section.closingReview=review;
     if(review){
-      try{ReviewPlans.rememberReview(window.localStorage,state.ownerSession?.user?.id,plan,review)}
+      try{if(!queueOwnerPlanReview(plan,review))ReviewPlans.rememberReview(window.localStorage,state.ownerSession?.user?.id,plan,review)}
       catch(_error){/* The displayed review is still available when archiving. */}
     }
     section.querySelector('[data-plan-action="archive"]').disabled=false;
@@ -1401,35 +1495,50 @@ function planCandleTarget(event){
 function planAction(event,item){
   const button=event.target.closest('[data-plan-action]');
   if(!button||!item)return false;
+  if(button.disabled)return true;
+  button.disabled=true;
   const inDetail=Boolean(button.closest('#detail'));
-  const notice=inDetail?$('#detail [data-plan-notice]'):$('#planNotice');
   const account=state.ownerSession?.user?.id;
-  try{
-    if(button.dataset.planAction==='save'){
-      const plan=ReviewPlans.capture(item,button.dataset.strategy,state.snapshotId,state.data.source?.sessionDate,planQuotes(item));
-      if(!plan)throw Error('Za spremanje plana potrebni su razine i zaključen dnevni graf iz iste snimke.');
-      if(!ReviewPlans.save(window.localStorage,account,plan))throw Error('Za ovaj ticker i strategiju već postoji aktivan plan.');
-    }else{
-      const section=button.closest('[data-saved-plan]');
-      ReviewPlans.archive(window.localStorage,account,section.dataset.savedPlan,section.closingReview);
-    }
-    render();
-    if(inDetail){
-      if(button.dataset.planAction==='archive'){
-        closeReviewDetail();
-        $('#planNotice').textContent='Plan je arhiviran.';
-        $('#planNotice').hidden=false;
+  const scope=ownerPlanScope,saving=button.dataset.planAction==='save';
+  (async()=>{
+    try{
+      let onAccount=false;
+      if(saving){
+        const plan=ReviewPlans.capture(item,button.dataset.strategy,state.snapshotId,state.data.source?.sessionDate,planQuotes(item));
+        if(!plan)throw Error('Za spremanje plana potrebni su razine i zaključen dnevni graf iz iste snimke.');
+        if(scope?.book){
+          const previous=cloudPlan(ReviewPlans.planId(plan));
+          await changeOwnerPlanBook(scope,rows=>OwnerPlanBook.savePlan(rows,plan,previous?.archivedAt));
+          onAccount=true;
+        }else if(!ReviewPlans.save(window.localStorage,account,plan)){
+          throw Error('Za ovaj ticker i strategiju već postoji aktivan plan.');
+        }
+      }else{
+        const section=button.closest('[data-saved-plan]'),id=section.dataset.savedPlan;
+        if(cloudPlan(id)){
+          await changeOwnerPlanBook(scope,rows=>OwnerPlanBook.archivePlan(rows,id,section.closingReview));
+          onAccount=true;
+        }else ReviewPlans.archive(window.localStorage,account,id,section.closingReview);
       }
-      else show(item,state.detailView);
-    }else{
-      notice.textContent=button.dataset.planAction==='archive'?'Plan je arhiviran.':
-        'Plan je spremljen u ovom pregledniku. Otvori Watchlistu za praćenje.';
+      if(account!==state.ownerSession?.user?.id)return;
+      const sameDetail=inDetail&&button.isConnected&&$('#detail').open;
+      render();
+      if(sameDetail&&saving){show(item,state.detailView);return}
+      if(sameDetail)closeReviewDetail();
+      const notice=$('#planNotice');
+      notice.textContent=saving?(onAccount?'Plan je spremljen na račun.':'Plan je spremljen u ovom pregledniku.')+
+        ' Otvori Watchlistu za praćenje.':onAccount?'Plan je arhiviran na računu.':'Plan je arhiviran.';
       notice.hidden=false;
+    }catch(error){
+      if(account!==state.ownerSession?.user?.id)return;
+      const notice=inDetail&&button.isConnected&&$('#detail').open?$('#detail [data-plan-notice]'):$('#planNotice');
+      notice.textContent=error?.name==='QuotaExceededError'?'Nema prostora za spremanje plana u pregledniku.':
+        error?.message||'Promjena plana nije potvrđena.';
+      notice.hidden=false;
+    }finally{
+      if(button.isConnected)button.disabled=false;
     }
-  }catch(error){
-    notice.textContent=error?.name==='QuotaExceededError'?'Nema prostora za spremanje plana u pregledniku.':error.message;
-    notice.hidden=false;
-  }
+  })();
   return true;
 }
 function earlyPlan(item){
@@ -1553,8 +1662,9 @@ function renderChangeHighlights(items){
 }
 function render(){
   if(!state.data)return;
-  state.savedPlans=ReviewPlans.load(window.localStorage,state.ownerSession?.user?.id);
+  state.savedPlans=OwnerPlanBook.projection(ReviewPlans.load(window.localStorage,state.ownerSession?.user?.id),ownerPlanScope?.book?.plans);
   renderPlanArchive();
+  updateOwnerPlanUi();
   $('#chartPeriod option[value="base"]').hidden=state.primaryView!=='weekly';
   loadWatchedRows();
   const shortlist=loadVisibleShortlist();
@@ -2424,6 +2534,32 @@ $('#ownerSignOut')?.addEventListener('click',async()=>{
   catch(err){state.ownerSyncError='Odjava: '+(err?.message||String(err))}
   updateOwnerSyncUi();
 });
+$('#ownerPlanImport')?.addEventListener('click',async()=>{
+  const scope=ownerPlanScope;
+  if(!scope?.book||scope.importing)return;
+  scope.importing=true;
+  scope.message='';
+  updateOwnerPlanUi();
+  try{
+    const local=ownerPlanLists();
+    const result=await changeOwnerPlanBook(scope,rows=>OwnerPlanBook.importPlans(rows,local));
+    scope.message='Preneseno '+result.added+' · već na računu '+result.existing+
+      (result.updated?' · dopunjene provjere '+result.updated:'')+
+      (result.conflicts?' · na uređaju zbog sukoba aktivnih planova '+result.conflicts:'');
+    render();
+  }catch(error){
+    scope.message=error?.message||'Prijenos planova nije potvrđen.';
+  }finally{
+    scope.importing=false;
+    if(scope===ownerPlanScope)updateOwnerPlanUi();
+  }
+});
+$('#ownerPlanRefresh')?.addEventListener('click',()=>{
+  if(ownerPlanScope)ownerPlanScope.message='';
+  refreshOwnerPlanBook();
+});
+window.addEventListener('focus',refreshOwnerPlanBook);
+document.addEventListener('visibilitychange',refreshOwnerPlanBook);
 updateOwnerSyncUi();
 initOwnerWatchlistSync();
 $('#chartPeriod').value=state.chartPeriod;

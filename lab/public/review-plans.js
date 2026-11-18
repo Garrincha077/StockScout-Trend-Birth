@@ -90,6 +90,13 @@
       return validReview(plan,review)?review:null;
     }catch(_error){return null}
   }
+  function localBook(storage,userId){
+    return load(storage,userId).map(plan=>{
+      const previous=archivedReview(plan);
+      const checkpoint=!plan.archivedAt&&readReview(storage,userId,plan);
+      return checkpoint&&(!previous||checkpoint.asOf>previous.asOf)?{...plan,closingReview:checkpoint}:plan;
+    });
+  }
   function rememberReview(storage,userId,plan,review){
     if(!validReview(plan,review))return;
     const previous=readReview(storage,userId,plan);
@@ -139,5 +146,6 @@
     }
     return {state:previous,asOf,close:current.close,changed,lastPivot,pivotDeltaPct:100*(current.close/plan.pivot-1),events};
   }
-  return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess,samePriceBasis,closingReview,archivedReview,rememberReview};
+  return {STORAGE_KEY,keyForUser,planId,validPlan:valid,load,localBook,capture,save,archive,assess,samePriceBasis,
+    closingReview,archivedReview,rememberReview};
 });
