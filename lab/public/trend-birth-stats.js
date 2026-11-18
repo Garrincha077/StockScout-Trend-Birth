@@ -689,22 +689,33 @@
     const cohorts=[['early','Trend Birth'],['daily4','Dnevno 4/4'],['weekly','Tjedna baza']];
     const lead=cohorts.slice(1).map(([key,label])=>{
       const sample=data.lead[key];
+      const offset=sample.medianSessions;
+      const median=offset>0?'Trend Birth u medijanu ranije za '+offset+' sesija':
+        offset<0?'Trend Birth u medijanu kasnije za '+Math.abs(offset)+' sesija':'Medijan razlike 0 sesija';
       return sample.matched ? label+' · ranije '+sample.earlier+' / isti dan '+sample.same+
-        ' / kasnije '+sample.later+' · medijan prednosti '+sample.medianSessions+' sesija' :
+        ' / kasnije '+sample.later+' · '+median :
         label+' · još nema usporedivih ulazaka istog tickera';
     });
     el('siEarlyLead').textContent=FMT.format(data.observedSessions)+' sačuvanih sesija. '+lead.join('. ')+'.';
-    const rows=[];
-    for(const [horizon,values] of Object.entries(data.horizons)){
-      for(const [key,label] of cohorts){
+    const select=el('siEarlyHorizon');
+    function renderHorizon(){
+      const horizon=select.value,values=data.horizons[horizon];
+      const rows=cohorts.map(([key,label])=>{
         const row=values[key];
-        rows.push([horizon+'D · '+label,FMT.format(row.observed)+' / '+FMT.format(row.matured),
+        return [horizon+'D · '+label,FMT.format(row.observed)+' / '+FMT.format(row.matured),
           FMT.format(row.pending),FMT.format(row.leadersCaptured)+' / '+FMT.format(row.leaderOpportunities),
-          FMT.format(row.leadersMissed),FMT.format(row.belowUniverseMedian),fmt(row.excessPct,' postotnih bodova')]);
-      }
+          row.observed?fmt(100*row.leadersCaptured/row.observed,'%'):'—',
+          FMT.format(row.leadersMissed),FMT.format(row.belowUniverseMedian),fmt(row.excessPct,' p. b.')];
+      });
+      const observed=cohorts.some(([key])=>values[key].observed>0);
+      const matured=cohorts.some(([key])=>values[key].matured>0);
+      el('siEarlyMaturity').textContent=observed?'Usporedba obuhvaća ishode s dostupnim cijenama.':
+        matured?'Za dospjele ishode nedostaju cijene.':'Još nema dospjelih ishoda za '+horizon+' sesija.';
+      comparisonTable('siEarlyTable',['Razdoblje i lista','S cijenom / dospjelo','Na čekanju','Pronađeni vođe / svi',
+        'Udio vođa među opaženim signalima','Propušteni vođe','Ispod medijana','Razlika prema medijanu'],rows);
     }
-    comparisonTable('siEarlyTable',['Razdoblje i lista','S cijenom / dospjelo','Na čekanju','Pronađeni vođe / svi',
-      'Propušteni vođe','Ispod medijana','Prinos iznad medijana'],rows);
+    select.onchange=renderHorizon;
+    renderHorizon();
     el('siEarly').hidden=false;
   }
   function renderForward(raw, eodDate) {
