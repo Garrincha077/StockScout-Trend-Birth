@@ -761,7 +761,9 @@ function weeklyBaseRange(item,rows){
   const floor=Math.min(...window.map(row=>row.low));
   if(!Number.isFinite(metrics.pivotPrice)||metrics.pivotPrice<=floor)return null;
   return {start:window[0].time,end:window.at(-1).time,cutoff:rows.at(-1).time,
-    floor,ceiling:metrics.pivotPrice,weeks:length+8};
+    floor,floorBar:window.findLast(row=>row.low===floor),
+    lastBelowFloor:rows.slice(-8).findLast(row=>row.close<floor)||null,
+    ceiling:metrics.pivotPrice,weeks:length+8};
 }
 function barDateLabel(value){
   const date=barDate(value);
@@ -820,8 +822,9 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
   const rawHi=Math.max(high,...nearLevels);
   const rawRange=Math.max(rawHi-rawLo,.0001),pad=Math.max(rawRange*.035,Math.abs(rawHi)*.001);
   const lo=rawLo-pad,hi=rawHi+pad,range=Math.max(hi-lo,.0001);
-  const plotW=Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
-  const x=i=>left+i*plotW/(bars.length-1),y=v=>top+(hi-v)*plotH/range;
+  const axis=large?ChartEvidence.axis(w,bars.length):null;
+  const plotW=axis?.plotWidth??Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
+  const x=axis?.x??(i=>left+i*plotW/(bars.length-1)),y=v=>top+(hi-v)*plotH/range;
   const description=[];
   if(base){
     const start=bars.findIndex(bar=>bar.time===base.start);
@@ -898,7 +901,7 @@ function draw(canvas,rows,large=false,emptyMessage='Graf nije dostupan',levels=[
     ctx.textAlign='right';
     ctx.fillText(bars.length+(period.weekly?' weeks':' sessions'),w-right,14);
   }
-  return {history,bars};
+  return {history,bars,axis};
 }
 function drawTickerChart(canvas,item,rows,large=false){
   const period=chartPeriods[state.chartPeriod];
@@ -1223,19 +1226,27 @@ function visible(item){
 }
 const swingStates={watch:'Za praćenje',triggered:'Pivot potvrđen',extended:'Iznad prihvatljivog ulaza',invalidated:'Setup poništen'};
 const weeklyStages={1:'Duga baza',2:'Zbijena baza',3:'Blizu pivota',4:'Pokušaj proboja'};
-function weeklyEvidence(item){
+function signedPct(value){
+  return Number.isFinite(value)?(value>0?'+':'')+pct(value):'—';
+}
+function weeklyEvidence(item,detail=false){
   const metrics=item.weeklyBirth?.metrics||{};
-  const close=normalizeBars(item.weeklyChartBars||[]).findLast(bar=>bar.time===metrics.historyEnd)?.close;
-  const pivot=metrics.pivotPrice;
-  const distance=Number.isFinite(close)&&pivot>0?100*(close/pivot-1):null;
-  const distanceLabel=Number.isFinite(distance)?' · '+(distance>=0?'+':'')+pct(distance)+' od pivota':'';
+  const weekly=rowsForPeriod(item,'base',metrics.historyEnd);
+  const close=chartDay(weekly.at(-1)?.time)===metrics.historyEnd?weekly.at(-1)?.close:null;
+  const pivot=metrics.pivotPrice,resistance=metrics.resistancePrice;
+  const distance=level=>Number.isFinite(level)&&close>0?' · '+signedPct(100*(level/close-1)):'';
+  const base=detail?weeklyBaseRange(item,weekly):null;
   return '<div class="metrics weekly-evidence">'+
     '<span>Prozor baze <b>'+fmt(metrics.baseWeeks,0)+' tj.</b></span>'+
     '<span>Dubina <b>'+pct(metrics.baseDepthPct)+'</b></span>'+
-    '<span>Pivot <b>'+fmt(pivot)+'</b></span>'+
-    '<span>Otpor <b>'+fmt(metrics.resistancePrice)+'</b></span>'+
+    '<span>Pivot <b>'+fmt(pivot)+'</b>'+distance(pivot)+'</span>'+
+    '<span>Prvi otpor <b>'+(Number.isFinite(resistance)?fmt(resistance):'nije uočen')+'</b>'+distance(resistance)+'</span>'+
     (Number.isFinite(close)?'<span class="weekly-close">Tjedno zatvaranje '+esc(barDateLabel(metrics.historyEnd))+
-      ' <b>'+fmt(close)+'</b>'+distanceLabel+'</span>':'')+
+      ' <b>'+fmt(close)+'</b></span>':'')+
+    (base?'<span class="weekly-close">Dno baze <b>'+priceLabel(base.floor)+'</b> · '+barDateLabel(base.floorBar.time)+
+      ' · taj tjedan zatvorio na '+priceLabel(base.floorBar.close)+'</span>':'')+
+    (base?.lastBelowFloor?'<span class="weekly-close">Zadnje zatvaranje ispod dna u 8 tj. · '+
+      barDateLabel(base.lastBelowFloor.time)+' <b>'+priceLabel(base.lastBelowFloor.close)+'</b></span>':'')+
     '</div>';
 }
 const earlyPhases={stabilizing:'Stabilizacija',reclaim:'Povrat iznad razine',confirmed:'Potvrđen zaokret'};
@@ -1711,13 +1722,27 @@ function detailEvidence(item,periodKey){
     '<div class="detail-evidence-head"><h2 id="detailChartTitle">Cijena i tržišni kontekst</h2>'+
       '<select aria-label="Razdoblje detaljnog grafa">'+choices.map(([key,label])=>
         '<option value="'+key+'"'+(key===periodKey?' selected':'')+'>'+label+'</option>').join('')+'</select></div>'+
-    '<canvas class="detail-chart" aria-label="'+esc(item.ticker)+' detaljni graf"></canvas>'+
+    '<div class="chart-track"><canvas class="detail-chart" aria-label="'+esc(item.ticker)+' detaljni graf"></canvas></div>'+
     '<p class="detail-chart-meta" role="status"></p>'+
+    '<div class="chart-inspection" hidden>'+
+      '<div class="chart-inspection-stats">'+
+        '<span><small>Otvaranje</small><b data-candle="open"></b></span>'+
+        '<span><small>Najviša</small><b data-candle="high"></b></span>'+
+        '<span><small>Najniža</small><b data-candle="low"></b></span>'+
+        '<span><small title="U odnosu na prethodno zatvaranje">Promjena</small><b data-candle="change"></b></span>'+
+      '</div>'+
+      '<div class="chart-inspection-controls">'+
+        '<button type="button" data-candle-step="-1" aria-label="Prethodna svijeća">‹</button>'+
+        '<input type="range" min="0" max="0" value="0" aria-label="Svijeća na grafu">'+
+        '<button type="button" data-candle-step="1" aria-label="Sljedeća svijeća">›</button>'+
+        '<button type="button" data-candle-floor hidden>Dno baze</button>'+
+      '</div>'+
+    '</div>'+
     '<div class="chart-indicators" hidden>'+
       '<figure><figcaption><strong>Volumen</strong><span data-volume-readout></span></figcaption>'+
-        '<canvas aria-label="Volumen i prethodni prosjek"></canvas></figure>'+
+        '<div class="chart-track"><canvas aria-label="Volumen i prethodni prosjek"></canvas></div></figure>'+
       '<figure><figcaption><strong>Relativna snaga prema SPY-u</strong><span data-relative-readout></span></figcaption>'+
-        '<canvas aria-label="Omjer cijene dionice i SPY-a, indeksiran na 100"></canvas></figure>'+
+        '<div class="chart-track"><canvas aria-label="Omjer cijene dionice i SPY-a, indeksiran na 100"></canvas></div></figure>'+
     '</div></section>';
 }
 const compactChartVolume=new Intl.NumberFormat('hr-HR',{notation:'compact',maximumFractionDigits:1});
@@ -1731,33 +1756,68 @@ function renderDetailEvidence(section,item,rows,periodKey,view){
   const meta=section.querySelector('.detail-chart-meta');
   indicators.hidden=!result;
   if(!result){meta.textContent='Za ovo razdoblje nema dovoljno podataka.';return}
-  const latest=result.bars.at(-1);
-  meta.textContent=(period.weekly?'Zadnja prikazana tjedna svijeća ':'Zadnja prikazana sesija ')+barDateLabel(latest.time)+
-    ' · zatvaranje '+priceLabel(latest.close);
   const lookback=period.weekly?10:20;
-  const unit=period.weekly?'W':'D';
   const volume=ChartEvidence.volume(result.history,result.bars,lookback);
-  const volumeLabel=section.querySelector('[data-volume-readout]');
-  const volumeCanvas=volumeLabel.closest('figure').querySelector('canvas');
-  volumeCanvas.hidden=!volume.hasValues;
-  volumeLabel.textContent=volume.latest===null?'Zadnji volumen nedostaje':
-    compactChartVolume.format(volume.latest)+(volume.ratio===null?' · prosjek '+lookback+unit+' nedostaje':
-      ' · '+fmt(volume.ratio,2)+'× prethodni '+lookback+unit);
+  const volumeCanvas=section.querySelector('[data-volume-readout]').closest('figure').querySelector('canvas');
+  volumeCanvas.parentElement.hidden=!volume.hasValues;
   if(volume.hasValues)ChartEvidence.drawVolume(volumeCanvas,volume,value=>compactChartVolume.format(value));
   const dailyRs=new Map(normalizeBars(item.chartBars).filter(bar=>bar.rs!==null).map(bar=>[chartDay(bar.time),bar.rs]));
   const relative=ChartEvidence.relative(result.bars.map(bar=>({...bar,time:chartDay(bar.time)})),dailyRs);
-  const relativeLabel=section.querySelector('[data-relative-readout]');
-  const relativeCanvas=relativeLabel.closest('figure').querySelector('canvas');
-  relativeCanvas.hidden=relative.count<2;
-  relativeLabel.textContent=relative.count<2?'Referentni niz nije dostupan':
-    fmt(relative.latest,1)+' ('+barDateLabel(relative.lastTime)+') · 100 na '+barDateLabel(relative.firstTime);
+  const relativeCanvas=section.querySelector('[data-relative-readout]').closest('figure').querySelector('canvas');
+  relativeCanvas.parentElement.hidden=relative.count<2;
   if(relative.count>=2)ChartEvidence.drawRelative(relativeCanvas,relative);
+  return {...result,volume,relative,period,lookback,floorIndex:base?
+    result.bars.findIndex(bar=>bar.time===base.floorBar.time):-1};
+}
+function showDetailCandle(section,evidence,index){
+  const {history,bars,axis,volume,relative,period,lookback}=evidence;
+  const selected=index??bars.length-1,bar=bars[selected],day=barDateLabel(bar.time);
+  const prefix=index===null?(period.weekly?'Zadnja prikazana tjedna svijeća ':'Zadnja prikazana sesija '):
+    (period.weekly?'Tjedan do ':'Sesija ');
+  const title=prefix+day+' · zatvaranje '+priceLabel(bar.close);
+  section.querySelector('.detail-chart-meta').textContent=title;
+  const previousIndex=history.length-bars.length+selected-1;
+  const previous=history[previousIndex]?.close;
+  const change=previous>0?signedPct(100*(bar.close/previous-1)):'—';
+  for(const field of ['open','high','low','change']){
+    section.querySelector('[data-candle="'+field+'"]').textContent=field==='change'?change:priceLabel(bar[field]);
+  }
+  const amount=volume.points[selected],unit=period.weekly?'W':'D';
+  section.querySelector('[data-volume-readout]').textContent=amount.value===null?'Volumen za ovaj datum nedostaje':
+    compactChartVolume.format(amount.value)+(amount.ratio===null?' · prosjek '+lookback+unit+' nedostaje':
+      ' · '+fmt(amount.ratio,2)+'× prethodni '+lookback+unit);
+  const rs=relative.points[selected];
+  section.querySelector('[data-relative-readout]').textContent=relative.count===0?'Referentni niz nije dostupan':
+    rs==null?'RS za ovaj datum nedostaje':fmt(rs,1)+' ('+day+') · 100 na '+barDateLabel(relative.firstTime);
+  const slider=section.querySelector('input[type="range"]');
+  slider.value=String(selected);
+  slider.setAttribute('aria-valuetext',title);
+  section.querySelector('[data-candle-step="-1"]').disabled=selected===0;
+  section.querySelector('[data-candle-step="1"]').disabled=selected===bars.length-1;
+  section.toggleAttribute('data-chart-cursor',index!==null);
+  section.style.setProperty('--candle-x',axis.x(selected)+'px');
 }
 function mountDetailEvidence(section,item,view){
   const select=section.querySelector('select'),canvas=section.querySelector('.detail-chart');
   const meta=section.querySelector('.detail-chart-meta'),indicators=section.querySelector('.chart-indicators');
+  const controls=section.querySelector('.chart-inspection'),slider=controls.querySelector('input');
+  const floor=controls.querySelector('[data-candle-floor]');
   const dialog=$('#detail');
   let revision=0,lastRender=null,lastWidth=null;
+  let evidence=null,selected=null;
+  function pick(index){
+    if(!evidence)return;
+    selected=Math.max(0,Math.min(evidence.bars.length-1,index));
+    showDetailCandle(section,evidence,selected);
+  }
+  section.addEventListener('click',event=>{
+    if(!evidence)return;
+    const track=event.target.closest('.chart-track'),step=event.target.closest('[data-candle-step]');
+    if(track)pick(evidence.axis.indexAt(event.clientX-track.getBoundingClientRect().left));
+    if(step)pick(Number(slider.value)+Number(step.dataset.candleStep));
+    if(event.target===floor&&evidence.floorIndex>=0)pick(evidence.floorIndex);
+  });
+  slider.addEventListener('input',()=>pick(Number(slider.value)));
   const active=()=>section.isConnected&&dialog.open;
   const observer=new ResizeObserver(entries=>{
     const width=entries[0].contentRect.width;
@@ -1773,7 +1833,11 @@ function mountDetailEvidence(section,item,view){
     const current=++revision,periodKey=select.value;
     const isCurrent=()=>active()&&current===revision;
     lastRender=null;
+    evidence=null;
+    selected=null;
+    section.removeAttribute('data-chart-cursor');
     indicators.hidden=true;
+    controls.hidden=true;
     meta.textContent='Učitavanje grafa…';
     draw(canvas,[],true,'Učitavanje…');
     try{
@@ -1795,7 +1859,14 @@ function mountDetailEvidence(section,item,view){
       }
       const rows=await ensureChartData(item,periodKey,cutoff);
       if(!isCurrent())return;
-      lastRender=()=>renderDetailEvidence(section,item,rows,periodKey,view);
+      lastRender=()=>{
+        evidence=renderDetailEvidence(section,item,rows,periodKey,view);
+        controls.hidden=!evidence;
+        if(!evidence)return;
+        slider.max=String(evidence.bars.length-1);
+        floor.hidden=evidence.floorIndex<0;
+        showDetailCandle(section,evidence,selected);
+      };
       lastRender();
       updateSavedPlanStatuses($('#detailBody'),item);
     }catch{
@@ -1826,7 +1897,7 @@ function show(item,view=state.primaryView){
   body.innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
     '<p data-plan-notice role="status" hidden></p>'+renderSavedPlans(item)+
-    (weeklyMode?weeklyEvidence(item):view==='kell-daily'?swingPlan(item)+earlyPlan(item):earlyPlan(item)+swingPlan(item))+
+    (weeklyMode?weeklyEvidence(item,true):view==='kell-daily'?swingPlan(item)+earlyPlan(item):earlyPlan(item)+swingPlan(item))+
     detailEvidence(item,periodKey)+
     '<div class="detail-snapshot">'+
       '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+

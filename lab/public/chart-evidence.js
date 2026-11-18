@@ -28,21 +28,26 @@
       const previous=history.slice(Math.max(0,end-lookback),end).map(row=>row.volume);
       const average=previous.length===lookback&&previous.every(knownVolume)?
         previous.reduce((sum,value)=>sum+value,0)/lookback:null;
-      return {value:knownVolume(bar.volume)?bar.volume:null,average,up:bar.close>=bar.open};
+      const value=knownVolume(bar.volume)?bar.volume:null;
+      return {value,average,ratio:value!==null&&positive(average)?value/average:null,up:bar.close>=bar.open};
     });
-    const last=points.at(-1);
-    return {points,hasValues:points.some(point=>point.value!==null),
-      latest:last?.value??null,ratio:last?.value!=null&&positive(last.average)?last.value/last.average:null};
+    return {points,hasValues:points.some(point=>point.value!==null)};
   }
 
   function relative(shown,sourceByDay){
     const raw=shown.map(bar=>positive(bar.rs)?bar.rs:sourceByDay.get(bar.time));
     const origin=raw.findIndex(positive);
-    if(origin<0)return {points:[],latest:null,firstTime:null,lastTime:null,count:0};
+    if(origin<0)return {points:[],firstTime:null,count:0};
     const points=raw.map(value=>positive(value)?100*value/raw[origin]:null);
-    const last=points.findLastIndex(value=>value!==null);
-    return {points,latest:points[last],firstTime:shown[origin].time,lastTime:shown[last].time,
+    return {points,firstTime:shown[origin].time,
       count:points.filter(value=>value!==null).length};
+  }
+
+  function axis(width,size){
+    const left=10,plotWidth=Math.max(1,width-left-72),right=left+plotWidth;
+    const last=Math.max(1,size-1);
+    return {left,right,plotWidth,x:index=>left+index*plotWidth/last,
+      indexAt:pixel=>Math.round(last*Math.max(0,Math.min(1,(pixel-left)/plotWidth)))};
   }
 
   function surface(canvas,size){
@@ -54,9 +59,8 @@
     ctx.scale(dpr,dpr);
     ctx.font='11px system-ui,sans-serif';
     ctx.textBaseline='middle';
-    const plotWidth=Math.max(1,rect.width-10-72),height=Math.max(1,rect.height-16);
-    return {ctx,plotWidth,height,left:10,right:rect.width-72,
-      x:index=>10+index*plotWidth/Math.max(1,size-1)};
+    const height=Math.max(1,rect.height-16);
+    return {ctx,height,...axis(rect.width,size)};
   }
 
   function line(ctx,points,x,y,color){
@@ -107,5 +111,5 @@
     ctx.fillText('100',right+6,y(100));
   }
 
-  return {lastCompletedWeek,volume,relative,drawVolume,drawRelative};
+  return {lastCompletedWeek,volume,relative,axis,drawVolume,drawRelative};
 });
