@@ -517,10 +517,21 @@ test('saved Early Trend Birth plan follows the original levels across a new EOD 
   assert.match(await chart.locator('.detail-chart-meta').innerText(),/^Sesija 19\.11\.26 · zatvaranje 92\.00/);
   assert.match(await chart.locator('[data-chart-plan-key]').innerText(),/Poništenje 95\.00/);
   await page.locator('#closeDetail').click();
+
+  const reviewedSnapshot=active.manifest.snapshotId,unavailable='2026-11-20';
+  active=make(unavailable,'d',[...pivotBars,[unavailable,104,106,103,104,100]],111);
+  await page.reload();
+  await card.locator('[data-plan-status][data-state="coverage"]').waitFor();
   await card.getByRole('button',{name:'Arhiviraj plan'}).click();
-  await page.locator('#savedPlanArchive summary').click();
-  assert.match(await page.locator('#archivedPlanList').innerText(),/AAA · Early Trend Birth/);
-  assert.equal(await page.locator('#archivedPlanList a').getAttribute('href'),sourceLink);
+  await page.reload();
+  await page.locator('#savedPlanArchive > summary').click();
+  const archivedPlan=page.locator('[data-archived-plan]');
+  await archivedPlan.locator('summary').tap();
+  assert.match(await archivedPlan.innerText(),/AAA · Early Trend Birth\s+Plan poništen/);
+  assert.match(await archivedPlan.innerText(),/Zadnje provjereno zatvaranje 92\.00/);
+  assert.deepEqual(await archivedPlan.locator('time').allTextContents(),[next,breach]);
+  assert.deepEqual(await archivedPlan.locator('a').evaluateAll(anchors=>anchors.map(anchor=>anchor.getAttribute('href'))),
+    [sourceLink,'?snapshot='+reviewedSnapshot+'&view=early&ticker=AAA']);
   assert.equal(await card.count(),0);
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')),false);
 });

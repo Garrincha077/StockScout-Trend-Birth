@@ -1293,11 +1293,26 @@ const planStatus={
   belowPivot:'Zatvaranje je ispod pivota.',
   extended:'Zatvaranje je iznad maksimalnog ulaza.',
 };
-function sourcePlanLink(plan){
+function sourcePlanLink(plan,snapshotId=plan.snapshotId,label='Izvorna snimka '+plan.sessionDate){
   const url=new URL(location.pathname,location.origin);
-  url.searchParams.set('snapshot',plan.snapshotId);
+  url.searchParams.set('snapshot',snapshotId);
   ReviewNavigation.write(url,{view:plan.strategy==='kell'?'kell-daily':'early',ticker:plan.ticker});
-  return '<a href="'+esc(url.search)+'" target="_blank" rel="noopener">Snimka '+esc(plan.sessionDate)+'</a>';
+  return '<a href="'+esc(url.search)+'" target="_blank" rel="noopener">'+esc(label)+'</a>';
+}
+function planLevelsText(plan){
+  return 'Izvorno zatvaranje <b>'+fmt(plan.price)+'</b> · Pivot <b>'+fmt(plan.pivot)+'</b> · '+
+    (plan.strategy==='kell'?'Stop':'Poništenje')+' <b>'+fmt(plan.invalidation)+'</b>'+
+    (plan.maxEntry!=null?' · Maks. ulaz <b>'+fmt(plan.maxEntry)+'</b>':'');
+}
+function planEventRows(plan,events,interactive=false){
+  const labels={abovePivot:plan.maxEntry!=null?'Prvo zatvaranje u zoni ulaza':'Prvo zatvaranje na pivotu ili iznad njega',
+    extended:'Prvo zatvaranje iznad maksimalnog ulaza',invalidated:'Prvo zatvaranje na ili ispod zaštitne razine'};
+  return events.map(event=>{
+    const label=labels[event.state];
+    const row='<time datetime="'+esc(event.day)+'">'+esc(event.day)+'</time> · <strong>'+fmt(event.close)+'</strong><span>'+label+'</span>';
+    return '<li>'+(interactive?'<button type="button" data-plan-candle="'+esc(event.day)+'" aria-label="Otvori svijeću '+
+      esc(event.day)+' · '+label+'">'+row+'</button>':row)+'</li>';
+  }).join('');
 }
 function planQuotes(item){
   return normalizeBars(item.chartBars||[]).flatMap(bar=>{
@@ -1319,21 +1334,33 @@ function renderSavedPlans(item,inDetail=false){
     return '<section class="saved-plan" data-saved-plan="'+esc(ReviewPlans.planId(plan))+'">'+
       '<div class="saved-plan-heading"><strong>'+planNames[plan.strategy]+'</strong>'+sourcePlanLink(plan)+'</div>'+
       (reason?'<small>'+esc(reason)+'</small>':'')+
-      '<p>Izvorno zatvaranje <b>'+fmt(plan.price)+'</b> · Pivot <b>'+fmt(plan.pivot)+'</b> · '+(plan.strategy==='kell'?'Stop':'Poništenje')+
-      ' <b>'+fmt(plan.invalidation)+'</b>'+(plan.maxEntry!=null?' · Maks. ulaz <b>'+fmt(plan.maxEntry)+'</b>':'')+'</p>'+
+      '<p>'+planLevelsText(plan)+'</p>'+
       '<p class="saved-plan-status" data-plan-status>Učitavam usporedbu s izvornim planom…</p>'+
       '<details class="saved-plan-journal" data-plan-journal hidden'+(inDetail?' open':'')+'>'+
       '<summary>Dnevnik zatvaranja</summary><ol></ol></details>'+
-      '<button type="button" class="plan-action" data-plan-action="archive">Arhiviraj plan</button></section>';
+      '<button type="button" class="plan-action" data-plan-action="archive" disabled>Arhiviraj plan</button></section>';
   }).join('');
 }
 function renderPlanArchive(){
-  const archived=state.savedPlans.filter(plan=>plan.archivedAt);
-  const shown=state.primaryView==='watchlist'&&archived.length>0;
+  const plans=state.savedPlans.filter(plan=>plan.archivedAt);
+  const shown=state.primaryView==='watchlist'&&plans.length>0;
   $('#planStorageNote').hidden=state.primaryView!=='watchlist'||!state.savedPlans.length;
-  $('#savedPlanArchive').hidden=!shown;
-  $('#archivedPlanList').innerHTML=shown?archived.slice().reverse().map(plan=>
-    '<li>'+esc(plan.ticker)+' · '+planNames[plan.strategy]+' · '+sourcePlanLink(plan)+'</li>').join(''):'';
+  const panel=$('#savedPlanArchive'),list=$('#archivedPlanList');
+  panel.hidden=!shown;
+  panel.querySelector('summary').textContent='Arhivirani planovi'+(shown?' ('+plans.length+')':'');
+  const expanded=new Set([...list.querySelectorAll('details[open]')].map(node=>node.dataset.archivedPlan));
+  list.innerHTML=shown?plans.sort((a,b)=>String(b.archivedAt).localeCompare(String(a.archivedAt))).map(plan=>{
+    const id=ReviewPlans.planId(plan),review=ReviewPlans.archivedReview(plan);
+    const status=review?.state==='invalidated'?'Plan poništen.':planStatus[review?.state];
+    return '<li><details data-archived-plan="'+esc(id)+'"'+(expanded.has(id)?' open':'')+'><summary><strong>'+
+      esc(plan.ticker)+'</strong> · '+planNames[plan.strategy]+(status?'<span>'+status+'</span>':'')+'</summary>'+
+      '<div class="archived-plan-body"><p>'+planLevelsText(plan)+'</p><p class="archived-plan-links">'+sourcePlanLink(plan)+
+      (review?sourcePlanLink(plan,review.snapshotId,'Zadnja provjera '+review.asOf):'')+'</p>'+
+      (review?'<p>Zadnje provjereno zatvaranje <b>'+fmt(review.close)+'</b></p>'+
+        (review.events.length?'<ol class="archived-plan-events" aria-label="Dnevnik zatvaranja">'+planEventRows(plan,review.events)+'</ol>':
+          '<p class="archived-plan-note">Do te sesije nema zabilježenog događaja.</p>'):
+        '<p class="archived-plan-note">Nema spremljene provjere nakon izvorne sesije.</p>')+'</div></details></li>';
+  }).join(''):'';
 }
 function updateSavedPlanStatuses(host,item){
   if(!item.savedPlans?.length)return;
@@ -1346,6 +1373,14 @@ function updateSavedPlanStatuses(host,item){
     assessments.set(section.dataset.savedPlan,result);
     const node=section.querySelector('[data-plan-status]');
     const journal=section.querySelector('[data-plan-journal]');
+    const review=!archived&&state.publication?.snapshotId===state.snapshotId?
+      ReviewPlans.closingReview(plan,state.snapshotId,result):null;
+    section.closingReview=review;
+    if(review){
+      try{ReviewPlans.rememberReview(window.localStorage,state.ownerSession?.user?.id,plan,review)}
+      catch(_error){/* The displayed review is still available when archiving. */}
+    }
+    section.querySelector('[data-plan-action="archive"]').disabled=false;
     node.dataset.state=result.state;
     if(result.state==='invalidated'){
       node.textContent='Poništenje na zatvaranju '+result.day+' · '+fmt(result.close)+
@@ -1354,13 +1389,8 @@ function updateSavedPlanStatuses(host,item){
       node.textContent=planStatus[result.state]+(result.asOf?' · '+result.asOf+' · '+fmt(result.close)+' · '+
         (result.pivotDeltaPct>=0?'+':'')+pct(result.pivotDeltaPct)+' od pivota':'');
     }
-    const labels={abovePivot:plan.maxEntry!=null?'Prvo zatvaranje u zoni ulaza':'Prvo zatvaranje na pivotu ili iznad njega',
-      extended:'Prvo zatvaranje iznad maksimalnog ulaza',invalidated:'Prvo zatvaranje na ili ispod zaštitne razine'};
     journal.hidden=!result.events?.length;
-    journal.querySelector('ol').innerHTML=(result.events||[]).map(event=>
-      '<li><button type="button" data-plan-candle="'+esc(event.day)+'" aria-label="Otvori svijeću '+esc(event.day)+
-      ' · '+labels[event.state]+'"><time datetime="'+esc(event.day)+'">'+esc(event.day)+'</time> · <strong>'+fmt(event.close)+'</strong>'+
-      '<span>'+labels[event.state]+'</span></button></li>').join('');
+    journal.querySelector('ol').innerHTML=planEventRows(plan,result.events||[],true);
   }
   return assessments;
 }
@@ -1380,11 +1410,16 @@ function planAction(event,item){
       if(!plan)throw Error('Za spremanje plana potrebni su razine i zaključen dnevni graf iz iste snimke.');
       if(!ReviewPlans.save(window.localStorage,account,plan))throw Error('Za ovaj ticker i strategiju već postoji aktivan plan.');
     }else{
-      ReviewPlans.archive(window.localStorage,account,button.closest('[data-saved-plan]').dataset.savedPlan);
+      const section=button.closest('[data-saved-plan]');
+      ReviewPlans.archive(window.localStorage,account,section.dataset.savedPlan,section.closingReview);
     }
     render();
     if(inDetail){
-      if(button.dataset.planAction==='archive')closeReviewDetail();
+      if(button.dataset.planAction==='archive'){
+        closeReviewDetail();
+        $('#planNotice').textContent='Plan je arhiviran.';
+        $('#planNotice').hidden=false;
+      }
       else show(item,state.detailView);
     }else{
       notice.textContent=button.dataset.planAction==='archive'?'Plan je arhiviran.':

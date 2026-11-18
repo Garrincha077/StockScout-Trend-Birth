@@ -10,6 +10,7 @@
   const validPrice=value=>Number.isFinite(value)&&value>0;
   const validId=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}--[a-f0-9]{64}$/.test(value);
   const planId=({ticker,strategy,snapshotId})=>strategy+':'+ticker+':'+snapshotId;
+  const reviewKey=(userId,id)=>keyForUser(userId)+'.review.'+encodeURIComponent(id);
 
   function valid(plan){
     return plan&&['early','kell'].includes(plan.strategy)&&typeof plan.ticker==='string'&&plan.ticker.length>0&&
@@ -50,11 +51,6 @@
     write(storage,userId,rows);
     return true;
   }
-  function archive(storage,userId,id){
-    const plans=load(storage,userId);
-    write(storage,userId,plans.map(plan=>planId(plan)===id&&!plan.archivedAt?
-      {...plan,archivedAt:new Date().toISOString()}:plan));
-  }
   function level(plan,close){
     if(close<=plan.invalidation)return 'invalidated';
     if(plan.maxEntry!=null&&close>plan.maxEntry)return 'extended';
@@ -62,6 +58,57 @@
   }
   function samePriceBasis(plan,close){
     return validPrice(close)&&Math.abs(close-plan.price)<=Math.max(.005,plan.price*.00005);
+  }
+  function validReview(plan,review){
+    if(!review||!validId(review.snapshotId)||!validDay(review.asOf)||review.asOf<=plan.sessionDate||
+      !validPrice(review.close)||!Array.isArray(review.events)||review.events.length>3)return false;
+    const seen=new Set();
+    let previous=plan.sessionDate;
+    for(const event of review.events){
+      if(!event||!validDay(event.day)||event.day<=previous||event.day>review.asOf||!validPrice(event.close)||
+        event.state==='belowPivot'||event.state!==level(plan,event.close)||seen.has(event.state)||
+        seen.has('invalidated'))return false;
+      if(event.day===review.asOf&&event.close!==review.close)return false;
+      seen.add(event.state);
+      previous=event.day;
+    }
+    return seen.has('invalidated')?review.state==='invalidated':
+      review.state!=='invalidated'&&level(plan,review.close)===review.state&&
+      (review.state==='belowPivot'||seen.has(review.state));
+  }
+  function closingReview(plan,snapshotId,result){
+    const review={snapshotId,asOf:result.asOf,state:result.state,
+      close:result.state==='invalidated'?result.currentClose:result.close,events:result.events};
+    return validReview(plan,review)?review:null;
+  }
+  function archivedReview(plan){
+    return validReview(plan,plan.closingReview)?plan.closingReview:null;
+  }
+  function readReview(storage,userId,plan){
+    try{
+      const review=JSON.parse(storage.getItem(reviewKey(userId,planId(plan))));
+      return validReview(plan,review)?review:null;
+    }catch(_error){return null}
+  }
+  function rememberReview(storage,userId,plan,review){
+    if(!validReview(plan,review))return;
+    const previous=readReview(storage,userId,plan);
+    if(previous&&(previous.snapshotId===review.snapshotId||previous.asOf>review.asOf))return;
+    if(!load(storage,userId).some(row=>planId(row)===planId(plan)&&!row.archivedAt))return;
+    storage.setItem(reviewKey(userId,planId(plan)),JSON.stringify(review));
+  }
+  function archive(storage,userId,id,displayedReview){
+    const plans=load(storage,userId);
+    const active=plans.find(plan=>planId(plan)===id&&!plan.archivedAt);
+    if(!active)return false;
+    let review=archivedReview(active);
+    for(const candidate of [readReview(storage,userId,active),displayedReview]){
+      if(validReview(active,candidate)&&(!review||candidate.asOf>=review.asOf))review=candidate;
+    }
+    const archived={...active,archivedAt:new Date().toISOString(),closingReview:review};
+    write(storage,userId,plans.map(plan=>plan===active?archived:plan));
+    try{storage.removeItem(reviewKey(userId,id))}catch(_error){/* The archive is already committed. */}
+    return true;
   }
   function assess(plan,quotes,asOf,calendar,snapshotId){
     if(!validDay(asOf)||asOf<plan.sessionDate)return {state:'earlier'};
@@ -92,5 +139,5 @@
     }
     return {state:previous,asOf,close:current.close,changed,lastPivot,pivotDeltaPct:100*(current.close/plan.pivot-1),events};
   }
-  return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess,samePriceBasis};
+  return {STORAGE_KEY,keyForUser,planId,load,capture,save,archive,assess,samePriceBasis,closingReview,archivedReview,rememberReview};
 });

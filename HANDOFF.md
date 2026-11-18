@@ -1,3 +1,9 @@
+## 2026-11-18 — Archive Watchlist plan journals
+
+- Verified at 17:17 Europe/Zagreb on the [isolated Watchlist preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist), preview commit `732a6f4` and READY deployment `dpl_7iufJo2bJpMJYmRrar8euZD8cMcx`. Archiving and reloading an actual November 17 CAKE plan at 390 px kept its original pivot, stop, maximum entry and the link to its exact Kell archive. The record showed that no later review was saved.
+- The archive shows the last verified post-origin status and closing price, dated milestones, and links for the original and last checked EOD. A missing later session cannot overwrite the verified checkpoint. Older local archives remain readable and indicate missing follow-up evidence.
+- Passed 128 Node and 24 Chromium cases. The mobile fixture reloads a later EOD with a missing session, archives the plan, reloads again and checks that both milestones and the exact prior assessment snapshot remain. Work continues in draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Test the first later comparable actual EOD, then assess syncing personal plans across devices through the existing owner workflow.
+
 ## 2026-11-18 — Saved plan levels and daily candle jumps
 
 - Verified at 17:07 Europe/Zagreb on the [isolated Watchlist preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/?view=watchlist), preview commit `271ffe2` and READY deployment `dpl_BkXkUCP7EXo6PNLMUpkPpK8kjsgp`. Mobile Chromium at 390 px rendered actual November 17 saved levels for CAKE Kell Swing and KLAR Early Trend Birth. The chart selector can return to the displayed EOD levels.
