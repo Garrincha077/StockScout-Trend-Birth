@@ -224,3 +224,4 @@
 .swing-plan small{color:#bdcad8;font-size:.75rem}
 .swing-levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px 12px;margin:7px 0}
 .swing-levels small,.swing-levels b{display:block}
+.early-plan ul{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;padding-left:16px;color:#b7e0d8;font-size:.78rem}

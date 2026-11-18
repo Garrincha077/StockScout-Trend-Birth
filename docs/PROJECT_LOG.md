@@ -706,3 +706,10 @@ Update it after every meaningful code, workflow, data-contract, research-methodo
 - Vercel production `dpl_3t7zULr7evFxzdrmQpCa4Wejps9g` independently READY for the merge and assigned to the public alias. Public HTML uses the new script query and its JS bytes exactly match the reviewed source. Current source remains Oct29, 80 Review candidates/charts.
 - Exact workflow compact validation plus the bundle validator pass an offline copy with one missing chart, 2,264/2,265 (99.9558%); >1% missing is rejected at 2,242/2,265. This replay never removed public data or chart files. Threshold/availability metadata and labels are additive; underlying candidates, scores, source and price protections are unchanged.
 - Automatic publisher `41041775102` was still building stage history at verification; no full-production-workflow success is claimed at this checkpoint. The new policy is active in the production branch, and the last verified publication remains served. Observe the normal publisher completion without introducing another scan or rewriting immutable history.
+
+## 2026-11-18 — Early Trend Birth and long-run measurement
+
+- Verified locally at 13:04 Europe/Zagreb on `codex/review-lab-rebuild` (draft PR #76). Prior feature CI 44298365645 and separate controller CI 44298427819 passed.
+- Added a transparent early repair shortlist, archived EOD memberships, maturing 20/63/126/252-session outcomes and a separate mobile view. This adds a discovery ranking. Existing Daily, Weekly and Kell ranking definitions are preserved.
+- Replay of the pinned Nov17 data produced 36 observation dates, median early lead 6 sessions in 38 matched daily names, and 10/122 top-decile outcomes at 20 sessions. Historical snapshots retain partial coverage, late chart revisions and incomplete market-action information. Details, competing cohorts and reproduction appear in docs/REVIEW_REBUILD_VALIDATION.md.
+- Local validation passed 234 Python excluding the Linux shell fixture, 113 Node and 14 Chromium tests. Next: ticker-scoped Watchlist, installable preview and end-to-end release validation.

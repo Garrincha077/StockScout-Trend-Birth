@@ -145,12 +145,12 @@
       <div class="si-table-scroll"><table class="si-matrix si-forward-table" id="siForwardTable">
         <caption class="sr-only">Povijesni stvarni prinosi dionica nakon prelaska u svaku Trend Birth fazu</caption>
       </table></div>
-      <p class="si-muted">Svaki prijelaz u novu fazu računa se jednom, samo ako je ticker bio evaluiran i prethodnog EOD-a. Ulazak je po <strong>zatvaranju sljedeće burzovne sesije</strong>; izlaz nakon 5, 20 ili 60 cijelih sesija držanja. Nije signal za trgovanje. Prikaz uključuje samo dospjele ishode, a zasebno prati nedospjele i nedostajuće cijene. Prinos je <strong>cjenovni</strong> iz izvornih, trajno arhiviranih EOD cijena istoga dana, bez dividendi i troškova. Ponavljani prijelazi istog tickera nisu neovisni pokusi.</p>
+      <p class="si-muted">Prijelaz se računa kad je ticker evaluiran u dvije uzastopne sesije. Mjerenje počinje na <strong>zatvaranju sljedeće sesije</strong> i traje 5, 20 ili 60 sesija. Izračun koristi trajno arhivirane EOD cijene i evidentirane korporativne akcije kad aktivna objava sadrži taj izvještaj. Troškovi trgovanja izostavljeni su iz ovog prikaza.</p>
       <details id="siRecovery" class="si-composite-definitions">
         <summary>Usporedi V2 i rekonstruirani V3 · stanje 23.10.2026.</summary>
         <p id="siRecoveryStatus" role="status">Usporedba se učitava pri otvaranju.</p>
         <div id="siRecoveryContent" hidden>
-          <p class="si-muted">Oba izvještaja završavaju istog datuma. Ovo je zamrznuta usporedba prije i nakon rekonstrukcije sesija 15. i 19. listopada; glavni prikaz iznad nastavlja koristiti V2.</p>
+          <p class="si-muted">Zamrznuta usporedba na isti datum prije i nakon rekonstrukcije sesija 15. i 19. listopada.</p>
           <div class="si-table-scroll"><table id="siRecoveryCoverage" class="si-matrix si-recovery-coverage"><caption>Pokrivenost povijesnih podataka</caption></table></div>
           <div class="si-controls"><label>Horizont usporedbe <select id="siRecoveryHorizon"><option value="5">5D</option><option value="20">20D</option><option value="60">60D</option></select></label></div>
           <p class="si-muted">Tablicu ishoda možeš pomicati vodoravno za prikaz svih stupaca.</p>
@@ -158,6 +158,14 @@
           <p class="si-note">V3 uključuje naknadno rekonstruirane sesije. Watchlista se temelji na posljednjem sačuvanom prethodnom EOD-u; točno članstvo na dva nedostajuća dana nije poznato. Nedostupne cijene ostaju prazne. Razlike u prinosima odražavaju i promijenjen skup prijelaza te nisu dokaz poboljšanja modela. Korporativne akcije, delistinzi i neovisni test ostaju otvoreni. V3 nije aktiviran za glavni prikaz ni kalibraciju bodovanja.</p>
         </div>
       </details>
+    </section>
+    <section class="si-panel" id="siEarly" aria-labelledby="siEarlyTitle" hidden>
+      <h2 id="siEarlyTitle">Trend Birth · provjera ranih upozorenja</h2>
+      <p id="siEarlyLead" class="si-muted"></p>
+      <p class="si-muted">Vodeći ticker završava među najboljih 10% evaluiranih dionica s dostupnim cijenama za isti datum signala i isti horizont. Prikaz prati nove ulaske na listu. Prinos se mjeri od sljedećeg zatvaranja, uz jednaku težinu svakog dana sa signalom.</p>
+      <div class="si-table-scroll"><table class="si-matrix" id="siEarlyTable">
+        <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
+      </table></div>
     </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
       <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
@@ -203,6 +211,6 @@
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
-  <script src="trend-birth-stats.js?v=research-reference-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=early-outcomes-20261118" defer></script>
 </body>
 </html>

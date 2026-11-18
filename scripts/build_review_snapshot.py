@@ -17,6 +17,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kell_scoring import MODEL_VERSION as KELL_SCORE_MODEL_VERSION, score_candidate
 from kell_swing import priority as swing_priority
+from early_trend_birth import MODEL as EARLY_TREND_MODEL, SHORTLIST_SIZE, evaluate as evaluate_early_trend, priority as early_priority
 from market_sessions import bar_session_date, session_date as normalize_session_date
 from trend_birth_radar import candidate_priority, evaluate_trend_birth
 from weekly_birth import evaluate_weekly_birth, weekly_shortlist
@@ -1357,6 +1358,24 @@ def build_snapshot(
     )
 
     trend_birth_ranked = sorted(trend_birth_candidate_index, key=candidate_priority, reverse=True)
+    benchmark = {day: bar["close"] for bar in benchmark_rows if (day := bar_session_date(bar))}
+    for item in trend_birth_candidate_index:
+        radar = item.get("trendBirth") or {}
+        if radar.get("available") is True:
+            item["earlyTrend"] = evaluate_early_trend(
+                trend_birth_charts.get(item["ticker"], []), session_date, benchmark,
+                radar["stage"], item.get("weeklyBirth"),
+            )
+    early_matches = [item for item in trend_birth_candidate_index if item.get("earlyTrend")]
+    early_selected = []
+    for item in sorted(early_matches, key=early_priority)[:SHORTLIST_SIZE]:
+        rows = trend_birth_charts[item["ticker"]]
+        early_selected.append({
+            **item,
+            "chartBars": rows[-260:],
+            "weeklyChartBars": _weekly_bars(rows, 260),
+            "analysis": analysis_by_ticker.get(item["ticker"], {}),
+        })
     weekly_selected = []
     for item in weekly_shortlist(trend_birth_candidate_index):
         rows = trend_birth_charts.get(item["ticker"], [])
@@ -1466,11 +1485,15 @@ def build_snapshot(
             "method": "Transparent trend reset -> restart overlay over Unified candidates plus the persistent tracked watchlist. Unified charts are preferred; tracked-only names use bounded daily-history fallback. Stage is independent of Kell v5 score.",
         },
         "trendBirthCandidateIndexCount": len(trend_birth_candidate_index),
+        "earlyTrendResearch": {"model": EARLY_TREND_MODEL, "candidateCount": len(early_matches),
+                               "shortlist": [item["ticker"] for item in early_selected],
+                               "weekly": [item["ticker"] for item in weekly_selected]},
         "shortlists": {
             "schemaVersion": "stockscout-shortlists-v2",
             "weeklyTrendBirth": weekly_selected,
             "kellDaily": kell_daily_selected,
             "kellSwing": kell_swing_selected,
+            "earlyTrendBirth": early_selected,
         },
         "trendBirthCandidateIndex": trend_birth_candidate_index,
         "unifiedCandidateIndexCount": len(unified_candidate_index),

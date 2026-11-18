@@ -110,6 +110,22 @@ def point_from_snapshot(snapshot: dict) -> dict | None:
         "stages": dict(sorted(stages.items())),
         "unavailable": sorted(unavailable),
     }
+    early = snapshot.get("earlyTrendResearch")
+    if early is not None:
+        names = {
+            row["ticker"]: row["earlyTrend"] for row in rows if row.get("earlyTrend") is not None
+        }
+        selected = early["shortlist"]
+        weekly = early["weekly"]
+        if (early["candidateCount"] != len(names) or not set(names) <= stages.keys() or
+                len(selected) != len(set(selected)) or not set(selected) <= names.keys() or
+                len(weekly) != len(set(weekly)) or not set(weekly) <= stages.keys() or
+                any(plan["sessionDate"] != day or plan["model"] != early["model"] for plan in names.values())):
+            raise ValueError("Early Trend Birth selection differs from the archived EOD: " + day)
+        point["earlyTrend"] = {
+            "model": early["model"], "shortlist": selected, "weekly": weekly,
+            "candidates": {ticker: plan["invalidation"] for ticker, plan in sorted(names.items())},
+        }
     _point_counts(point)
     return point
 

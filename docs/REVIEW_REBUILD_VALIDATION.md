@@ -34,3 +34,30 @@ python scripts/replay_kell_swing.py \
   --charts-dir lab/data/kell-charts \
   --as-of 2026-11-17 --output kell-swing-replay.json
 ```
+
+## Early Trend Birth
+
+The independent early model looks for repair near a 41-session support region following at least a 15% decline from the preceding structural high. It requires recovering price and two corroborating observations, including a level-based observation. The card shows price evidence, 20-session performance relative to SPY, support, invalidation and the reclaim pivot. Confirmed candidates have cleared their pivot and reached stage 3 or higher in the daily or weekly model. The daily EOD archive preserves the early selection and the comparison shortlist before any outcome can mature.
+
+The retrospective replay covers 36 dated observations from 25 September to 17 November. The common symbol-day universe reconstructs 73,932 of 94,861 archived eligible symbol-days and retains 504 of 540 weekly selections. Later charts were sliced at each observed signal date. This reconstruction still carries survivorship, missing-data and retroactive adjustment risk. Early alerts preceded daily 4/4 in 24 of 38 joint first entries, were tied in 4, and came later in 10. The median signed lead was 6 sessions. No early/weekly entry pair shared a ticker in this window.
+
+| 20 sessions | Early Trend Birth | Daily 4/4 | Weekly base |
+|---|---:|---:|---:|
+| Observed / matured | 122 / 130 | 310 / 323 | 12 / 12 |
+| Signal dates with returns | 12 | 12 | 2 |
+| Top-decile observations | 10 | 29 | 1 |
+| Non-leader observations | 112 | 281 | 11 |
+| Below same-date median | 57 | 200 | 4 |
+| Top-decile opportunities missed (of 2,413) | 2,403 | 2,384 | 2,412 |
+| Average excess over same-date median | +0.880 pp | −4.236 pp | +6.473 pp |
+
+The study pairs each event with its own date's closing-price universe. The weekly average rests on two dates and cannot establish an advantage. The early shortlist has 282 first alerts pending at each of the 63-, 126- and 252-session horizons. Those horizons are tested with synthetic maturation and await genuine elapsed sessions.
+
+To reproduce, use the pinned Review full snapshot and the matching monthly stage/close and dated weekly archives. In the source directory, name the independent file copies `trend-birth-ticker-history_YYYY-MM.json`, `trend-birth-price-history_YYYY-MM.json` and `weekly-birth-shadow_YYYY-MM-DD.json`.
+
+```sh
+python scripts/replay_early_trend_birth.py \
+  --snapshot pinned-review.json \
+  --sha256 c781974749de559e63af09e61700bd67433bd0eab072275208a7ec39795e2adc \
+  --archive-dir archive-inputs --output early-replay.json
+```

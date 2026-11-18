@@ -16,6 +16,7 @@ from statistics import median
 
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
 from archive_trend_birth_closes import load_prices
+from early_trend_outcomes import report as early_report
 from market_actions import MarketAction, holding_return_pct, read_actions
 from market_sessions import exchange_sessions, session_date as _date_from_stamp
 
@@ -351,6 +352,8 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
                 "unknownDistributionValuation": "exclude",
             },
         })
+        if any("earlyTrend" in point for point in points):
+            result["earlyTrend"] = early_report(points, prices, calendar, actions)
     write_json(output, result)
     return {"asOf": as_of, "transitions": result["stageTransitions"],
             "archivedDays": len(sessions),

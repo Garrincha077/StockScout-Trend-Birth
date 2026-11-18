@@ -88,6 +88,26 @@ test('empty mobile watchlist uses no full archive and keeps the current snapshot
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('/data/kell-latest')),false);
 });
 
+test('Trend Birth opens directly to dated evidence, invalidation and chart',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',r=>requests.push(r.url()));
+  const row={...bootstrap.shortlists.weeklyTrendBirth[0],earlyTrend:{
+    sessionDate:bootstrap.source.sessionDate,phase:'reclaim',evidence:['support_reclaim','relative_strength_turn'],
+    baseSupport:20,invalidation:19.7,reclaimPivot:23,relativeStrength20Pct:3.1,weeklyBaseWeeks:32,dailyStage:2
+  }};
+  await page.route('**/data/review-bootstrap-v1/**',route=>route.fulfill({json:{
+    ...bootstrap,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[row]}
+  }}));
+  await page.goto(base+'/');
+  await page.waitForSelector('[data-primary-view="early"].active');
+  assert.equal(await page.locator('#grid .card').count(),1);
+  assert.match(await page.locator('#grid').innerText(),/Poništenje teze/);
+  assert.match(await page.locator('#grid').innerText(),/RS prema SPY-u/);
+  assert.match(await page.locator('#grid').innerText(),new RegExp(bootstrap.source.sessionDate));
+  assert.equal(await page.locator('#grid canvas').count(),1);
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
+});
+
 test('visible again: incomplete update preserves the old snapshot, complete update replaces it',async t=>{
   const page=await pageFor(t,'allow');
   const make=(day,token)=>{

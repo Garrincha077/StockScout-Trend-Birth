@@ -888,6 +888,7 @@ function matchesFilters(item,filters=activeFilters()){
 function sourceItems(filters=activeFilters()){
   if(state.universe==='watchlist')return watchlistItems();
   if(state.primaryView==='weekly')return state.data?.shortlists?.weeklyTrendBirth||[];
+  if(state.primaryView==='early')return state.data?.shortlists?.earlyTrendBirth||[];
   if(state.primaryView==='kell-daily')return state.data?.shortlists?.kellSwing??state.data?.shortlists?.kellDaily??[];
   return isKellView(filters)
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
@@ -1065,6 +1066,28 @@ function visible(item){
   return matchesFilters(item);
 }
 const swingStates={watch:'Za praćenje',triggered:'Pivot potvrđen',extended:'Iznad prihvatljivog ulaza',invalidated:'Setup poništen'};
+const earlyPhases={stabilizing:'Stabilizacija',reclaim:'Povrat iznad razine',confirmed:'Potvrđen zaokret'};
+const earlyEvidence={
+  support_retest:'Ponovljen test podrške',higher_low:'Više dno',support_reclaim:'Povrat iznad podrške',
+  range_compression:'Uži dnevni rasponi',relative_strength_turn:'Oporavak relativne snage',
+};
+function earlyPlan(item){
+  const info=item.earlyTrend;
+  if(!info)return '';
+  const evidence=(info.evidence||[]).map(key=>earlyEvidence[key]).filter(Boolean);
+  return '<section class="swing-plan early-plan" aria-label="Trend Birth dokazi">'+
+    '<div class="swing-plan-title"><strong>'+esc(earlyPhases[info.phase]||'Trend Birth')+'</strong><small>'+
+    esc(info.sessionDate)+'</small></div>'+
+    '<ul>'+evidence.map(label=>'<li>'+esc(label)+'</li>').join('')+'</ul>'+
+    '<div class="swing-levels">'+
+      '<div><small>Podrška baze</small><b>'+fmt(info.baseSupport)+'</b></div>'+
+      '<div><small>Poništenje teze</small><b>'+fmt(info.invalidation)+'</b></div>'+
+      '<div><small>Pivot oporavka</small><b>'+fmt(info.reclaimPivot)+'</b></div>'+
+      '<div><small>RS prema SPY-u · 20D</small><b>'+pct(info.relativeStrength20Pct)+'</b></div>'+
+      '<div><small>Tjedna baza</small><b>'+(info.weeklyBaseWeeks==null?'—':fmt(info.weeklyBaseWeeks,0)+' tj.')+'</b></div>'+
+      '<div><small>Potvrda dnevnog radara</small><b>'+fmt(info.dailyStage,0)+'/4</b></div>'+
+    '</div></section>';
+}
 const swingReasons={
   price_or_cycle_invalidation:'Cijena ili faza poništava plan.',
   insufficient_liquidity:'Promet ili cijena ispod praga.',
@@ -1098,6 +1121,15 @@ function card(item){
   const setups=kellSetupsText(item);
   const watched=isWatched(item.ticker);
   const sources=item.sources||[];
+  if(state.primaryView==='early'&&item.earlyTrend){
+    return '<article class="card early-card" tabindex="0" data-ticker="'+esc(item.ticker)+'">'+
+      '<div class="card-head"><div class="ticker-wrap"><button class="watch-star'+(watched?' active':'')+
+      '" type="button" data-watch-ticker="'+esc(item.ticker)+'" aria-label="'+(watched?'Makni ':'Dodaj ')+
+      esc(item.ticker)+(watched?' iz Watchliste':' na Watchlistu')+'" aria-pressed="'+String(watched)+'">'+
+      (watched?'★':'☆')+'</button><div class="ticker">'+esc(item.ticker)+'</div></div>'+
+      '<b>'+fmt(m.price)+'</b></div>'+earlyPlan(item)+
+      '<canvas aria-label="'+esc(item.ticker)+' graf baze"></canvas></article>';
+  }
   if(state.primaryView==='weekly'){
     const w=item.weeklyBirth||{},v=w.metrics||{};
     const runway=runwayLabel(v);
@@ -1198,6 +1230,9 @@ function render(){
   const filterSummary=activeFilterSummary();
   if(state.primaryView==='weekly'){
     $('#status').textContent=items.length+' Weekly Birth kandidata · duga baza, guste weekly MA linije i slobodan prostor iznad cijene';
+  }else if(state.primaryView==='early'){
+    $('#status').textContent=Array.isArray(state.data?.shortlists?.earlyTrendBirth)?
+      items.length+' kandidata za rani zaokret':'Ova snimka još nema listu ranih zaokreta.';
   }else if(state.primaryView==='kell-daily'){
     const active=items.filter(item=>item.kellSwing?.state==='triggered').length;
     $('#status').textContent=Array.isArray(state.data?.shortlists?.kellSwing)
@@ -1271,6 +1306,7 @@ function show(item){
   const weekly=item.weeklyBirth||{},weeklyMetrics=weekly.metrics||{};
   $('#detailBody').innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
+    earlyPlan(item)+
     swingPlan(item)+
     '<div class="detail-snapshot">'+
       '<div><span>Status</span><strong class="'+(reviewStatus==='ACTION'?'positive':reviewStatus==='WATCH'?'caution':'')+'">'+esc(reviewStatus)+'</strong></div>'+
@@ -1559,6 +1595,12 @@ function showDisplayedSnapshot(data,manifest){
     state.qualityHistoryError='';
     state.detailTicker=null;
     if($('#detail').open)$('#detail').close();
+  }
+  if(!state.data&&!state.primaryRequest&&!archived&&state.primaryView==='weekly'&&!requestedMode&&
+      Array.isArray(data.shortlists?.earlyTrendBirth)){
+    state.primaryView='early';
+    state.chartPeriod='1y';
+    $('#chartPeriod').value='1y';
   }
   state.data=data;
   state.snapshotId=manifest?.snapshotId||data.reviewSnapshotId||null;

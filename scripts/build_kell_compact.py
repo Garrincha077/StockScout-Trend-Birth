@@ -109,6 +109,7 @@ def compact_candidate(
         "trendBirth": item.get("trendBirth") or {},
         "weeklyBirth": item.get("weeklyBirth") or {},
         "trendBirthEvidence": item.get("trendBirthEvidence") or {},
+        "earlyTrend": item.get("earlyTrend"),
         "chartBarsCount": len(bars),
         "weeklyChartBarsCount": len(weekly),
     }
@@ -232,6 +233,9 @@ def main() -> int:
             ],
             "kellSwing": [
                 compact_candidate(item) for item in (source.get("shortlists") or {}).get("kellSwing") or []
+            ],
+            "earlyTrendBirth": [
+                compact_candidate(item) for item in (source.get("shortlists") or {}).get("earlyTrendBirth") or []
             ],
         },
         "trendBirthCandidateIndexCount": source.get("trendBirthCandidateIndexCount", 0),

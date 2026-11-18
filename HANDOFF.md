@@ -1,3 +1,10 @@
+## 2026-11-18 — Early Trend Birth and outcome cohorts
+
+- Last verified locally 2026-11-18 13:04 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+- Separate Early Trend Birth shortlist exposes evidence of base repair, relative strength, support, invalidation and reclaim pivot. New daily stage shards preserve the roster. The corrected report automatically matures 20/63/126/252-session outcomes alongside dated daily 4/4 and Weekly Base comparisons.
+- Archive replay with 36 observed dates shows a median six-session early lead among 38 matched daily names. Only 10 of 122 observed early 20D alerts reached the top decile. Data and reconstruction limits are recorded in [the validation report](docs/REVIEW_REBUILD_VALIDATION.md).
+- Local tests passed: 234 Python outside Linux shell fixture, 113 Node and 14 Chromium. Prior feature and controller PR CI passed. Next: ticker- and view-scoped Watchlist, installable preview, and rollout evidence.
+
 ## 2026-11-18 — Same-session corrections and Kell Swing
 
 - Last verified locally 2026-11-18 12:49 Europe/Zagreb on `codex/review-lab-rebuild`, draft PR [#76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). [Previous head CI](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44296002903) passed the unit, Linux publication shell, Chromium and verified read-only snapshot steps.

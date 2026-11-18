@@ -680,9 +680,32 @@
         if(!response.ok)throw Error('HTTP '+response.status);
         const recovered=validateRecovery(await response.json());
         renderRecovery(recovered);data=recovered;el('siRecoveryContent').hidden=false;
-      }catch(error){el('siRecoveryStatus').textContent='Usporedba nije dostupna: '+error.message+'. Zatvori i ponovno otvori za ponovni pokušaj. Glavni V2 prikaz ostaje dostupan.';}
+      }catch(error){el('siRecoveryStatus').textContent='Usporedba nije dostupna: '+error.message+'. Zatvori i ponovno otvori za ponovni pokušaj.';}
       finally{loading=false;}
     });
+  }
+  function renderEarlyOutcomes(data){
+    if(data?.schemaVersion!=='early-trend-outcomes-v1')return;
+    const cohorts=[['early','Trend Birth'],['daily4','Dnevno 4/4'],['weekly','Tjedna baza']];
+    const lead=cohorts.slice(1).map(([key,label])=>{
+      const sample=data.lead[key];
+      return sample.matched ? label+' · ranije '+sample.earlier+' / isti dan '+sample.same+
+        ' / kasnije '+sample.later+' · medijan prednosti '+sample.medianSessions+' sesija' :
+        label+' · još nema usporedivih ulazaka istog tickera';
+    });
+    el('siEarlyLead').textContent=FMT.format(data.observedSessions)+' sačuvanih sesija. '+lead.join('. ')+'.';
+    const rows=[];
+    for(const [horizon,values] of Object.entries(data.horizons)){
+      for(const [key,label] of cohorts){
+        const row=values[key];
+        rows.push([horizon+'D · '+label,FMT.format(row.observed)+' / '+FMT.format(row.matured),
+          FMT.format(row.pending),FMT.format(row.leadersCaptured)+' / '+FMT.format(row.leaderOpportunities),
+          FMT.format(row.leadersMissed),FMT.format(row.belowUniverseMedian),fmt(row.excessPct,' postotnih bodova')]);
+      }
+    }
+    comparisonTable('siEarlyTable',['Razdoblje i lista','S cijenom / dospjelo','Na čekanju','Pronađeni vođe / svi',
+      'Propušteni vođe','Ispod medijana','Prinos iznad medijana'],rows);
+    el('siEarly').hidden=false;
   }
   function renderForward(raw, eodDate) {
     const data=validateForward(raw);
@@ -726,6 +749,7 @@
       tbody.appendChild(r);
     }
     table.appendChild(tbody);
+    renderEarlyOutcomes(data.earlyTrend);
   }
 
   async function start() {
