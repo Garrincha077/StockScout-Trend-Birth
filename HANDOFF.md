@@ -1,3 +1,12 @@
+## 2026-11-18 — Review Lab rebuild, data baseline
+
+- Last verification 2026-11-18 12:18 Europe/Zagreb. Work in `codex/review-lab-rebuild`, based on active Review Lab source `82b12be`. Production remains on the existing branch. Last observed public source session was 2026-11-17 with 81 bootstrap candidates and charts.
+- Kell validation now canonicalizes daily sessions, uses the committed XNYS calendar, measures from the first subsequent open and excludes incomplete windows. The real 48-session replay produced 75,756 of 90,120 expected 5D observations (84.06%, up from 67.39%). The 99% calibration threshold is still unmet.
+- Tracked fallback can supply 156 completed weeks. The staged scanner marks an off-session last bar unavailable for Daily and Weekly Birth and keeps the historical chart visible. New quote extraction checks the date when the originating analysis exposes it.
+- A side-by-side corporate-action replay uses the permanent as-published archive and a source-verified ledger. It produces 10,019 confirmed transitions (34 event dates) and 7,169 observed 5D outcomes as of 2026-11-17. EMBJ 3→4 on 2026-11-09 is −8.3636%, originally −77.0909%. The staged action ledger has partial coverage and should not imply an exhaustive market feed.
+- Verified locally with 218 Python tests and 110 Node tests. Six Linux shell publication integration tests require CI or an equivalent Linux Git environment. The corrected stage reports are produced separately from the legacy archive for migration comparison.
+- Next: integrate versioned reports and point-in-time publication validation, then implement the Kell swing view and the independent early Trend Birth model, measure both, and verify mobile preview. Production rollout requires review and authorization.
+
 ## 2026-10-30 — Chart coverage tolerance ACTIVE
 
 - Verified 2026-10-30 10:41 UTC: PR #73 merged into `feature/unified-review-grid-lab` at `9ec843ae5d7b69a48eb594eea90786c4f1810149`; reviewed head `060deb4d2bc73a17a800fe613dd8f4d858257adb`. Vercel production `dpl_3t7zULr7evFxzdrmQpCa4Wejps9g` independently READY and assigned to the public alias. Public HTML loads `app.js?v=chart-coverage-20261030`; served JS SHA256 exactly matches the reviewed source.

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "review-market-actions-v1",
+  "currency": "USD",
+  "coverage": "Source-verified actions identified in the 2026-11-17 Review archive audit. Not an exhaustive corporate-action feed.",
+  "actions": [
+    {
+      "ticker": "CTVA",
+      "effectiveSession": "2026-10-01",
+      "kind": "spin_off",
+      "value": 1,
+      "distributionTicker": "VYLR",
+      "sourceUrl": "https://www.corteva.com/news/corteva-board-approves-vylor-distribution.html"
+    },
+    {
+      "ticker": "EMBJ",
+      "effectiveSession": "2026-11-16",
+      "kind": "split",
+      "value": 4,
+      "sourceUrl": "https://embraer.com/media-center/en/?detail=33634-Embraer-Announces-Change-in-ADS-Ratio&mediatype=NEWS"
+    },
+    {
+      "ticker": "SENEA",
+      "effectiveSession": "2026-11-17",
+      "kind": "split",
+      "value": 5,
+      "sourceUrl": "https://www.senecafoods.com/wp-content/uploads/2026/11/Seneca-Press-Release-for-Stock-Split.pdf"
+    },
+    {
+      "ticker": "SENEB",
+      "effectiveSession": "2026-11-17",
+      "kind": "split",
+      "value": 5,
+      "sourceUrl": "https://www.senecafoods.com/wp-content/uploads/2026/11/Seneca-Press-Release-for-Stock-Split.pdf"
+    }
+  ]
+}

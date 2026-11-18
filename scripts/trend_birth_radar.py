@@ -7,13 +7,15 @@ restart sequence?
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date
 import math
 from typing import Iterable
 
 try:
+    from .market_sessions import session_date
     from .market_week import week_is_complete
 except ImportError:
+    from market_sessions import session_date
     from market_week import week_is_complete
 
 STAGE_LABELS = {
@@ -120,43 +122,15 @@ def _wilder_atr(bars: list[dict], length: int = 14) -> list[float | None]:
     return out
 
 
-def _parse_day(value):
-    if isinstance(value, (int, float)):
-        stamp = float(value)
-        if stamp > 1_000_000_000_000:
-            stamp /= 1000.0
-        try:
-            return datetime.fromtimestamp(stamp, tz=timezone.utc).date()
-        except (OverflowError, OSError, ValueError):
-            return None
-
-    text = str(value or "").strip()
-    try:
-        stamp = float(text)
-    except ValueError:
-        stamp = None
-    if stamp is not None:
-        if stamp > 1_000_000_000_000:
-            stamp /= 1000.0
-        try:
-            return datetime.fromtimestamp(stamp, tz=timezone.utc).date()
-        except (OverflowError, OSError, ValueError):
-            return None
-
-    try:
-        return datetime.strptime(text[:10], "%Y-%m-%d").date()
-    except ValueError:
-        return None
-
-
 def _completed_weekly_closes(bars: list[dict]) -> list[float]:
     """Aggregate daily closes by ISO week and ignore a session-incomplete current week."""
     weeks: list[tuple[object, object, float]] = []
     current_key = None
     for bar in bars:
-        day = _parse_day(bar["time"])
-        if day is None:
+        label = session_date(bar["time"])
+        if label is None:
             continue
+        day = date.fromisoformat(label)
         iso = day.isocalendar()
         key = (iso.year, iso.week)
         if key != current_key:
@@ -175,7 +149,7 @@ def _slope(series: list[float], atr: float, lookback: int = 3) -> float | None:
     return (series[-1] - series[-1 - lookback]) / (lookback * atr)
 
 
-def evaluate_trend_birth(rows: Iterable) -> dict:
+def evaluate_trend_birth(rows: Iterable, expected_session: str | None = None) -> dict:
     bars = normalize_bars(rows)
     empty = {
         "stage": 0,
@@ -185,6 +159,10 @@ def evaluate_trend_birth(rows: Iterable) -> dict:
         "metrics": {},
         "missingFor4": [label for _, label in CHECK_LABELS],
     }
+    bar_date = session_date(bars[-1]["time"]) if bars else None
+    if expected_session is not None and bar_date != expected_session:
+        reason = "no_session_bar" if bar_date is None else "bar_session_mismatch"
+        return {**empty, "reason": reason, "barDate": bar_date}
     if len(bars) < 170:
         return {**empty, "reason": "insufficient_daily_history"}
 
@@ -301,7 +279,7 @@ def evaluate_trend_birth(rows: Iterable) -> dict:
         "stage": stage,
         "stageLabel": STAGE_LABELS[stage],
         "available": True,
-        "barDate": bars[-1]["time"][:10],
+        "barDate": bar_date,
         "checks": checks,
         "metrics": {
             "price": price,

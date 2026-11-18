@@ -5,14 +5,16 @@ reasons and raw measurements so a reviewer can disagree with the ranking.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date
 import math
 from statistics import median
 from typing import Iterable
 
 try:
+    from .market_sessions import bar_session_date
     from .market_week import week_is_complete
 except ImportError:
+    from market_sessions import bar_session_date
     from market_week import week_is_complete
 
 LABELS = {0: "Rejected", 1: "Long Base", 2: "Compressed", 3: "Ready", 4: "Trigger"}
@@ -26,37 +28,22 @@ def _number(value):
     return number if math.isfinite(number) else None
 
 
-def _date(value):
-    if isinstance(value, (int, float)) or str(value or "").isdigit():
-        stamp = float(value)
-        if stamp > 1_000_000_000_000:
-            stamp /= 1000
-        try:
-            return datetime.fromtimestamp(stamp, timezone.utc).date()
-        except (ValueError, OverflowError, OSError):
-            return None
-    try:
-        return datetime.fromisoformat(str(value)[:10]).date()
-    except ValueError:
-        return None
-
-
 def completed_weekly_bars(rows: Iterable) -> list[dict]:
     weeks: list[dict] = []
     for raw in rows or []:
         if isinstance(raw, (list, tuple)) and len(raw) >= 6:
-            stamp, opened, high, low, close, volume = raw[:6]
+            _, opened, high, low, close, volume = raw[:6]
         elif isinstance(raw, dict):
-            stamp = raw.get("time") or raw.get("date")
             opened, high, low, close, volume = (
                 raw.get("open"), raw.get("high"), raw.get("low"), raw.get("close"), raw.get("volume")
             )
         else:
             continue
-        day = _date(stamp)
+        label = bar_session_date(raw)
         values = [_number(value) for value in (opened, high, low, close)]
-        if day is None or any(value is None or value <= 0 for value in values):
+        if label is None or any(value is None or value <= 0 for value in values):
             continue
+        day = date.fromisoformat(label)
         opened, high, low, close = values
         key = (day.isocalendar().year, day.isocalendar().week)
         if weeks and weeks[-1]["key"] == key:
@@ -131,12 +118,18 @@ def _resistance(weeks: list[dict], base_weeks: int, pivot: float) -> float | Non
     return above[0] if above else None
 
 
-def evaluate_weekly_birth(rows: Iterable) -> dict:
-    weeks = completed_weekly_bars(rows)
+def evaluate_weekly_birth(rows: Iterable, expected_session: str | None = None) -> dict:
     rejected = {
         "stage": 0, "stageLabel": LABELS[0], "eligible": False,
         "score": 0, "checks": {}, "metrics": {}, "rejectReasons": [],
     }
+    if expected_session is not None:
+        rows = list(rows or [])
+        last_session = bar_session_date(rows[-1]) if rows else None
+        if last_session != expected_session:
+            reason = "no_session_bar" if last_session is None else "bar_session_mismatch"
+            return {**rejected, "rejectReasons": [reason], "barDate": last_session}
+    weeks = completed_weekly_bars(rows)
     if len(weeks) < 156:
         return {**rejected, "rejectReasons": ["weekly_history_under_156_weeks"]}
     base = _base(weeks)

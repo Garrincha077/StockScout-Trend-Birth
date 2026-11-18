@@ -1,5 +1,14 @@
 # StockScout Trend Birth — Persistent Project Log
 
+## 2026-11-18 — Rebuild begins with data contracts and historical replay
+
+- Branch `codex/review-lab-rebuild` uses `82b12be589828a6e114d5c4ac8635aacaa52787c` as the pinned production baseline. Last comparison verified 2026-11-18 12:18 Europe/Zagreb.
+- Normalized ISO/epoch daily dates at the validation and Trend Birth boundaries. Kell outcome windows use the versioned XNYS calendar, require bars for the entire hold window, start at the next open and measure through the specified session close. Crossed windows with a halt or missing quote remain unobserved. Availability at next open is a replay assumption until exact publication times are recorded.
+- Enforced the expected last-bar session in Daily and Weekly Birth publication, retained off-session charts for inspection, and requested a longer bounded history for tracked-only Yahoo fallback.
+- Added a separate historical replay for corporate-action-adjusted outcomes from as-published closes. The ledger records source links. A split adjusts held shares, a spin-off requires valuing both holdings, and missing valuation leaves a mature outcome unobserved. Corrected shards are versioned and can be re-derived after a ledger amendment. The existing published archives serve as the comparison.
+- Tests: 218 local Python and 110 local Node tests passed. Real replay: corrected Kell 5D coverage 75,756 / 90,120 vs 60,731 / 90,120. Corrected Trend Birth archive recovered EMBJ 5D from −77.0909% to −8.3636%, and skipped transition claims across the October 15 and October 19 archive gaps. Six publication shell tests still need verification under Linux.
+- Next integration: carry exact source/run and statistics signatures through candidate, graph, report and alert publication. Continue with Kell setup execution, Trend Birth research ranking and the mobile application. Integrate preview and rollback before production review.
+
 ## 2026-10-25 — Market Thermometer: pet jednakih temperaturnih zona (prva verzija)
 
 - **UI:** kartice Quality breadth, pressure, 4/4 i trajnosti dobivaju semantičku nijansu po **povijesnom temperaturnom percentilu**; 0–<20 tamno zeleno (vrlo hladno), 20–<40 svijetlo zeleno, 40–<60 žuto, 60–<80 narančasto, 80–100 crveno (pregrijano). Za preostale dinamičke kartice boje ne predstavljaju temperaturu.

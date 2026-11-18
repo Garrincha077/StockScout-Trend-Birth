@@ -35,6 +35,26 @@ def point(day, aaa, bbb, run="r"):
 
 
 class ForwardStageTests(unittest.TestCase):
+    def test_corrected_history_uses_split_and_keeps_legacy_values_separate(self):
+        dates = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12",
+                 "2026-11-13", "2026-11-16", "2026-11-17"]
+        saved = {"5": -77.0909}
+        observed = [{"sessionDate": dates[0], "events": [["EMBJ", 3, 4, saved]]}]
+        prices = {"EMBJ": {"2026-11-10": 82.5, "2026-11-17": 18.9}}
+        actions = [forward.MarketAction("EMBJ", "2026-11-16", "split", 4, None)]
+        forward._mature(observed, prices, dates)
+        self.assertEqual(saved["5"], -77.0909)
+        forward._mature(observed, prices, dates, actions)
+        self.assertEqual(saved["5"], -8.3636)
+
+    def test_no_confirmed_transition_across_missing_exchange_session(self):
+        dates = ["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17"]
+        observed = [point(dates[0], 2, 0), point(dates[2], 3, 0), point(dates[3], 4, 0)]
+        result = forward._events(observed, dates)
+        self.assertEqual([(s["previousSessionDate"], s["sessionDate"]) for s in result],
+                         [(dates[2], dates[3])])
+        self.assertEqual(result[0]["events"], [["AAA", 3, 4, {}]])
+
     def fixture(self, base: Path, dates: list[str], missing_bbb=False):
         stage_dir = base / "stages"
         stage_dir.mkdir()

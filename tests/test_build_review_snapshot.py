@@ -217,6 +217,16 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(sum(counts.values()), 1)
         self.assertEqual(unavailable, 0)
 
+        stale, counts, unavailable = builder.build_trend_birth_union(
+            [], {}, {"CLOV"}, {"CLOV": rows}, "2026-11-17",
+        )
+        self.assertEqual(sum(counts.values()), 0)
+        self.assertEqual(unavailable, 1)
+        self.assertEqual(stale[0]["trendBirth"]["reason"], "bar_session_mismatch")
+        self.assertEqual(stale[0]["trendBirth"]["barDate"], rows[-1]["time"])
+        self.assertEqual(stale[0]["weeklyBirth"]["rejectReasons"], ["bar_session_mismatch"])
+        self.assertEqual(len(stale[0]["chartBars"]), 260)
+
     def test_tracked_unified_name_reevaluates_from_final_chart_source(self):
         start = date(2025, 9, 1)
         rows = []

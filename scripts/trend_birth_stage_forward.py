@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import date, datetime, timezone
 import json
 import math
 from pathlib import Path
@@ -17,27 +16,13 @@ from statistics import median
 
 from trend_birth_intelligence import SCOPE, all_points, load_months, write_json
 from archive_trend_birth_closes import load_prices
+from market_actions import MarketAction, holding_return_pct, read_actions
+from market_sessions import exchange_sessions, session_date as _date_from_stamp
 
 SCHEMA = "trend-birth-forward-eod-month-v2"
 REPORT_SCHEMA = "trend-birth-stage-forward-v2"
+CORRECTED_SCHEMA = "trend-birth-forward-eod-month-actions-v1"
 HORIZONS = (5, 20, 60)
-
-
-def _date_from_stamp(value: object) -> str | None:
-    text = str(value or "").strip()
-    if not text:
-        return None
-    try:
-        numeric = float(text)
-        if math.isfinite(numeric) and numeric > 0:
-            seconds = numeric / 1000 if numeric >= 1e12 else numeric
-            return datetime.fromtimestamp(seconds, tz=timezone.utc).date().isoformat()
-    except (TypeError, ValueError, OSError, OverflowError):
-        pass
-    try:
-        return date.fromisoformat(text[:10]).isoformat()
-    except ValueError:
-        return None
 
 
 def _bars(row: dict, as_of: str) -> dict[str, float]:
@@ -88,9 +73,12 @@ def _price_series(price_archive: dict[str, dict]) -> dict[str, dict[str, float]]
     return by_ticker
 
 
-def _events(points: list[dict]) -> list[dict]:
+def _events(points: list[dict], calendar: list[str] | None = None) -> list[dict]:
     result: list[dict] = []
+    previous = dict(zip(calendar[1:], calendar)) if calendar is not None else None
     for old, current in zip(points, points[1:]):
+        if previous is not None and previous.get(current["sessionDate"]) != old["sessionDate"]:
+            continue
         before, after = old["stages"], current["stages"]
         entries = [
             [ticker, before[ticker][0], value[0], {}]
@@ -107,11 +95,11 @@ def _events(points: list[dict]) -> list[dict]:
     return result
 
 
-def _load_archive(directory: Path) -> dict[str, dict]:
+def _load_archive(directory: Path, schema: str = SCHEMA) -> dict[str, dict]:
     rows: dict[str, dict] = {}
     for path in sorted(directory.glob("????-??.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
-        if payload.get("schemaVersion") != SCHEMA or payload.get("month") != path.stem:
+        if payload.get("schemaVersion") != schema or payload.get("month") != path.stem:
             raise ValueError("Incompatible forward history: " + str(path))
         for session in payload.get("sessions") or []:
             day = session.get("sessionDate")
@@ -142,7 +130,7 @@ def _merge(events: list[dict], archived: dict[str, dict]) -> list[dict]:
 
 
 def _mature(sessions: list[dict], prices: dict[str, dict[str, float]],
-            calendar: list[str]) -> None:
+            calendar: list[str], actions: list[MarketAction] | None = None) -> None:
     positions = {day: idx for idx, day in enumerate(calendar)}
     for session in sessions:
         signal = session["sessionDate"]
@@ -167,9 +155,17 @@ def _mature(sessions: list[dict], prices: dict[str, dict[str, float]],
             for h in HORIZONS:
                 key = str(h)
                 exit_index = entry_index + h
-                if key in saved or exit_index >= len(calendar):
+                if exit_index >= len(calendar) or (actions is None and key in saved):
                     continue
                 exit_day = calendar[exit_index]
+                if actions is not None:
+                    # Corrected outcomes are derived from the permanent quote archive.
+                    # Recompute instead of retaining a value from a superseded ledger.
+                    saved.pop(key, None)
+                    result = holding_return_pct(ticker, entry_day, exit_day, prices, actions)
+                    if result is not None:
+                        saved[key] = round(result, 4)
+                    continue
                 exit_price = ticker_prices.get(exit_day)
                 if entry is None or exit_price is None:
                     continue  # mature but unavailable: excluded, never zero-filled
@@ -302,19 +298,26 @@ def report(sessions: list[dict], calendar: list[str], as_of: str,
     }
 
 
-def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path, output: Path) -> dict:
+def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: Path,
+          output: Path, actions_path: Path | None = None) -> dict:
     latest = json.loads(latest_path.read_text(encoding="utf-8"))
     as_of = str((latest.get("source") or {}).get("sessionDate") or "")
     points = all_points(load_months(stages_dir))
     if not points or points[-1]["sessionDate"] != as_of:
         raise ValueError("Stage archive and EOD snapshot have different latest dates")
-    # Live chart bars define exchange session dates only. Their historical
-    # prices may be stale/partial and MUST NOT determine realized outcomes.
-    chart_dates = {
-        str(row.get("ticker") or "").upper(): _bars(row, as_of)
-        for row in (latest.get("trendBirthCandidateIndex") or [])
-    }
-    calendar = _calendar(chart_dates, as_of)
+    actions = None
+    schema = SCHEMA
+    if actions_path is not None:
+        actions, digest = read_actions(actions_path)
+        schema = CORRECTED_SCHEMA
+        calendar = [day for day in exchange_sessions(as_of) if day >= points[0]["sessionDate"]]
+    else:
+        # Preserve the frozen V2 comparator while building corrected results alongside it.
+        chart_dates = {
+            str(row.get("ticker") or "").upper(): _bars(row, as_of)
+            for row in (latest.get("trendBirthCandidateIndex") or [])
+        }
+        calendar = _calendar(chart_dates, as_of)
     closed = load_prices(prices_dir)
     if as_of not in closed or set(closed) != {p["sessionDate"] for p in points}:
         raise ValueError("Daily close and stage archives are not aligned")
@@ -324,17 +327,27 @@ def build(latest_path: Path, stages_dir: Path, prices_dir: Path, outcomes_dir: P
             close.get("expectedEvaluated") != point["evaluatedCount"]):
             raise ValueError("EOD close provenance mismatch: " + point["sessionDate"])
     prices = _price_series(closed)
-    sessions = _merge(_events(points), _load_archive(outcomes_dir))
-    _mature(sessions, prices, calendar)
+    sessions = _merge(_events(points, calendar if actions is not None else None),
+                      _load_archive(outcomes_dir, schema))
+    _mature(sessions, prices, calendar, actions)
     grouped: dict[str, list[dict]] = {}
     for session in sessions:
         grouped.setdefault(session["sessionDate"][:7], []).append(session)
     for month, rows in grouped.items():
         write_json(outcomes_dir / (month + ".json"), {
-            "schemaVersion": SCHEMA, "month": month, "scope": SCOPE,
+            "schemaVersion": schema, "month": month, "scope": SCOPE,
             "sessions": rows,
         })
     result = report(sessions, calendar, as_of, closed)
+    if actions is not None:
+        result.update({
+            "calendarSource": "xnys-eod-sessions-v1",
+            "priceSource": "as-published EOD closes with source-verified ledger adjustments",
+            "corporateActions": {
+                "sha256": digest, "registered": len(actions), "completeCoverage": False,
+                "unknownDistributionValuation": "exclude",
+            },
+        })
     write_json(output, result)
     return {"asOf": as_of, "transitions": result["stageTransitions"],
             "archivedDays": len(sessions),
@@ -348,8 +361,10 @@ def main() -> None:
     parser.add_argument("--prices-dir", type=Path, required=True)
     parser.add_argument("--outcomes-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--actions", type=Path, help="Corporate-action ledger for a separate versioned outcome directory")
     args = parser.parse_args()
-    print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir, args.outcomes_dir, args.output)))
+    print(json.dumps(build(args.latest, args.stages_dir, args.prices_dir,
+                           args.outcomes_dir, args.output, args.actions)))
 
 
 if __name__ == "__main__":
