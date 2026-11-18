@@ -236,3 +236,4 @@
 .saved-plan-status[data-state="invalidated"]{color:#ffabb3}
 .saved-plan-status[data-state="extended"]{color:#ffe0a6}
 #savedPlanArchive{margin-top:12px}
+.analysis-jump{color:#9ed3ff}

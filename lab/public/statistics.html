@@ -171,6 +171,29 @@
         <caption class="sr-only">Dospijeće, pokrivenost i usporedba s dnevnim i tjednim modelom</caption>
       </table></div>
     </section>
+    <section class="si-panel" id="siKell" aria-labelledby="siKellTitle">
+      <h2 id="siKellTitle">Kell Swing · provjera planova</h2>
+      <p class="si-muted" id="siKellStatus" role="status">Provjeravam izvještaj za prikazanu EOD objavu…</p>
+      <div id="siKellContent" hidden>
+        <div class="si-controls">
+          <label>Sesije držanja <select id="siKellHorizon">
+            <option value="5">5</option><option value="10">10</option><option value="20">20</option>
+          </select></label>
+          <label>Ukupni trošak ulaza i izlaza <select id="siKellCost">
+            <option value="20bp">0,20%</option><option value="50bp">0,50%</option>
+          </select></label>
+        </div>
+        <h3>Arhivirani planovi</h3>
+        <p id="siKellPublished"></p>
+        <p class="si-muted">Simulacija pretpostavlja da je plan vidljiv prije sljedećeg otvaranja. Primjenjuje granicu ulaza, stop i cilj od 2R. Jedan R je početni rizik do stopa. Raspon prikazuje moguće redoslijede cijena unutar dnevne svijeće.</p>
+        <h3>Povijesna rekonstrukcija odabira</h3>
+        <p id="siKellPaired"></p>
+        <div class="si-table-scroll"><table id="siKellComparison" class="si-matrix">
+          <caption class="sr-only">Prinos odabira na zajedničkim potpunim datumima</caption>
+        </table></div>
+        <p class="si-muted">Svaki uspoređeni EOD ima jednako velike liste s potpunim cijenama. Mjerenje ide od sljedećeg otvaranja do zatvaranja na kraju odabranog horizonta. Povijesni grafovi mogu sadržavati naknadne revizije.</p>
+      </div>
+    </section>
     <section class="si-panel" aria-labelledby="siChartTitle">
       <h2 id="siChartTitle">Povijest cijelog skupa setupa</h2>
       <div class="si-controls">
@@ -215,6 +238,6 @@
   <script src="trend-birth-heat.js?v=statistics-review-20261025" defer></script>
   <script src="eod-freshness.js?v=displayed-session-20261118" defer></script>
   <script src="snapshot-loader.js?v=research-reference-20261118" defer></script>
-  <script src="trend-birth-stats.js?v=early-horizons-20261118" defer></script>
+  <script src="trend-birth-stats.js?v=kell-outcomes-20261118" defer></script>
 </body>
 </html>
