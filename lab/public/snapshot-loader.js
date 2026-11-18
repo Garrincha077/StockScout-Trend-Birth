@@ -84,16 +84,29 @@
     return (await loadCurrent(fetcher)).data;
   }
   async function loadBootstrap(fetcher, manifest) {
-    const expected='data/review-bootstrap-v1/'+manifest.snapshotId+'.json';
+    const expected=['v1','v2'].map(version=>'data/review-bootstrap-'+version+'/'+manifest.snapshotId+'.json');
     if(manifest.bootstrapPath===undefined)return aligned(await json(fetcher,snapshotPath(manifest)),manifest);
-    if(manifest.bootstrapPath!==expected)throw new Error('Neispravan put početnog pregleda.');
-    const data=aligned(await json(fetcher,expected),manifest);
+    if(!expected.includes(manifest.bootstrapPath))throw new Error('Neispravan put početnog pregleda.');
+    const data=aligned(await json(fetcher,manifest.bootstrapPath),manifest);
     if(data.schemaVersion!=='trend-birth-review-bootstrap-v1'||data.reviewSnapshotId!==manifest.snapshotId||
         data.shortlists?.schemaVersion!=='stockscout-shortlists-v2'||
         !Array.isArray(data.shortlists.weeklyTrendBirth)||!Array.isArray(data.shortlists.kellDaily)){
       throw new Error('Neispravan početni pregled.');
     }
     return data;
+  }
+  async function loadShortlist(fetcher,bootstrap,view){
+    const ref=bootstrap.deferredShortlists?.[view];
+    if(!ref)return;
+    const snapshotId=bootstrap.reviewSnapshotId;
+    const path='data/review-bootstrap-v2/'+snapshotId+'/'+view+'--'+ref.sha256+'.json';
+    if(!validId(snapshotId)||!['weeklyTrendBirth','kellSwing','kellDaily'].includes(view)||
+        !/^[a-f0-9]{64}$/.test(ref.sha256)||path!==ref.path)throw Error('Neispravna lista kandidata.');
+    const payload=aligned(await verifiedJson(fetcher,path,ref.sha256,'Lista kandidata'),bootstrap.source);
+    if(payload.schemaVersion!=='trend-birth-shortlist-v1'||payload.snapshotId!==snapshotId||
+        payload.view!==view||!Array.isArray(payload.items))throw Error('Lista i objava nisu usklađene.');
+    bootstrap.shortlists[view]=payload.items;
+    delete bootstrap.deferredShortlists[view];
   }
   async function loadCurrent(fetcher, {full = false, previousId = null} = {}) {
     const manifest = await readPublication(fetcher);
@@ -160,6 +173,6 @@
     }));
     return new Map(rows);
   }
-  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadWatchlist,watchlistBucket};
+  root.ReviewSnapshots = {load,loadInitial,loadCurrent,loadResearch,loadReports,loadShortlist,loadWatchlist,watchlistBucket};
   if (typeof module !== 'undefined') module.exports = root.ReviewSnapshots;
 })(globalThis);
