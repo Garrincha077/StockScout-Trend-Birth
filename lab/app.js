@@ -1724,6 +1724,7 @@ function detailEvidence(item,periodKey){
         '<option value="'+key+'"'+(key===periodKey?' selected':'')+'>'+label+'</option>').join('')+'</select></div>'+
     '<div class="chart-track"><canvas class="detail-chart" aria-label="'+esc(item.ticker)+' detaljni graf"></canvas></div>'+
     '<p class="detail-chart-meta" role="status"></p>'+
+    '<button type="button" class="watchlist-retry detail-chart-retry" hidden>Ponovi učitavanje grafa</button>'+
     '<div class="chart-inspection" hidden>'+
       '<div class="chart-inspection-stats">'+
         '<span><small>Otvaranje</small><b data-candle="open"></b></span>'+
@@ -1742,12 +1743,23 @@ function detailEvidence(item,periodKey){
       '<figure><figcaption><strong>Volumen</strong><span data-volume-readout></span></figcaption>'+
         '<div class="chart-track"><canvas aria-label="Volumen i prethodni prosjek"></canvas></div></figure>'+
       '<figure><figcaption><strong>Relativna snaga prema SPY-u</strong><span data-relative-readout></span></figcaption>'+
-        '<div class="chart-track"><canvas aria-label="Omjer cijene dionice i SPY-a, indeksiran na 100"></canvas></div></figure>'+
+        '<div class="chart-track"><canvas aria-label="Omjer cijene dionice i SPY-a, indeksiran na 100"></canvas></div>'+
+        '<small class="chart-rs-source" hidden>SPY referenca izvedena iz podudarnih Unified omjera za iste datume.</small></figure>'+
     '</div></section>';
 }
 const compactChartVolume=new Intl.NumberFormat('hr-HR',{notation:'compact',maximumFractionDigits:1});
+const chartSpyRequests=new WeakMap();
+function ensureChartSpy(manifest){
+  if(!manifest?.spyReference?.sessionCount)return null;
+  if(!chartSpyRequests.has(manifest)){
+    const request=ReviewSnapshots.loadSpyReference(fetch,manifest)
+      .catch(()=>{chartSpyRequests.delete(manifest);return null});
+    chartSpyRequests.set(manifest,request);
+  }
+  return chartSpyRequests.get(manifest);
+}
 function chartDay(time){return barDate(time)?.toISOString().slice(0,10)??''}
-function renderDetailEvidence(section,item,rows,periodKey,view){
+function renderDetailEvidence(section,item,rows,periodKey,view,benchmark){
   const period=chartPeriods[periodKey],canvas=section.querySelector('.detail-chart');
   const base=period.weekly?weeklyBaseRange(item,rows):null;
   const context=view==='weekly'&&!period.weekly?'early':view;
@@ -1762,7 +1774,8 @@ function renderDetailEvidence(section,item,rows,periodKey,view){
   volumeCanvas.parentElement.hidden=!volume.hasValues;
   if(volume.hasValues)ChartEvidence.drawVolume(volumeCanvas,volume,value=>compactChartVolume.format(value));
   const dailyRs=new Map(normalizeBars(item.chartBars).filter(bar=>bar.rs!==null).map(bar=>[chartDay(bar.time),bar.rs]));
-  const relative=ChartEvidence.relative(result.bars.map(bar=>({...bar,time:chartDay(bar.time)})),dailyRs);
+  const relative=ChartEvidence.relative(result.bars.map(bar=>({...bar,time:chartDay(bar.time)})),dailyRs,benchmark);
+  section.querySelector('.chart-rs-source').hidden=relative.source!=='reference';
   const relativeCanvas=section.querySelector('[data-relative-readout]').closest('figure').querySelector('canvas');
   relativeCanvas.parentElement.hidden=relative.count<2;
   if(relative.count>=2)ChartEvidence.drawRelative(relativeCanvas,relative);
@@ -1800,11 +1813,12 @@ function showDetailCandle(section,evidence,index){
 function mountDetailEvidence(section,item,view){
   const select=section.querySelector('select'),canvas=section.querySelector('.detail-chart');
   const meta=section.querySelector('.detail-chart-meta'),indicators=section.querySelector('.chart-indicators');
+  const retry=section.querySelector('.detail-chart-retry');
   const controls=section.querySelector('.chart-inspection'),slider=controls.querySelector('input');
   const floor=controls.querySelector('[data-candle-floor]');
-  const dialog=$('#detail');
+  const dialog=$('#detail'),manifest=state.publication;
   let revision=0,lastRender=null,lastWidth=null;
-  let evidence=null,selected=null;
+  let evidence=null,selected=null,benchmark=null;
   function pick(index){
     if(!evidence)return;
     selected=Math.max(0,Math.min(evidence.bars.length-1,index));
@@ -1838,9 +1852,21 @@ function mountDetailEvidence(section,item,view){
     section.removeAttribute('data-chart-cursor');
     indicators.hidden=true;
     controls.hidden=true;
+    retry.hidden=true;
     meta.textContent='Učitavanje grafa…';
     draw(canvas,[],true,'Učitavanje…');
     try{
+      if(item.watchlistUnavailable&&manifest?.watchlist){
+        meta.textContent='Učitavam podatke tickera…';
+        const lookup=state.watchlistLookup;
+        const rows=await ReviewSnapshots.loadWatchlist(fetch,manifest,[item.ticker],lookup.cache);
+        if(!isCurrent())return;
+        const row=rows.get(item.ticker);
+        lookup.rows.set(item.ticker,row);
+        if(!lookup.request)render();
+        show({...item,...row,watchlistUnavailable:false,watchlistMissing:!row},view);
+        return;
+      }
       let cutoff=null;
       if(chartPeriods[periodKey].weekly){
         const session=state.data?.source?.sessionDate;
@@ -1860,7 +1886,7 @@ function mountDetailEvidence(section,item,view){
       const rows=await ensureChartData(item,periodKey,cutoff);
       if(!isCurrent())return;
       lastRender=()=>{
-        evidence=renderDetailEvidence(section,item,rows,periodKey,view);
+        evidence=renderDetailEvidence(section,item,rows,periodKey,view,benchmark);
         controls.hidden=!evidence;
         if(!evidence)return;
         slider.max=String(evidence.bars.length-1);
@@ -1869,13 +1895,23 @@ function mountDetailEvidence(section,item,view){
       };
       lastRender();
       updateSavedPlanStatuses($('#detailBody'),item);
+      if(!benchmark&&evidence&&evidence.relative.count<evidence.bars.length){
+        const request=ensureChartSpy(manifest);
+        if(!request)return;
+        const verified=await request;
+        if(!isCurrent()||!verified)return;
+        benchmark=verified;
+        lastRender();
+      }
     }catch{
       if(!isCurrent())return;
       draw(canvas,[],true,'Graf nije dostupan');
       meta.textContent='Podaci za graf trenutačno se ne mogu učitati.';
+      retry.hidden=false;
     }
   }
   select.addEventListener('change',refresh);
+  retry.addEventListener('click',refresh);
   refresh();
 }
 function show(item,view=state.primaryView){

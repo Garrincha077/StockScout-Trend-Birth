@@ -52,7 +52,8 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                          "pack_review_storage.py", "review_archive_io.py", "market_sessions.py",
                          "publish_watchlist_snapshot.py", "build_kell_compact.py", "kell_chart_coverage.py",
                          "publish_review_snapshot.py", "publish_review_research.py",
-                         "publish_review_changes.py", "early_trend_birth.py", "kell_swing.py", "trend_birth_radar.py",
+                         "publish_review_changes.py", "publish_review_spy.py",
+                         "early_trend_birth.py", "kell_swing.py", "trend_birth_radar.py",
                          "market_week.py"]:
                 shutil.copy2(ROOT / "scripts" / name, checkout / "scripts")
             shutil.copy2(ROOT / "lab/data/exchange-sessions-v1.json", checkout / "lab/data")
@@ -85,6 +86,7 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 from archive_trend_birth_closes import extract
                 from publish_review_research import REPORTS, publish
                 from publish_review_changes import build as publish_changes
+                from publish_review_spy import publish as publish_spy
                 stage = point_from_snapshot(latest)
                 for folder, schema, point in [
                     ("trend-birth-ticker-history", "trend-birth-ticker-month-v1", stage),
@@ -106,6 +108,7 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 publish(checkout / "lab/data")
                 publish_changes(checkout / "lab/data",
                                 json.loads((checkout / "lab/data/exchange-sessions-v1.json").read_bytes()))
+                publish_spy(checkout / "lab/data", checkout / "lab/data/exchange-sessions-v1.json")
                 write("lab/data/kell-latest.json", {"source": latest["source"]})
                 write("lab/data/trend-birth-market-internals.json", {
                     "latestSessionDate": day, "latestRunId": latest["source"]["runId"]})
@@ -170,6 +173,8 @@ class ReviewPublicationWorkflowTests(unittest.TestCase):
                 changes = json.loads(git("show", "HEAD:lab/" + manifest["changes"]["path"]))
                 self.assertEqual(changes["source"]["sessionDate"], "2026-10-26")
                 self.assertEqual(changes["previousSession"], "2026-10-23")
+                spy = json.loads(git("show", "HEAD:lab/" + manifest["spyReference"]["path"]))
+                self.assertEqual(spy["source"]["sessionDate"], "2026-10-26")
             return result, published, git("rev-parse", "HEAD") == baseline
 
     def test_lossless_gzip_staging_does_not_require_deleted_plain_json(self):

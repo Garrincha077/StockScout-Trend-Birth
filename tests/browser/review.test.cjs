@@ -244,6 +244,82 @@ test('modern startup fetches the weekly view and its charts only on selection',a
   assert.match(summary,/Prvi otpor/);
 });
 
+test('SPY history is lazy and replaces an incomplete view only after checksum verification',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',request=>requests.push(request.url()));
+  const sample=bootstrap.shortlists.weeklyTrendBirth[0];
+  const bars=sample.chartBars.slice(-6).map(bar=>bar.slice(0,6));
+  const newest=bars.at(-1),missingDate=bars.at(-2)[0];
+  const item={...sample,chartBars:bars,earlyTrend:{sessionDate:bootstrap.source.sessionDate,
+    phase:'reclaim',evidence:['support_reclaim'],reclaimPivot:newest[4],invalidation:newest[4]*.9}};
+  const schemaVersion='review-spy-reference-v1';
+  const points=bars.filter(bar=>bar[0]!==missingDate).map(bar=>[bar[0],500,6,6]);
+  const payload=JSON.stringify({schemaVersion,snapshotId:manifest.snapshotId,source:bootstrap.source,benchmark:'SPY',points});
+  const sha256=createHash('sha256').update(payload).digest('hex');
+  const path='data/review-spy-runs/'+manifest.snapshotId+'--'+sha256+'.json';
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{
+    ...manifest,spyReference:{schemaVersion,path,sha256,sessionCount:points.length}
+  }}));
+  await page.route('**/'+manifest.bootstrapPath,route=>route.fulfill({json:{
+    ...bootstrap,shortlists:{...bootstrap.shortlists,earlyTrendBirth:[item]}
+  }}));
+  let corrupt=true;
+  await page.route('**/'+path,route=>route.fulfill({contentType:'application/json',body:payload+(corrupt?' ':'')}));
+  await page.goto(base+'/');
+  await page.waitForSelector('.early-card');
+  assert.equal(requests.filter(url=>url.includes('/review-spy-runs/')).length,0);
+  const first=page.waitForResponse(response=>response.url().endsWith(path));
+  await page.locator('.early-card').click();
+  await (await first).finished();
+  const section=page.locator('.detail-evidence');
+  await section.getByText('Referentni niz nije dostupan').waitFor();
+  assert.equal(await section.locator('.chart-rs-source').isVisible(),false);
+  corrupt=false;
+  await section.locator('select').selectOption('3m');
+  await section.locator('.chart-rs-source').waitFor();
+  const expected=(100*newest[4]/bars[0][4]).toFixed(1);
+  assert.ok((await section.locator('[data-relative-readout]').innerText()).startsWith(expected+' ('));
+  await section.getByRole('slider',{name:'Svijeća na grafu'}).press('ArrowLeft');
+  assert.match(await section.locator('[data-relative-readout]').innerText(),/RS za ovaj datum nedostaje/);
+  await section.locator('select').selectOption('1y');
+  await section.locator('.chart-rs-source').waitFor();
+  assert.equal(requests.filter(url=>url.includes('/review-spy-runs/')).length,2);
+});
+
+test('opening a Watchlist ticker while its bucket is loading hydrates the open chart',async t=>{
+  const page=await pageFor(t),requests=[];
+  page.on('request',request=>requests.push(request.url()));
+  const ticker='AAA',bucket=Array.from(ticker).reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);
+  const watchSchema='trend-birth-watchlist-bucket-v1',watchBase='data/watchlist-runs/'+manifest.snapshotId;
+  const day=bootstrap.source.sessionDate;
+  const payload=JSON.stringify({schemaVersion:watchSchema,source:bootstrap.source,snapshotId:manifest.snapshotId,bucket,
+    rows:{AAA:{ticker,sources:[],metrics:{price:42},chartBars:[['2026-11-16',40,43,39,41,100],[day,41,43,40,42,130]]}}});
+  const sha256=Array(64).fill('a'.repeat(64));
+  sha256[bucket]=createHash('sha256').update(payload).digest('hex');
+  await page.addInitScript(name=>localStorage.setItem('stockscout.review.watchlist.v1',JSON.stringify({items:[name]})),ticker);
+  await page.route('**/data/publication.json',route=>route.fulfill({json:{...manifest,watchlist:{
+    schemaVersion:watchSchema,basePath:watchBase,chartBasePath:'data/kell-chart-runs/read-only-test',sha256
+  }}}));
+  let unblock;
+  const held=new Promise(resolve=>{unblock=resolve});
+  t.after(()=>unblock());
+  await page.route('**/'+watchBase+'/'+bucket.toString(16).padStart(2,'0')+'.json',async route=>{
+    await held;
+    return route.fulfill({contentType:'application/json',body:payload});
+  });
+  await page.goto(base+'/');
+  await page.waitForSelector('#grid .card');
+  await page.locator('[data-primary-view="watchlist"]').click();
+  const card=page.locator('#grid .card[data-ticker="AAA"]');
+  await card.getByText('Učitavam podatke tickera…').waitFor();
+  await card.locator('canvas').click();
+  await page.locator('#detail .detail-chart-meta').getByText('Učitavam podatke tickera…').waitFor();
+  unblock();
+  await page.waitForFunction(()=>document.querySelector('#detail .detail-chart-meta').textContent.includes('zatvaranje 42.00'));
+  assert.equal(requests.filter(url=>url.includes('/watchlist-runs/')).length,1);
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+});
+
 test('nonempty Watchlist resolves saved symbols only and retains them after a failed ticker request',async t=>{
   const page=await pageFor(t),requests=[];
   const bucket=ticker=>Array.from(ticker).reduce((index,char)=>(31*index+char.charCodeAt(0))%64,0);

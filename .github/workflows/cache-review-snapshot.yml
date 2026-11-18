@@ -51,6 +51,8 @@ jobs:
           python scripts/publish_review_snapshot.py --input lab/data/latest.json --directory /tmp/review-publication
           python scripts/publish_review_changes.py --directory /tmp/review-publication
           python scripts/publish_review_changes.py --directory /tmp/review-publication --validate
+          python scripts/publish_review_spy.py --directory /tmp/review-publication
+          python scripts/publish_review_spy.py --directory /tmp/review-publication --validate
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: review-publication-preview

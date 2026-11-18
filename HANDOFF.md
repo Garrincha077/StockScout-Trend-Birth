@@ -1,3 +1,9 @@
+## 2026-11-18 — Date-aligned SPY reference and Watchlist chart hydration
+
+- Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:28 Europe/Zagreb, preview commit `9943de4`, deployment `dpl_51vPfYPt1ZixgGFKcqdfAfyTevHW`. The November 17 activation includes 1,257 SPY reference dates from November 2021. Current shortlist coverage is 15/15 Early, 12/12 Kell and 15/15 Weekly. The browser loads the shared reference only for an incomplete chart.
+- Verified the earlier-missing KLAR daily and TXNM floor-week values in Chromium at 390 px. Held the Watchlist bucket while opening CAKE and confirmed that the modal stayed open, hydrated the original ticker and reused the same SPY request. Failed chart loads expose a retry button.
+- Passed 260 Python cases, 121 Node cases and 22 Chromium cases. The aligned November 17 EOD gate passed. Prior Kell cohort change passed [CI 44331645327](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44331645327). Source branch is draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76). Next: cohesive mobile/PWA workflow pass and validation on the first later comparable EOD.
+
 ## 2026-11-18 — Kell Swing execution by setup and radar breadth
 
 - Verified on the [isolated Statistics preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/statistics#siKellCohorts) at 16:04 Europe/Zagreb, preview commit `7a520fe`, deployment `dpl_HMvFg1dCKRUSTBm6AzDppdNQ9dgk`. Archived and reconstructed plans have separate group views, with the same 5/10/20-session and 20/50 bp controls. Breadth is the matched-ticker change in 3+/4 at the signal EOD with a 0.5 percentage point threshold.

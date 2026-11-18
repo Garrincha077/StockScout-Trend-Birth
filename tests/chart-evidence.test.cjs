@@ -28,7 +28,21 @@ test('relative strength uses same-session data, rebases and preserves internal g
     {time:'2026-11-12',rs:null},{time:'2026-11-13',rs:null}
   ];
   const result=relative(bars,new Map([['2026-11-12',30],['2026-11-14',50]]));
-  assert.deepEqual(result,{points:[null,100,null,120,null],firstTime:'2026-11-10',count:2});
+  assert.deepEqual(result,{points:[null,100,null,120,null],firstTime:'2026-11-10',count:2,source:'embedded'});
+});
+
+test('a verified benchmark adds dated coverage without blending incompatible ratios',()=>{
+  const bars=[
+    {time:'2026-11-06',close:20},{time:'2026-11-09',close:20,rs:4},
+    {time:'2026-11-10',close:22},{time:'2026-11-11',close:30}
+  ];
+  const spy=new Map([['2026-11-06',500],['2026-11-09',500],['2026-11-10',500],['2026-11-12',510]]);
+  const expanded=relative(bars,new Map(),spy);
+  assert.deepEqual({...expanded,points:expanded.points.map(value=>value===null?null:Math.round(value))},
+    {points:[100,100,110,null],firstTime:'2026-11-06',count:3,source:'reference'});
+  bars[1].rs=2;
+  assert.deepEqual(relative(bars,new Map(),spy),
+    {points:[null,100,null,null],firstTime:'2026-11-09',count:1,source:'embedded'});
 });
 
 test('every panel uses the same axis correction for tap selection and cursor placement',()=>{

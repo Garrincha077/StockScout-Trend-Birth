@@ -259,6 +259,8 @@ jobs:
         run: python scripts/publish_watchlist_snapshot.py --directory lab/data
       - name: Build the change feed for the active snapshot
         run: python scripts/publish_review_changes.py --directory lab/data
+      - name: Build the chart SPY reference for the active snapshot
+        run: python scripts/publish_review_spy.py --directory lab/data
       - name: Build research reports for the active snapshot
         run: |
           python scripts/kell_gold_set.py \
@@ -286,6 +288,7 @@ jobs:
           if [ -d lab/data/review-bootstrap-v2 ]; then cp -R lab/data/review-bootstrap-v2 /tmp/review-publication/review-bootstrap-v2; fi
           cp -R lab/data/research-runs /tmp/review-publication/research-runs
           cp -R lab/data/review-change-runs /tmp/review-publication/review-change-runs
+          cp -R lab/data/review-spy-runs /tmp/review-publication/review-spy-runs
           if [ -d lab/data/watchlist-runs ]; then cp -R lab/data/watchlist-runs /tmp/review-publication/watchlist-runs; fi
           rm -rf /tmp/review-publication/history /tmp/review-publication/snapshots
           cp -R lab/data/history /tmp/review-publication/history
@@ -339,6 +342,8 @@ jobs:
           cp -R /tmp/review-publication/research-runs/. lab/data/research-runs/
           mkdir -p lab/data/review-change-runs
           cp -R /tmp/review-publication/review-change-runs/. lab/data/review-change-runs/
+          mkdir -p lab/data/review-spy-runs
+          cp -R /tmp/review-publication/review-spy-runs/. lab/data/review-spy-runs/
           if [ -d /tmp/review-publication/watchlist-runs ]; then
             mkdir -p lab/data/watchlist-runs
             cp -R /tmp/review-publication/watchlist-runs/. lab/data/watchlist-runs/
@@ -401,6 +406,7 @@ jobs:
           python scripts/validate_eod_publication.py --require-research --previous-publication /tmp/review-publication/previous-publication.json
           python scripts/publish_watchlist_snapshot.py --validate --directory lab/data
           python scripts/publish_review_changes.py --validate --directory lab/data
+          python scripts/publish_review_spy.py --validate --directory lab/data
           python scripts/pack_review_storage.py --directory lab/data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -413,6 +419,7 @@ jobs:
           if [ -d lab/data/watchlist-runs ]; then git add lab/data/watchlist-runs; fi
           if [ -d lab/data/review-bootstrap-v2 ]; then git add lab/data/review-bootstrap-v2; fi
           git add lab/data/review-change-runs
+          git add lab/data/review-spy-runs
           if [ -f lab/data/latest.json.gz ]; then git add lab/data/latest.json.gz; fi
           if git diff --cached --quiet; then
             echo "Compact Kell dataset unchanged."
