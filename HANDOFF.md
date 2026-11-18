@@ -1,3 +1,9 @@
+## 2026-11-18 — Mobile navigation, ticker links and PWA shortcuts
+
+- Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:42 Europe/Zagreb, preview commit `7a3e23e`, deployment `dpl_H55Z1boMsCmz1X4Dp7v5NSDyV2t2`. CAKE opens from the Kell shortcut, Back dismisses its detail, Forward restores the selected chart range and the Statistics return link restores Kell. The offline screen retains the exact URL and retry restores the same ticker and range.
+- Ticker links include view and chart range plus existing archive identity when present. Sharing strips authentication and unrelated URL values. A public off-list ticker uses the active lookup bucket without editing personal Watchlist membership. The updated PWA manifest has Early, Kell, Watchlist and Statistics shortcuts.
+- Passed 124 Node tests and 24 Chromium tests. Verified in mobile Chromium at 390 px. Native Android launcher behavior awaits device testing. Prior SPY and Watchlist change passed [CI 44336219169](https://github.com/Garrincha077/StockScout-Trend-Birth/actions/runs/44336219169). Working branch remains draft [PR #76](https://github.com/Garrincha077/StockScout-Trend-Birth/pull/76).
+
 ## 2026-11-18 — Date-aligned SPY reference and Watchlist chart hydration
 
 - Verified on the [isolated mobile preview](https://stockscout-trend-birth-review-git-e4c10f-garrincha077s-projects.vercel.app/) at 16:28 Europe/Zagreb, preview commit `9943de4`, deployment `dpl_51vPfYPt1ZixgGFKcqdfAfyTevHW`. The November 17 activation includes 1,257 SPY reference dates from November 2021. Current shortlist coverage is 15/15 Early, 12/12 Kell and 15/15 Weekly. The browser loads the shared reference only for an incomplete chart.

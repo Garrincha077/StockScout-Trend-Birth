@@ -89,6 +89,71 @@ test('empty mobile watchlist uses no full archive and keeps the current snapshot
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('/data/kell-latest')),false);
 });
 
+test('mobile browser Back closes the ticker, Forward restores its range, and Statistics returns to its tab',async t=>{
+  const page=await pageFor(t,'block',{hasTouch:true,isMobile:true}),requests=[];
+  await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{value:{
+    writeText:async value=>{window.copiedTickerLink=value}
+  }}));
+  page.on('request',request=>requests.push(request.url()));
+  await page.goto(base+'/?view=weekly&code=private');
+  await page.waitForSelector('[data-primary-view="weekly"].active');
+  const first=page.locator('.weekly-card').first();
+  const historyLength=await page.evaluate(()=>history.length);
+  const canvas=first.locator('canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const gridScroll=await page.evaluate(()=>window.scrollY);
+  await canvas.tap();
+  await page.locator('#detail[open]').waitFor();
+  await page.locator('#nextDetail').tap();
+  const ticker=await page.locator('#detailToolbarTicker').innerText();
+  await page.locator('#detail .detail-evidence select').selectOption('3m');
+  assert.equal(await page.evaluate(()=>history.length),historyLength+1);
+  await page.getByRole('button',{name:'Kopiraj poveznicu'}).tap();
+  const copied=new URL(await page.evaluate(()=>window.copiedTickerLink));
+  assert.deepEqual([...copied.searchParams.keys()],['view','ticker','range']);
+  assert.equal(copied.searchParams.get('view'),'weekly');
+  assert.equal(copied.searchParams.get('ticker'),ticker);
+  await page.goBack();
+  await page.locator('#detail[open]').waitFor({state:'detached'});
+  await page.waitForFunction(name=>document.activeElement?.dataset?.ticker===name,ticker);
+  assert.equal(await page.evaluate(()=>window.scrollY),gridScroll);
+  await page.goForward();
+  await page.locator('#detail[open]').waitFor();
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+  assert.equal(await page.locator('#detail .detail-evidence select').inputValue(),'3m');
+  await page.locator('#closeDetail').tap();
+  await page.waitForFunction(()=>!new URLSearchParams(location.search).has('ticker'));
+  await page.locator('.workspace-tabs a[href="statistics.html"]').tap();
+  const back=page.getByRole('link',{name:/Dnevni pregled/});
+  await page.waitForFunction(()=>document.querySelector('[data-review-return]').href.includes('view=weekly'));
+  await back.tap();
+  await page.waitForSelector('[data-primary-view="weekly"].active');
+  await page.goto(copied.href);
+  await page.locator('#detail[open]').waitFor();
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+  assert.equal(await page.locator('#detail .detail-evidence select').inputValue(),'3m');
+  assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
+});
+
+test('the PWA keeps a ticker shortcut intact across an offline launch and retry',async t=>{
+  const page=await pageFor(t,'allow',{hasTouch:true,isMobile:true});
+  const ticker=bootstrap.shortlists.weeklyTrendBirth[0].ticker;
+  const target=base+'/?view=weekly&ticker='+encodeURIComponent(ticker)+'&range=3m';
+  await page.goto(base+'/');
+  await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  await page.context().setOffline(true);
+  await page.goto(target);
+  assert.equal(page.url(),target);
+  await page.getByRole('heading',{name:'Nema internetske veze'}).waitFor();
+  await page.context().setOffline(false);
+  await page.getByRole('button',{name:'Pokušaj ponovno'}).tap();
+  await page.locator('#detail[open]').waitFor();
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+  assert.equal(await page.locator('#detail .detail-evidence select').inputValue(),'3m');
+  assert.equal(await page.evaluate(()=>caches.keys()).then(keys=>keys.filter(name=>name.startsWith('trendbirth-install-')).join()),
+    'trendbirth-install-v3');
+});
+
 test('dated EOD changes load on demand and open an out-of-list ticker without a full archive',async t=>{
   const page=await pageFor(t),requests=[];
   page.on('request',request=>requests.push(request.url()));
@@ -141,6 +206,10 @@ test('dated EOD changes load on demand and open an out-of-list ticker without a 
   assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
   assert.equal(requests.filter(url=>url.includes('/watchlist-runs/')).length,1);
   assert.equal(requests.some(url=>url.includes('/data/snapshots/')||url.includes('kell-latest')),false);
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector('.detail-chart-meta')?.textContent.includes('zatvaranje 11.00'));
+  assert.equal(await page.locator('#detailToolbarTicker').innerText(),ticker);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('stockscout.review.watchlist.v1')),null);
 });
 
 test('Trend Birth opens directly to dated evidence, invalidation and chart',async t=>{

@@ -1,7 +1,13 @@
 const requestedMode=new URLSearchParams(location.search).get('mode');
 const defaultMode=requestedMode==='legacy'||requestedMode==='weekly-v2'?requestedMode:(window.StockScoutMode?.defaultMode||'weekly-v2');
+const initialReviewRoute=ReviewNavigation.read(location.search);
 const state={data:null,kellData:null,kellLoading:null,kellChangesLoading:null,kellChangesPreviousDate:null,kellChartShards:new Map(),kellChartLoading:new Map(),qualityHistory:null,qualityHistoryError:'',intelligence:null,intelligenceError:'',intelligenceMonths:new Map(),tickerDrill:null,tickerDrillLimit:40,journeyTicker:'',primaryView:defaultMode==='legacy'?'research':'weekly',universe:'all',filters:[],query:'',sort:'default',chartPeriod:defaultMode==='legacy'?'1y':'base',watchlist:WatchlistStore.load(window.localStorage),renderedItems:[],detailTicker:null,quickView:null,changeHighlightsExpanded:false,ownerSync:null,ownerSession:null,ownerReconciling:false,ownerSyncError:'',ownerSyncMessage:'',ownerMagicSentTo:'',ownerMagicSending:false};
 const $=s=>document.querySelector(s);
+if(initialReviewRoute.view){
+  state.primaryView=initialReviewRoute.view;
+  state.universe=state.primaryView==='watchlist'?'watchlist':'all';
+  state.chartPeriod=state.primaryView==='weekly'?'base':'1y';
+}
 const OWNER_AUTH_BRIDGE_URL='https://garrincha077.github.io/StockScout-Unified/trend-birth-auth-bridge.html';
 function ownerAuthBridgeUrl(){
   const url=new URL(OWNER_AUTH_BRIDGE_URL);
@@ -14,7 +20,7 @@ function clearOwnerAuthPhase(){
   const url=new URL(location.href);
   if(!url.searchParams.has('tb_auth'))return;
   url.searchParams.delete('tb_auth');
-  history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
+  history.replaceState(history.state,'',url.pathname+(url.search||'')+(url.hash||''));
 }
 const numberOrNaN=value=>typeof value==='number'&&Number.isFinite(value)?value:NaN;
 const fmt=(n,d=2)=>Number.isFinite(numberOrNaN(n))?n.toFixed(d):'—';
@@ -1032,19 +1038,20 @@ function sourceItems(filters=activeFilters()){
     ?(state.kellData?.kellCandidates||state.data?.kellCandidates||[])
     :(state.data?.candidates||[]);
 }
-function shortlistKey(data){
-  if(state.primaryView==='weekly')return 'weeklyTrendBirth';
-  if(state.primaryView==='kell-daily')return data.shortlists?.kellSwing?'kellSwing':'kellDaily';
+function shortlistKey(data,view=state.primaryView){
+  if(view==='early')return 'earlyTrendBirth';
+  if(view==='weekly')return 'weeklyTrendBirth';
+  if(view==='kell-daily')return data.shortlists?.kellSwing?'kellSwing':'kellDaily';
   return null;
 }
-function loadVisibleShortlist(){
-  const data=state.data,key=shortlistKey(data);
+function loadVisibleShortlist(view=state.primaryView){
+  const data=state.data,key=shortlistKey(data,view);
   if(!data.deferredShortlists?.[key])return null;
   const requests=state.shortlistRequests;
   if(!requests.has(key)){
     const status={error:''};
     requests.set(key,status);
-    ReviewSnapshots.loadShortlist(fetch,data,key)
+    status.request=ReviewSnapshots.loadShortlist(fetch,data,key)
       .catch(error=>{status.error=error.message})
       .finally(()=>{if(state.data===data&&shortlistKey(data)===key)render()});
   }
@@ -1338,7 +1345,7 @@ function planAction(event,item){
     }
     render();
     if(inDetail){
-      if(button.dataset.planAction==='archive')$('#detail').close();
+      if(button.dataset.planAction==='archive')closeReviewDetail();
       else show(item,state.detailView);
     }else{
       notice.textContent=button.dataset.planAction==='archive'?'Plan je arhiviran.':
@@ -1714,6 +1721,73 @@ function navigateDetail(delta){
   if(index<0||nextIndex<0||nextIndex>=items.length)return;
   show(items[nextIndex]);
 }
+let reviewLocationRevision=0;
+function writeReviewLocation(item,view,period,push=false){
+  const url=ReviewNavigation.write(new URL(location.href),{view:state.primaryView,
+    ticker:item?.ticker,detailView:view,period});
+  const entry={...history.state};
+  if(push)entry.reviewDetail=true;
+  if(!item)delete entry.reviewDetail;
+  history[push?'pushState':'replaceState'](entry,'',url);
+}
+function closeReviewDetail(){
+  ++reviewLocationRevision;
+  $('#detail').close();
+  if(!ReviewNavigation.read(location.search).ticker)return;
+  if(history.state?.reviewDetail)history.back();
+  else writeReviewLocation(null);
+}
+async function restoreReviewLocation(){
+  const revision=++reviewLocationRevision,route=ReviewNavigation.read(location.search);
+  const data=state.data,manifest=state.publication,notice=$('#reviewRouteNotice');
+  notice.hidden=true;
+  if(!route.ticker){$('#detail').close();return}
+  if(!data)return;
+  const active=()=>revision===reviewLocationRevision&&state.data===data;
+  const view=route.detailView||route.view||state.primaryView;
+  try{
+    const shortlist=loadVisibleShortlist(view);
+    if(shortlist){
+      await shortlist.request;
+      if(!active())return;
+    }
+    const key=shortlistKey(data,view);
+    const groups=[data.shortlists?.[key],state.renderedItems,data.shortlists?.earlyTrendBirth,
+      data.shortlists?.kellSwing,data.shortlists?.weeklyTrendBirth,data.kellCandidates,data.candidates];
+    let item=groups.map(rows=>rows?.find(candidate=>candidate.ticker===route.ticker&&!candidate.watchlistMissing&&
+      !candidate.watchlistUnavailable)).find(Boolean);
+    if(!item&&manifest?.watchlist){
+      const rows=await ReviewSnapshots.loadWatchlist(fetch,manifest,[route.ticker],state.watchlistLookup.cache);
+      if(!active())return;
+      const candidate=rows.get(route.ticker);
+      if(candidate)item={...candidate,chartBasePath:manifest.watchlist.chartBasePath};
+    }
+    if(!item)item=data.trendBirthCandidateIndex?.find(candidate=>candidate.ticker===route.ticker);
+    if(!item)throw Error('Ticker '+route.ticker+' nije dostupan u prikazanoj EOD snimci.');
+    show(item,view,{period:route.period,fromLocation:true});
+  }catch(error){
+    if(!active())return;
+    notice.textContent=error.message;
+    notice.hidden=false;
+  }
+}
+window.addEventListener('popstate',restoreReviewLocation);
+async function copyDetailLink(button){
+  const section=button.closest('.detail-link'),field=section.querySelector('input'),status=section.querySelector('[role="status"]');
+  const detailView=state.detailView,view=['watchlist','research'].includes(detailView)?'early':detailView;
+  const link=ReviewNavigation.tickerLink(location.href,{view,detailView,ticker:state.detailTicker,
+    period:$('#detail .detail-evidence select').value}).href;
+  try{
+    await navigator.clipboard.writeText(link);
+    status.textContent='Poveznica je kopirana.';
+  }catch{
+    field.value=link;
+    field.hidden=false;
+    field.focus();
+    field.select();
+    status.textContent='Poveznica je označena za kopiranje.';
+  }
+}
 function detailEvidence(item,periodKey){
   const choices=[['3m','Dnevni · 3 mj.'],['6m','Dnevni · 6 mj.'],['1y','Dnevni · 1 g.']];
   if(item.weeklyBirth?.metrics?.baseWeeks>=9)choices.push(['base','Tjedni · zona baze']);
@@ -1910,11 +1984,15 @@ function mountDetailEvidence(section,item,view){
       retry.hidden=false;
     }
   }
-  select.addEventListener('change',refresh);
+  select.addEventListener('change',()=>{
+    writeReviewLocation(item,view,select.value);
+    refresh();
+  });
   retry.addEventListener('click',refresh);
   refresh();
 }
-function show(item,view=state.primaryView){
+function show(item,view=state.primaryView,{period=null,fromLocation=false}={}){
+  if(!fromLocation)++reviewLocationRevision;
   const m=item.metrics||{},a=analysisFor(item),ai=item.analysis||{},g=item.kellGap||{gapPct:item.kell_metrics?.gap_pct};
   const fundamentals=ai.fundamentalsQoQ||ai.fundamentals||'Work analiza još nije upisana za ovaj snapshot.';
   state.detailView=view;
@@ -1925,13 +2003,16 @@ function show(item,view=state.primaryView){
   const weekly=item.weeklyBirth||{},weeklyMetrics=weekly.metrics||{};
   const weeklyMode=view==='weekly';
   const body=$('#detailBody'),dialog=$('#detail');
+  const fresh=!dialog.open;
   const previous=body.querySelector('.detail-evidence');
-  let periodKey=dialog.open?previous?.querySelector('select')?.value:null;
+  let periodKey=period||(dialog.open?previous?.querySelector('select')?.value:null);
   periodKey=periodKey||(weeklyMode?state.chartPeriod:view==='kell-daily'?'3m':'6m');
   if(periodKey==='base'&&!(weeklyMetrics.baseWeeks>=9))periodKey='5y';
   previous?.cleanup?.abort();
   body.innerHTML=
     '<div class="detail-head"><div class="badges">'+badges(item)+'</div></div>'+
+    '<div class="detail-link"><button type="button" data-copy-detail-link>Kopiraj poveznicu</button>'+
+    '<input type="url" aria-label="Poveznica na ticker" readonly hidden><small role="status"></small></div>'+
     '<p data-plan-notice role="status" hidden></p>'+renderSavedPlans(item)+
     (weeklyMode?weeklyEvidence(item,true):view==='kell-daily'?swingPlan(item)+earlyPlan(item):earlyPlan(item)+swingPlan(item))+
     detailEvidence(item,periodKey)+
@@ -1972,6 +2053,7 @@ function show(item,view=state.primaryView){
     '</div>';
   const section=body.querySelector('.detail-evidence');
   section.cleanup=new AbortController();
+  if(!fromLocation)writeReviewLocation(item,view,periodKey,fresh&&!ReviewNavigation.read(location.search).ticker);
   if(!dialog.open)dialog.showModal();
   requestAnimationFrame(()=>{
     if(section.isConnected&&dialog.open)mountDetailEvidence(section,item,view);
@@ -1989,11 +2071,21 @@ $('#changeHighlights')?.addEventListener('click',e=>{
   const item=(state.renderedItems||[]).find(candidate=>candidate.ticker===chip.dataset.changeTicker);
   if(item)show(item);
 });
-$('#closeDetail').addEventListener('click',()=>$('#detail').close());
-$('#detailBody').addEventListener('click',e=>planAction(e,state.detailItem));
+$('#closeDetail').addEventListener('click',closeReviewDetail);
+$('#detailBody').addEventListener('click',e=>{
+  const link=e.target.closest('[data-copy-detail-link]');
+  if(link)copyDetailLink(link);
+  else planAction(e,state.detailItem);
+});
 $('#prevDetail')?.addEventListener('click',()=>navigateDetail(-1));
 $('#nextDetail')?.addEventListener('click',()=>navigateDetail(1));
-$('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))$('#detail').close()});
+$('#detail').addEventListener('click',e=>{if(e.target===$('#detail'))closeReviewDetail()});
+$('#detail').addEventListener('cancel',e=>{e.preventDefault();closeReviewDetail()});
+$('#detail').addEventListener('close',()=>{
+  if($('#detail').open||!state.detailTicker)return;
+  const ticker=CSS.escape(state.detailTicker);
+  ($('.card[data-ticker="'+ticker+'"]')||$('[data-review-change-ticker="'+ticker+'"]'))?.focus({preventScroll:true});
+});
 $('#mobileFiltersToggle')?.addEventListener('click',()=>setMobileFiltersOpen(!$('#filters')?.classList.contains('mobile-open')));
 $('#mobileFiltersClose')?.addEventListener('click',()=>setMobileFiltersOpen(false,true));
 $('#mobileFilterBackdrop')?.addEventListener('click',()=>setMobileFiltersOpen(false,true));
@@ -2011,7 +2103,7 @@ $('#search').addEventListener('input',e=>{state.query=e.target.value.trim().toUp
 $('#sort')?.addEventListener('change',e=>{state.sort=e.target.value;render()});
 $('#chartPeriod')?.addEventListener('change',e=>{
   state.chartPeriod=e.target.value in chartPeriods?e.target.value:'1y';
-  if($('#detail')?.open)$('#detail').close();
+  if($('#detail')?.open)closeReviewDetail();
   render();
 });
 document.querySelectorAll('input[data-tb-stage]').forEach(input=>
@@ -2193,6 +2285,9 @@ $('#primaryViews')?.addEventListener('click',async e=>{
   state.primaryView=button.dataset.primaryView;
   state.filters=[];state.quickView=null;state.sort='default';state.universe=state.primaryView==='watchlist'?'watchlist':'all';
   state.chartPeriod=state.primaryView==='weekly'?'base':'1y';
+  ++reviewLocationRevision;
+  $('#reviewRouteNotice').hidden=true;
+  writeReviewLocation(null);
   $('#chartPeriod').value=state.chartPeriod;$('#sort').value='default';
   document.querySelectorAll('#filters button[data-universe]').forEach(x=>x.classList.toggle('active',x.dataset.universe===state.universe));
   render();
@@ -2219,7 +2314,7 @@ function showDisplayedSnapshot(data,manifest,lookup){
     state.detailTicker=null;
     if($('#detail').open)$('#detail').close();
   }
-  if(!state.data&&!state.primaryRequest&&!archived&&state.primaryView==='weekly'&&!requestedMode&&
+  if(!state.data&&!state.primaryRequest&&!archived&&state.primaryView==='weekly'&&!requestedMode&&!initialReviewRoute.view&&
       Array.isArray(data.shortlists?.earlyTrendBirth)){
     state.primaryView='early';
     state.chartPeriod='1y';
@@ -2247,6 +2342,7 @@ function showDisplayedSnapshot(data,manifest,lookup){
   loadTrendBirthIntelligence();
   loadTrendBirthQualityHistory();
   render();
+  if(ReviewNavigation.read(location.search).ticker)restoreReviewLocation();
 }
 
 function refreshDisplayedSnapshot(){

@@ -28,7 +28,7 @@ function workerHarness() {
     },
     caches: {
       open: async () => cache,
-      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1', 'trendbirth-install-v2'],
+      keys: async () => ['trendbirth-install-v0', 'another-app-cache', 'trendbirth-install-v1', 'trendbirth-install-v2', 'trendbirth-install-v3'],
       delete: async key => { deleted.push(key); }
     },
     fetch: async request => {
@@ -58,6 +58,8 @@ test('manifest has a stable app identity and valid PNG install icons', () => {
   assert.equal(manifest.start_url, './');
   assert.equal(manifest.scope, './');
   assert.equal(manifest.short_name, 'Trend Birth');
+  assert.deepEqual(manifest.shortcuts.map(item=>item.url),
+    ['./?view=early','./?view=kell','./?view=watchlist','./statistics.html']);
   for (const icon of manifest.icons) {
     const image = fs.readFileSync(path.join(root, icon.src));
     const size = Number(icon.sizes.split('x')[0]);
@@ -83,7 +85,7 @@ test('installation precaches only artwork, manifest and offline screen', async (
 test('activation removes only older Trend Birth install caches', async () => {
   const worker = workerHarness();
   await worker.lifecycle('activate');
-  assert.deepEqual(worker.deleted, ['trendbirth-install-v0', 'trendbirth-install-v1']);
+  assert.deepEqual(worker.deleted, ['trendbirth-install-v0', 'trendbirth-install-v1', 'trendbirth-install-v2']);
   await worker.lifecycle('message', {type: 'ACTIVATE_UPDATE'});
   assert.equal(worker.activated(), true);
 });

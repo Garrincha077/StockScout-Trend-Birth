@@ -957,6 +957,8 @@
   async function start() {
     const status=el('siStatus');
     if (!status) return;
+    const returnUrl=globalThis.ReviewNavigation.reviewReturn(location.href,document.referrer);
+    for(const link of document.querySelectorAll('[data-review-return]'))link.href=returnUrl.href;
     mountRecovery();
     try {
       const response=await fetch('data/trend-birth-market-internals.json',{cache:'no-store'});
