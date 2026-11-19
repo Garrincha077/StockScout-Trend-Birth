@@ -1,15 +1,15 @@
 {
   "schemaVersion": "trend-birth-alerts-v1",
-  "sessionDate": "2026-11-17",
+  "sessionDate": "2026-11-18",
   "baselineOnly": false,
-  "readyCount": 27,
-  "triggerCount": 8,
-  "invalidatedCount": 12,
-  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-17-eod-44227241477-1--7bfe2c39b59080dc10c18e09ac690b8d61d1ddf7c1ca8865ee8c5c4d902b87cf",
+  "readyCount": 13,
+  "triggerCount": 24,
+  "invalidatedCount": 10,
+  "dashboardUrl": "https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-18-eod-44446211238-1--6d5d7301ccca43253e1da4f52618a2320e303ed077ad649cf1762206f97385fa",
   "messages": [
     {
       "kind": "intelligence-eod",
-      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-17\n📊 EOD setupi (Unified + watchlist)\n0/4: 1833 · 1/4: 514 · 2/4: 156 · 3/4: 68 · 4/4: 22\nAnalizirano 2593/2594; bez podataka 1\nUsporedba: 2026-11-16 → 2026-11-17\nZajednički evaluirano: 2573\nNova 4/4: 8 · Prelazak na 3/4: 28\nNapredovalo: 213 · Nazadovalo: 133\nStabilni 3+/4 (≥3 EOD): 44 · 4/4 (≥3 EOD): 7\nZadnji padovi: iz 3+/4 71 · iz 4/4 30\nPovijesni ostanak idući EOD: 3+/4 66.9% (5997 usporedbi) · 4/4 52.4% (3472 usporedbi)\nNova 4/4 · cijeli univerzum (8): ZIM, PBA, AII, SUPN, MOH, BEKE, PRI, CGON\nNovi 3/4 · cijeli univerzum (28): TTE, CAKE, ADPT, AMAL, TRGP, FULT, AYI, UL, CPF, TS (+18 ostalih)\nKell/tracked 4/4 (8): AII, SUPN, ZIM, MOH, PBA, PRI, BEKE, CGON\nKell/tracked 3/4 (27): CAKE, TTE, ADPT, ELF, AMAL, WAB, TRGP, DG, NXPI, FULT (+17 ostalih)\nKell/tracked invalidirani (12): VIK, UNFI, PFG, HNI, FFBC, BMO, FSCO, FITB, EPRX, IBCP (+2 ostalih)\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-17-eod-44227241477-1--7bfe2c39b59080dc10c18e09ac690b8d61d1ddf7c1ca8865ee8c5c4d902b87cf"
+      "text": "📊 TREND BIRTH — JEDAN EOD SAŽETAK\nDatum: 2026-11-18\n📊 EOD setupi (Unified + watchlist)\n0/4: 1884 · 1/4: 469 · 2/4: 183 · 3/4: 31 · 4/4: 34\nAnalizirano 2601/2603; bez podataka 2\nUsporedba: 2026-11-17 → 2026-11-18\nZajednički evaluirano: 2576\nNova 4/4: 24 · Prelazak na 3/4: 14\nNapredovalo: 126 · Nazadovalo: 165\nStabilni 3+/4 (≥3 EOD): 28 · 4/4 (≥3 EOD): 7\nZadnji padovi: iz 3+/4 49 · iz 4/4 12\nPovijesni ostanak idući EOD: 3+/4 66.5% (6087 usporedbi) · 4/4 52.4% (3494 usporedbi)\nNova 4/4 · cijeli univerzum (24): GME, CTKB, LYFT, PRGO, KRC, PLUS, WTS, CR, EXTR, AMG, BRKR, CNA, ANET, AMRX (+10 ostalih)\nNovi 3/4 · cijeli univerzum (14): OABI, SLDE, LOGI, WKC, PAYO, RNR, ZETA, MET, VRSA, TRMK (+4 ostalih)\nKell/tracked 4/4 (24): GME, PRGO, TGT, ANET, CTKB, LYFT, LYV, KRC, BAX, AMRX, WTS, MLAB, GCT, BRKR (+10 ostalih)\nKell/tracked 3/4 (13): SLDE, OABI, WKC, LOGI, PAYO, ZETA, MET, VRSA, RNR, TRMK (+3 ostalih)\nKell/tracked invalidirani (10): TDC, CAKE, JXN, ASB, OBK, CLOV, FCF, CVX, TTE, UNH\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-18-eod-44446211238-1--6d5d7301ccca43253e1da4f52618a2320e303ed077ad649cf1762206f97385fa"
     }
   ],
   "v2": {
@@ -20,16 +20,16 @@
     "messages": [
       {
         "kind": "kell-daily",
-        "text": "⚡ KELL DAILY — new or improved setups\n\nNP · ema crossback · readiness 96\nPMTS · ema crossback · readiness 96\nKB · ema crossback · readiness 96\nPBH · ema crossback · readiness 96\nRMNI · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-17-eod-44227241477-1--7bfe2c39b59080dc10c18e09ac690b8d61d1ddf7c1ca8865ee8c5c4d902b87cf"
+        "text": "⚡ KELL DAILY — new or improved setups\n\nOABI · ema crossback · readiness 96\nSA · ema crossback · readiness 96\nSLDE · ema crossback · readiness 96\nSYK · ema crossback · readiness 96\nCV · ema crossback · readiness 96\n\nView dashboard: https://stockscout-trend-birth-review-lab.vercel.app/?snapshot=2026-11-18-eod-44446211238-1--6d5d7301ccca43253e1da4f52618a2320e303ed077ad649cf1762206f97385fa"
       }
     ]
   },
-  "previousSessionDate": "2026-11-16",
-  "previousPath": "lab/data/kell-history/2026-11-16.json",
+  "previousSessionDate": "2026-11-17",
+  "previousPath": "lab/data/kell-history/2026-11-17.json",
   "source": {
-    "sessionDate": "2026-11-17",
-    "runId": "2026-11-17-eod-44227241477-1",
-    "unifiedManifestSha256": "04621fa2da02eca61e76b8c57e03142f74da5aeaff73cc6a2d154be3b18e613c"
+    "sessionDate": "2026-11-18",
+    "runId": "2026-11-18-eod-44446211238-1",
+    "unifiedManifestSha256": "6539e0e485d5e5e8e9f2df38d6af88fc04a5ee98a11629aee710d747c2a584aa"
   },
-  "reviewSnapshotId": "2026-11-17-eod-44227241477-1--7bfe2c39b59080dc10c18e09ac690b8d61d1ddf7c1ca8865ee8c5c4d902b87cf"
+  "reviewSnapshotId": "2026-11-18-eod-44446211238-1--6d5d7301ccca43253e1da4f52618a2320e303ed077ad649cf1762206f97385fa"
 }

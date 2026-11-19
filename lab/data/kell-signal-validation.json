@@ -1,5 +1,5 @@
 {
-  "candidateCount": 2126,
+  "candidateCount": 2102,
   "checks": {
     "layerSeparation": {
       "examples": [],
@@ -10,48 +10,48 @@
       "mismatchCount": 0,
       "signals": {
         "kell_52w_high": {
-          "checked": 1666,
-          "matched": 1666,
+          "checked": 1648,
+          "matched": 1648,
           "mismatched": 0
         },
         "kell_bull_snort": {
-          "checked": 2125,
-          "matched": 2125,
+          "checked": 2101,
+          "matched": 2101,
           "mismatched": 0
         },
         "kell_doubler_ytd": {
-          "checked": 2123,
-          "matched": 2123,
+          "checked": 2098,
+          "matched": 2098,
           "mismatched": 0
         },
         "kell_gapper": {
-          "checked": 2126,
-          "matched": 2126,
+          "checked": 2102,
+          "matched": 2102,
           "mismatched": 0
         },
         "kell_momentum_3m_50": {
-          "checked": 2126,
-          "matched": 2126,
+          "checked": 2102,
+          "matched": 2102,
           "mismatched": 0
         },
         "kell_rs_leader": {
-          "checked": 2126,
-          "matched": 2126,
+          "checked": 2102,
+          "matched": 2102,
           "mismatched": 0
         },
         "kell_rvol_3x": {
-          "checked": 2125,
-          "matched": 2125,
+          "checked": 2101,
+          "matched": 2101,
           "mismatched": 0
         },
         "kell_strength_on_down_day": {
-          "checked": 1675,
-          "matched": 1675,
+          "checked": 1658,
+          "matched": 1658,
           "mismatched": 0
         },
         "kell_unusual_volume": {
-          "checked": 2125,
-          "matched": 2125,
+          "checked": 2101,
+          "matched": 2101,
           "mismatched": 0
         }
       }
@@ -59,81 +59,121 @@
     "setupQuality": {
       "emaCrossbackSupport": {
         "distribution": {
-          "clean_support": 4,
+          "clean_support": 7,
           "deep_undercut_gt_1atr": 0,
           "failed_hold": 0,
-          "normal_wick_le_0_5atr": 3,
+          "normal_wick_le_0_5atr": 4,
           "recovering_wick_0_5_to_1atr": 0
         },
         "largestUndercuts": [
           {
-            "closeLocationPct": 84.8,
-            "closeVsLowerEmaPct": 1.81,
-            "closeVsMidpointPct": 1.79,
+            "closeLocationPct": 55.8,
+            "closeVsLowerEmaPct": 0.31,
+            "closeVsMidpointPct": -0.11,
             "grade": "strong",
-            "penetrationPct": -1.29,
+            "penetrationPct": -2.71,
             "stage": "ema_crossback",
-            "ticker": "NP",
+            "ticker": "SA",
+            "undercutAtr": 0.41
+          },
+          {
+            "closeLocationPct": 66.4,
+            "closeVsLowerEmaPct": 2.06,
+            "closeVsMidpointPct": 1.65,
+            "grade": "strong",
+            "penetrationPct": -1.05,
+            "stage": "ema_crossback",
+            "ticker": "BEP",
             "undercutAtr": 0.33
           },
           {
-            "closeLocationPct": 58.5,
-            "closeVsLowerEmaPct": 0.57,
-            "closeVsMidpointPct": 0.36,
+            "closeLocationPct": 74.8,
+            "closeVsLowerEmaPct": 1.2,
+            "closeVsMidpointPct": 1.11,
             "grade": "strong",
-            "penetrationPct": -0.99,
+            "penetrationPct": -0.94,
             "stage": "ema_crossback",
-            "ticker": "KB",
-            "undercutAtr": 0.33
+            "ticker": "SLDE",
+            "undercutAtr": 0.27
           },
           {
-            "closeLocationPct": 92.3,
-            "closeVsLowerEmaPct": 2.44,
-            "closeVsMidpointPct": 2.26,
+            "closeLocationPct": 96.1,
+            "closeVsLowerEmaPct": 2.53,
+            "closeVsMidpointPct": 1.98,
             "grade": "strong",
-            "penetrationPct": -1.14,
+            "penetrationPct": -0.18,
             "stage": "ema_crossback",
-            "ticker": "PMTS",
-            "undercutAtr": 0.15
+            "ticker": "BEKE",
+            "undercutAtr": 0.06
           },
           {
-            "closeLocationPct": 68.9,
-            "closeVsLowerEmaPct": 9.59,
-            "closeVsMidpointPct": 7.41,
+            "closeLocationPct": 91.8,
+            "closeVsLowerEmaPct": 8.24,
+            "closeVsMidpointPct": 7.84,
             "grade": "strong",
-            "penetrationPct": 2.96,
+            "penetrationPct": 0.92,
             "stage": "ema_crossback",
-            "ticker": "SBC",
+            "ticker": "CAKE",
             "undercutAtr": 0.0
           },
           {
-            "closeLocationPct": 74.3,
-            "closeVsLowerEmaPct": 7.77,
-            "closeVsMidpointPct": 4.69,
+            "closeLocationPct": 83.6,
+            "closeVsLowerEmaPct": 8.71,
+            "closeVsMidpointPct": 5.97,
             "grade": "strong",
-            "penetrationPct": 2.61,
+            "penetrationPct": 4.26,
             "stage": "ema_crossback",
-            "ticker": "RMNI",
+            "ticker": "CROX",
             "undercutAtr": 0.0
           },
           {
-            "closeLocationPct": 90.2,
-            "closeVsLowerEmaPct": 4.64,
-            "closeVsMidpointPct": 3.11,
+            "closeLocationPct": 46.0,
+            "closeVsLowerEmaPct": 1.92,
+            "closeVsMidpointPct": 1.52,
             "grade": "strong",
-            "penetrationPct": 3.08,
+            "penetrationPct": 0.31,
             "stage": "ema_crossback",
-            "ticker": "ONC",
+            "ticker": "OABI",
             "undercutAtr": 0.0
           },
           {
-            "closeLocationPct": 58.1,
-            "closeVsLowerEmaPct": 3.23,
-            "closeVsMidpointPct": 2.86,
+            "closeLocationPct": 95.4,
+            "closeVsLowerEmaPct": 8.65,
+            "closeVsMidpointPct": 7.94,
             "grade": "strong",
-            "penetrationPct": 1.53,
+            "penetrationPct": 2.24,
             "stage": "ema_crossback",
-            "ticker": "PBH",
+            "ticker": "RARE",
+            "undercutAtr": 0.0
+          },
+          {
+            "closeLocationPct": 56.6,
+            "closeVsLowerEmaPct": 1.86,
+            "closeVsMidpointPct": 1.24,
+            "grade": "strong",
+            "penetrationPct": 0.33,
+            "stage": "ema_crossback",
+            "ticker": "SYK",
+            "undercutAtr": 0.0
+          },
+          {
+            "closeLocationPct": 84.4,
+            "closeVsLowerEmaPct": 3.89,
+            "closeVsMidpointPct": 3.86,
+            "grade": "strong",
+            "penetrationPct": 0.74,
+            "stage": "ema_crossback",
+            "ticker": "SCHL",
+            "undercutAtr": 0.0
+          },
+          {
+            "closeLocationPct": 84.1,
+            "closeVsLowerEmaPct": 4.74,
+            "closeVsMidpointPct": 4.51,
+            "grade": "strong",
+            "penetrationPct": 0.67,
+            "stage": "ema_crossback",
+            "ticker": "CV",
             "undercutAtr": 0.0
           }
         ],
@@ -150,82 +190,104 @@
         "kell_base_n_break": {
           "borderline": 0,
           "contradiction": 0,
-          "strong": 8,
-          "total": 8
+          "strong": 39,
+          "total": 39
         },
         "kell_buyable_gap_proxy": {
           "borderline": 0,
           "contradiction": 0,
-          "strong": 3,
-          "total": 3
+          "strong": 0,
+          "total": 0
         },
         "kell_ema_crossback": {
           "borderline": 0,
           "contradiction": 0,
-          "strong": 7,
-          "total": 7
+          "strong": 11,
+          "total": 11
         },
         "kell_wedge_pop": {
           "borderline": 0,
           "contradiction": 0,
-          "strong": 13,
-          "total": 13
+          "strong": 82,
+          "total": 82
         }
       },
       "softQualityFlags": {
         "counts": {
-          "kell_buyable_gap_proxy:weak_gap_close": 2,
-          "kell_wedge_pop:pre_pop_drift_up_gt_3pct": 1,
-          "kell_wedge_pop:weak_pop_close_location": 1
+          "kell_wedge_pop:weak_pop_close_location": 6
         },
         "examples": [
           {
             "evidence": {
-              "closeLocationPct": 95.5,
-              "prePop9dPct": 4.39
-            },
-            "flags": [
-              "pre_pop_drift_up_gt_3pct"
-            ],
-            "setup": "kell_wedge_pop",
-            "stage": "wedge_pop",
-            "ticker": "SA"
-          },
-          {
-            "evidence": {
-              "closeLocationPct": 29.2,
-              "prePop9dPct": -1.12
+              "closeLocationPct": 34.5,
+              "prePop9dPct": -5.07
             },
             "flags": [
               "weak_pop_close_location"
             ],
             "setup": "kell_wedge_pop",
             "stage": "wedge_pop",
-            "ticker": "BEP"
+            "ticker": "TBCH"
           },
           {
             "evidence": {
-              "closeLocationPct": 43.0,
-              "gapHeldPct": 114.7
+              "closeLocationPct": 50.4,
+              "prePop9dPct": -5.27
             },
             "flags": [
-              "weak_gap_close"
+              "weak_pop_close_location"
             ],
-            "setup": "kell_buyable_gap_proxy",
-            "stage": "exhaustion_extension",
-            "ticker": "ACM"
+            "setup": "kell_wedge_pop",
+            "stage": "wedge_pop",
+            "ticker": "GPI"
           },
           {
             "evidence": {
-              "closeLocationPct": 48.1,
-              "gapHeldPct": 120.4
+              "closeLocationPct": 44.8,
+              "prePop9dPct": -1.63
             },
             "flags": [
-              "weak_gap_close"
+              "weak_pop_close_location"
             ],
-            "setup": "kell_buyable_gap_proxy",
-            "stage": "exhaustion_extension",
-            "ticker": "UNFI"
+            "setup": "kell_wedge_pop",
+            "stage": "wedge_pop",
+            "ticker": "GTY"
+          },
+          {
+            "evidence": {
+              "closeLocationPct": 52.0,
+              "prePop9dPct": -3.18
+            },
+            "flags": [
+              "weak_pop_close_location"
+            ],
+            "setup": "kell_wedge_pop",
+            "stage": "wedge_pop",
+            "ticker": "LRN"
+          },
+          {
+            "evidence": {
+              "closeLocationPct": 54.0,
+              "prePop9dPct": -5.07
+            },
+            "flags": [
+              "weak_pop_close_location"
+            ],
+            "setup": "kell_wedge_pop",
+            "stage": "wedge_pop",
+            "ticker": "DBX"
+          },
+          {
+            "evidence": {
+              "closeLocationPct": 47.3,
+              "prePop9dPct": 0.36
+            },
+            "flags": [
+              "weak_pop_close_location"
+            ],
+            "setup": "kell_wedge_pop",
+            "stage": "wedge_pop",
+            "ticker": "PSMT"
           }
         ],
         "note": "These are non-canonical execution-quality observations. They do not downgrade an otherwise structurally valid Kell setup."
@@ -240,8 +302,8 @@
   "modelVersion": "kell-overlay-v5-quality-readiness-context",
   "schemaVersion": "kell-signal-validation-v1",
   "source": {
-    "runId": "2026-11-17-eod-44227241477-1",
-    "sessionDate": "2026-11-17"
+    "runId": "2026-11-18-eod-44446211238-1",
+    "sessionDate": "2026-11-18"
   },
   "universePreserved": true
 }
