@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "weekly-birth-shadow-audit-v1",
+  "sessionDate": "2026-11-20",
+  "runId": "2026-11-20-eod-44857076021-1",
+  "unifiedManifestSha256": "7f4e4596b74ad3a77cb4b55f8ff099c1f722cf6e7be47431fbe715f0f62adf45",
+  "evaluatedCount": 2573,
+  "eligibleCount": 34,
+  "selectedCount": 15,
+  "stageCounts": {
+    "Compressed": 8,
+    "Ready": 5,
+    "Trigger": 2
+  },
+  "rejectionReasonCounts": {
+    "aboveSma30w": 294,
+    "bar_session_mismatch": 2,
+    "clearRunway": 217,
+    "launchNotChased": 107,
+    "maSlopeTurn": 194,
+    "no_recent_52_to_104_week_base": 1912,
+    "notExtended": 35,
+    "recentBaseTight": 243,
+    "weeklyMaNear": 112,
+    "weekly_history_under_156_weeks": 152
+  },
+  "added": [
+    "BANF",
+    "CB",
+    "ECL",
+    "GATX",
+    "HIG",
+    "IDA",
+    "ITW",
+    "MSCI",
+    "ORI",
+    "ORLY"
+  ],
+  "removed": [
+    "BSM",
+    "DRI",
+    "DUK",
+    "IBCP",
+    "JOE",
+    "LLYVA",
+    "NATL",
+    "OBDC",
+    "SO",
+    "SWX"
+  ],
+  "previousSessionDate": "2026-11-19",
+  "selected": [
+    {
+      "ticker": "TXNM",
+      "stage": "Trigger",
+      "score": 87.2,
+      "baseWeeks": 66,
+      "baseDepthPct": 7.13,
+      "weeklyMaClusterPct": 1.16,
+      "recentBaseRangePct26w": 4.37,
+      "runwayPct": null,
+      "extensionPct": 1.95
+    },
+    {
+      "ticker": "CB",
+      "stage": "Trigger",
+      "score": 70.8,
+      "baseWeeks": 54,
+      "baseDepthPct": 22.68,
+      "weeklyMaClusterPct": 5.51,
+      "recentBaseRangePct26w": 13.96,
+      "runwayPct": null,
+      "extensionPct": 7.34
+    },
+    {
+      "ticker": "FTS",
+      "stage": "Ready",
+      "score": 83.9,
+      "baseWeeks": 61,
+      "baseDepthPct": 17.68,
+      "weeklyMaClusterPct": 1.84,
+      "recentBaseRangePct26w": 9.77,
+      "runwayPct": null,
+      "extensionPct": 4.32
+    },
+    {
+      "ticker": "CPK",
+      "stage": "Ready",
+      "score": 82.2,
+      "baseWeeks": 85,
+      "baseDepthPct": 20.42,
+      "weeklyMaClusterPct": 4.24,
+      "recentBaseRangePct26w": 11.18,
+      "runwayPct": null,
+      "extensionPct": 4.65
+    },
+    {
+      "ticker": "MSCI",
+      "stage": "Ready",
+      "score": 76.4,
+      "baseWeeks": 68,
+      "baseDepthPct": 22.87,
+      "weeklyMaClusterPct": 4.77,
+      "recentBaseRangePct26w": 15.34,
+      "runwayPct": null,
+      "extensionPct": 4.08
+    },
+    {
+      "ticker": "UCB",
+      "stage": "Ready",
+      "score": 75.0,
+      "baseWeeks": 67,
+      "baseDepthPct": 24.72,
+      "weeklyMaClusterPct": 5.16,
+      "recentBaseRangePct26w": 13.37,
+      "runwayPct": null,
+      "extensionPct": 0.81
+    },
+    {
+      "ticker": "ECL",
+      "stage": "Ready",
+      "score": 73.9,
+      "baseWeeks": 68,
+      "baseDepthPct": 21.17,
+      "weeklyMaClusterPct": 5.58,
+      "recentBaseRangePct26w": 13.88,
+      "runwayPct": null,
+      "extensionPct": 4.99
+    },
+    {
+      "ticker": "ORLY",
+      "stage": "Compressed",
+      "score": 79.8,
+      "baseWeeks": 93,
+      "baseDepthPct": 24.03,
+      "weeklyMaClusterPct": 0.83,
+      "recentBaseRangePct26w": 12.37,
+      "runwayPct": null,
+      "extensionPct": 3.55
+    },
+    {
+      "ticker": "BANF",
+      "stage": "Compressed",
+      "score": 79.1,
+      "baseWeeks": 104,
+      "baseDepthPct": 30.34,
+      "weeklyMaClusterPct": 1.9,
+      "recentBaseRangePct26w": 8.79,
+      "runwayPct": null,
+      "extensionPct": 5.88
+    },
+    {
+      "ticker": "ITW",
+      "stage": "Compressed",
+      "score": 78.2,
+      "baseWeeks": 104,
+      "baseDepthPct": 29.19,
+      "weeklyMaClusterPct": 2.16,
+      "recentBaseRangePct26w": 16.65,
+      "runwayPct": null,
+      "extensionPct": 0.35
+    },
+    {
+      "ticker": "HIG",
+      "stage": "Compressed",
+      "score": 77.1,
+      "baseWeeks": 74,
+      "baseDepthPct": 19.52,
+      "weeklyMaClusterPct": 0.22,
+      "recentBaseRangePct26w": 12.92,
+      "runwayPct": null,
+      "extensionPct": 1.74
+    },
+    {
+      "ticker": "ORI",
+      "stage": "Compressed",
+      "score": 75.5,
+      "baseWeeks": 77,
+      "baseDepthPct": 26.85,
+      "weeklyMaClusterPct": 0.97,
+      "recentBaseRangePct26w": 14.57,
+      "runwayPct": null,
+      "extensionPct": 0.16
+    },
+    {
+      "ticker": "AIG",
+      "stage": "Compressed",
+      "score": 75.4,
+      "baseWeeks": 104,
+      "baseDepthPct": 22.34,
+      "weeklyMaClusterPct": 3.07,
+      "recentBaseRangePct26w": 8.4,
+      "runwayPct": null,
+      "extensionPct": 2.67
+    },
+    {
+      "ticker": "IDA",
+      "stage": "Compressed",
+      "score": 73.5,
+      "baseWeeks": 65,
+      "baseDepthPct": 22.57,
+      "weeklyMaClusterPct": 0.67,
+      "recentBaseRangePct26w": 15.51,
+      "runwayPct": null,
+      "extensionPct": 0.41
+    },
+    {
+      "ticker": "GATX",
+      "stage": "Compressed",
+      "score": 73.4,
+      "baseWeeks": 66,
+      "baseDepthPct": 27.35,
+      "weeklyMaClusterPct": 0.8,
+      "recentBaseRangePct26w": 14.83,
+      "runwayPct": null,
+      "extensionPct": 0.88
+    }
+  ],
+  "manualChartReviewComplete": false
+}

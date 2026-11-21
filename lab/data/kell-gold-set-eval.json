@@ -892,14 +892,14 @@
     }
   },
   "source": {
-    "runId": "2026-11-19-eod-44661041558-1",
-    "sessionDate": "2026-11-19",
-    "unifiedManifestSha256": "4baac3d9971420067896206ac7dd040d4acc4e1b95694b546b2aaee014db3e8e"
+    "runId": "2026-11-20-eod-44857076021-1",
+    "sessionDate": "2026-11-20",
+    "unifiedManifestSha256": "7f4e4596b74ad3a77cb4b55f8ff099c1f722cf6e7be47431fbe715f0f62adf45"
   },
   "summary": {
     "acceptedPrecisionPct": 88.5,
     "addedFromBaseline": 0,
-    "availableSessionCount": 50,
+    "availableSessionCount": 51,
     "baselinePredicted": 26,
     "currentPredicted": 26,
     "evaluated": 28,
@@ -917,7 +917,7 @@
     "observedFalseNegatives": 2,
     "observedFalsePositives": 3,
     "positiveRecallPct": 92.0,
-    "rawSnapshotSessionCount": 43,
+    "rawSnapshotSessionCount": 44,
     "rescoredRowCount": 4,
     "reviewed": 28,
     "sessionsWithFalseNegatives": 1,
