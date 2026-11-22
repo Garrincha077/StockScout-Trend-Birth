@@ -62,10 +62,11 @@ def verify_unified() -> tuple[str, str, int]:
     if active.get("status") != "healthy" or not match or match.group(1) != session:
         raise RuntimeError(f"Upstream public manifest not an exact healthy EOD publication: {session} {run_id}")
     run_number = int(match.group(2))
-    run = json_request(f"{API}/repos/{UPSTREAM}/actions/runs/{run_number}")
+    # Use the workflow token for Actions API reads; anonymous API requests hit 60/hour limits.
+    run = github(f"/repos/{UPSTREAM}/actions/runs/{run_number}")
     if (run.get("status"), run.get("conclusion"), run.get("head_branch")) != ("completed", "success", "main"):
         raise RuntimeError(f"Upstream EOD run is not complete and successful: {run.get('html_url')}")
-    jobs_data = json_request(f"{API}/repos/{UPSTREAM}/actions/runs/{run_number}/jobs?per_page=100")
+    jobs_data = github(f"/repos/{UPSTREAM}/actions/runs/{run_number}/jobs?per_page=100")
     jobs = {job["name"]: job for job in jobs_data.get("jobs", [])}
     for name, step in (
         ("deploy-pages / smoke", "Verify exact remote run and every mode hash"),
