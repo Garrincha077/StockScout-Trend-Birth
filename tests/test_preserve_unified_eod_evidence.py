@@ -44,8 +44,8 @@ class EvidenceTests(unittest.TestCase):
     def test_exact_source_identity_verified_for_all_four_manifests(self):
         with tempfile.TemporaryDirectory() as d:
             identity = evidence.verify_pages_bundle(make_zip(Path(d), self.source), self.source)
-        self.assertEqual(identity["sessionDate"], "2026-10-15")
-        self.assertEqual(identity["runId"], "2026-10-15-eod-38825335004-1")
+        self.assertEqual(identity["sessionDate"], self.source["sessionDate"])
+        self.assertEqual(identity["runId"], self.source["sessionDate"] + "-eod-" + str(self.source["workflowRunId"]) + "-1")
         self.assertEqual(len(identity["verifiedManifestPaths"]), 4)
 
     def test_mismatched_session_is_rejected(self):

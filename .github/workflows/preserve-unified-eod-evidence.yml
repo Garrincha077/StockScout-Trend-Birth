@@ -4,7 +4,7 @@ name: Preserve exact missing Unified EOD evidence
 on:
   push:
     branches:
-      - "feature/tb-eod-artifact-preservation-20261025"
+      - "feature/tb-eod-artifact-preservation-20261128"
     paths:
       - ".github/workflows/preserve-unified-eod-evidence.yml"
   workflow_dispatch:
@@ -33,12 +33,12 @@ jobs:
           python-version: "3.12"
       - name: Fail-closed original artifact evidence tests
         run: python -m unittest discover -s tests -p test_preserve_unified_eod_evidence.py -v
-      - name: Reuse already preserved draft release without re-downloading 322 MB
+      - name: Reuse already preserved draft release without re-downloading original ZIPs
         id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          evidence_tag="tb-eod-source-evidence-2026-10-25"
+          evidence_tag="tb-eod-source-evidence-2026-11-28"
           if gh release view "$evidence_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             mkdir -p "$RUNNER_TEMP/tb-source-evidence"
             gh release download "$evidence_tag" --repo "$GITHUB_REPOSITORY" \
@@ -60,22 +60,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          evidence_tag="tb-eod-source-evidence-2026-10-25"
+          evidence_tag="tb-eod-source-evidence-2026-11-28"
           if gh release view "$evidence_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Evidence tag already exists; refusing to rewrite existing assets."
             exit 1
           fi
           gh release create "$evidence_tag" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
-            --title "Original Unified EOD evidence: Oct 15 and 19, 2026" \
+            --title "Original Unified EOD evidence: Nov 23, 24, 25 and 27, 2026" \
             --notes "Preserved original upstream Pages artifacts with pinned source run, ZIP SHA256 and point-in-time manifest verification. Evidence only; not an EOD stage/outcome backfill. Draft deliberately avoids public redistribution."
       - name: Upload exact ZIP bytes and signed-off provenance manifest
         if: steps.reuse.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload tb-eod-source-evidence-2026-10-25 \
-            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-10-15-pages.zip" \
-            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-10-19-pages.zip" \
+          gh release upload tb-eod-source-evidence-2026-11-28 \
+            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-11-23-pages.zip" \
+            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-11-24-pages.zip" \
+            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-11-25-pages.zip" \
+            "$RUNNER_TEMP/tb-source-evidence/unified-eod-2026-11-27-pages.zip" \
             "$RUNNER_TEMP/tb-source-evidence/source-evidence-manifest.json" \
             --repo "$GITHUB_REPOSITORY"
       - name: Verify remote draft release asset count, byte sizes and SHA256

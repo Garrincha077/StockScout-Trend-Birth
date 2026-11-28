@@ -18,27 +18,47 @@ import tarfile
 import zipfile
 
 SOURCE_REPO = "Garrincha077/StockScout-Unified"
-RELEASE_TAG = "tb-eod-source-evidence-2026-10-25"
+RELEASE_TAG = "tb-eod-source-evidence-2026-11-28"
 SOURCES = (
     {
-        "sessionDate": "2026-10-15",
-        "workflowRunId": 38825335004,
-        "headSha": "fc3950f70a9f04084e9e6de4e7bd7fade7abcc1e",
-        "artifactId": 12016667723,
+        "sessionDate": "2026-11-23",
+        "workflowRunId": 45361079072,
+        "headSha": "79281c5178837075e6938fd83146782de924b48b",
+        "artifactId": 14908740778,
         "artifactName": "github-pages",
-        "artifactSize": 162020086,
-        "artifactDigest": "sha256:b8595b0e05da8d41cf8523b94b5d799a7e911efa697206cf84c97ed4e4f25e7a",
-        "expiresAt": "2026-10-30T00:33:56Z",
+        "artifactSize": 160438581,
+        "artifactDigest": "sha256:dd28f03b52d3657bf0545d3dd71488541f829639b033ddd276ed14ce870053b9",
+        "expiresAt": "2026-12-08T09:49:42Z"
     },
     {
-        "sessionDate": "2026-10-19",
-        "workflowRunId": 39347937228,
-        "headSha": "512207547dfd8d6f15fda3ef70f92299e43313f8",
-        "artifactId": 12235521722,
+        "sessionDate": "2026-11-24",
+        "workflowRunId": 45546702411,
+        "headSha": "79281c5178837075e6938fd83146782de924b48b",
+        "artifactId": 14993531122,
         "artifactName": "github-pages",
-        "artifactSize": 159822532,
-        "artifactDigest": "sha256:5e7041b976d902d12f6f5e84d84591d230ed9ee9e10df805e198cca41c9cf103",
-        "expiresAt": "2026-11-03T01:56:55Z",
+        "artifactSize": 161210718,
+        "artifactDigest": "sha256:2c7f9201cc3bad967b3c28d81eda2d906b9bf13c9a7a1f67acbcb254d3d1fb80",
+        "expiresAt": "2026-12-09T05:03:05Z"
+    },
+    {
+        "sessionDate": "2026-11-25",
+        "workflowRunId": 45750493320,
+        "headSha": "79281c5178837075e6938fd83146782de924b48b",
+        "artifactId": 15088275288,
+        "artifactName": "github-pages",
+        "artifactSize": 162090568,
+        "artifactDigest": "sha256:0541de5aa8ca3df44e190310955cdb6fb64385fd72545354689b728ffd29f3ac",
+        "expiresAt": "2026-12-10T04:36:44Z"
+    },
+    {
+        "sessionDate": "2026-11-27",
+        "workflowRunId": 46102672662,
+        "headSha": "79281c5178837075e6938fd83146782de924b48b",
+        "artifactId": 15247577878,
+        "artifactName": "github-pages",
+        "artifactSize": 162430824,
+        "artifactDigest": "sha256:0f37896b3e1b00f8b857f96190cc5e99908ed787074e46f159dc98450a5a1b61",
+        "expiresAt": "2026-12-12T04:06:25Z"
     },
 )
 REQUIRED_MANIFESTS = (
@@ -169,7 +189,7 @@ def verify_release(manifest: dict, repo: str, manifest_path: Path | None = None)
     if (not isinstance(sources, list) or len(sources) != len(SOURCES) or
         any(not isinstance(row, dict) or not isinstance(row.get("sessionDate"), str) for row in sources) or
         {row.get("sessionDate") for row in sources} != {row["sessionDate"] for row in SOURCES}):
-        raise ValueError("Evidence manifest must contain both pinned source sessions exactly once")
+        raise ValueError("Evidence manifest must contain all pinned source sessions exactly once")
     by_day = {row["sessionDate"]: row for row in sources}
     expected = []
     for pinned in SOURCES:
